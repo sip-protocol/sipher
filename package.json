@@ -1,0 +1,61 @@
+{
+  "name": "sipher",
+  "version": "0.1.0",
+  "description": "Privacy-as-a-Skill REST API for Solana Agents — powered by SIP Protocol",
+  "author": "SIP Protocol <hello@sip-protocol.org>",
+  "homepage": "https://sipher.sip-protocol.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sip-protocol/sipher.git"
+  },
+  "main": "./dist/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "build": "tsup",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.8.2",
+    "@noble/hashes": "^1.7.2",
+    "@sip-protocol/sdk": "^0.7.3",
+    "@sip-protocol/types": "^0.2.1",
+    "@solana/spl-token": "^0.4.0",
+    "@solana/web3.js": "^1.95.0",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "envalid": "^8.1.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "pino": "^9.6.0",
+    "pino-http": "^10.4.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^25.2.0",
+    "@types/supertest": "^6.0.3",
+    "pino-pretty": "^13.0.0",
+    "supertest": "^7.1.0",
+    "tsup": "^8.3.6",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "keywords": [
+    "sip",
+    "privacy",
+    "solana",
+    "stealth-addresses",
+    "agents",
+    "openclaw",
+    "rest-api"
+  ],
+  "license": "MIT"
+}
