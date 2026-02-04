@@ -100,6 +100,9 @@ app.get('/', (_req, res) => {
       privacy: {
         score: 'POST /v1/privacy/score',
       },
+      rpc: {
+        providers: 'GET /v1/rpc/providers',
+      },
     },
     security: {
       authentication: isAuthEnabled() ? 'enabled' : 'disabled',

@@ -50,6 +50,7 @@ describe('OpenAPI specification', () => {
       '/v1/viewing-key/disclose',
       '/v1/viewing-key/decrypt',
       '/v1/privacy/score',
+      '/v1/rpc/providers',
     ]
 
     for (const path of expectedPaths) {

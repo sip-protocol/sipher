@@ -47,7 +47,7 @@ describe('Health endpoint', () => {
 
   it('GET /v1/health includes endpoint count', async () => {
     const res = await request(app).get('/v1/health')
-    expect(res.body.data.endpoints).toBe(25)
+    expect(res.body.data.endpoints).toBe(26)
   })
 })
 

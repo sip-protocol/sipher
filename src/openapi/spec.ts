@@ -1311,6 +1311,56 @@ export const openApiSpec = {
         },
       },
     },
+    '/v1/rpc/providers': {
+      get: {
+        tags: ['RPC'],
+        summary: 'List supported RPC providers and active configuration',
+        operationId: 'getRpcProviders',
+        security: [{ ApiKeyAuth: [] }],
+        responses: {
+          200: {
+            description: 'Active provider info and supported provider list',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    success: { type: 'boolean' as const, enum: [true] },
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        active: {
+                          type: 'object' as const,
+                          properties: {
+                            provider: { type: 'string' as const, enum: ['generic', 'helius', 'quicknode', 'triton'] },
+                            endpoint: { type: 'string' as const, description: 'Masked RPC endpoint URL' },
+                            connected: { type: 'boolean' as const },
+                            cluster: { type: 'string' as const },
+                            latencyMs: { type: 'number' as const },
+                          },
+                        },
+                        supported: {
+                          type: 'array' as const,
+                          items: {
+                            type: 'object' as const,
+                            properties: {
+                              name: { type: 'string' as const },
+                              description: { type: 'string' as const },
+                              config: { type: 'array' as const, items: { type: 'string' as const } },
+                              url: { type: 'string' as const },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
   tags: [
     { name: 'Health', description: 'Server health, readiness, and error catalog' },
@@ -1320,5 +1370,6 @@ export const openApiSpec = {
     { name: 'Commitment', description: 'Pedersen commitment operations (create, verify, homomorphic add/subtract)' },
     { name: 'Viewing Key', description: 'Viewing key generation, encryption for disclosure, and decryption' },
     { name: 'Privacy', description: 'Wallet privacy analysis and surveillance scoring' },
+    { name: 'RPC', description: 'RPC provider configuration and status' },
   ],
 }
