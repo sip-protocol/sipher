@@ -39,6 +39,16 @@ async function main() {
   const health = await api<any>('/v1/health')
   console.log(`Status: ${health.status}`)
   console.log(`Solana Slot: ${health.solana?.slot ?? 'N/A'}`)
+  console.log(`RPC Latency: ${health.solana?.latencyMs ?? 'N/A'}ms`)
+  console.log(`Memory: ${health.memory?.heapUsedMB ?? 'N/A'} MB heap`)
+
+  // ─── Step 0b: Readiness probe ────────────────────────────────
+  const ready = await api<any>('/v1/ready')
+  console.log(`Ready: ${ready.ready}`)
+
+  // ─── Step 0c: Error catalog ──────────────────────────────────
+  const errors = await api<any>('/v1/errors')
+  console.log(`Error codes: ${errors.totalCodes}`)
 
   // ─── Step 1: Generate stealth keypair (recipient) ──────────────
   section('1. Generate Stealth Keypair (Recipient)')
@@ -52,21 +62,23 @@ async function main() {
   const derived = await api<any>('/v1/stealth/derive', {
     recipientMetaAddress: keys.metaAddress,
   })
-  console.log(`Stealth Address:    ${derived.stealthAddress}`)
-  console.log(`Ephemeral PubKey:   ${derived.ephemeralPublicKey.slice(0, 20)}...`)
-  console.log(`View Tag:           ${derived.viewTag}`)
+  console.log(`Stealth Address:    ${derived.stealthAddress.address.slice(0, 20)}...`)
+  console.log(`Ephemeral PubKey:   ${derived.stealthAddress.ephemeralPublicKey.slice(0, 20)}...`)
+  console.log(`View Tag:           ${derived.stealthAddress.viewTag}`)
   console.log(`Shared Secret:      ${derived.sharedSecret.slice(0, 20)}...`)
 
   // ─── Step 3: Check stealth address (recipient side) ────────────
   section('3. Check Stealth Address (Recipient)')
   const check = await api<any>('/v1/stealth/check', {
-    stealthAddress: derived.stealthAddress,
-    ephemeralPublicKey: derived.ephemeralPublicKey,
+    stealthAddress: {
+      address: derived.stealthAddress.address,
+      ephemeralPublicKey: derived.stealthAddress.ephemeralPublicKey,
+      viewTag: derived.stealthAddress.viewTag,
+    },
+    spendingPrivateKey: keys.spendingPrivateKey,
     viewingPrivateKey: keys.viewingPrivateKey,
-    spendingPublicKey: keys.metaAddress.spendingKey,
-    viewTag: derived.viewTag,
   })
-  console.log(`Belongs to recipient: ${check.belongsToRecipient}`)
+  console.log(`Is owner: ${check.isOwner}`)
 
   // ─── Step 4: Create Pedersen commitment ────────────────────────
   section('4. Create Pedersen Commitment')
@@ -151,7 +163,7 @@ async function main() {
 
   const txData = {
     sender: 'Alice',
-    recipient: derived.stealthAddress,
+    recipient: derived.stealthAddress.address,
     amount: '1000000000',
     timestamp: Math.floor(Date.now() / 1000),
   }
@@ -189,10 +201,38 @@ async function main() {
   console.log(`Payments found: ${scanned.payments.length}`)
   console.log('(None expected in demo — no on-chain transactions)')
 
+  // ─── Step 9: Idempotency verification ──────────────────────────
+  section('9. Idempotency Key Verification')
+  const idempotencyKey = crypto.randomUUID()
+  const first = await fetch(`${BASE}/v1/commitment/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({ value: '999' }),
+  })
+  const firstData = await first.json()
+  console.log(`First request:  ${firstData.data.commitment.slice(0, 20)}...`)
+
+  const second = await fetch(`${BASE}/v1/commitment/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({ value: '999' }),
+  })
+  const secondData = await second.json()
+  const replayed = second.headers.get('idempotency-replayed')
+  console.log(`Second request: ${secondData.data.commitment.slice(0, 20)}...`)
+  console.log(`Replayed: ${replayed}`)
+  console.log(`Same response: ${firstData.data.commitment === secondData.data.commitment}`)
+
   // ─── Done ──────────────────────────────────────────────────────
   section('Demo Complete')
   console.log('All steps executed successfully.')
-  console.log('Endpoints demonstrated: 12')
+  console.log('Endpoints demonstrated: 15')
   console.log('')
   console.log('In production, the transfer/shield transaction would be')
   console.log('signed by the sender\'s wallet and submitted to Solana.')
