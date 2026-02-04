@@ -356,6 +356,18 @@ Content-Type: application/json
 
 ---
 
+### RPC Providers
+
+```
+GET /v1/rpc/providers  → Active provider, supported list, configuration guidance
+```
+
+Returns: `active` (provider name, cluster, endpoint, connected, latencyMs), `supported` (array of 4 providers with config details), `configuration` (env var names).
+
+Supported providers: `generic` (any Solana RPC), `helius`, `quicknode`, `triton`. Configure via `RPC_PROVIDER` and `RPC_PROVIDER_API_KEY` env vars.
+
+---
+
 ### Privacy Score
 
 Analyze any Solana wallet's on-chain privacy posture.
