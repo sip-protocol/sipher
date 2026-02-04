@@ -14,21 +14,22 @@ export function getConnection(): Connection {
   return connection
 }
 
-export async function checkSolanaHealth(): Promise<{
+export interface SolanaHealthResult {
   connected: boolean
   cluster: string
   slot?: number
-}> {
+  latencyMs?: number
+}
+
+export async function checkSolanaHealth(): Promise<SolanaHealthResult> {
   try {
     const conn = getConnection()
+    const start = performance.now()
     const slot = await conn.getSlot()
-    const endpoint = conn.rpcEndpoint
-    let cluster = 'mainnet-beta'
-    if (endpoint.includes('devnet')) cluster = 'devnet'
-    else if (endpoint.includes('testnet')) cluster = 'testnet'
-    else if (endpoint.includes('localhost') || endpoint.includes('127.0.0.1')) cluster = 'localnet'
+    const latencyMs = Math.round(performance.now() - start)
+    const cluster = detectCluster(conn.rpcEndpoint)
 
-    return { connected: true, cluster, slot }
+    return { connected: true, cluster, slot, latencyMs }
   } catch {
     return { connected: false, cluster: 'unknown' }
   }

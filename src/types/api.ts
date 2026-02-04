@@ -17,5 +17,11 @@ export interface HealthResponse {
     connected: boolean
     cluster: string
     slot?: number
+    latencyMs?: number
   }
+  memory: {
+    heapUsedMB: number
+    rssMB: number
+  }
+  endpoints: number
 }

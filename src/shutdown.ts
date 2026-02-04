@@ -60,7 +60,7 @@ export function shutdownMiddleware(
   next: () => void
 ): void {
   if (isShuttingDown) {
-    if (req.path === '/v1/health') return next()
+    if (req.path === '/v1/health' || req.path === '/v1/ready') return next()
     res.status(503).json({
       success: false,
       error: { code: 'SERVICE_UNAVAILABLE', message: 'Server is shutting down' },

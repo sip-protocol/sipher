@@ -4,7 +4,7 @@ import { env } from '../config.js'
 
 const API_KEYS = env.API_KEYS.split(',').filter(Boolean)
 const AUTH_ENABLED = env.API_KEYS.length > 0 && (env.isProduction || env.API_KEYS !== '')
-const SKIP_PATHS = ['/', '/skill.md', '/v1/health']
+const SKIP_PATHS = ['/', '/skill.md', '/v1/health', '/v1/ready', '/v1/errors']
 
 function safeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) return false
