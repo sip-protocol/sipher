@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { logger } from '../logger.js'
 import { env } from '../config.js'
+import { ErrorCode } from '../errors/codes.js'
 
 export function errorHandler(
   err: Error,
@@ -20,7 +21,7 @@ export function errorHandler(
     res.status(400).json({
       success: false,
       error: {
-        code: 'INVALID_JSON',
+        code: ErrorCode.INVALID_JSON,
         message: 'Request body is not valid JSON',
       },
     })
@@ -32,7 +33,7 @@ export function errorHandler(
     res.status(400).json({
       success: false,
       error: {
-        code: (err as any).code || 'VALIDATION_ERROR',
+        code: (err as any).code || ErrorCode.VALIDATION_ERROR,
         message: err.message,
         details: (err as any).field ? { field: (err as any).field } : undefined,
       },
@@ -43,7 +44,7 @@ export function errorHandler(
   res.status(500).json({
     success: false,
     error: {
-      code: 'INTERNAL_SERVER_ERROR',
+      code: ErrorCode.INTERNAL_SERVER_ERROR,
       message: 'An unexpected error occurred',
       details: env.isDevelopment ? err.message : undefined,
     },
@@ -54,7 +55,7 @@ export function notFoundHandler(req: Request, res: Response) {
   res.status(404).json({
     success: false,
     error: {
-      code: 'NOT_FOUND',
+      code: ErrorCode.NOT_FOUND,
       message: `Route ${req.method} ${req.path} not found`,
     },
   })
