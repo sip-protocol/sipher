@@ -383,6 +383,63 @@ Returns: `score` (0-100), `grade` (A-F), `factors` (addressReuse, amountPatterns
 
 ---
 
+### Confidential SPL Tokens (C-SPL)
+
+Wrap, unwrap, and transfer SPL tokens with encrypted (hidden) amounts using Solana's Confidential Transfer extension.
+
+#### Wrap SPL → Confidential
+
+```
+POST /v1/cspl/wrap
+Content-Type: application/json
+
+{
+  "mint": "<SPL token mint address>",
+  "amount": "1000000000",
+  "owner": "<base58 Solana address>",
+  "createAccount": true
+}
+```
+
+Returns: `signature`, `csplMint`, `encryptedBalance` (hex), `token` metadata.
+
+#### Unwrap Confidential → SPL
+
+```
+POST /v1/cspl/unwrap
+Content-Type: application/json
+
+{
+  "csplMint": "C-wSOL",
+  "encryptedAmount": "0x...",
+  "owner": "<base58 Solana address>",
+  "proof": "0x..."
+}
+```
+
+Returns: `signature`, `amount` (decrypted, as string).
+
+#### Confidential Transfer
+
+```
+POST /v1/cspl/transfer
+Content-Type: application/json
+
+{
+  "csplMint": "C-USDC",
+  "from": "<base58>",
+  "to": "<base58>",
+  "encryptedAmount": "0x...",
+  "memo": "payment for services"
+}
+```
+
+Returns: `signature`, `newSenderBalance` (hex), `recipientPendingUpdated`.
+
+Supported tokens: `C-wSOL`, `C-USDC`, `C-USDT`. All C-SPL endpoints support `Idempotency-Key` header.
+
+---
+
 ## Idempotency
 
 Mutation endpoints (`/transfer/shield`, `/transfer/claim`, `/commitment/create`, `/viewing-key/disclose`) support the `Idempotency-Key` header. Send a UUID v4 value to safely retry requests — duplicate keys return the cached response with `Idempotency-Replayed: true` header.

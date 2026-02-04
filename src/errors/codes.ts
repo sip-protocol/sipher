@@ -39,6 +39,9 @@ export enum ErrorCode {
   PROOF_GENERATION_FAILED = 'PROOF_GENERATION_FAILED',
   PROOF_VERIFICATION_FAILED = 'PROOF_VERIFICATION_FAILED',
 
+  // 400 — C-SPL errors
+  CSPL_OPERATION_FAILED = 'CSPL_OPERATION_FAILED',
+
   // 500 — Privacy scoring
   PRIVACY_SCORE_FAILED = 'PRIVACY_SCORE_FAILED',
 
@@ -198,6 +201,14 @@ export const ERROR_CATALOG: ErrorCatalogEntry[] = [
     code: ErrorCode.PROOF_VERIFICATION_FAILED,
     httpStatus: 400,
     description: 'ZK proof verification failed. The proof may be invalid or tampered.',
+    retryable: false,
+  },
+
+  // 400 — C-SPL errors
+  {
+    code: ErrorCode.CSPL_OPERATION_FAILED,
+    httpStatus: 400,
+    description: 'Confidential SPL token operation failed. Check input parameters (e.g., unregistered mint, zero amount).',
     retryable: false,
   },
 

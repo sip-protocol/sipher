@@ -24,7 +24,7 @@ router.get('/health', async (_req: Request, res: Response) => {
         heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024 * 100) / 100,
         rssMB: Math.round(mem.rss / 1024 / 1024 * 100) / 100,
       },
-      endpoints: 32,
+      endpoints: 35,
     },
   })
 })

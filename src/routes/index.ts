@@ -9,6 +9,7 @@ import errorsRouter from './errors.js'
 import privacyRouter from './privacy.js'
 import rpcRouter from './rpc.js'
 import proofsRouter from './proofs.js'
+import csplRouter from './cspl.js'
 
 const router = Router()
 
@@ -22,5 +23,6 @@ router.use(errorsRouter)
 router.use(privacyRouter)
 router.use(rpcRouter)
 router.use(proofsRouter)
+router.use(csplRouter)
 
 export default router

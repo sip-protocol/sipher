@@ -57,6 +57,9 @@ describe('OpenAPI specification', () => {
       '/v1/proofs/validity/verify',
       '/v1/proofs/fulfillment/generate',
       '/v1/proofs/fulfillment/verify',
+      '/v1/cspl/wrap',
+      '/v1/cspl/unwrap',
+      '/v1/cspl/transfer',
     ]
 
     for (const path of expectedPaths) {
@@ -86,6 +89,7 @@ describe('OpenAPI specification', () => {
     expect(tagNames).toContain('Commitment')
     expect(tagNames).toContain('Viewing Key')
     expect(tagNames).toContain('Proofs')
+    expect(tagNames).toContain('C-SPL')
   })
 })
 

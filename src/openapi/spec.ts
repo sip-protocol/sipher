@@ -1643,6 +1643,158 @@ export const openApiSpec = {
       },
     },
 
+    // ─── C-SPL ──────────────────────────────────────────────────────────────
+    '/v1/cspl/wrap': {
+      post: {
+        summary: 'Wrap SPL tokens into confidential balance',
+        description: 'Wraps standard SPL tokens into a confidential (C-SPL) balance with encrypted amounts.',
+        tags: ['C-SPL'],
+        operationId: 'csplWrap',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  mint: { ...solanaAddress, description: 'SPL token mint address' },
+                  amount: positiveIntString,
+                  owner: solanaAddress,
+                  createAccount: { type: 'boolean', default: true, description: 'Create C-SPL account if missing' },
+                },
+                required: ['mint', 'amount', 'owner'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Tokens wrapped into confidential balance',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        signature: { type: 'string', description: 'Transaction signature' },
+                        csplMint: { type: 'string', description: 'Confidential token mint address' },
+                        encryptedBalance: { type: 'string', pattern: '^0x[0-9a-fA-F]+$', description: 'Encrypted balance as hex' },
+                        token: { type: 'object', description: 'C-SPL token metadata' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation or operation error', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+
+    '/v1/cspl/unwrap': {
+      post: {
+        summary: 'Unwrap confidential tokens back to SPL',
+        description: 'Unwraps confidential (C-SPL) tokens back to standard SPL token balance.',
+        tags: ['C-SPL'],
+        operationId: 'csplUnwrap',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  csplMint: { type: 'string', description: 'C-SPL token mint identifier' },
+                  encryptedAmount: { type: 'string', pattern: '^0x[0-9a-fA-F]+$', description: 'Encrypted amount as hex' },
+                  owner: solanaAddress,
+                  proof: { type: 'string', pattern: '^0x[0-9a-fA-F]+$', description: 'Optional proof of ownership' },
+                },
+                required: ['csplMint', 'encryptedAmount', 'owner'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Tokens unwrapped',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        signature: { type: 'string', description: 'Transaction signature' },
+                        amount: { type: 'string', description: 'Decrypted amount as string' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation or operation error', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+
+    '/v1/cspl/transfer': {
+      post: {
+        summary: 'Confidential token transfer',
+        description: 'Transfers confidential (C-SPL) tokens with hidden amount between accounts.',
+        tags: ['C-SPL'],
+        operationId: 'csplTransfer',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  csplMint: { type: 'string', description: 'C-SPL token mint identifier' },
+                  from: solanaAddress,
+                  to: solanaAddress,
+                  encryptedAmount: { type: 'string', pattern: '^0x[0-9a-fA-F]+$', description: 'Encrypted transfer amount as hex' },
+                  memo: { type: 'string', maxLength: 256, description: 'Optional memo' },
+                },
+                required: ['csplMint', 'from', 'to', 'encryptedAmount'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Confidential transfer completed',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        signature: { type: 'string', description: 'Transaction signature' },
+                        newSenderBalance: { type: 'string', pattern: '^0x[0-9a-fA-F]+$', description: 'Updated sender encrypted balance' },
+                        recipientPendingUpdated: { type: 'boolean', description: 'Whether recipient pending balance was updated' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation or operation error', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+
     '/v1/proofs/fulfillment/verify': {
       post: {
         summary: 'Verify fulfillment proof',
@@ -1698,5 +1850,6 @@ export const openApiSpec = {
     { name: 'Privacy', description: 'Wallet privacy analysis and surveillance scoring' },
     { name: 'RPC', description: 'RPC provider configuration and status' },
     { name: 'Proofs', description: 'ZK proof generation and verification (funding, validity, fulfillment)' },
+    { name: 'C-SPL', description: 'Confidential SPL token operations (wrap, unwrap, transfer)' },
   ],
 }

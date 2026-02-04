@@ -111,6 +111,11 @@ app.get('/', (_req, res) => {
         fulfillmentGenerate: 'POST /v1/proofs/fulfillment/generate',
         fulfillmentVerify: 'POST /v1/proofs/fulfillment/verify',
       },
+      cspl: {
+        wrap: 'POST /v1/cspl/wrap',
+        unwrap: 'POST /v1/cspl/unwrap',
+        transfer: 'POST /v1/cspl/transfer',
+      },
     },
     security: {
       authentication: isAuthEnabled() ? 'enabled' : 'disabled',
