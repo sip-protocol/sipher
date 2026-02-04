@@ -3,7 +3,8 @@
 > Add stealth addresses, hidden amounts, and compliance viewing keys to any Solana transaction.
 
 **Base URL:** `https://sipher.sip-protocol.org`
-**Auth:** `X-API-Key: <your-key>` header (skip for `GET /`, `GET /skill.md`, `GET /v1/health`)
+**Auth:** `X-API-Key: <your-key>` header (skip for `GET /`, `GET /skill.md`, `GET /v1/health`, `GET /v1/ready`, `GET /v1/errors`)
+**Docs:** Interactive API docs at `/docs` | OpenAPI spec at `/v1/openapi.json`
 
 ---
 
@@ -14,7 +15,8 @@ Sipher wraps [SIP Protocol](https://sip-protocol.org)'s privacy SDK as a REST AP
 1. **Generate stealth addresses** — one-time recipient addresses that prevent on-chain linkability
 2. **Create shielded transfers** — build unsigned Solana transactions with hidden recipients via stealth addresses and hidden amounts via Pedersen commitments
 3. **Scan for payments** — detect incoming shielded payments using viewing keys
-4. **Selective disclosure** — encrypt transaction data for auditors/compliance using viewing keys
+4. **Selective disclosure** — encrypt/decrypt transaction data for auditors/compliance using viewing keys
+5. **Homomorphic commitment math** — add and subtract commitments without revealing values
 
 All privacy operations use:
 - **Stealth addresses** (ed25519 DKSAP) — unlinkable one-time addresses
@@ -27,13 +29,15 @@ All privacy operations use:
 
 All responses follow: `{ success: boolean, data?: T, error?: { code, message, details? } }`
 
-### Health
+### Health & Meta
 
 ```
-GET /v1/health
+GET /v1/health        → Server status, Solana RPC latency, memory usage
+GET /v1/ready         → Readiness probe (200 if healthy, 503 otherwise)
+GET /v1/errors        → Full error code catalog with retry guidance
+GET /v1/openapi.json  → OpenAPI 3.1 specification
+GET /docs             → Interactive Swagger UI
 ```
-
-Returns server status and Solana RPC connection health.
 
 ---
 
@@ -89,6 +93,8 @@ Returns: `{ isOwner: boolean }`
 ---
 
 ### Shielded Transfers
+
+Mutation endpoints support `Idempotency-Key` header (UUID v4) for safe retries.
 
 #### Build Shielded Transfer (Unsigned)
 
@@ -176,20 +182,52 @@ Content-Type: application/json
 
 Returns: `{ valid: boolean }`
 
+#### Add Commitments (Homomorphic)
+
+```
+POST /v1/commitment/add
+Content-Type: application/json
+
+{
+  "commitmentA": "0x...",
+  "commitmentB": "0x...",
+  "blindingA": "0x...",
+  "blindingB": "0x..."
+}
+```
+
+Returns: combined `commitment` and `blindingFactor` representing sum of hidden values.
+
+#### Subtract Commitments (Homomorphic)
+
+```
+POST /v1/commitment/subtract
+Content-Type: application/json
+
+{
+  "commitmentA": "0x...",
+  "commitmentB": "0x...",
+  "blindingA": "0x...",
+  "blindingB": "0x..."
+}
+```
+
+Returns: combined `commitment` and `blindingFactor` representing difference of hidden values.
+
 ---
 
 ### Viewing Keys
 
-#### Generate from Spending Key
+#### Generate Viewing Key
 
 ```
 POST /v1/viewing-key/generate
 Content-Type: application/json
 
-{ "spendingPrivateKey": "0x..." }
+{ "path": "m/0" }
 ```
 
-Returns: viewing key with `privateKey`, `publicKey`, `hash`, `createdAt`
+Returns: viewing key with `key`, `path`, `hash`
 
 #### Encrypt for Disclosure
 
@@ -199,22 +237,48 @@ Content-Type: application/json
 
 {
   "viewingKey": {
-    "privateKey": "0x...",
-    "publicKey": "0x...",
-    "hash": "0x...",
-    "createdAt": 1706000000000
+    "key": "0x...",
+    "path": "m/0",
+    "hash": "0x..."
   },
   "transactionData": {
     "sender": "<address>",
     "recipient": "<stealth address>",
     "amount": "1000000000",
-    "mint": "<mint or null>",
     "timestamp": 1706000000000
   }
 }
 ```
 
 Returns encrypted payload (ciphertext, nonce, viewingKeyHash) that only the viewing key holder can decrypt.
+
+#### Decrypt with Viewing Key
+
+```
+POST /v1/viewing-key/decrypt
+Content-Type: application/json
+
+{
+  "viewingKey": {
+    "key": "0x...",
+    "path": "m/0",
+    "hash": "0x..."
+  },
+  "encrypted": {
+    "ciphertext": "0x...",
+    "nonce": "0x...",
+    "viewingKeyHash": "0x..."
+  }
+}
+```
+
+Returns decrypted transaction data: `sender`, `recipient`, `amount`, `timestamp`.
+
+---
+
+## Idempotency
+
+Mutation endpoints (`/transfer/shield`, `/transfer/claim`, `/commitment/create`, `/viewing-key/disclose`) support the `Idempotency-Key` header. Send a UUID v4 value to safely retry requests — duplicate keys return the cached response with `Idempotency-Replayed: true` header.
 
 ---
 
@@ -228,6 +292,7 @@ Returns encrypted payload (ciphertext, nonce, viewingKeyHash) that only the view
 5. Agent scans for incoming payments → POST /v1/scan/payments
 6. Agent claims funds to real wallet → POST /v1/transfer/claim
 7. If audit needed → POST /v1/viewing-key/disclose
+8. Auditor decrypts → POST /v1/viewing-key/decrypt
 ```
 
 ---

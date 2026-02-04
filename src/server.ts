@@ -63,8 +63,12 @@ app.get('/', (_req, res) => {
     version: '0.1.0',
     description: 'Privacy-as-a-Skill REST API for Solana Agents — powered by SIP Protocol',
     documentation: '/skill.md',
+    docs: '/docs',
+    openapi: '/v1/openapi.json',
     endpoints: {
       health: 'GET /v1/health',
+      ready: 'GET /v1/ready',
+      errors: 'GET /v1/errors',
       stealth: {
         generate: 'POST /v1/stealth/generate',
         derive: 'POST /v1/stealth/derive',
@@ -141,8 +145,9 @@ const server = app.listen(env.PORT, () => {
 ║  Auth: ${(isAuthEnabled() ? 'ENABLED' : 'disabled').padEnd(44)}║
 ║  Solana: ${env.SOLANA_RPC_URL.slice(0, 42).padEnd(42)}║
 ╠════════════════════════════════════════════════════╣
-║  Docs: http://localhost:${String(env.PORT).padEnd(26)}║
+║  Docs: http://localhost:${String(env.PORT)}/docs${' '.repeat(18)}║
 ║  Skill: http://localhost:${String(env.PORT)}/skill.md${' '.repeat(13)}║
+║  API:   http://localhost:${String(env.PORT)}/v1/openapi.json${' '.repeat(5)}║
 ╚════════════════════════════════════════════════════╝
     `)
   }
