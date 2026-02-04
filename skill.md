@@ -229,6 +229,41 @@ Content-Type: application/json
 
 Returns: viewing key with `key`, `path`, `hash`
 
+#### Derive Child Viewing Key (BIP32-style)
+
+```
+POST /v1/viewing-key/derive
+Content-Type: application/json
+
+{
+  "masterKey": {
+    "key": "0x...",
+    "path": "m/0",
+    "hash": "0x..."
+  },
+  "childPath": "audit"
+}
+```
+
+Returns: derived child viewing key with `key`, `path` (e.g., `m/0/audit`), `hash`, and `derivedFrom` metadata.
+
+Supports multi-level derivation: `m/0 → m/0/org → m/0/org/2026 → m/0/org/2026/Q1`
+
+#### Verify Key Hierarchy
+
+```
+POST /v1/viewing-key/verify-hierarchy
+Content-Type: application/json
+
+{
+  "parentKey": { "key": "0x...", "path": "m/0", "hash": "0x..." },
+  "childKey": { "key": "0x...", "path": "m/0/audit", "hash": "0x..." },
+  "childPath": "audit"
+}
+```
+
+Returns: `{ valid: boolean }` — verifies the child key was derived from the parent at the specified path.
+
 #### Encrypt for Disclosure
 
 ```

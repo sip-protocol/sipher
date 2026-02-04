@@ -54,7 +54,7 @@
 - **Logging:** Pino v9 (structured JSON, audit logs)
 - **Docs:** swagger-ui-express (OpenAPI 3.1)
 - **Caching:** lru-cache (idempotency store, 10K entries, 24h TTL)
-- **Testing:** Vitest + Supertest (140 tests)
+- **Testing:** Vitest + Supertest (151 tests)
 - **Deployment:** Docker + GHCR → VPS (port 5006)
 - **Domain:** sipher.sip-protocol.org
 
@@ -66,7 +66,7 @@
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (localhost:5006)
 pnpm build                      # Build for production
-pnpm test -- --run              # Run tests (140 tests)
+pnpm test -- --run              # Run tests (151 tests)
 pnpm typecheck                  # Type check
 pnpm demo                       # Full-flow demo (requires dev server running)
 pnpm colosseum heartbeat        # Autonomous loop (engage every 30 min)
@@ -109,7 +109,7 @@ sipher/
 │   │   ├── transfer.ts             # shield, claim (+ idempotency)
 │   │   ├── scan.ts                 # payments, payments/batch
 │   │   ├── commitment.ts           # create (+ idempotency), verify, add, subtract, create/batch
-│   │   ├── viewing-key.ts          # generate, disclose (+ idempotency), decrypt
+│   │   ├── viewing-key.ts          # generate, derive, verify-hierarchy, disclose, decrypt
 │   │   ├── privacy.ts              # score (surveillance/privacy analysis)
 │   │   └── index.ts                # Route aggregator
 │   ├── services/
@@ -121,7 +121,7 @@ sipher/
 ├── scripts/
 │   ├── colosseum.ts                # Hackathon engagement automation
 │   └── demo-flow.ts                # Full E2E demo (21 endpoints)
-├── tests/                          # 140 tests across 14 suites
+├── tests/                          # 151 tests across 15 suites
 │   ├── health.test.ts              # 11 tests (health + ready + root + skill + 404 + reqId)
 │   ├── stealth.test.ts             # 10 tests
 │   ├── commitment.test.ts          # 16 tests (create, verify, add, subtract)
@@ -135,7 +135,8 @@ sipher/
 │   ├── audit-log.test.ts           # 8 tests (redaction, integration)
 │   ├── idempotency.test.ts         # 8 tests (cache, replay, validation)
 │   ├── batch.test.ts               # 15 tests (stealth, commitment, scan batch ops)
-│   └── privacy-score.test.ts       # 10 tests (scoring, factors, validation)
+│   ├── privacy-score.test.ts       # 10 tests (scoring, factors, validation)
+│   └── viewing-key-hierarchy.test.ts # 11 tests (derive, verify, multi-level)
 ├── Dockerfile                      # Multi-stage Alpine
 ├── docker-compose.yml              # name: sipher, port 5006
 ├── .github/workflows/deploy.yml    # GHCR → VPS
@@ -148,7 +149,7 @@ sipher/
 
 ---
 
-## API ENDPOINTS (23 endpoints)
+## API ENDPOINTS (25 endpoints)
 
 All return `ApiResponse<T>`: `{ success, data?, error? }`
 
@@ -175,6 +176,8 @@ All return `ApiResponse<T>`: `{ success, data?, error? }`
 | POST | `/v1/commitment/subtract` | Subtract two commitments (homomorphic) | Yes | — |
 | POST | `/v1/commitment/create/batch` | Batch create commitments (max 100) | Yes | — |
 | POST | `/v1/viewing-key/generate` | Generate viewing key | Yes | — |
+| POST | `/v1/viewing-key/derive` | Derive child viewing key (BIP32-style) | Yes | — |
+| POST | `/v1/viewing-key/verify-hierarchy` | Verify parent-child key relationship | Yes | — |
 | POST | `/v1/viewing-key/disclose` | Encrypt tx data for auditor | Yes | ✓ |
 | POST | `/v1/viewing-key/decrypt` | Decrypt tx data with viewing key | Yes | — |
 | POST | `/v1/privacy/score` | Wallet privacy/surveillance score (0-100) | Yes | — |
@@ -264,7 +267,7 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 |-------|-------|--------|--------|
 | 1 | Hackathon Polish | 7 | ✅ Complete (7/7 closed) |
 | 2 | Production Hardening | 7 | ✅ Complete (5/7 closed, 2 deferred) |
-| 3 | Advanced Privacy | 7 | 🔧 In Progress (2/7 closed) |
+| 3 | Advanced Privacy | 7 | 🔧 In Progress (3/7 closed) |
 | 4 | Multi-Chain | 6 | Planned |
 | 5 | Backend Aggregation | 5 | Planned |
 | 6 | Enterprise | 6 | Planned |
@@ -276,4 +279,4 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 ---
 
 **Last Updated:** 2026-02-04
-**Status:** Phase 3 In Progress | 23 Endpoints | 140 Tests | Agent #274 Active
+**Status:** Phase 3 In Progress | 25 Endpoints | 151 Tests | Agent #274 Active
