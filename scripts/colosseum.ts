@@ -25,11 +25,56 @@
  *   USE_LLM=0            — Disable LLM, use templates only
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+
+// ---------------------------------------------------------------------------
+// Lock File (prevent multiple instances)
+// ---------------------------------------------------------------------------
+
+const LOCK_FILE = '/tmp/sipher-heartbeat.lock'
+
+function acquireLock(): boolean {
+  if (existsSync(LOCK_FILE)) {
+    try {
+      const pidStr = readFileSync(LOCK_FILE, 'utf-8').trim()
+      const pid = parseInt(pidStr, 10)
+      // Check if process is still running
+      try {
+        process.kill(pid, 0) // Signal 0 = check existence
+        console.error(`ERROR: Another heartbeat is running (PID ${pid})`)
+        console.error(`If this is stale, remove: rm ${LOCK_FILE}`)
+        return false
+      } catch {
+        // Process not running, lock is stale - remove it
+        console.log(`Removing stale lock file (PID ${pid} not running)`)
+        unlinkSync(LOCK_FILE)
+      }
+    } catch {
+      // Malformed lock file, remove it
+      unlinkSync(LOCK_FILE)
+    }
+  }
+  // Create new lock
+  writeFileSync(LOCK_FILE, String(process.pid))
+  return true
+}
+
+function releaseLock(): void {
+  try {
+    if (existsSync(LOCK_FILE)) {
+      const pidStr = readFileSync(LOCK_FILE, 'utf-8').trim()
+      if (pidStr === String(process.pid)) {
+        unlinkSync(LOCK_FILE)
+      }
+    }
+  } catch {
+    // Ignore errors during cleanup
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Config
@@ -178,6 +223,32 @@ async function postComment(postId: number, body: string): Promise<number> {
     body: JSON.stringify({ body }),
   })
   return data.comment.id
+}
+
+interface Comment {
+  id: number
+  agentId: number
+  agentName: string
+  body: string
+  createdAt: string
+}
+
+/**
+ * Check if we already commented on a post via API (not just local state)
+ * This prevents duplicates even if state is out of sync
+ */
+async function hasExistingComment(postId: number): Promise<{ exists: boolean; commentId?: number }> {
+  try {
+    const data = await api<{ comments: Comment[] }>(`/forum/posts/${postId}/comments?limit=100`)
+    const ourComment = data.comments?.find(c => c.agentId === AGENT_ID || c.agentName === 'Sipher')
+    if (ourComment) {
+      return { exists: true, commentId: ourComment.id }
+    }
+    return { exists: false }
+  } catch {
+    // If API fails, be conservative and assume we might have commented
+    return { exists: false }
+  }
 }
 
 async function voteProject(projectId: number): Promise<boolean> {
@@ -478,6 +549,23 @@ async function cmdEngage(): Promise<void> {
   let newComments = 0
   for (const post of postsThisRun) {
     console.log(`\n--- Post #${post.id}: "${post.title}" (${post.agentName}) ---`)
+
+    // SAFETY CHECK: Verify we haven't already commented via API (not just local state)
+    // This prevents duplicates even if multiple processes ran or state was corrupted
+    const existing = await hasExistingComment(post.id)
+    if (existing.exists) {
+      console.log(`  -> Already commented (verified via API, comment #${existing.commentId})`)
+      // Update local state to match reality
+      if (!state.commentedPosts[post.id]) {
+        state.commentedPosts[post.id] = {
+          commentId: existing.commentId || 0,
+          date: new Date().toISOString(),
+        }
+        saveState(state) // Save immediately to prevent future duplicates
+      }
+      continue
+    }
+
     console.log(`Category: ${categorizeProject(post)}`)
     console.log(`Generating comment...${USE_LLM ? ' (LLM)' : ' (template)'}`)
 
@@ -493,6 +581,8 @@ async function cmdEngage(): Promise<void> {
         }
         state.totalComments++
         newComments++
+        // IMPORTANT: Save state immediately after each comment to prevent duplicates on crash/restart
+        saveState(state)
         console.log(`  -> Posted comment #${commentId}`)
         await new Promise(r => setTimeout(r, COMMENT_DELAY_MS))
       } catch (err) {
@@ -675,6 +765,12 @@ function timeUntilEnd(): string {
 // ---------------------------------------------------------------------------
 
 async function cmdHeartbeat(): Promise<void> {
+  // SAFETY: Acquire lock to prevent multiple instances
+  if (!acquireLock()) {
+    console.error('Exiting to prevent duplicate comments.')
+    process.exit(1)
+  }
+
   const intervalMin = Math.round(HEARTBEAT_INTERVAL_MS / 60_000)
   const startTime = Date.now()
   let cycleCount = 0
@@ -685,6 +781,7 @@ async function cmdHeartbeat(): Promise<void> {
   console.log(`Auto-posts: every ${POST_INTERVAL_HOURS}h`)
   console.log(`Hackathon ends: ${HACKATHON_END.toISOString()} (${timeUntilEnd()} remaining)`)
   console.log(`PID: ${process.pid}`)
+  console.log(`Lock file: ${LOCK_FILE}`)
   console.log(`Kill with: kill ${process.pid}`)
   console.log(`${'='.repeat(40)}\n`)
 
@@ -695,11 +792,13 @@ async function cmdHeartbeat(): Promise<void> {
     if (stopping) return
     stopping = true
     ac.abort()
+    releaseLock() // Release lock on shutdown
     console.log(`\n[${ts()}] Heartbeat stopping (${cycleCount} cycles, uptime ${formatUptime(startTime)})`)
     process.exit(0)
   }
   process.on('SIGINT', shutdown)
   process.on('SIGTERM', shutdown)
+  process.on('exit', releaseLock) // Also release on any exit
 
   while (!stopping) {
     // check if hackathon is over
