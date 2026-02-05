@@ -43,6 +43,7 @@ const claimSchema = z.object({
   viewingPrivateKey: hexString,
   destinationAddress: z.string().min(32).max(44),
   mint: z.string().min(32).max(44),
+  dryRun: z.boolean().optional().default(false),
 })
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
@@ -123,6 +124,7 @@ router.post(
         viewingPrivateKey,
         destinationAddress,
         mint,
+        dryRun,
       } = req.body
 
       const connection = getConnection()
@@ -186,6 +188,35 @@ router.post(
 
       tx.sign(stealthKeypair)
 
+      // DRY RUN: Simulate transaction without sending
+      if (dryRun) {
+        const simulation = await connection.simulateTransaction(tx, [stealthKeypair])
+
+        const estimatedFee = await connection.getFeeForMessage(tx.compileMessage())
+
+        res.json({
+          success: true,
+          data: {
+            dryRun: true,
+            simulation: {
+              success: simulation.value.err === null,
+              error: simulation.value.err,
+              logs: simulation.value.logs,
+              unitsConsumed: simulation.value.unitsConsumed,
+            },
+            transaction: {
+              stealthAddress,
+              destinationAddress,
+              amount: tokenAmount.toString(),
+              estimatedFee: estimatedFee.value?.toString() ?? null,
+            },
+            warning: 'This was a simulation. No tokens were transferred. Set dryRun: false to execute.',
+          },
+        })
+        return
+      }
+
+      // REAL EXECUTION: Send and confirm transaction
       const txSignature = await connection.sendRawTransaction(tx.serialize(), {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
@@ -199,6 +230,7 @@ router.post(
       res.json({
         success: true,
         data: {
+          dryRun: false,
           txSignature,
           destinationAddress,
           amount: tokenAmount.toString(),

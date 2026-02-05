@@ -5,3 +5,4 @@ dist/
 .DS_Store
 coverage/
 scripts/.colosseum-state.json
+scripts/.sipher-agent-state.json

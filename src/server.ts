@@ -19,6 +19,7 @@ import {
   notFoundHandler,
   auditLog,
   shutdownMiddleware,
+  timeoutMiddleware,
 } from './middleware/index.js'
 import router from './routes/index.js'
 import { openApiSpec } from './openapi/spec.js'
@@ -39,6 +40,7 @@ app.use(helmet())
 app.use(secureCors)
 app.use(rateLimiter)
 app.use(authenticate)
+app.use(timeoutMiddleware)  // Per-endpoint timeouts (15-90s)
 app.use(express.json({ limit: '1mb' }))
 app.use(compression())
 app.use(requestLogger)

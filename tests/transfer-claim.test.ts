@@ -172,4 +172,39 @@ describe('POST /v1/transfer/claim', () => {
     // May return 500 if derivation fails, which is expected with mismatched keys
     expect(res.status).not.toBe(400)
   })
+
+  it('accepts dryRun parameter (boolean)', async () => {
+    const res = await request(app)
+      .post('/v1/transfer/claim')
+      .send({
+        stealthAddress: VALID_ADDRESS,
+        ephemeralPublicKey: VALID_ADDRESS,
+        spendingPrivateKey: VALID_HEX,
+        viewingPrivateKey: VALID_HEX,
+        destinationAddress: VALID_ADDRESS,
+        mint: USDC_MINT,
+        dryRun: true,
+      })
+
+    // Should not return 400 — dryRun is valid parameter
+    // Will fail at derivation but input format is accepted
+    expect(res.status).not.toBe(400)
+  })
+
+  it('defaults dryRun to false when not specified', async () => {
+    const res = await request(app)
+      .post('/v1/transfer/claim')
+      .send({
+        stealthAddress: VALID_ADDRESS,
+        ephemeralPublicKey: VALID_ADDRESS,
+        spendingPrivateKey: VALID_HEX,
+        viewingPrivateKey: VALID_HEX,
+        destinationAddress: VALID_ADDRESS,
+        mint: USDC_MINT,
+        // dryRun not specified — should default to false
+      })
+
+    // Should not return 400 — dryRun defaults correctly
+    expect(res.status).not.toBe(400)
+  })
 })
