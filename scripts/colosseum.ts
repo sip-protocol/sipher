@@ -25,19 +25,20 @@
  *   USE_LLM=0            — Disable LLM, use templates only
  */
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, unlinkSync, renameSync, openSync, closeSync, constants } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // ---------------------------------------------------------------------------
-// Lock File (prevent multiple instances)
+// Lock File (prevent multiple instances) - with atomic creation
 // ---------------------------------------------------------------------------
 
 const LOCK_FILE = '/tmp/sipher-heartbeat.lock'
 
 function acquireLock(): boolean {
+  // First check if lock exists and if process is running
   if (existsSync(LOCK_FILE)) {
     try {
       const pidStr = readFileSync(LOCK_FILE, 'utf-8').trim()
@@ -55,12 +56,22 @@ function acquireLock(): boolean {
       }
     } catch {
       // Malformed lock file, remove it
-      unlinkSync(LOCK_FILE)
+      try { unlinkSync(LOCK_FILE) } catch { /* ignore */ }
     }
   }
-  // Create new lock
-  writeFileSync(LOCK_FILE, String(process.pid))
-  return true
+
+  // Try to create lock atomically using O_EXCL (fails if file exists)
+  try {
+    const fd = openSync(LOCK_FILE, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY)
+    writeFileSync(fd, String(process.pid))
+    closeSync(fd)
+    return true
+  } catch (err) {
+    // Another process created the lock between our check and create (race condition)
+    console.error(`ERROR: Failed to acquire lock (race condition or permission error)`)
+    console.error(`Details: ${err}`)
+    return false
+  }
 }
 
 function releaseLock(): void {
@@ -180,31 +191,75 @@ function loadState(): EngagementState {
 }
 
 function saveState(state: EngagementState): void {
-  writeFileSync(STATE_FILE, JSON.stringify(state, null, 2))
+  // Atomic save: write to temp file, then rename (prevents corruption on crash)
+  const tempFile = `${STATE_FILE}.tmp.${process.pid}`
+  try {
+    writeFileSync(tempFile, JSON.stringify(state, null, 2))
+    renameSync(tempFile, STATE_FILE) // Atomic on POSIX systems
+  } catch (err) {
+    // Clean up temp file if rename failed
+    try { unlinkSync(tempFile) } catch { /* ignore */ }
+    throw err
+  }
 }
 
 // ---------------------------------------------------------------------------
-// API Client
+// API Client (with timeout and structured error handling)
 // ---------------------------------------------------------------------------
+
+const API_TIMEOUT_MS = 30_000 // 30 second timeout for API calls
+const LLM_TIMEOUT_MS = 60_000 // 60 second timeout for LLM calls
+
+interface ApiError {
+  status: number
+  code: string
+  message: string
+  isRateLimit: boolean
+  isAlreadyExists: boolean
+}
+
+function parseApiError(status: number, text: string): ApiError {
+  const lowerText = text.toLowerCase()
+  return {
+    status,
+    code: status === 429 ? 'RATE_LIMITED' : status === 403 ? 'FORBIDDEN' : 'API_ERROR',
+    message: text,
+    isRateLimit: status === 429 || lowerText.includes('rate limit') || lowerText.includes('too many'),
+    isAlreadyExists: lowerText.includes('already') || lowerText.includes('duplicate') || lowerText.includes('exists'),
+  }
+}
 
 async function api<T>(
   path: string,
   options: RequestInit = {},
+  timeoutMs: number = API_TIMEOUT_MS,
 ): Promise<T> {
   const url = `${BASE_URL}${path}`
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`API ${res.status} ${path}: ${text}`)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      const err = parseApiError(res.status, text)
+      const error = new Error(`API ${res.status} ${path}: ${text}`) as Error & { apiError: ApiError }
+      error.apiError = err
+      throw error
+    }
+    return res.json() as Promise<T>
+  } finally {
+    clearTimeout(timeoutId)
   }
-  return res.json() as Promise<T>
 }
 
 async function getPosts(limit = 100): Promise<ForumPost[]> {
@@ -217,12 +272,31 @@ async function getProjects(limit = 100): Promise<Project[]> {
   return data.projects || []
 }
 
-async function postComment(postId: number, body: string): Promise<number> {
-  const data = await api<{ comment: { id: number } }>(`/forum/posts/${postId}/comments`, {
-    method: 'POST',
-    body: JSON.stringify({ body }),
-  })
-  return data.comment.id
+interface PostCommentResult {
+  success: boolean
+  commentId?: number
+  alreadyExists?: boolean
+  rateLimited?: boolean
+  error?: string
+}
+
+async function postComment(postId: number, body: string): Promise<PostCommentResult> {
+  try {
+    const data = await api<{ comment: { id: number } }>(`/forum/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    })
+    return { success: true, commentId: data.comment.id }
+  } catch (err) {
+    const apiErr = (err as { apiError?: ApiError }).apiError
+    if (apiErr?.isAlreadyExists) {
+      return { success: false, alreadyExists: true, error: apiErr.message }
+    }
+    if (apiErr?.isRateLimit) {
+      return { success: false, rateLimited: true, error: apiErr.message }
+    }
+    return { success: false, error: String(err) }
+  }
 }
 
 interface Comment {
@@ -353,32 +427,40 @@ ${post.body.slice(0, 1500)}
 
 Write a comment that engages with this post using the fear→solution strategy. Output only the comment text.`
 
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://sipher.sip-protocol.org',
-      'X-Title': 'Sipher Agent',
-    },
-    body: JSON.stringify({
-      model: LLM_MODEL,
-      messages: [
-        { role: 'system', content: COMMENT_SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 300,
-      temperature: 0.7,
-    }),
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS)
 
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`OpenRouter API error: ${res.status} ${err}`)
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://sipher.sip-protocol.org',
+        'X-Title': 'Sipher Agent',
+      },
+      body: JSON.stringify({
+        model: LLM_MODEL,
+        messages: [
+          { role: 'system', content: COMMENT_SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 300,
+        temperature: 0.7,
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`OpenRouter API error: ${res.status} ${err}`)
+    }
+
+    const data = await res.json() as { choices: { message: { content: string } }[] }
+    return cleanLLMResponse(data.choices[0].message.content)
+  } finally {
+    clearTimeout(timeoutId)
   }
-
-  const data = await res.json() as { choices: { message: { content: string } }[] }
-  return cleanLLMResponse(data.choices[0].message.content)
 }
 
 async function generateComment(post: ForumPost): Promise<string> {
@@ -465,24 +547,33 @@ async function generateForumPost(topic: string): Promise<{ title: string; body: 
 
 Remember: Return ONLY valid JSON with "title" and "body" fields.`
 
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://sipher.sip-protocol.org',
-      'X-Title': 'Sipher Agent',
-    },
-    body: JSON.stringify({
-      model: LLM_MODEL,
-      messages: [
-        { role: 'system', content: POST_SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 800,
-      temperature: 0.7,
-    }),
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS)
+
+  let res: Response
+  try {
+    res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://sipher.sip-protocol.org',
+        'X-Title': 'Sipher Agent',
+      },
+      body: JSON.stringify({
+        model: LLM_MODEL,
+        messages: [
+          { role: 'system', content: POST_SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 800,
+        temperature: 0.7,
+      }),
+    })
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   if (!res.ok) {
     const err = await res.text()
@@ -573,25 +664,32 @@ async function cmdEngage(): Promise<void> {
     console.log(`Comment preview: ${comment.slice(0, 120)}...`)
 
     if (!DRY_RUN) {
-      try {
-        const commentId = await postComment(post.id, comment)
+      const result = await postComment(post.id, comment)
+
+      if (result.success) {
         state.commentedPosts[post.id] = {
-          commentId,
+          commentId: result.commentId!,
           date: new Date().toISOString(),
         }
         state.totalComments++
         newComments++
         // IMPORTANT: Save state immediately after each comment to prevent duplicates on crash/restart
         saveState(state)
-        console.log(`  -> Posted comment #${commentId}`)
+        console.log(`  -> Posted comment #${result.commentId}`)
         await new Promise(r => setTimeout(r, COMMENT_DELAY_MS))
-      } catch (err) {
-        const msg = String(err)
-        if (msg.includes('429')) {
-          console.warn(`  -> Rate limited. Stopping comments for this cycle.`)
-          break
+      } else if (result.alreadyExists) {
+        // Handle race condition: API says we already commented (TOCTOU)
+        console.log(`  -> Already commented (API rejected duplicate)`)
+        state.commentedPosts[post.id] = {
+          commentId: 0, // Unknown ID, but mark as commented
+          date: new Date().toISOString(),
         }
-        console.error(`  -> FAILED: ${err}`)
+        saveState(state)
+      } else if (result.rateLimited) {
+        console.warn(`  -> Rate limited. Stopping comments for this cycle.`)
+        break
+      } else {
+        console.error(`  -> FAILED: ${result.error}`)
       }
     } else {
       console.log('  -> [DRY RUN] Would post comment')
