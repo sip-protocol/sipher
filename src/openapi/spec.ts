@@ -2585,6 +2585,99 @@ export const openApiSpec = {
         },
       },
     },
+
+    // ─── Private Swap ──────────────────────────────────────────────────────
+
+    '/v1/swap/private': {
+      post: {
+        tags: ['Swap'],
+        operationId: 'privateSwap',
+        summary: 'Privacy-preserving token swap via Jupiter DEX',
+        description: 'Composite endpoint orchestrating stealth address generation, optional C-SPL wrapping, and Jupiter DEX swap into a single privacy-preserving token swap. Output is routed to a stealth address with Pedersen commitment. Supports ephemeral stealth addresses for agents without persistent meta-address.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  sender: solanaAddress,
+                  inputMint: { ...solanaAddress, description: 'SPL token mint to swap from' },
+                  inputAmount: { ...positiveIntString, description: 'Amount to swap (smallest units)' },
+                  outputMint: { ...solanaAddress, description: 'SPL token mint to swap to' },
+                  slippageBps: { type: 'integer', minimum: 1, maximum: 10000, default: 50, description: 'Slippage tolerance in basis points (default 50 = 0.5%)' },
+                  recipientMetaAddress: {
+                    type: 'object',
+                    description: 'Optional stealth meta-address. If omitted, an ephemeral one is generated.',
+                    properties: {
+                      spendingKey: hexString32,
+                      viewingKey: hexString32,
+                      chain: { type: 'string', enum: ['solana'] },
+                      label: { type: 'string' },
+                    },
+                    required: ['spendingKey', 'viewingKey', 'chain'],
+                  },
+                },
+                required: ['sender', 'inputMint', 'inputAmount', 'outputMint'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Private swap built successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    beta: { type: 'boolean' },
+                    warning: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        outputStealthAddress: solanaAddress,
+                        ephemeralPublicKey: hexString32,
+                        viewTag: { type: 'integer', minimum: 0, maximum: 255 },
+                        commitment: { type: 'string', description: 'Pedersen commitment for output amount' },
+                        blindingFactor: { type: 'string', description: 'Blinding factor for commitment' },
+                        viewingKeyHash: hexString32,
+                        sharedSecret: { type: 'string' },
+                        inputMint: { type: 'string' },
+                        inputAmount: { type: 'string' },
+                        outputMint: { type: 'string' },
+                        outputAmount: { type: 'string' },
+                        outputAmountMin: { type: 'string' },
+                        quoteId: { type: 'string', pattern: '^jup_[0-9a-fA-F]{64}$' },
+                        priceImpactPct: { type: 'string' },
+                        slippageBps: { type: 'integer' },
+                        transactions: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              type: { type: 'string', enum: ['wrap', 'swap'] },
+                              transaction: { type: 'string', description: 'Base64-encoded transaction or signature' },
+                              description: { type: 'string' },
+                            },
+                          },
+                        },
+                        executionOrder: { type: 'array', items: { type: 'string' } },
+                        estimatedComputeUnits: { type: 'integer' },
+                        csplWrapped: { type: 'boolean' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error or unsupported token', content: { 'application/json': { schema: errorResponse } } },
+          500: { description: 'Swap orchestration failed', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
   },
   tags: [
     { name: 'Health', description: 'Server health, readiness, and error catalog' },
@@ -2600,5 +2693,6 @@ export const openApiSpec = {
     { name: 'C-SPL', description: 'Confidential SPL token operations (wrap, unwrap, transfer)' },
     { name: 'Arcium', description: 'Arcium MPC compute backend — submit computations, poll status, decrypt results' },
     { name: 'Inco', description: 'Inco FHE compute backend — encrypt values, compute on ciphertexts, decrypt results' },
+    { name: 'Swap', description: 'Privacy-preserving token swaps via Jupiter DEX with stealth address routing' },
   ],
 }
