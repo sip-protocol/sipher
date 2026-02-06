@@ -1,0 +1,68 @@
+name: Deploy Agent Heartbeat
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/colosseum.ts'
+      - 'scripts/sipher-agent.ts'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Bundle agent script
+        run: npx esbuild scripts/colosseum.ts --bundle --platform=node --format=esm --outfile=dist/colosseum.mjs
+
+      - name: Deploy and restart heartbeat
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: sip
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            pkill -f 'colosseum.mjs' || true
+            sleep 2
+
+      - name: Upload bundle to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: sip
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: dist/colosseum.mjs
+          target: ~/sipher/
+          strip_components: 1
+
+      - name: Start heartbeat and verify
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: sip
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd ~/sipher
+            set -a && source .env && set +a
+            nohup node colosseum.mjs heartbeat >> heartbeat.log 2>&1 &
+            sleep 3
+            pgrep -f 'colosseum.mjs' || { echo "Heartbeat failed to start"; exit 1; }
+            tail -5 heartbeat.log
+            echo "Agent heartbeat deployed successfully"
