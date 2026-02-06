@@ -83,19 +83,19 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 
 ---
 
-## Phase 5: Privacy Backend Aggregation (Jun-Aug 2026)
+## Phase 5: Privacy Backend Aggregation (Jun-Aug 2026) ✅
 
 > The "OpenRouter for privacy" moment. Single API routing through multiple privacy backends.
 
-| ID | Title | Size |
-|----|-------|------|
-| S5-01 | Expose PrivacyBackendRegistry via API (list, health, select) | L |
-| S5-02 | Add Arcium MPC backend endpoints (compute, status, decrypt) | L |
-| S5-03 | Add Inco FHE backend endpoints (encrypt, compute, decrypt) | L |
-| S5-04 | Add PrivateSwap composite endpoint (stealth + C-SPL + swap in one call) | XL |
-| S5-05 | Add privacy backend comparison endpoint (cost, latency, privacy level) | M |
+| ID | Title | Size | Status |
+|----|-------|------|--------|
+| S5-01 | Expose PrivacyBackendRegistry via API (list, health, select) | L | ✅ |
+| S5-02 | Add Arcium MPC backend endpoints (compute, status, decrypt) | L | ✅ |
+| S5-03 | Add Inco FHE backend endpoints (encrypt, compute, decrypt) | L | ✅ |
+| S5-04 | Add PrivateSwap composite endpoint (stealth + C-SPL + swap in one call) | XL | ✅ |
+| S5-05 | Add privacy backend comparison endpoint (cost, latency, privacy level) | M | ✅ |
 
-**Outcome:** 5+ privacy backends routed through unified API.
+**Outcome:** 5+ privacy backends routed through unified API. (5/5 complete)
 
 ---
 
@@ -112,7 +112,7 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 | S6-05 | Add governance/voting privacy endpoints (encrypted ballots, homomorphic tally) | M | ✅ |
 | S6-06 | Add Jito gas abstraction endpoint (relay transactions via Jito bundles) | M | ✅ |
 
-**Outcome:** Revenue stream, enterprise compliance, multi-language SDK, gas abstraction.
+**Outcome:** Revenue stream, enterprise compliance, multi-language SDK, gas abstraction. (5/6 complete)
 
 ---
 
