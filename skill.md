@@ -801,6 +801,81 @@ Returns: cached report data (same shape as generation response). Reports expire 
 
 ---
 
+### Agent Sessions (Pro+)
+
+Configure defaults once, apply to all subsequent requests via `X-Session-Id` header.
+
+#### Create Session
+
+```
+POST /v1/sessions
+Content-Type: application/json
+
+{
+  "defaults": {
+    "chain": "solana",
+    "privacyLevel": "shielded",
+    "backend": "sip-native"
+  },
+  "ttlSeconds": 3600
+}
+```
+
+**Parameters:**
+- `defaults.chain` — Default chain for stealth operations (17 chains supported)
+- `defaults.privacyLevel` — `standard`, `shielded`, or `maximum`
+- `defaults.rpcProvider` — `helius`, `quicknode`, `triton`, or `generic`
+- `defaults.backend` — `sip-native`, `arcium`, or `inco`
+- `defaults.defaultViewingKey` — 0x-prefixed hex viewing key
+- `ttlSeconds` — Session TTL (min: 60, default: 3600, max: 86400)
+
+Returns: `sessionId` (sess_ + 64 hex), `defaults`, `createdAt`, `expiresAt`
+
+#### Get Session
+
+```
+GET /v1/sessions/:id
+```
+
+Returns: `sessionId`, `defaults`, `createdAt`, `expiresAt`, `lastAccessedAt`
+
+#### Update Session Defaults
+
+```
+PATCH /v1/sessions/:id
+Content-Type: application/json
+
+{
+  "defaults": { "chain": "ethereum" }
+}
+```
+
+Merges new defaults — omitted keys stay unchanged. Returns updated session.
+
+#### Delete Session
+
+```
+DELETE /v1/sessions/:id
+```
+
+Returns: `{ sessionId, deleted: true }`
+
+#### Using Sessions
+
+Add `X-Session-Id` header to any request. Session defaults are merged into the request body — explicit request parameters always override session defaults.
+
+```
+POST /v1/stealth/generate
+X-Session-Id: sess_abc123...
+Content-Type: application/json
+
+{}
+```
+
+The above request inherits `chain`, `backend`, etc. from the session.
+
+---
+
 ## Agent Workflow Example
 
 ```
@@ -823,7 +898,7 @@ API keys are tiered with different rate limits:
 | Tier | Requests/Hour | Endpoints |
 |------|---------------|-----------|
 | Free | 100 | Basic (stealth, commitment, viewing-key) |
-| Pro | 10,000 | All endpoints except compliance |
+| Pro | 10,000 | All endpoints including sessions, except compliance |
 | Enterprise | 100,000 | All endpoints including compliance |
 
 Rate limit headers are returned on every response:

@@ -6,7 +6,7 @@
 **Live URL:** https://sipher.sip-protocol.org
 **Tagline:** "Privacy-as-a-Skill for Multi-Chain Agents"
 **Purpose:** REST API + OpenClaw skill enabling any autonomous agent to add transaction privacy via SIP Protocol
-**Stats:** 87 endpoints | 437 tests | 17 chains | 4 client SDKs (TS, Python, Rust, Go)
+**Stats:** 91 endpoints | 465 tests | 17 chains | 4 client SDKs (TS, Python, Rust, Go)
 
 ---
 
@@ -55,7 +55,7 @@
 - **Logging:** Pino v9 (structured JSON, audit logs)
 - **Docs:** swagger-ui-express (OpenAPI 3.1)
 - **Cache:** Redis 7 (rate limiting, idempotency) with in-memory fallback
-- **Testing:** Vitest + Supertest (414 tests)
+- **Testing:** Vitest + Supertest (465 tests)
 - **Deployment:** Docker + GHCR → VPS (port 5006)
 - **Domain:** sipher.sip-protocol.org
 
@@ -68,7 +68,7 @@
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (localhost:5006)
 pnpm build                      # Build for production
-pnpm test -- --run              # Run tests (437 tests, 23 suites)
+pnpm test -- --run              # Run tests (465 tests, 31 suites)
 pnpm typecheck                  # Type check
 pnpm demo                       # Full-flow demo (requires dev server running)
 pnpm openapi:export              # Export static OpenAPI spec to dist/openapi.json
@@ -235,6 +235,7 @@ sipher/
 │   │   ├── audit-log.ts            # Structured audit logging (sensitive field redaction)
 │   │   ├── idempotency.ts          # Idempotency-Key header (LRU cache)
 │   │   ├── require-tier.ts          # Enterprise tier gating middleware
+│   │   ├── session.ts              # X-Session-Id middleware (merge defaults into req.body)
 │   │   └── index.ts                # Barrel exports
 │   ├── routes/
 │   │   ├── health.ts               # GET /v1/health (extended), GET /v1/ready
@@ -252,6 +253,7 @@ sipher/
 │   │   ├── arcium.ts               # Arcium MPC (compute, status, decrypt)
 │   │   ├── inco.ts                 # Inco FHE (encrypt, compute, decrypt)
 │   │   ├── private-swap.ts         # Private swap (Jupiter DEX + stealth)
+│   │   ├── session.ts              # Session CRUD (create, get, update, delete)
 │   │   ├── compliance.ts           # Compliance (disclose, report, report/:id)
 │   │   └── index.ts                # Route aggregator
 │   ├── services/
@@ -267,6 +269,7 @@ sipher/
 │   │   ├── jupiter-provider.ts    # Jupiter DEX mock provider (quotes, swap transactions)
 │   │   ├── private-swap-builder.ts # Private swap orchestrator (stealth + C-SPL + Jupiter)
 │   │   ├── backend-comparison.ts  # Backend comparison service (scoring, caching, recommendations)
+│   │   ├── session-provider.ts     # Session management (LRU cache + Redis, CRUD, ownership)
 │   │   ├── compliance-provider.ts # Compliance provider (disclosure, reports, auditor verification)
 │   │   └── backend-registry.ts    # Privacy backend registry singleton (SIPNative + Arcium + Inco)
 │   └── types/
@@ -286,7 +289,7 @@ sipher/
 │   ├── colosseum.ts                # Template-based engagement (LLM for comments/posts)
 │   ├── sipher-agent.ts             # LLM-powered autonomous agent (ReAct loop)
 │   └── demo-flow.ts                # Full E2E demo (21 endpoints)
-├── tests/                          # 414 tests across 22+ suites
+├── tests/                          # 465 tests across 31 suites
 │   ├── health.test.ts              # 11 tests (health + ready + root + skill + 404 + reqId)
 │   ├── stealth.test.ts             # 10 tests
 │   ├── commitment.test.ts          # 16 tests (create, verify, add, subtract)
@@ -310,6 +313,7 @@ sipher/
 │   ├── inco.test.ts               # 20 tests (encrypt, compute, decrypt, idempotency, backend, E2E)
 │   ├── private-swap.test.ts       # 20 tests (happy path, swap details, validation, idempotency, beta, E2E)
 │   ├── backend-comparison.test.ts # 23 tests (basic, scoring, prioritize, validation, cache, edge cases)
+│   ├── session.test.ts            # 28 tests (CRUD, middleware merge, tier gating, ownership)
 │   └── compliance.test.ts         # 23 tests (disclose, report, get, tier gating, auditor verification)
 ├── Dockerfile                      # Multi-stage Alpine
 ├── docker-compose.yml              # name: sipher, port 5006
@@ -324,7 +328,7 @@ sipher/
 
 ---
 
-## API ENDPOINTS (43 endpoints)
+## API ENDPOINTS (47 endpoints)
 
 All return `ApiResponse<T>`: `{ success, data?, error? }`
 
@@ -374,6 +378,10 @@ All return `ApiResponse<T>`: `{ success, data?, error? }`
 | POST | `/v1/compliance/disclose` | Selective disclosure with scoped viewing key (enterprise) | Yes | ✓ |
 | POST | `/v1/compliance/report` | Generate encrypted audit report for time range (enterprise) | Yes | ✓ |
 | GET | `/v1/compliance/report/:id` | Retrieve generated compliance report (enterprise) | Yes | — |
+| POST | `/v1/sessions` | Create agent session with defaults (pro+) | Yes | — |
+| GET | `/v1/sessions/:id` | Get session configuration (pro+) | Yes | — |
+| PATCH | `/v1/sessions/:id` | Update session defaults (pro+) | Yes | — |
+| DELETE | `/v1/sessions/:id` | Delete session (pro+) | Yes | — |
 
 ### Idempotency
 
@@ -398,9 +406,10 @@ All requests are audit-logged with structured JSON (requestId, method, path, sta
 8. compression()          → Gzip
 9. requestLogger          → pino-http request/response logging
 10. auditLog              → Structured audit log with redaction
-11. [route handlers]      → API routes (some with idempotency middleware)
-12. notFoundHandler       → 404 catch-all
-13. errorHandler          → Global error handler (ErrorCode enum)
+11. sessionMiddleware     → Merge X-Session-Id defaults into req.body
+12. [route handlers]      → API routes (some with idempotency middleware)
+13. notFoundHandler       → 404 catch-all
+14. errorHandler          → Global error handler (ErrorCode enum)
 ```
 
 ---
@@ -427,6 +436,9 @@ All error codes are centralized in `src/errors/codes.ts` (ErrorCode enum). Full 
 | **403** | TIER_ACCESS_DENIED |
 | **500** | COMPLIANCE_DISCLOSURE_FAILED, COMPLIANCE_REPORT_FAILED |
 | **404** | COMPLIANCE_REPORT_NOT_FOUND |
+| **404** | SESSION_NOT_FOUND |
+| **410** | SESSION_EXPIRED |
+| **500** | SESSION_CREATE_FAILED |
 | **503** | SERVICE_UNAVAILABLE, SOLANA_RPC_UNAVAILABLE |
 
 ---
@@ -493,11 +505,11 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 | 5 | Backend Aggregation | 5 | 🔲 Planned |
 | 6 | Enterprise | 6 | 🔲 Planned |
 
-**Progress:** 32/38 issues complete | 437 tests | 87 endpoints | 17 chains
+**Progress:** 33/38 issues complete | 465 tests | 91 endpoints | 17 chains
 
 **Quick check:** `gh issue list -R sip-protocol/sipher --state open`
 
 ---
 
 **Last Updated:** 2026-02-06
-**Status:** Phase 5 In Progress | 84 Endpoints | 414 Tests | 17 Chains | Agent #274 Active
+**Status:** Phase 5 In Progress | 91 Endpoints | 465 Tests | 17 Chains | Agent #274 Active
