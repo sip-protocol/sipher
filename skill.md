@@ -744,9 +744,81 @@ Supports `Idempotency-Key` header.
 
 ---
 
+### Governance Voting Privacy (Beta)
+
+Privacy-preserving governance — encrypted ballots via Pedersen commitments, nullifier-based double-vote prevention, and homomorphic vote tallying.
+
+#### Encrypt Ballot
+
+```
+POST /v1/governance/ballot/encrypt
+Content-Type: application/json
+
+{
+  "proposalId": "proposal-001",
+  "vote": "yes",
+  "voterSecret": "0x...",
+  "stealthAddress": "<optional stealth address>"
+}
+```
+
+**Parameters:**
+- `proposalId` — Unique proposal identifier (string, 1-128 chars)
+- `vote` — `yes`, `no`, or `abstain`
+- `voterSecret` — 0x-prefixed hex private entropy for nullifier derivation (never stored)
+- `stealthAddress` — Optional stealth address for voter anonymity (from `/stealth/derive`)
+
+Returns: `commitment` (Pedersen commitment to vote value), `blindingFactor`, `nullifier` (deterministic, same voter+proposal = same nullifier), `anonymousId` (stealth address or hash of secret).
+
+#### Submit Ballot
+
+```
+POST /v1/governance/ballot/submit
+Content-Type: application/json
+
+{
+  "proposalId": "proposal-001",
+  "commitment": "0x...",
+  "blindingFactor": "0x...",
+  "nullifier": "0x...",
+  "vote": "yes"
+}
+```
+
+Submits an encrypted ballot. The nullifier is checked for uniqueness — duplicate votes are rejected with `409 GOVERNANCE_DOUBLE_VOTE`. Proposals are created lazily on first ballot.
+
+Returns: `proposalId`, `nullifier`, `accepted`, `totalBallots`.
+
+Supports `Idempotency-Key` header.
+
+#### Tally Votes
+
+```
+POST /v1/governance/tally
+Content-Type: application/json
+
+{ "proposalId": "proposal-001" }
+```
+
+Performs homomorphic addition of all ballot commitments. The tally commitment can be verified against the total yes-vote count using the combined blinding factor.
+
+Returns: `tallyId` (tly_ prefix), `totalVotes`, `yesVotes`, `noVotes`, `abstainVotes`, `tallyCommitment`, `tallyBlinding`, `verificationHash`, `verified` (boolean).
+
+Supports `Idempotency-Key` header.
+
+#### Get Tally
+
+```
+GET /v1/governance/tally/:id
+```
+
+Returns: cached tally result (same shape as tally response). Tallies expire after 24 hours.
+
+---
+
 ## Idempotency
 
-Mutation endpoints (`/transfer/shield`, `/transfer/claim`, `/transfer/private`, `/commitment/create`, `/viewing-key/disclose`, `/swap/private`) support the `Idempotency-Key` header. Send a UUID v4 value to safely retry requests — duplicate keys return the cached response with `Idempotency-Replayed: true` header.
+Mutation endpoints (`/transfer/shield`, `/transfer/claim`, `/transfer/private`, `/commitment/create`, `/viewing-key/disclose`, `/swap/private`, `/governance/ballot/submit`, `/governance/tally`) support the `Idempotency-Key` header. Send a UUID v4 value to safely retry requests — duplicate keys return the cached response with `Idempotency-Replayed: true` header.
 
 ---
 

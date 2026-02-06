@@ -6,7 +6,7 @@
 **Live URL:** https://sipher.sip-protocol.org
 **Tagline:** "Privacy-as-a-Skill for Multi-Chain Agents"
 **Purpose:** REST API + OpenClaw skill enabling any autonomous agent to add transaction privacy via SIP Protocol
-**Stats:** 91 endpoints | 465 tests | 17 chains | 4 client SDKs (TS, Python, Rust, Go)
+**Stats:** 95 endpoints | 488 tests | 17 chains | 4 client SDKs (TS, Python, Rust, Go)
 
 ---
 
@@ -68,7 +68,7 @@
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (localhost:5006)
 pnpm build                      # Build for production
-pnpm test -- --run              # Run tests (465 tests, 31 suites)
+pnpm test -- --run              # Run tests (488 tests, 32 suites)
 pnpm typecheck                  # Type check
 pnpm demo                       # Full-flow demo (requires dev server running)
 pnpm openapi:export              # Export static OpenAPI spec to dist/openapi.json
@@ -254,6 +254,7 @@ sipher/
 │   │   ├── inco.ts                 # Inco FHE (encrypt, compute, decrypt)
 │   │   ├── private-swap.ts         # Private swap (Jupiter DEX + stealth)
 │   │   ├── session.ts              # Session CRUD (create, get, update, delete)
+│   │   ├── governance.ts           # Governance voting privacy (encrypt, submit, tally, getTally)
 │   │   ├── compliance.ts           # Compliance (disclose, report, report/:id)
 │   │   └── index.ts                # Route aggregator
 │   ├── services/
@@ -270,6 +271,7 @@ sipher/
 │   │   ├── private-swap-builder.ts # Private swap orchestrator (stealth + C-SPL + Jupiter)
 │   │   ├── backend-comparison.ts  # Backend comparison service (scoring, caching, recommendations)
 │   │   ├── session-provider.ts     # Session management (LRU cache + Redis, CRUD, ownership)
+│   │   ├── governance-provider.ts # Governance voting (encrypted ballots, nullifiers, homomorphic tally)
 │   │   ├── compliance-provider.ts # Compliance provider (disclosure, reports, auditor verification)
 │   │   └── backend-registry.ts    # Privacy backend registry singleton (SIPNative + Arcium + Inco)
 │   └── types/
@@ -289,7 +291,7 @@ sipher/
 │   ├── colosseum.ts                # Template-based engagement (LLM for comments/posts)
 │   ├── sipher-agent.ts             # LLM-powered autonomous agent (ReAct loop)
 │   └── demo-flow.ts                # Full E2E demo (21 endpoints)
-├── tests/                          # 465 tests across 31 suites
+├── tests/                          # 488 tests across 32 suites
 │   ├── health.test.ts              # 11 tests (health + ready + root + skill + 404 + reqId)
 │   ├── stealth.test.ts             # 10 tests
 │   ├── commitment.test.ts          # 16 tests (create, verify, add, subtract)
@@ -314,6 +316,7 @@ sipher/
 │   ├── private-swap.test.ts       # 20 tests (happy path, swap details, validation, idempotency, beta, E2E)
 │   ├── backend-comparison.test.ts # 23 tests (basic, scoring, prioritize, validation, cache, edge cases)
 │   ├── session.test.ts            # 28 tests (CRUD, middleware merge, tier gating, ownership)
+│   ├── governance.test.ts         # 23 tests (encrypt, submit, tally, double-vote, E2E flow)
 │   └── compliance.test.ts         # 23 tests (disclose, report, get, tier gating, auditor verification)
 ├── Dockerfile                      # Multi-stage Alpine
 ├── docker-compose.yml              # name: sipher, port 5006
@@ -328,7 +331,7 @@ sipher/
 
 ---
 
-## API ENDPOINTS (47 endpoints)
+## API ENDPOINTS (51 endpoints)
 
 All return `ApiResponse<T>`: `{ success, data?, error? }`
 
@@ -382,6 +385,10 @@ All return `ApiResponse<T>`: `{ success, data?, error? }`
 | GET | `/v1/sessions/:id` | Get session configuration (pro+) | Yes | — |
 | PATCH | `/v1/sessions/:id` | Update session defaults (pro+) | Yes | — |
 | DELETE | `/v1/sessions/:id` | Delete session (pro+) | Yes | — |
+| POST | `/v1/governance/ballot/encrypt` | Encrypt vote ballot (Pedersen commitment + nullifier) | Yes | — |
+| POST | `/v1/governance/ballot/submit` | Submit encrypted ballot to a proposal | Yes | ✓ |
+| POST | `/v1/governance/tally` | Homomorphic tally of all ballots for a proposal | Yes | ✓ |
+| GET | `/v1/governance/tally/:id` | Get tally result | Yes | — |
 
 ### Idempotency
 
@@ -439,6 +446,9 @@ All error codes are centralized in `src/errors/codes.ts` (ErrorCode enum). Full 
 | **404** | SESSION_NOT_FOUND |
 | **410** | SESSION_EXPIRED |
 | **500** | SESSION_CREATE_FAILED |
+| **500** | GOVERNANCE_ENCRYPT_FAILED, GOVERNANCE_SUBMIT_FAILED, GOVERNANCE_TALLY_FAILED |
+| **404** | GOVERNANCE_TALLY_NOT_FOUND, GOVERNANCE_PROPOSAL_NOT_FOUND |
+| **409** | GOVERNANCE_DOUBLE_VOTE |
 | **503** | SERVICE_UNAVAILABLE, SOLANA_RPC_UNAVAILABLE |
 
 ---
@@ -458,7 +468,7 @@ All error codes are centralized in `src/errors/codes.ts` (ErrorCode enum). Full 
 ## AI GUIDELINES
 
 ### DO:
-- Run `pnpm test -- --run` after code changes (437 tests must pass)
+- Run `pnpm test -- --run` after code changes (488 tests must pass)
 - Run `pnpm typecheck` before committing
 - Use @sip-protocol/sdk for all crypto operations (never roll your own)
 - Keep API responses consistent: `{ success, data?, error? }`
@@ -505,7 +515,7 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 | 5 | Backend Aggregation | 5 | 🔲 Planned |
 | 6 | Enterprise | 6 | 🔲 Planned |
 
-**Progress:** 33/38 issues complete | 465 tests | 91 endpoints | 17 chains
+**Progress:** 34/38 issues complete | 488 tests | 95 endpoints | 17 chains
 
 **Quick check:** `gh issue list -R sip-protocol/sipher --state open`
 
