@@ -32,7 +32,10 @@ function extractApiKey(req: Request): string | null {
   const header = req.headers['x-api-key']
   if (typeof header === 'string' && header) return header
   const auth = req.headers.authorization
-  if (auth?.startsWith('Bearer ')) return auth.slice(7)
+  if (auth?.startsWith('Bearer ')) {
+    const token = auth.slice(7)
+    if (token) return token
+  }
   return null
 }
 
