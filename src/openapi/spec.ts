@@ -2764,6 +2764,212 @@ export const openApiSpec = {
         },
       },
     },
+
+    // ─── Compliance ──────────────────────────────────────────────────────
+
+    '/v1/compliance/disclose': {
+      post: {
+        tags: ['Compliance'],
+        operationId: 'complianceDisclose',
+        summary: 'Selective disclosure with scoped viewing key (enterprise)',
+        description: 'Creates a selective disclosure for a verified auditor. Derives a scoped viewing key limited to the specified scope, encrypts transaction data, and returns the disclosure record. Requires enterprise tier.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  viewingKey: { $ref: '#/components/schemas/ViewingKey' },
+                  transactionData: {
+                    type: 'object',
+                    properties: {
+                      txHash: { type: 'string' },
+                      amount: { type: 'string' },
+                      sender: { type: 'string' },
+                      receiver: { type: 'string' },
+                    },
+                    required: ['txHash', 'amount', 'sender', 'receiver'],
+                  },
+                  scope: {
+                    type: 'object',
+                    properties: {
+                      type: { type: 'string', enum: ['time_range', 'counterparty', 'amount_threshold', 'full'] },
+                      startTime: { type: 'integer' },
+                      endTime: { type: 'integer' },
+                      counterparty: { type: 'string' },
+                      minAmount: { type: 'string' },
+                    },
+                    required: ['type'],
+                  },
+                  auditorId: { type: 'string' },
+                  auditorVerification: {
+                    type: 'object',
+                    properties: {
+                      auditorKeyHash: { type: 'string', pattern: '^0x[0-9a-fA-F]+$' },
+                      nonce: { type: 'string', pattern: '^0x[0-9a-fA-F]+$' },
+                    },
+                    required: ['auditorKeyHash', 'nonce'],
+                  },
+                },
+                required: ['viewingKey', 'transactionData', 'scope', 'auditorId', 'auditorVerification'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Disclosure created',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        disclosureId: { type: 'string', pattern: '^cmp_[0-9a-fA-F]{64}$' },
+                        scopedViewingKeyHash: { type: 'string' },
+                        ciphertext: { type: 'string' },
+                        nonce: { type: 'string' },
+                        scope: { type: 'object' },
+                        auditorVerified: { type: 'boolean' },
+                        disclosedAt: { type: 'integer' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error', content: { 'application/json': { schema: errorResponse } } },
+          403: { description: 'Tier access denied (enterprise only)', content: { 'application/json': { schema: errorResponse } } },
+          500: { description: 'Disclosure failed', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+
+    '/v1/compliance/report': {
+      post: {
+        tags: ['Compliance'],
+        operationId: 'complianceReport',
+        summary: 'Generate encrypted audit report (enterprise)',
+        description: 'Generates an encrypted compliance audit report for the specified time range. Verifies auditor identity, produces transaction summaries with encrypted entries, and caches the report for 24 hours. Requires enterprise tier.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  viewingKey: { $ref: '#/components/schemas/ViewingKey' },
+                  startTime: { type: 'integer', description: 'Start of reporting window (Unix ms)' },
+                  endTime: { type: 'integer', description: 'End of reporting window (Unix ms)' },
+                  auditorId: { type: 'string' },
+                  auditorVerification: {
+                    type: 'object',
+                    properties: {
+                      auditorKeyHash: { type: 'string', pattern: '^0x[0-9a-fA-F]+$' },
+                      nonce: { type: 'string', pattern: '^0x[0-9a-fA-F]+$' },
+                    },
+                    required: ['auditorKeyHash', 'nonce'],
+                  },
+                  includeCounterparties: { type: 'boolean', default: false },
+                },
+                required: ['viewingKey', 'startTime', 'endTime', 'auditorId', 'auditorVerification'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Report generated',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        reportId: { type: 'string', pattern: '^rpt_[0-9a-fA-F]{64}$' },
+                        status: { type: 'string', enum: ['generated', 'encrypted'] },
+                        generatedAt: { type: 'integer' },
+                        expiresAt: { type: 'integer' },
+                        summary: {
+                          type: 'object',
+                          properties: {
+                            totalTransactions: { type: 'integer' },
+                            totalVolume: { type: 'string' },
+                            uniqueCounterparties: { type: 'integer' },
+                            encryptedTransactions: { type: 'array', items: { type: 'string' } },
+                          },
+                        },
+                        encryptedReport: { type: 'string' },
+                        reportHash: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error', content: { 'application/json': { schema: errorResponse } } },
+          403: { description: 'Tier access denied (enterprise only)', content: { 'application/json': { schema: errorResponse } } },
+          500: { description: 'Report generation failed', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+
+    '/v1/compliance/report/{id}': {
+      get: {
+        tags: ['Compliance'],
+        operationId: 'getComplianceReport',
+        summary: 'Retrieve generated compliance report (enterprise)',
+        description: 'Retrieves a previously generated compliance audit report by ID. Reports are cached for 24 hours after generation. Requires enterprise tier.',
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', pattern: '^rpt_[0-9a-fA-F]{64}$' },
+            description: 'Report ID returned from POST /v1/compliance/report',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Report found',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        reportId: { type: 'string' },
+                        status: { type: 'string' },
+                        generatedAt: { type: 'integer' },
+                        expiresAt: { type: 'integer' },
+                        summary: { type: 'object' },
+                        encryptedReport: { type: 'string' },
+                        reportHash: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Invalid report ID format', content: { 'application/json': { schema: errorResponse } } },
+          403: { description: 'Tier access denied (enterprise only)', content: { 'application/json': { schema: errorResponse } } },
+          404: { description: 'Report not found', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
   },
   tags: [
     { name: 'Health', description: 'Server health, readiness, and error catalog' },
@@ -2780,5 +2986,6 @@ export const openApiSpec = {
     { name: 'Arcium', description: 'Arcium MPC compute backend — submit computations, poll status, decrypt results' },
     { name: 'Inco', description: 'Inco FHE compute backend — encrypt values, compute on ciphertexts, decrypt results' },
     { name: 'Swap', description: 'Privacy-preserving token swaps via Jupiter DEX with stealth address routing' },
+    { name: 'Compliance', description: 'Enterprise compliance endpoints — selective disclosure, audit reports, and auditor verification' },
   ],
 }
