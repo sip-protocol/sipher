@@ -64,6 +64,13 @@ export enum ErrorCode {
   // 400 — Inco FHE
   INCO_DECRYPT_FAILED = 'INCO_DECRYPT_FAILED',
 
+  // 500 — Private Swap
+  SWAP_QUOTE_FAILED = 'SWAP_QUOTE_FAILED',
+  PRIVATE_SWAP_FAILED = 'PRIVATE_SWAP_FAILED',
+
+  // 400 — Private Swap
+  SWAP_UNSUPPORTED_TOKEN = 'SWAP_UNSUPPORTED_TOKEN',
+
   // 503 — Service Unavailable
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
   SOLANA_RPC_UNAVAILABLE = 'SOLANA_RPC_UNAVAILABLE',
@@ -290,6 +297,28 @@ export const ERROR_CATALOG: ErrorCatalogEntry[] = [
     code: ErrorCode.INCO_DECRYPT_FAILED,
     httpStatus: 400,
     description: 'Inco decryption failed. The computation ID may be invalid.',
+    retryable: false,
+  },
+
+  // 500 — Private Swap
+  {
+    code: ErrorCode.SWAP_QUOTE_FAILED,
+    httpStatus: 500,
+    description: 'Jupiter DEX quote generation failed. The swap provider may be temporarily unavailable.',
+    retryable: true,
+  },
+  {
+    code: ErrorCode.PRIVATE_SWAP_FAILED,
+    httpStatus: 500,
+    description: 'Private swap orchestration failed. One or more steps in the swap pipeline encountered an error.',
+    retryable: true,
+  },
+
+  // 400 — Private Swap
+  {
+    code: ErrorCode.SWAP_UNSUPPORTED_TOKEN,
+    httpStatus: 400,
+    description: 'Token not supported by Jupiter DEX mock. Check supportedTokens in the response.',
     retryable: false,
   },
 

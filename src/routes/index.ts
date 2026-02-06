@@ -15,6 +15,7 @@ import csplRouter from './cspl.js'
 import privateTransferRouter from './private-transfer.js'
 import arciumRouter from './arcium.js'
 import incoRouter from './inco.js'
+import privateSwapRouter from './private-swap.js'
 import adminRouter from './admin.js'
 
 const router = Router()
@@ -35,6 +36,7 @@ router.use(rangeProofRouter)
 router.use(csplRouter)
 router.use(arciumRouter)
 router.use(incoRouter)
+router.use(privateSwapRouter)
 router.use('/admin', adminRouter)
 
 export default router

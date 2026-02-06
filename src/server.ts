@@ -141,6 +141,9 @@ app.get('/', (_req, res) => {
         compute: 'POST /v1/inco/compute',
         decrypt: 'POST /v1/inco/decrypt',
       },
+      swap: {
+        private: 'POST /v1/swap/private',
+      },
       admin: {
         listKeys: 'GET /v1/admin/keys',
         createKey: 'POST /v1/admin/keys',
