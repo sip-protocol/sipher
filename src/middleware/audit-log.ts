@@ -18,6 +18,7 @@ const SENSITIVE_KEYS = new Set([
   'ciphertexts',
   'inputAmount',
   'swapTransaction',
+  'defaultViewingKey',
 ])
 
 function sanitizeBody(body: unknown): unknown {
