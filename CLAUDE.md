@@ -4,8 +4,9 @@
 
 **Repository:** https://github.com/sip-protocol/sipher
 **Live URL:** https://sipher.sip-protocol.org
-**Tagline:** "Privacy-as-a-Skill for Solana Agents"
+**Tagline:** "Privacy-as-a-Skill for Multi-Chain Agents"
 **Purpose:** REST API + OpenClaw skill enabling any autonomous agent to add transaction privacy via SIP Protocol
+**Stats:** 70 endpoints | 273 tests | 17 chains supported
 
 ---
 
@@ -48,13 +49,13 @@
 - **Runtime:** Node.js 22 (LTS)
 - **Framework:** Express 5
 - **Language:** TypeScript (strict)
-- **Core:** @sip-protocol/sdk v0.7.3 (stealth addresses, commitments, encryption)
+- **Core:** @sip-protocol/sdk v0.7.4 (stealth addresses, commitments, encryption, multi-chain)
 - **Solana:** @solana/web3.js v1 (transactions, RPC)
 - **Validation:** Zod v3
 - **Logging:** Pino v9 (structured JSON, audit logs)
 - **Docs:** swagger-ui-express (OpenAPI 3.1)
-- **Caching:** lru-cache (idempotency store, 10K entries, 24h TTL)
-- **Testing:** Vitest + Supertest (165 tests)
+- **Cache:** Redis 7 (rate limiting, idempotency) with in-memory fallback
+- **Testing:** Vitest + Supertest (273 tests)
 - **Deployment:** Docker + GHCR → VPS (port 5006)
 - **Domain:** sipher.sip-protocol.org
 
@@ -67,7 +68,7 @@
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (localhost:5006)
 pnpm build                      # Build for production
-pnpm test -- --run              # Run tests (165 tests)
+pnpm test -- --run              # Run tests (273 tests)
 pnpm typecheck                  # Type check
 pnpm demo                       # Full-flow demo (requires dev server running)
 
@@ -377,7 +378,7 @@ All error codes are centralized in `src/errors/codes.ts` (ErrorCode enum). Full 
 ## AI GUIDELINES
 
 ### DO:
-- Run `pnpm test -- --run` after code changes (165 tests must pass)
+- Run `pnpm test -- --run` after code changes (273 tests must pass)
 - Run `pnpm typecheck` before committing
 - Use @sip-protocol/sdk for all crypto operations (never roll your own)
 - Keep API responses consistent: `{ success, data?, error? }`
@@ -394,24 +395,41 @@ All error codes are centralized in `src/errors/codes.ts` (ErrorCode enum). Full 
 
 ---
 
+## MULTI-CHAIN SUPPORT
+
+Stealth address endpoints support 17 chains across 6 families:
+
+| Chain Family | Chains | Curve |
+|-------------|--------|-------|
+| **Solana** | solana | ed25519 |
+| **NEAR** | near | ed25519 |
+| **Move** | aptos, sui | ed25519 |
+| **EVM** | ethereum, polygon, arbitrum, optimism, base | secp256k1 |
+| **Cosmos** | cosmos, osmosis, injective, celestia, sei, dydx | secp256k1 |
+| **Bitcoin** | bitcoin, zcash | secp256k1 |
+
+All `/stealth/*` endpoints accept a `chain` parameter (default: `solana`). The curve is auto-detected based on chain.
+
+---
+
 ## ROADMAP
 
 See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 milestones).
 
 | Phase | Theme | Issues | Status |
 |-------|-------|--------|--------|
-| 1 | Hackathon Polish | 7 | ✅ Complete (7/7 closed) |
-| 2 | Production Hardening | 7 | ✅ Complete (5/7 closed, 2 deferred) |
-| 3 | Advanced Privacy | 7 | 🔧 In Progress (4/7 closed) |
-| 4 | Multi-Chain | 6 | Planned |
-| 5 | Backend Aggregation | 5 | Planned |
-| 6 | Enterprise | 6 | Planned |
+| 1 | Hackathon Polish | 7 | ✅ Complete |
+| 2 | Production Hardening | 7 | ✅ Complete |
+| 3 | Advanced Privacy | 7 | ✅ Complete |
+| 4 | Multi-Chain | 6 | 🎯 Active (5/6) |
+| 5 | Backend Aggregation | 5 | 🔲 Planned |
+| 6 | Enterprise | 6 | 🔲 Planned |
 
-**Phase 2 deferred:** S2-02 (API key tiers, #8), S2-03 (Redis, #10) — post-hackathon
+**Progress:** 26/38 issues complete | 273 tests | 70 endpoints | 17 chains
 
 **Quick check:** `gh issue list -R sip-protocol/sipher --state open`
 
 ---
 
-**Last Updated:** 2026-02-05
-**Status:** Phase 3 In Progress | 26 Endpoints | 165 Tests | Agent #274 Active | LLM Agent Ready
+**Last Updated:** 2026-02-06
+**Status:** Phase 4 Active | 70 Endpoints | 273 Tests | 17 Chains | Agent #274 Active
