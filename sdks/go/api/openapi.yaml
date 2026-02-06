@@ -1,0 +1,5253 @@
+openapi: 3.1.0
+info:
+  contact:
+    email: hello@sip-protocol.org
+    name: SIP Protocol
+    url: https://sip-protocol.org
+  description: "REST API wrapping SIP Protocol's privacy SDK for Solana agents. Stealth\
+    \ addresses, Pedersen commitments, shielded transfers, and viewing key compliance."
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Sipher — Privacy-as-a-Skill API
+  version: 0.1.0
+servers:
+- description: Production
+  url: https://sipher.sip-protocol.org
+- description: Local development
+  url: http://localhost:5006
+security:
+- ApiKeyAuth: []
+tags:
+- description: "Server health, readiness, and error catalog"
+  name: Health
+- description: "Stealth address generation, derivation, and ownership check"
+  name: Stealth
+- description: Build shielded transfers and claim stealth payments
+  name: Transfer
+- description: Scan for incoming shielded payments
+  name: Scan
+- description: "Pedersen commitment operations (create, verify, homomorphic add/subtract)"
+  name: Commitment
+- description: "Viewing key generation, encryption for disclosure, and decryption"
+  name: Viewing Key
+- description: Wallet privacy analysis and surveillance scoring
+  name: Privacy
+- description: RPC provider configuration and status
+  name: RPC
+- description: "Privacy backend registry, health monitoring, and selection"
+  name: Backends
+- description: "ZK proof generation and verification (funding, validity, fulfillment,\
+    \ range)"
+  name: Proofs
+- description: "Confidential SPL token operations (wrap, unwrap, transfer)"
+  name: C-SPL
+- description: "Arcium MPC compute backend — submit computations, poll status, decrypt\
+    \ results"
+  name: Arcium
+- description: "Inco FHE compute backend — encrypt values, compute on ciphertexts,\
+    \ decrypt results"
+  name: Inco
+- description: Privacy-preserving token swaps via Jupiter DEX with stealth address
+    routing
+  name: Swap
+- description: "Enterprise compliance endpoints — selective disclosure, audit reports,\
+    \ and auditor verification"
+  name: Compliance
+paths:
+  /v1/health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_200_response"
+          description: Service is healthy
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Service unhealthy or shutting down
+      security: []
+      summary: Health check
+      tags:
+      - Health
+  /v1/ready:
+    get:
+      description: Returns 200 only if all critical systems are healthy. Use as Docker/k8s
+        readiness probe.
+      operationId: getReady
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getReady_200_response"
+          description: Service is ready to accept requests
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Service not ready
+      security: []
+      summary: Readiness probe
+      tags:
+      - Health
+  /v1/errors:
+    get:
+      description: "Returns all API error codes with descriptions, HTTP statuses,\
+        \ and retry guidance."
+      operationId: getErrors
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getErrors_200_response"
+          description: Error catalog
+      security: []
+      summary: Error code catalog
+      tags:
+      - Health
+  /v1/stealth/generate:
+    post:
+      operationId: stealthGenerate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/stealthGenerate_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/stealthGenerate_200_response"
+          description: Stealth meta-address generated
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Generate stealth meta-address keypair
+      tags:
+      - Stealth
+  /v1/stealth/derive:
+    post:
+      operationId: stealthDerive
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/stealthDerive_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/stealthDerive_200_response"
+          description: Stealth address derived
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Derive one-time stealth address
+      tags:
+      - Stealth
+  /v1/stealth/check:
+    post:
+      operationId: stealthCheck
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/stealthCheck_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/stealthCheck_200_response"
+          description: Ownership check result
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Check stealth address ownership
+      tags:
+      - Stealth
+  /v1/stealth/generate/batch:
+    post:
+      description: Generate multiple stealth meta-address keypairs in a single call.
+        Max 100 per request.
+      operationId: stealthGenerateBatch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/stealthGenerateBatch_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/stealthGenerateBatch_200_response"
+          description: Batch generation results
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Batch generate stealth keypairs
+      tags:
+      - Stealth
+  /v1/transfer/shield:
+    post:
+      description: Creates an unsigned Solana transaction sending to a stealth address
+        with Pedersen commitment.
+      operationId: transferShield
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/transferShield_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferShield_200_response"
+          description: Unsigned transaction built
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Build shielded transfer (unsigned)
+      tags:
+      - Transfer
+  /v1/transfer/claim:
+    post:
+      description: "Derives stealth private key, signs and submits claim transaction\
+        \ on-chain."
+      operationId: transferClaim
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/transferClaim_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferClaim_200_response"
+          description: Claim transaction submitted
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Claim stealth payment (signed)
+      tags:
+      - Transfer
+  /v1/transfer/private:
+    post:
+      description: "Builds a private transfer to a stealth address on any supported\
+        \ chain. Returns chain-specific transaction data (Solana unsigned tx, EVM\
+        \ tx descriptor, or NEAR action descriptors). Currently supports: solana,\
+        \ ethereum, polygon, arbitrum, optimism, base, near."
+      operationId: transferPrivate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/transferPrivate_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferPrivate_200_response"
+          description: Private transfer built successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferPrivate_422_response"
+          description: Chain not supported for transfers
+      summary: Build unified private transfer (chain-agnostic)
+      tags:
+      - Transfer
+  /v1/scan/payments:
+    post:
+      description: Scans Solana for SIP announcements matching the provided viewing
+        key.
+      operationId: scanPayments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/scanPayments_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scanPayments_200_response"
+          description: Scan results
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Scan for incoming shielded payments
+      tags:
+      - Scan
+  /v1/commitment/create:
+    post:
+      operationId: commitmentCreate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/commitmentCreate_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commitmentCreate_200_response"
+          description: Commitment created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Create Pedersen commitment
+      tags:
+      - Commitment
+  /v1/commitment/verify:
+    post:
+      operationId: commitmentVerify
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/commitmentVerify_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commitmentVerify_200_response"
+          description: Verification result
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Verify Pedersen commitment
+      tags:
+      - Commitment
+  /v1/commitment/add:
+    post:
+      operationId: commitmentAdd
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/commitmentAdd_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commitmentAdd_200_response"
+          description: Sum commitment
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Add two commitments (homomorphic)
+      tags:
+      - Commitment
+  /v1/commitment/subtract:
+    post:
+      operationId: commitmentSubtract
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/commitmentAdd_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commitmentAdd_200_response"
+          description: Difference commitment
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Subtract two commitments (homomorphic)
+      tags:
+      - Commitment
+  /v1/commitment/create/batch:
+    post:
+      description: Create multiple Pedersen commitments in a single call. Max 100
+        per request.
+      operationId: commitmentCreateBatch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/commitmentCreateBatch_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commitmentCreateBatch_200_response"
+          description: Batch commitment results
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Batch create Pedersen commitments
+      tags:
+      - Commitment
+  /v1/scan/payments/batch:
+    post:
+      description: Scan for incoming shielded payments across multiple viewing key
+        pairs. Max 100 key pairs per request.
+      operationId: scanPaymentsBatch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/scanPaymentsBatch_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scanPaymentsBatch_200_response"
+          description: Batch scan results
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Batch scan for payments across multiple key pairs
+      tags:
+      - Scan
+  /v1/viewing-key/generate:
+    post:
+      operationId: viewingKeyGenerate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/viewingKeyGenerate_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/viewingKeyGenerate_200_response"
+          description: Viewing key generated
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Generate viewing key
+      tags:
+      - Viewing Key
+  /v1/viewing-key/derive:
+    post:
+      description: "Derives a child viewing key from a master key using HMAC-SHA512.\
+        \ Supports hierarchical key trees for scoped compliance access (per-auditor,\
+        \ per-timeframe)."
+      operationId: viewingKeyDerive
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/viewingKeyDerive_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/viewingKeyDerive_200_response"
+          description: Derived child viewing key
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Derive child viewing key (BIP32-style)
+      tags:
+      - Viewing Key
+  /v1/viewing-key/verify-hierarchy:
+    post:
+      description: Verifies that a child viewing key was derived from a specific parent
+        key at a given path.
+      operationId: viewingKeyVerifyHierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/viewingKeyVerifyHierarchy_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/viewingKeyVerifyHierarchy_200_response"
+          description: Hierarchy verification result
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Verify viewing key parent-child relationship
+      tags:
+      - Viewing Key
+  /v1/viewing-key/disclose:
+    post:
+      description: Encrypts transaction data so only the viewing key holder can decrypt
+        it (selective compliance).
+      operationId: viewingKeyDisclose
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/viewingKeyDisclose_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/viewingKeyDisclose_200_response"
+          description: Encrypted disclosure
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Encrypt transaction for disclosure
+      tags:
+      - Viewing Key
+  /v1/viewing-key/decrypt:
+    post:
+      operationId: viewingKeyDecrypt
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/viewingKeyDecrypt_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/viewingKeyDecrypt_200_response"
+          description: Decrypted transaction data
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Decryption failed (key mismatch)
+      summary: Decrypt transaction with viewing key
+      tags:
+      - Viewing Key
+  /v1/privacy/score:
+    post:
+      description: Analyzes on-chain activity of a Solana wallet and returns a 0-100
+        privacy score with breakdown by factor and actionable recommendations.
+      operationId: privacyScore
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/privacyScore_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/privacyScore_200_response"
+          description: Privacy score analysis
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Invalid address
+      summary: Analyze wallet privacy score
+      tags:
+      - Privacy
+  /v1/rpc/providers:
+    get:
+      operationId: getRpcProviders
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getRpcProviders_200_response"
+          description: Active provider info and supported provider list
+      security:
+      - ApiKeyAuth: []
+      summary: List supported RPC providers and active configuration
+      tags:
+      - RPC
+  /v1/proofs/funding/generate:
+    post:
+      description: Generates a ZK proof that balance >= minimumRequired without revealing
+        the balance.
+      operationId: proofsFundingGenerate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/proofsFundingGenerate_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/proofsFundingGenerate_200_response"
+          description: Proof generated
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation or proof generation error
+      summary: Generate funding proof
+      tags:
+      - Proofs
+  /v1/proofs/funding/verify:
+    post:
+      description: Verifies a previously generated funding proof.
+      operationId: proofsFundingVerify
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/proofsFundingVerify_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commitmentVerify_200_response"
+          description: Verification result
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Verify funding proof
+      tags:
+      - Proofs
+  /v1/proofs/validity/generate:
+    post:
+      description: Generates a ZK proof that an intent is authorized by the sender
+        without revealing the sender.
+      operationId: proofsValidityGenerate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/proofsValidityGenerate_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/proofsValidityGenerate_200_response"
+          description: Proof generated
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation or proof generation error
+      summary: Generate validity proof
+      tags:
+      - Proofs
+  /v1/proofs/validity/verify:
+    post:
+      description: Verifies a previously generated validity proof.
+      operationId: proofsValidityVerify
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/proofsValidityVerify_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commitmentVerify_200_response"
+          description: Verification result
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Verify validity proof
+      tags:
+      - Proofs
+  /v1/proofs/fulfillment/generate:
+    post:
+      description: Generates a ZK proof that the solver delivered output >= minimum
+        to the correct recipient.
+      operationId: proofsFulfillmentGenerate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/proofsFulfillmentGenerate_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/proofsFulfillmentGenerate_200_response"
+          description: Proof generated
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation or proof generation error
+      summary: Generate fulfillment proof
+      tags:
+      - Proofs
+  /v1/proofs/range/generate:
+    post:
+      description: Generates a STARK-based range proof that value >= threshold on
+        a Pedersen commitment without revealing the value. Uses M31 limb decomposition.
+        Currently uses a mock STARK prover — real Murkl integration coming soon.
+      operationId: proofsRangeGenerate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/proofsRangeGenerate_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/proofsRangeGenerate_200_response"
+          description: Range proof generated
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation or proof generation error
+      summary: Generate STARK range proof
+      tags:
+      - Proofs
+  /v1/proofs/range/verify:
+    post:
+      description: Verifies a previously generated STARK range proof.
+      operationId: proofsRangeVerify
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/proofsRangeVerify_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commitmentVerify_200_response"
+          description: Verification result
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Verify STARK range proof
+      tags:
+      - Proofs
+  /v1/backends:
+    get:
+      description: "Returns all registered privacy backends with capabilities, health\
+        \ state, and priority. Backends implement different privacy strategies (stealth\
+        \ addresses, FHE, MPC)."
+      operationId: backendsList
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backendsList_200_response"
+          description: List of registered backends
+      summary: List privacy backends
+      tags:
+      - Backends
+  /v1/backends/{id}/health:
+    get:
+      description: "Probes a specific backend for availability, returns circuit breaker\
+        \ state, metrics, and capabilities."
+      operationId: backendsHealth
+      parameters:
+      - description: "Backend name (e.g., sip-native)"
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backendsHealth_200_response"
+          description: Backend health details
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Backend not found
+      summary: Check backend health
+      tags:
+      - Backends
+  /v1/backends/select:
+    post:
+      description: Sets the preferred privacy backend for the authenticated API key.
+        Requires a tiered API key.
+      operationId: backendsSelect
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/backendsSelect_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backendsSelect_200_response"
+          description: Backend preference saved
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error or missing API key
+      summary: Select preferred backend
+      tags:
+      - Backends
+  /v1/backends/compare:
+    post:
+      description: "Compare available privacy backends for a given operation type,\
+        \ returning cost, latency, privacy level, and recommendations."
+      operationId: backendsCompare
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/backendsCompare_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backendsCompare_200_response"
+          description: Backend comparison results with recommendations
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Compare privacy backends
+      tags:
+      - Backends
+  /v1/cspl/wrap:
+    post:
+      description: Wraps standard SPL tokens into a confidential (C-SPL) balance with
+        encrypted amounts.
+      operationId: csplWrap
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/csplWrap_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/csplWrap_200_response"
+          description: Tokens wrapped into confidential balance
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation or operation error
+      summary: Wrap SPL tokens into confidential balance
+      tags:
+      - C-SPL
+  /v1/cspl/unwrap:
+    post:
+      description: Unwraps confidential (C-SPL) tokens back to standard SPL token
+        balance.
+      operationId: csplUnwrap
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/csplUnwrap_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/csplUnwrap_200_response"
+          description: Tokens unwrapped
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation or operation error
+      summary: Unwrap confidential tokens back to SPL
+      tags:
+      - C-SPL
+  /v1/cspl/transfer:
+    post:
+      description: Transfers confidential (C-SPL) tokens with hidden amount between
+        accounts.
+      operationId: csplTransfer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/csplTransfer_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/csplTransfer_200_response"
+          description: Confidential transfer completed
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation or operation error
+      summary: Confidential token transfer
+      tags:
+      - C-SPL
+  /v1/proofs/fulfillment/verify:
+    post:
+      description: Verifies a previously generated fulfillment proof.
+      operationId: proofsFulfillmentVerify
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/proofsFulfillmentVerify_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commitmentVerify_200_response"
+          description: Verification result
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Verify fulfillment proof
+      tags:
+      - Proofs
+  /v1/arcium/compute:
+    post:
+      description: Submit an encrypted computation to the Arcium MPC cluster. Returns
+        a computation ID for status polling.
+      operationId: submitArciumComputation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/submitArciumComputation_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/submitArciumComputation_200_response"
+          description: Computation submitted successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Submit MPC computation
+      tags:
+      - Arcium
+  /v1/arcium/compute/{id}/status:
+    get:
+      description: "Poll the status of an MPC computation. Status progresses: submitted\
+        \ → encrypting → processing → finalizing → completed."
+      operationId: getArciumComputationStatus
+      parameters:
+      - description: Computation ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          pattern: "^arc_[0-9a-fA-F]{64}$"
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getArciumComputationStatus_200_response"
+          description: Computation status
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Computation not found
+      summary: Get computation status
+      tags:
+      - Arcium
+  /v1/arcium/decrypt:
+    post:
+      description: Decrypt the output of a completed MPC computation using a viewing
+        key.
+      operationId: decryptArciumResult
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/decryptArciumResult_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/decryptArciumResult_200_response"
+          description: Decryption result
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Decrypt failed or computation incomplete
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Computation not found
+      summary: Decrypt computation result
+      tags:
+      - Arcium
+  /v1/inco/encrypt:
+    post:
+      description: Encrypt a plaintext value using Fully Homomorphic Encryption (FHEW
+        or TFHE scheme). Returns ciphertext and noise budget.
+      operationId: encryptIncoValue
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/encryptIncoValue_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/encryptIncoValue_200_response"
+          description: Value encrypted successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Encrypt value with FHE
+      tags:
+      - Inco
+  /v1/inco/compute:
+    post:
+      description: Perform a homomorphic operation on FHE ciphertexts. Operations
+        complete synchronously. Tracks noise budget consumption.
+      operationId: computeIncoCiphertexts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/computeIncoCiphertexts_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/computeIncoCiphertexts_200_response"
+          description: Computation completed
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+      summary: Compute on encrypted data
+      tags:
+      - Inco
+  /v1/inco/decrypt:
+    post:
+      description: Decrypt the output of a completed FHE computation. Returns the
+        plaintext result.
+      operationId: decryptIncoResult
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/decryptIncoResult_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/decryptIncoResult_200_response"
+          description: Decryption result
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Decrypt failed or invalid computation ID
+      summary: Decrypt FHE computation result
+      tags:
+      - Inco
+  /v1/swap/private:
+    post:
+      description: "Composite endpoint orchestrating stealth address generation, optional\
+        \ C-SPL wrapping, and Jupiter DEX swap into a single privacy-preserving token\
+        \ swap. Output is routed to a stealth address with Pedersen commitment. Supports\
+        \ ephemeral stealth addresses for agents without persistent meta-address."
+      operationId: privateSwap
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/privateSwap_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/privateSwap_200_response"
+          description: Private swap built successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error or unsupported token
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Swap orchestration failed
+      summary: Privacy-preserving token swap via Jupiter DEX
+      tags:
+      - Swap
+  /v1/compliance/disclose:
+    post:
+      description: "Creates a selective disclosure for a verified auditor. Derives\
+        \ a scoped viewing key limited to the specified scope, encrypts transaction\
+        \ data, and returns the disclosure record. Requires enterprise tier."
+      operationId: complianceDisclose
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/complianceDisclose_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/complianceDisclose_200_response"
+          description: Disclosure created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Tier access denied (enterprise only)
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Disclosure failed
+      summary: Selective disclosure with scoped viewing key (enterprise)
+      tags:
+      - Compliance
+  /v1/compliance/report:
+    post:
+      description: "Generates an encrypted compliance audit report for the specified\
+        \ time range. Verifies auditor identity, produces transaction summaries with\
+        \ encrypted entries, and caches the report for 24 hours. Requires enterprise\
+        \ tier."
+      operationId: complianceReport
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/complianceReport_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/complianceReport_200_response"
+          description: Report generated
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Validation error
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Tier access denied (enterprise only)
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Report generation failed
+      summary: Generate encrypted audit report (enterprise)
+      tags:
+      - Compliance
+  /v1/compliance/report/{id}:
+    get:
+      description: Retrieves a previously generated compliance audit report by ID.
+        Reports are cached for 24 hours after generation. Requires enterprise tier.
+      operationId: getComplianceReport
+      parameters:
+      - description: Report ID returned from POST /v1/compliance/report
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          pattern: "^rpt_[0-9a-fA-F]{64}$"
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getComplianceReport_200_response"
+          description: Report found
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Invalid report ID format
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Tier access denied (enterprise only)
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Report not found
+      summary: Retrieve generated compliance report (enterprise)
+      tags:
+      - Compliance
+components:
+  schemas:
+    ErrorResponse:
+      properties:
+        success:
+          enum:
+          - false
+          type: boolean
+        error:
+          $ref: "#/components/schemas/getHealth_503_response_error"
+      required:
+      - error
+      - success
+    StealthMetaAddress:
+      example:
+        viewingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        chain: solana
+        spendingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        label: label
+      properties:
+        spendingKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        viewingKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        chain:
+          enum:
+          - solana
+          type: string
+        label:
+          type: string
+      required:
+      - chain
+      - spendingKey
+      - viewingKey
+    StealthAddress:
+      example:
+        address: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        viewTag: 20
+        ephemeralPublicKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+      properties:
+        address:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        ephemeralPublicKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        viewTag:
+          maximum: 255
+          minimum: 0
+          type: integer
+      required:
+      - address
+      - ephemeralPublicKey
+      - viewTag
+    ViewingKey:
+      example:
+        path: path
+        key: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        hash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+      properties:
+        key:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        path:
+          type: string
+        hash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+      required:
+      - hash
+      - key
+      - path
+    getHealth_200_response_data_solana:
+      example:
+        connected: true
+        cluster: cluster
+        slot: 6
+        latencyMs: 1
+      properties:
+        connected:
+          type: boolean
+        cluster:
+          type: string
+        slot:
+          type: integer
+        latencyMs:
+          type: integer
+    getHealth_200_response_data_memory:
+      example:
+        rssMB: 5.637376656633329
+        heapUsedMB: 5.962133916683182
+      properties:
+        heapUsedMB:
+          type: number
+        rssMB:
+          type: number
+    getHealth_200_response_data:
+      example:
+        endpoints: 2
+        memory:
+          rssMB: 5.637376656633329
+          heapUsedMB: 5.962133916683182
+        solana:
+          connected: true
+          cluster: cluster
+          slot: 6
+          latencyMs: 1
+        version: version
+        status: healthy
+        timestamp: 2000-01-23T04:56:07.000+00:00
+        uptime: 0
+      properties:
+        status:
+          enum:
+          - healthy
+          - unhealthy
+          - shutting_down
+          type: string
+        version:
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+        uptime:
+          description: Uptime in seconds
+          type: integer
+        solana:
+          $ref: "#/components/schemas/getHealth_200_response_data_solana"
+        memory:
+          $ref: "#/components/schemas/getHealth_200_response_data_memory"
+        endpoints:
+          type: integer
+    getHealth_200_response:
+      example:
+        data:
+          endpoints: 2
+          memory:
+            rssMB: 5.637376656633329
+            heapUsedMB: 5.962133916683182
+          solana:
+            connected: true
+            cluster: cluster
+            slot: 6
+            latencyMs: 1
+          version: version
+          status: healthy
+          timestamp: 2000-01-23T04:56:07.000+00:00
+          uptime: 0
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/getHealth_200_response_data"
+    getHealth_503_response_error:
+      example:
+        code: code
+        details: ""
+        message: message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details: {}
+      required:
+      - code
+      - message
+    getHealth_503_response:
+      example:
+        success: true
+        error:
+          code: code
+          details: ""
+          message: message
+      properties:
+        success:
+          enum:
+          - false
+          type: boolean
+        error:
+          $ref: "#/components/schemas/getHealth_503_response_error"
+      required:
+      - error
+      - success
+    getReady_200_response_data_checks:
+      example:
+        solana: true
+        shutdown: true
+      properties:
+        solana:
+          type: boolean
+        shutdown:
+          type: boolean
+    getReady_200_response_data:
+      example:
+        checks:
+          solana: true
+          shutdown: true
+        ready: true
+      properties:
+        ready:
+          type: boolean
+        checks:
+          $ref: "#/components/schemas/getReady_200_response_data_checks"
+    getReady_200_response:
+      example:
+        data:
+          checks:
+            solana: true
+            shutdown: true
+          ready: true
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/getReady_200_response_data"
+    getErrors_200_response_data_errors_inner:
+      example:
+        retryable: true
+        code: code
+        httpStatus: 6
+        description: description
+      properties:
+        code:
+          type: string
+        httpStatus:
+          type: integer
+        description:
+          type: string
+        retryable:
+          type: boolean
+    getErrors_200_response_data:
+      example:
+        totalCodes: 0
+        errors:
+        - retryable: true
+          code: code
+          httpStatus: 6
+          description: description
+        - retryable: true
+          code: code
+          httpStatus: 6
+          description: description
+      properties:
+        totalCodes:
+          type: integer
+        errors:
+          items:
+            $ref: "#/components/schemas/getErrors_200_response_data_errors_inner"
+          type: array
+    getErrors_200_response:
+      example:
+        data:
+          totalCodes: 0
+          errors:
+          - retryable: true
+            code: code
+            httpStatus: 6
+            description: description
+          - retryable: true
+            code: code
+            httpStatus: 6
+            description: description
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/getErrors_200_response_data"
+    stealthGenerate_request:
+      properties:
+        label:
+          description: Optional label for the keypair
+          type: string
+    stealthGenerate_200_response_data:
+      example:
+        metaAddress:
+          viewingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          chain: solana
+          spendingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          label: label
+        spendingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        viewingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+      properties:
+        metaAddress:
+          $ref: "#/components/schemas/StealthMetaAddress"
+        spendingPrivateKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        viewingPrivateKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+    stealthGenerate_200_response:
+      example:
+        data:
+          metaAddress:
+            viewingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+            chain: solana
+            spendingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+            label: label
+          spendingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          viewingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/stealthGenerate_200_response_data"
+    stealthDerive_request:
+      properties:
+        recipientMetaAddress:
+          $ref: "#/components/schemas/StealthMetaAddress"
+      required:
+      - recipientMetaAddress
+    stealthDerive_200_response_data:
+      example:
+        stealthAddress:
+          address: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          viewTag: 20
+          ephemeralPublicKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        sharedSecret: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+      properties:
+        stealthAddress:
+          $ref: "#/components/schemas/StealthAddress"
+        sharedSecret:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+    stealthDerive_200_response:
+      example:
+        data:
+          stealthAddress:
+            address: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+            viewTag: 20
+            ephemeralPublicKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          sharedSecret: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/stealthDerive_200_response_data"
+    stealthCheck_request:
+      properties:
+        stealthAddress:
+          $ref: "#/components/schemas/StealthAddress"
+        spendingPrivateKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        viewingPrivateKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+      required:
+      - spendingPrivateKey
+      - stealthAddress
+      - viewingPrivateKey
+    stealthCheck_200_response_data:
+      example:
+        isOwner: true
+      properties:
+        isOwner:
+          type: boolean
+    stealthCheck_200_response:
+      example:
+        data:
+          isOwner: true
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/stealthCheck_200_response_data"
+    stealthGenerateBatch_request:
+      properties:
+        count:
+          description: Number of keypairs to generate
+          maximum: 100
+          minimum: 1
+          type: integer
+        label:
+          description: Optional label applied to all keypairs
+          type: string
+      required:
+      - count
+    stealthGenerateBatch_200_response_data_results_inner:
+      example:
+        data:
+          metaAddress:
+            viewingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+            chain: solana
+            spendingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+            label: label
+          spendingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          viewingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        success: true
+        index: 0
+        error: error
+      properties:
+        index:
+          type: integer
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/stealthGenerate_200_response_data"
+        error:
+          type: string
+    stealthGenerateBatch_200_response_data_summary:
+      example:
+        total: 6
+        failed: 5
+        succeeded: 1
+      properties:
+        total:
+          type: integer
+        succeeded:
+          type: integer
+        failed:
+          type: integer
+    stealthGenerateBatch_200_response_data:
+      example:
+        summary:
+          total: 6
+          failed: 5
+          succeeded: 1
+        results:
+        - data:
+            metaAddress:
+              viewingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+              chain: solana
+              spendingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+              label: label
+            spendingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+            viewingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          success: true
+          index: 0
+          error: error
+        - data:
+            metaAddress:
+              viewingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+              chain: solana
+              spendingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+              label: label
+            spendingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+            viewingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          success: true
+          index: 0
+          error: error
+      properties:
+        results:
+          items:
+            $ref: "#/components/schemas/stealthGenerateBatch_200_response_data_results_inner"
+          type: array
+        summary:
+          $ref: "#/components/schemas/stealthGenerateBatch_200_response_data_summary"
+    stealthGenerateBatch_200_response:
+      example:
+        data:
+          summary:
+            total: 6
+            failed: 5
+            succeeded: 1
+          results:
+          - data:
+              metaAddress:
+                viewingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+                chain: solana
+                spendingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+                label: label
+              spendingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+              viewingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+            success: true
+            index: 0
+            error: error
+          - data:
+              metaAddress:
+                viewingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+                chain: solana
+                spendingKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+                label: label
+              spendingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+              viewingPrivateKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+            success: true
+            index: 0
+            error: error
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/stealthGenerateBatch_200_response_data"
+    transferShield_request:
+      properties:
+        sender:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        recipientMetaAddress:
+          $ref: "#/components/schemas/StealthMetaAddress"
+        amount:
+          description: Positive integer as string (no leading zeros)
+          example: "1000000000"
+          pattern: "^[1-9]\\d*$"
+          type: string
+        mint:
+          description: Optional SPL token mint. Omit for native SOL.
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+      required:
+      - amount
+      - recipientMetaAddress
+      - sender
+    transferShield_200_response_data:
+      example:
+        blindingFactor: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        viewingKeyHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        stealthAddress: stealthAddress
+        viewTag: 0
+        ephemeralPublicKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        commitment: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        sharedSecret: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        transaction: transaction
+      properties:
+        transaction:
+          description: Base64-encoded unsigned transaction
+          type: string
+        stealthAddress:
+          type: string
+        ephemeralPublicKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        viewTag:
+          type: integer
+        commitment:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        blindingFactor:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        viewingKeyHash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        sharedSecret:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+    transferShield_200_response:
+      example:
+        data:
+          blindingFactor: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          viewingKeyHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          stealthAddress: stealthAddress
+          viewTag: 0
+          ephemeralPublicKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          commitment: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          sharedSecret: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          transaction: transaction
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/transferShield_200_response_data"
+    transferClaim_request:
+      properties:
+        stealthAddress:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        ephemeralPublicKey:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        spendingPrivateKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        viewingPrivateKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        destinationAddress:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        mint:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+      required:
+      - destinationAddress
+      - ephemeralPublicKey
+      - mint
+      - spendingPrivateKey
+      - stealthAddress
+      - viewingPrivateKey
+    transferClaim_200_response_data:
+      example:
+        amount: amount
+        destinationAddress: destinationAddress
+        explorerUrl: https://openapi-generator.tech
+        txSignature: txSignature
+      properties:
+        txSignature:
+          type: string
+        destinationAddress:
+          type: string
+        amount:
+          type: string
+        explorerUrl:
+          format: uri
+          type: string
+    transferClaim_200_response:
+      example:
+        data:
+          amount: amount
+          destinationAddress: destinationAddress
+          explorerUrl: https://openapi-generator.tech
+          txSignature: txSignature
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/transferClaim_200_response_data"
+    transferPrivate_request_recipientMetaAddress:
+      properties:
+        spendingKey:
+          description: 32-byte (ed25519) or 33-byte (secp256k1) hex key
+          pattern: "^0x[0-9a-fA-F]{64,66}$"
+          type: string
+        viewingKey:
+          description: 32-byte (ed25519) or 33-byte (secp256k1) hex key
+          pattern: "^0x[0-9a-fA-F]{64,66}$"
+          type: string
+        chain:
+          enum:
+          - solana
+          - near
+          - aptos
+          - sui
+          - ethereum
+          - polygon
+          - arbitrum
+          - optimism
+          - base
+          - bitcoin
+          - zcash
+          - cosmos
+          - osmosis
+          - injective
+          - celestia
+          - sei
+          - dydx
+          type: string
+        label:
+          type: string
+      required:
+      - chain
+      - spendingKey
+      - viewingKey
+    transferPrivate_request:
+      properties:
+        sender:
+          description: Sender address (format varies by chain)
+          minLength: 1
+          type: string
+        recipientMetaAddress:
+          $ref: "#/components/schemas/transferPrivate_request_recipientMetaAddress"
+        amount:
+          description: Positive integer as string (no leading zeros)
+          example: "1000000000"
+          pattern: "^[1-9]\\d*$"
+          type: string
+        token:
+          description: Token contract/mint address. Omit for native currency.
+          type: string
+      required:
+      - amount
+      - recipientMetaAddress
+      - sender
+    SolanaTransferData:
+      example:
+        mint: mint
+        type: solana
+        transaction: transaction
+      properties:
+        type:
+          enum:
+          - solana
+          type: string
+        transaction:
+          description: Base64-encoded unsigned transaction
+          type: string
+        mint:
+          type: string
+      required:
+      - transaction
+      - type
+      title: SolanaTransferData
+    EvmTransferData:
+      properties:
+        type:
+          enum:
+          - evm
+          type: string
+        to:
+          description: Recipient or token contract address
+          type: string
+        value:
+          description: Native currency amount (wei)
+          type: string
+        data:
+          description: "Calldata (0x for native, ABI-encoded for ERC20)"
+          type: string
+        chainId:
+          type: integer
+        tokenContract:
+          type: string
+      required:
+      - chainId
+      - data
+      - to
+      - type
+      - value
+      title: EvmTransferData
+    NearTransferData_actions_inner:
+      properties:
+        type:
+          enum:
+          - Transfer
+          - FunctionCall
+          type: string
+        amount:
+          type: string
+        methodName:
+          type: string
+        args:
+          type: string
+        gas:
+          type: string
+        deposit:
+          type: string
+      required:
+      - type
+    NearTransferData:
+      properties:
+        type:
+          enum:
+          - near
+          type: string
+        receiverId:
+          type: string
+        actions:
+          items:
+            $ref: "#/components/schemas/NearTransferData_actions_inner"
+          type: array
+        tokenContract:
+          type: string
+      required:
+      - actions
+      - receiverId
+      - type
+      title: NearTransferData
+    transferPrivate_200_response_data_chainData:
+      discriminator:
+        propertyName: type
+      oneOf:
+      - $ref: "#/components/schemas/SolanaTransferData"
+      - $ref: "#/components/schemas/EvmTransferData"
+      - $ref: "#/components/schemas/NearTransferData"
+    transferPrivate_200_response_data:
+      example:
+        blindingFactor: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        chain: chain
+        chainData:
+          mint: mint
+          type: solana
+          transaction: transaction
+        curve: ed25519
+        viewingKeyHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        stealthAddress: stealthAddress
+        viewTag: 20
+        ephemeralPublicKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        commitment: commitment
+        sharedSecret: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+      properties:
+        chain:
+          type: string
+        curve:
+          enum:
+          - ed25519
+          - secp256k1
+          type: string
+        stealthAddress:
+          description: Chain-native stealth address
+          type: string
+        ephemeralPublicKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        viewTag:
+          maximum: 255
+          minimum: 0
+          type: integer
+        commitment:
+          type: string
+        blindingFactor:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        viewingKeyHash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        sharedSecret:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        chainData:
+          $ref: "#/components/schemas/transferPrivate_200_response_data_chainData"
+    transferPrivate_200_response:
+      example:
+        data:
+          blindingFactor: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          chain: chain
+          chainData:
+            mint: mint
+            type: solana
+            transaction: transaction
+          curve: ed25519
+          viewingKeyHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          stealthAddress: stealthAddress
+          viewTag: 20
+          ephemeralPublicKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          commitment: commitment
+          sharedSecret: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/transferPrivate_200_response_data"
+    transferPrivate_422_response_error:
+      example:
+        code: CHAIN_TRANSFER_UNSUPPORTED
+        supportedChains:
+        - supportedChains
+        - supportedChains
+        message: message
+      properties:
+        code:
+          enum:
+          - CHAIN_TRANSFER_UNSUPPORTED
+          type: string
+        message:
+          type: string
+        supportedChains:
+          items:
+            type: string
+          type: array
+    transferPrivate_422_response:
+      example:
+        success: true
+        error:
+          code: CHAIN_TRANSFER_UNSUPPORTED
+          supportedChains:
+          - supportedChains
+          - supportedChains
+          message: message
+      properties:
+        success:
+          enum:
+          - false
+          type: boolean
+        error:
+          $ref: "#/components/schemas/transferPrivate_422_response_error"
+    scanPayments_request:
+      properties:
+        viewingPrivateKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        spendingPublicKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        fromSlot:
+          minimum: 0
+          type: integer
+        toSlot:
+          minimum: 0
+          type: integer
+        limit:
+          default: 100
+          maximum: 1000
+          minimum: 1
+          type: integer
+      required:
+      - spendingPublicKey
+      - viewingPrivateKey
+    scanPayments_200_response_data_payments_inner:
+      example:
+        stealthAddress: stealthAddress
+        ephemeralPublicKey: ephemeralPublicKey
+        txSignature: txSignature
+        slot: 0
+        timestamp: 6
+      properties:
+        stealthAddress:
+          type: string
+        ephemeralPublicKey:
+          type: string
+        txSignature:
+          type: string
+        slot:
+          type: integer
+        timestamp:
+          type: integer
+    scanPayments_200_response_data:
+      example:
+        scanned: 1
+        payments:
+        - stealthAddress: stealthAddress
+          ephemeralPublicKey: ephemeralPublicKey
+          txSignature: txSignature
+          slot: 0
+          timestamp: 6
+        - stealthAddress: stealthAddress
+          ephemeralPublicKey: ephemeralPublicKey
+          txSignature: txSignature
+          slot: 0
+          timestamp: 6
+      properties:
+        payments:
+          items:
+            $ref: "#/components/schemas/scanPayments_200_response_data_payments_inner"
+          type: array
+        scanned:
+          type: integer
+    scanPayments_200_response:
+      example:
+        data:
+          scanned: 1
+          payments:
+          - stealthAddress: stealthAddress
+            ephemeralPublicKey: ephemeralPublicKey
+            txSignature: txSignature
+            slot: 0
+            timestamp: 6
+          - stealthAddress: stealthAddress
+            ephemeralPublicKey: ephemeralPublicKey
+            txSignature: txSignature
+            slot: 0
+            timestamp: 6
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/scanPayments_200_response_data"
+    commitmentCreate_request:
+      properties:
+        value:
+          description: Non-negative integer string
+          pattern: "^[0-9]+$"
+          type: string
+        blindingFactor:
+          description: Optional custom blinding factor
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+      required:
+      - value
+    commitmentCreate_200_response_data:
+      example:
+        blindingFactor: blindingFactor
+        commitment: commitment
+      properties:
+        commitment:
+          description: Hex-encoded curve point
+          type: string
+        blindingFactor:
+          type: string
+    commitmentCreate_200_response:
+      example:
+        data:
+          blindingFactor: blindingFactor
+          commitment: commitment
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/commitmentCreate_200_response_data"
+    commitmentVerify_request:
+      properties:
+        commitment:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        value:
+          pattern: "^[0-9]+$"
+          type: string
+        blindingFactor:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+      required:
+      - blindingFactor
+      - commitment
+      - value
+    commitmentVerify_200_response_data:
+      example:
+        valid: true
+      properties:
+        valid:
+          type: boolean
+    commitmentVerify_200_response:
+      example:
+        data:
+          valid: true
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/commitmentVerify_200_response_data"
+    commitmentAdd_request:
+      properties:
+        commitmentA:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        commitmentB:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        blindingA:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        blindingB:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+      required:
+      - blindingA
+      - blindingB
+      - commitmentA
+      - commitmentB
+    commitmentAdd_200_response_data:
+      example:
+        blindingFactor: blindingFactor
+        commitment: commitment
+      properties:
+        commitment:
+          type: string
+        blindingFactor:
+          type: string
+    commitmentAdd_200_response:
+      example:
+        data:
+          blindingFactor: blindingFactor
+          commitment: commitment
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/commitmentAdd_200_response_data"
+    commitmentCreateBatch_request_items_inner:
+      properties:
+        value:
+          pattern: "^[0-9]+$"
+          type: string
+        blindingFactor:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+      required:
+      - value
+    commitmentCreateBatch_request:
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/commitmentCreateBatch_request_items_inner"
+          maxItems: 100
+          minItems: 1
+          type: array
+      required:
+      - items
+    commitmentCreateBatch_200_response_data_results_inner:
+      example:
+        data:
+          blindingFactor: blindingFactor
+          commitment: commitment
+        success: true
+        index: 0
+        error: error
+      properties:
+        index:
+          type: integer
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/commitmentAdd_200_response_data"
+        error:
+          type: string
+    commitmentCreateBatch_200_response_data:
+      example:
+        summary:
+          total: 6
+          failed: 5
+          succeeded: 1
+        results:
+        - data:
+            blindingFactor: blindingFactor
+            commitment: commitment
+          success: true
+          index: 0
+          error: error
+        - data:
+            blindingFactor: blindingFactor
+            commitment: commitment
+          success: true
+          index: 0
+          error: error
+      properties:
+        results:
+          items:
+            $ref: "#/components/schemas/commitmentCreateBatch_200_response_data_results_inner"
+          type: array
+        summary:
+          $ref: "#/components/schemas/stealthGenerateBatch_200_response_data_summary"
+    commitmentCreateBatch_200_response:
+      example:
+        data:
+          summary:
+            total: 6
+            failed: 5
+            succeeded: 1
+          results:
+          - data:
+              blindingFactor: blindingFactor
+              commitment: commitment
+            success: true
+            index: 0
+            error: error
+          - data:
+              blindingFactor: blindingFactor
+              commitment: commitment
+            success: true
+            index: 0
+            error: error
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/commitmentCreateBatch_200_response_data"
+    scanPaymentsBatch_request_keyPairs_inner:
+      properties:
+        viewingPrivateKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        spendingPublicKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        label:
+          type: string
+      required:
+      - spendingPublicKey
+      - viewingPrivateKey
+    scanPaymentsBatch_request:
+      properties:
+        keyPairs:
+          items:
+            $ref: "#/components/schemas/scanPaymentsBatch_request_keyPairs_inner"
+          maxItems: 100
+          minItems: 1
+          type: array
+        fromSlot:
+          minimum: 0
+          type: integer
+        toSlot:
+          minimum: 0
+          type: integer
+        limit:
+          default: 100
+          maximum: 1000
+          minimum: 1
+          type: integer
+      required:
+      - keyPairs
+    scanPaymentsBatch_200_response_data_results_inner_data:
+      example:
+        scanned: 6
+        payments:
+        - "{}"
+        - "{}"
+      properties:
+        payments:
+          items:
+            type: object
+          type: array
+        scanned:
+          type: integer
+    scanPaymentsBatch_200_response_data_results_inner:
+      example:
+        data:
+          scanned: 6
+          payments:
+          - "{}"
+          - "{}"
+        success: true
+        index: 0
+        label: label
+        error: error
+      properties:
+        index:
+          type: integer
+        label:
+          type: string
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/scanPaymentsBatch_200_response_data_results_inner_data"
+        error:
+          type: string
+    scanPaymentsBatch_200_response_data_summary:
+      example:
+        transactionsScanned: 5
+        totalKeyPairs: 1
+        totalPaymentsFound: 5
+      properties:
+        totalKeyPairs:
+          type: integer
+        totalPaymentsFound:
+          type: integer
+        transactionsScanned:
+          type: integer
+    scanPaymentsBatch_200_response_data:
+      example:
+        summary:
+          transactionsScanned: 5
+          totalKeyPairs: 1
+          totalPaymentsFound: 5
+        results:
+        - data:
+            scanned: 6
+            payments:
+            - "{}"
+            - "{}"
+          success: true
+          index: 0
+          label: label
+          error: error
+        - data:
+            scanned: 6
+            payments:
+            - "{}"
+            - "{}"
+          success: true
+          index: 0
+          label: label
+          error: error
+      properties:
+        results:
+          items:
+            $ref: "#/components/schemas/scanPaymentsBatch_200_response_data_results_inner"
+          type: array
+        summary:
+          $ref: "#/components/schemas/scanPaymentsBatch_200_response_data_summary"
+    scanPaymentsBatch_200_response:
+      example:
+        data:
+          summary:
+            transactionsScanned: 5
+            totalKeyPairs: 1
+            totalPaymentsFound: 5
+          results:
+          - data:
+              scanned: 6
+              payments:
+              - "{}"
+              - "{}"
+            success: true
+            index: 0
+            label: label
+            error: error
+          - data:
+              scanned: 6
+              payments:
+              - "{}"
+              - "{}"
+            success: true
+            index: 0
+            label: label
+            error: error
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/scanPaymentsBatch_200_response_data"
+    viewingKeyGenerate_request:
+      properties:
+        path:
+          default: m/0
+          description: Derivation path
+          type: string
+        label:
+          type: string
+    viewingKeyGenerate_200_response:
+      example:
+        data:
+          path: path
+          key: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          hash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/ViewingKey"
+    viewingKeyDerive_request:
+      properties:
+        masterKey:
+          $ref: "#/components/schemas/ViewingKey"
+        childPath:
+          description: "Derivation path segment (e.g., \"audit\", \"2026/Q1\")"
+          minLength: 1
+          type: string
+      required:
+      - childPath
+      - masterKey
+    viewingKeyDerive_200_response_data_derivedFrom:
+      example:
+        childPath: childPath
+        parentPath: parentPath
+        parentHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+      properties:
+        parentHash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        parentPath:
+          type: string
+        childPath:
+          type: string
+    viewingKeyDerive_200_response_data:
+      example:
+        path: path
+        derivedFrom:
+          childPath: childPath
+          parentPath: parentPath
+          parentHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        key: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        hash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+      properties:
+        key:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        path:
+          type: string
+        hash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        derivedFrom:
+          $ref: "#/components/schemas/viewingKeyDerive_200_response_data_derivedFrom"
+    viewingKeyDerive_200_response:
+      example:
+        data:
+          path: path
+          derivedFrom:
+            childPath: childPath
+            parentPath: parentPath
+            parentHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          key: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          hash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/viewingKeyDerive_200_response_data"
+    viewingKeyVerifyHierarchy_request:
+      properties:
+        parentKey:
+          $ref: "#/components/schemas/ViewingKey"
+        childKey:
+          $ref: "#/components/schemas/ViewingKey"
+        childPath:
+          minLength: 1
+          type: string
+      required:
+      - childKey
+      - childPath
+      - parentKey
+    viewingKeyVerifyHierarchy_200_response_data:
+      example:
+        valid: true
+        childHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        actualPath: actualPath
+        parentHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        expectedPath: expectedPath
+      properties:
+        valid:
+          type: boolean
+        expectedPath:
+          type: string
+        actualPath:
+          type: string
+        parentHash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        childHash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+    viewingKeyVerifyHierarchy_200_response:
+      example:
+        data:
+          valid: true
+          childHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          actualPath: actualPath
+          parentHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          expectedPath: expectedPath
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/viewingKeyVerifyHierarchy_200_response_data"
+    viewingKeyDisclose_request_transactionData:
+      properties:
+        sender:
+          type: string
+        recipient:
+          type: string
+        amount:
+          type: string
+        timestamp:
+          type: integer
+      required:
+      - amount
+      - recipient
+      - sender
+      - timestamp
+    viewingKeyDisclose_request:
+      properties:
+        viewingKey:
+          $ref: "#/components/schemas/ViewingKey"
+        transactionData:
+          $ref: "#/components/schemas/viewingKeyDisclose_request_transactionData"
+      required:
+      - transactionData
+      - viewingKey
+    viewingKeyDisclose_200_response_data:
+      example:
+        ciphertext: ciphertext
+        viewingKeyHash: viewingKeyHash
+        nonce: nonce
+      properties:
+        ciphertext:
+          type: string
+        nonce:
+          type: string
+        viewingKeyHash:
+          type: string
+    viewingKeyDisclose_200_response:
+      example:
+        data:
+          ciphertext: ciphertext
+          viewingKeyHash: viewingKeyHash
+          nonce: nonce
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/viewingKeyDisclose_200_response_data"
+    viewingKeyDecrypt_request_encrypted:
+      properties:
+        ciphertext:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        nonce:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        viewingKeyHash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+      required:
+      - ciphertext
+      - nonce
+      - viewingKeyHash
+    viewingKeyDecrypt_request:
+      properties:
+        viewingKey:
+          $ref: "#/components/schemas/ViewingKey"
+        encrypted:
+          $ref: "#/components/schemas/viewingKeyDecrypt_request_encrypted"
+      required:
+      - encrypted
+      - viewingKey
+    viewingKeyDecrypt_200_response_data:
+      example:
+        amount: amount
+        sender: sender
+        recipient: recipient
+        timestamp: 0
+      properties:
+        sender:
+          type: string
+        recipient:
+          type: string
+        amount:
+          type: string
+        timestamp:
+          type: integer
+    viewingKeyDecrypt_200_response:
+      example:
+        data:
+          amount: amount
+          sender: sender
+          recipient: recipient
+          timestamp: 0
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/viewingKeyDecrypt_200_response_data"
+    privacyScore_request:
+      properties:
+        address:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        limit:
+          default: 100
+          description: Number of recent transactions to analyze
+          maximum: 500
+          minimum: 10
+          type: integer
+      required:
+      - address
+    privacyScore_200_response_data_factors_addressReuse:
+      example:
+        score: 1
+        detail: detail
+      properties:
+        score:
+          type: integer
+        detail:
+          type: string
+    privacyScore_200_response_data_factors:
+      example:
+        addressReuse:
+          score: 1
+          detail: detail
+        amountPatterns:
+          score: 1
+          detail: detail
+        counterpartyExposure:
+          score: 1
+          detail: detail
+        timingCorrelation:
+          score: 1
+          detail: detail
+      properties:
+        addressReuse:
+          $ref: "#/components/schemas/privacyScore_200_response_data_factors_addressReuse"
+        amountPatterns:
+          $ref: "#/components/schemas/privacyScore_200_response_data_factors_addressReuse"
+        timingCorrelation:
+          $ref: "#/components/schemas/privacyScore_200_response_data_factors_addressReuse"
+        counterpartyExposure:
+          $ref: "#/components/schemas/privacyScore_200_response_data_factors_addressReuse"
+    privacyScore_200_response_data:
+      example:
+        score: 8
+        address: address
+        grade: A
+        transactionsAnalyzed: 6
+        recommendations:
+        - recommendations
+        - recommendations
+        factors:
+          addressReuse:
+            score: 1
+            detail: detail
+          amountPatterns:
+            score: 1
+            detail: detail
+          counterpartyExposure:
+            score: 1
+            detail: detail
+          timingCorrelation:
+            score: 1
+            detail: detail
+      properties:
+        address:
+          type: string
+        score:
+          maximum: 100
+          minimum: 0
+          type: integer
+        grade:
+          enum:
+          - A
+          - B
+          - C
+          - D
+          - F
+          type: string
+        transactionsAnalyzed:
+          type: integer
+        factors:
+          $ref: "#/components/schemas/privacyScore_200_response_data_factors"
+        recommendations:
+          items:
+            type: string
+          type: array
+    privacyScore_200_response:
+      example:
+        data:
+          score: 8
+          address: address
+          grade: A
+          transactionsAnalyzed: 6
+          recommendations:
+          - recommendations
+          - recommendations
+          factors:
+            addressReuse:
+              score: 1
+              detail: detail
+            amountPatterns:
+              score: 1
+              detail: detail
+            counterpartyExposure:
+              score: 1
+              detail: detail
+            timingCorrelation:
+              score: 1
+              detail: detail
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/privacyScore_200_response_data"
+    getRpcProviders_200_response_data_active:
+      example:
+        connected: true
+        cluster: cluster
+        endpoint: endpoint
+        provider: generic
+        latencyMs: 0.8008281904610115
+      properties:
+        provider:
+          enum:
+          - generic
+          - helius
+          - quicknode
+          - triton
+          type: string
+        endpoint:
+          description: Masked RPC endpoint URL
+          type: string
+        connected:
+          type: boolean
+        cluster:
+          type: string
+        latencyMs:
+          type: number
+    getRpcProviders_200_response_data_supported_inner:
+      example:
+        name: name
+        description: description
+        config:
+        - config
+        - config
+        url: url
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        config:
+          items:
+            type: string
+          type: array
+        url:
+          type: string
+    getRpcProviders_200_response_data:
+      example:
+        active:
+          connected: true
+          cluster: cluster
+          endpoint: endpoint
+          provider: generic
+          latencyMs: 0.8008281904610115
+        supported:
+        - name: name
+          description: description
+          config:
+          - config
+          - config
+          url: url
+        - name: name
+          description: description
+          config:
+          - config
+          - config
+          url: url
+      properties:
+        active:
+          $ref: "#/components/schemas/getRpcProviders_200_response_data_active"
+        supported:
+          items:
+            $ref: "#/components/schemas/getRpcProviders_200_response_data_supported_inner"
+          type: array
+    getRpcProviders_200_response:
+      example:
+        data:
+          active:
+            connected: true
+            cluster: cluster
+            endpoint: endpoint
+            provider: generic
+            latencyMs: 0.8008281904610115
+          supported:
+          - name: name
+            description: description
+            config:
+            - config
+            - config
+            url: url
+          - name: name
+            description: description
+            config:
+            - config
+            - config
+            url: url
+        success: true
+      properties:
+        success:
+          enum:
+          - true
+          type: boolean
+        data:
+          $ref: "#/components/schemas/getRpcProviders_200_response_data"
+    proofsFundingGenerate_request:
+      properties:
+        balance:
+          description: User balance (private)
+          pattern: "^[0-9]+$"
+          type: string
+        minimumRequired:
+          description: Minimum required amount (public)
+          pattern: "^[0-9]+$"
+          type: string
+        blindingFactor:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        assetId:
+          description: "Asset identifier (e.g., SOL)"
+          type: string
+        userAddress:
+          description: User address for ownership proof
+          type: string
+        ownershipSignature:
+          description: Signature proving address ownership
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+      required:
+      - assetId
+      - balance
+      - blindingFactor
+      - minimumRequired
+      - ownershipSignature
+      - userAddress
+    proofsFundingGenerate_200_response_data_proof:
+      example:
+        publicInputs:
+        - publicInputs
+        - publicInputs
+        proof: proof
+        type: funding
+      properties:
+        type:
+          enum:
+          - funding
+          type: string
+        proof:
+          type: string
+        publicInputs:
+          items:
+            type: string
+          type: array
+    proofsFundingGenerate_200_response_data:
+      example:
+        publicInputs:
+        - publicInputs
+        - publicInputs
+        proof:
+          publicInputs:
+          - publicInputs
+          - publicInputs
+          proof: proof
+          type: funding
+      properties:
+        proof:
+          $ref: "#/components/schemas/proofsFundingGenerate_200_response_data_proof"
+        publicInputs:
+          items:
+            type: string
+          type: array
+    proofsFundingGenerate_200_response:
+      example:
+        data:
+          publicInputs:
+          - publicInputs
+          - publicInputs
+          proof:
+            publicInputs:
+            - publicInputs
+            - publicInputs
+            proof: proof
+            type: funding
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/proofsFundingGenerate_200_response_data"
+    proofsFundingVerify_request:
+      properties:
+        type:
+          enum:
+          - funding
+          type: string
+        proof:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        publicInputs:
+          items:
+            pattern: "^0x[0-9a-fA-F]+$"
+            type: string
+          type: array
+      required:
+      - proof
+      - publicInputs
+      - type
+    proofsValidityGenerate_request:
+      properties:
+        intentHash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        senderAddress:
+          type: string
+        senderBlinding:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        senderSecret:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        authorizationSignature:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        nonce:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        timestamp:
+          type: integer
+        expiry:
+          type: integer
+      required:
+      - authorizationSignature
+      - expiry
+      - intentHash
+      - nonce
+      - senderAddress
+      - senderBlinding
+      - senderSecret
+      - timestamp
+    proofsValidityGenerate_200_response_data_proof:
+      example:
+        publicInputs:
+        - publicInputs
+        - publicInputs
+        proof: proof
+        type: validity
+      properties:
+        type:
+          enum:
+          - validity
+          type: string
+        proof:
+          type: string
+        publicInputs:
+          items:
+            type: string
+          type: array
+    proofsValidityGenerate_200_response_data:
+      example:
+        publicInputs:
+        - publicInputs
+        - publicInputs
+        proof:
+          publicInputs:
+          - publicInputs
+          - publicInputs
+          proof: proof
+          type: validity
+      properties:
+        proof:
+          $ref: "#/components/schemas/proofsValidityGenerate_200_response_data_proof"
+        publicInputs:
+          items:
+            type: string
+          type: array
+    proofsValidityGenerate_200_response:
+      example:
+        data:
+          publicInputs:
+          - publicInputs
+          - publicInputs
+          proof:
+            publicInputs:
+            - publicInputs
+            - publicInputs
+            proof: proof
+            type: validity
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/proofsValidityGenerate_200_response_data"
+    proofsValidityVerify_request:
+      properties:
+        type:
+          enum:
+          - validity
+          type: string
+        proof:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        publicInputs:
+          items:
+            pattern: "^0x[0-9a-fA-F]+$"
+            type: string
+          type: array
+      required:
+      - proof
+      - publicInputs
+      - type
+    proofsFulfillmentGenerate_request_oracleAttestation:
+      properties:
+        recipient:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        amount:
+          pattern: "^[0-9]+$"
+          type: string
+        txHash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        blockNumber:
+          pattern: "^[0-9]+$"
+          type: string
+        signature:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+      required:
+      - amount
+      - blockNumber
+      - recipient
+      - signature
+      - txHash
+    proofsFulfillmentGenerate_request:
+      properties:
+        intentHash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        outputAmount:
+          pattern: "^[0-9]+$"
+          type: string
+        outputBlinding:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        minOutputAmount:
+          pattern: "^[0-9]+$"
+          type: string
+        recipientStealth:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        solverId:
+          type: string
+        solverSecret:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        oracleAttestation:
+          $ref: "#/components/schemas/proofsFulfillmentGenerate_request_oracleAttestation"
+        fulfillmentTime:
+          type: integer
+        expiry:
+          type: integer
+      required:
+      - expiry
+      - fulfillmentTime
+      - intentHash
+      - minOutputAmount
+      - oracleAttestation
+      - outputAmount
+      - outputBlinding
+      - recipientStealth
+      - solverId
+      - solverSecret
+    proofsFulfillmentGenerate_200_response_data_proof:
+      example:
+        publicInputs:
+        - publicInputs
+        - publicInputs
+        proof: proof
+        type: fulfillment
+      properties:
+        type:
+          enum:
+          - fulfillment
+          type: string
+        proof:
+          type: string
+        publicInputs:
+          items:
+            type: string
+          type: array
+    proofsFulfillmentGenerate_200_response_data:
+      example:
+        publicInputs:
+        - publicInputs
+        - publicInputs
+        proof:
+          publicInputs:
+          - publicInputs
+          - publicInputs
+          proof: proof
+          type: fulfillment
+      properties:
+        proof:
+          $ref: "#/components/schemas/proofsFulfillmentGenerate_200_response_data_proof"
+        publicInputs:
+          items:
+            type: string
+          type: array
+    proofsFulfillmentGenerate_200_response:
+      example:
+        data:
+          publicInputs:
+          - publicInputs
+          - publicInputs
+          proof:
+            publicInputs:
+            - publicInputs
+            - publicInputs
+            proof: proof
+            type: fulfillment
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/proofsFulfillmentGenerate_200_response_data"
+    proofsRangeGenerate_request:
+      properties:
+        value:
+          description: "Value to prove (private, not revealed)"
+          pattern: "^[0-9]+$"
+          type: string
+        threshold:
+          description: Minimum threshold (public)
+          pattern: "^[0-9]+$"
+          type: string
+        blindingFactor:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        commitment:
+          description: "Optional existing Pedersen commitment. If omitted, one is\
+            \ created from value + blindingFactor."
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+      required:
+      - blindingFactor
+      - threshold
+      - value
+    proofsRangeGenerate_200_response_data_proof:
+      example:
+        publicInputs:
+        - publicInputs
+        - publicInputs
+        proof: proof
+        type: range
+      properties:
+        type:
+          enum:
+          - range
+          type: string
+        proof:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        publicInputs:
+          items:
+            pattern: "^0x[0-9a-fA-F]+$"
+            type: string
+          type: array
+    proofsRangeGenerate_200_response_data_metadata:
+      example:
+        security: security
+        decomposition: m31-limbs
+        limbCount: 0
+        prover: mock-stark
+      properties:
+        prover:
+          enum:
+          - mock-stark
+          type: string
+        decomposition:
+          enum:
+          - m31-limbs
+          type: string
+        limbCount:
+          type: integer
+        security:
+          type: string
+    proofsRangeGenerate_200_response_data:
+      example:
+        metadata:
+          security: security
+          decomposition: m31-limbs
+          limbCount: 0
+          prover: mock-stark
+        commitment: commitment
+        proof:
+          publicInputs:
+          - publicInputs
+          - publicInputs
+          proof: proof
+          type: range
+      properties:
+        proof:
+          $ref: "#/components/schemas/proofsRangeGenerate_200_response_data_proof"
+        commitment:
+          description: Pedersen commitment hex
+          type: string
+        metadata:
+          $ref: "#/components/schemas/proofsRangeGenerate_200_response_data_metadata"
+    proofsRangeGenerate_200_response:
+      example:
+        data:
+          metadata:
+            security: security
+            decomposition: m31-limbs
+            limbCount: 0
+            prover: mock-stark
+          commitment: commitment
+          proof:
+            publicInputs:
+            - publicInputs
+            - publicInputs
+            proof: proof
+            type: range
+        success: true
+        warning: warning
+        beta: true
+      properties:
+        success:
+          type: boolean
+        beta:
+          type: boolean
+        warning:
+          type: string
+        data:
+          $ref: "#/components/schemas/proofsRangeGenerate_200_response_data"
+    proofsRangeVerify_request:
+      properties:
+        type:
+          enum:
+          - range
+          type: string
+        proof:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        publicInputs:
+          items:
+            pattern: "^0x[0-9a-fA-F]+$"
+            type: string
+          type: array
+      required:
+      - proof
+      - publicInputs
+      - type
+    backendsList_200_response_data_backends_inner_capabilities:
+      example:
+        minAmount: minAmount
+        hiddenSender: true
+        hiddenCompute: true
+        complianceSupport: true
+        setupRequired: true
+        hiddenAmount: true
+        hiddenRecipient: true
+        latencyEstimate: fast
+        supportedTokens: native
+        maxAmount: maxAmount
+      properties:
+        hiddenAmount:
+          type: boolean
+        hiddenSender:
+          type: boolean
+        hiddenRecipient:
+          type: boolean
+        hiddenCompute:
+          type: boolean
+        complianceSupport:
+          type: boolean
+        setupRequired:
+          type: boolean
+        latencyEstimate:
+          enum:
+          - fast
+          - medium
+          - slow
+          type: string
+        supportedTokens:
+          enum:
+          - native
+          - spl
+          - all
+          type: string
+        minAmount:
+          description: BigInt as string
+          type: string
+        maxAmount:
+          description: BigInt as string
+          type: string
+    backendsList_200_response_data_backends_inner_health:
+      example:
+        circuitState: closed
+        consecutiveFailures: 6
+        lastChecked: 1
+        isHealthy: true
+        lastFailureReason: lastFailureReason
+      properties:
+        circuitState:
+          enum:
+          - closed
+          - open
+          - half-open
+          type: string
+        isHealthy:
+          type: boolean
+        consecutiveFailures:
+          type: integer
+        lastChecked:
+          type: integer
+        lastFailureReason:
+          type: string
+      nullable: true
+    backendsList_200_response_data_backends_inner:
+      example:
+        capabilities:
+          minAmount: minAmount
+          hiddenSender: true
+          hiddenCompute: true
+          complianceSupport: true
+          setupRequired: true
+          hiddenAmount: true
+          hiddenRecipient: true
+          latencyEstimate: fast
+          supportedTokens: native
+          maxAmount: maxAmount
+        chains:
+        - chains
+        - chains
+        name: sip-native
+        health:
+          circuitState: closed
+          consecutiveFailures: 6
+          lastChecked: 1
+          isHealthy: true
+          lastFailureReason: lastFailureReason
+        type: type
+        priority: 0
+        enabled: true
+      properties:
+        name:
+          example: sip-native
+          type: string
+        type:
+          type: string
+        chains:
+          items:
+            type: string
+          type: array
+        enabled:
+          type: boolean
+        priority:
+          type: integer
+        capabilities:
+          $ref: "#/components/schemas/backendsList_200_response_data_backends_inner_capabilities"
+        health:
+          $ref: "#/components/schemas/backendsList_200_response_data_backends_inner_health"
+    backendsList_200_response_data:
+      example:
+        total: 5
+        totalEnabled: 5
+        backends:
+        - capabilities:
+            minAmount: minAmount
+            hiddenSender: true
+            hiddenCompute: true
+            complianceSupport: true
+            setupRequired: true
+            hiddenAmount: true
+            hiddenRecipient: true
+            latencyEstimate: fast
+            supportedTokens: native
+            maxAmount: maxAmount
+          chains:
+          - chains
+          - chains
+          name: sip-native
+          health:
+            circuitState: closed
+            consecutiveFailures: 6
+            lastChecked: 1
+            isHealthy: true
+            lastFailureReason: lastFailureReason
+          type: type
+          priority: 0
+          enabled: true
+        - capabilities:
+            minAmount: minAmount
+            hiddenSender: true
+            hiddenCompute: true
+            complianceSupport: true
+            setupRequired: true
+            hiddenAmount: true
+            hiddenRecipient: true
+            latencyEstimate: fast
+            supportedTokens: native
+            maxAmount: maxAmount
+          chains:
+          - chains
+          - chains
+          name: sip-native
+          health:
+            circuitState: closed
+            consecutiveFailures: 6
+            lastChecked: 1
+            isHealthy: true
+            lastFailureReason: lastFailureReason
+          type: type
+          priority: 0
+          enabled: true
+      properties:
+        backends:
+          items:
+            $ref: "#/components/schemas/backendsList_200_response_data_backends_inner"
+          type: array
+        total:
+          type: integer
+        totalEnabled:
+          type: integer
+    backendsList_200_response:
+      example:
+        data:
+          total: 5
+          totalEnabled: 5
+          backends:
+          - capabilities:
+              minAmount: minAmount
+              hiddenSender: true
+              hiddenCompute: true
+              complianceSupport: true
+              setupRequired: true
+              hiddenAmount: true
+              hiddenRecipient: true
+              latencyEstimate: fast
+              supportedTokens: native
+              maxAmount: maxAmount
+            chains:
+            - chains
+            - chains
+            name: sip-native
+            health:
+              circuitState: closed
+              consecutiveFailures: 6
+              lastChecked: 1
+              isHealthy: true
+              lastFailureReason: lastFailureReason
+            type: type
+            priority: 0
+            enabled: true
+          - capabilities:
+              minAmount: minAmount
+              hiddenSender: true
+              hiddenCompute: true
+              complianceSupport: true
+              setupRequired: true
+              hiddenAmount: true
+              hiddenRecipient: true
+              latencyEstimate: fast
+              supportedTokens: native
+              maxAmount: maxAmount
+            chains:
+            - chains
+            - chains
+            name: sip-native
+            health:
+              circuitState: closed
+              consecutiveFailures: 6
+              lastChecked: 1
+              isHealthy: true
+              lastFailureReason: lastFailureReason
+            type: type
+            priority: 0
+            enabled: true
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/backendsList_200_response_data"
+    backendsHealth_200_response_data_health:
+      example:
+        circuitState: closed
+        consecutiveFailures: 6
+        consecutiveSuccesses: 1
+        lastChecked: 5
+        isHealthy: true
+        lastFailureReason: lastFailureReason
+      properties:
+        circuitState:
+          enum:
+          - closed
+          - open
+          - half-open
+          type: string
+        isHealthy:
+          type: boolean
+        consecutiveFailures:
+          type: integer
+        consecutiveSuccesses:
+          type: integer
+        lastChecked:
+          type: integer
+        lastFailureReason:
+          type: string
+      nullable: true
+    backendsHealth_200_response_data_metrics:
+      example:
+        totalRequests: 5
+        failedRequests: 7
+        averageLatencyMs: 9.301444243932576
+        successfulRequests: 2
+      properties:
+        totalRequests:
+          type: integer
+        successfulRequests:
+          type: integer
+        failedRequests:
+          type: integer
+        averageLatencyMs:
+          type: number
+      nullable: true
+    backendsHealth_200_response_data:
+      example:
+        estimatedTime: 0
+        capabilities: "{}"
+        name: name
+        available: true
+        health:
+          circuitState: closed
+          consecutiveFailures: 6
+          consecutiveSuccesses: 1
+          lastChecked: 5
+          isHealthy: true
+          lastFailureReason: lastFailureReason
+        estimatedCost: estimatedCost
+        metrics:
+          totalRequests: 5
+          failedRequests: 7
+          averageLatencyMs: 9.301444243932576
+          successfulRequests: 2
+      properties:
+        name:
+          type: string
+        available:
+          type: boolean
+        estimatedCost:
+          description: BigInt as string
+          type: string
+        estimatedTime:
+          description: Estimated time in ms
+          type: integer
+        health:
+          $ref: "#/components/schemas/backendsHealth_200_response_data_health"
+        metrics:
+          $ref: "#/components/schemas/backendsHealth_200_response_data_metrics"
+        capabilities:
+          type: object
+    backendsHealth_200_response:
+      example:
+        data:
+          estimatedTime: 0
+          capabilities: "{}"
+          name: name
+          available: true
+          health:
+            circuitState: closed
+            consecutiveFailures: 6
+            consecutiveSuccesses: 1
+            lastChecked: 5
+            isHealthy: true
+            lastFailureReason: lastFailureReason
+          estimatedCost: estimatedCost
+          metrics:
+            totalRequests: 5
+            failedRequests: 7
+            averageLatencyMs: 9.301444243932576
+            successfulRequests: 2
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/backendsHealth_200_response_data"
+    backendsSelect_request:
+      properties:
+        backend:
+          description: Backend name to prefer
+          example: sip-native
+          minLength: 1
+          type: string
+      required:
+      - backend
+    backendsSelect_200_response_data:
+      example:
+        keyId: keyId
+        preferredBackend: preferredBackend
+      properties:
+        keyId:
+          type: string
+        preferredBackend:
+          type: string
+    backendsSelect_200_response:
+      example:
+        data:
+          keyId: keyId
+          preferredBackend: preferredBackend
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/backendsSelect_200_response_data"
+    backendsCompare_request:
+      properties:
+        operation:
+          description: Type of privacy operation to compare backends for
+          enum:
+          - stealth_privacy
+          - encrypted_compute
+          - compliance_audit
+          type: string
+        chain:
+          description: "Target blockchain (default: solana)"
+          example: solana
+          type: string
+        amount:
+          description: Transaction amount in smallest units
+          pattern: "^[1-9]\\d*$"
+          type: string
+        prioritize:
+          description: Factor to prioritize in scoring (adjusts weights to 60%)
+          enum:
+          - cost
+          - speed
+          - privacy
+          type: string
+      required:
+      - operation
+    backendsCompare_200_response_data_comparisons_inner:
+      example:
+        score: 14.658129805029452
+        privacyLevel: privacyLevel
+        capabilities:
+        - capabilities
+        - capabilities
+        costLamports: 0.8008281904610115
+        available: true
+        backend: backend
+        type: type
+        latencyCategory: fast
+        costSOL: costSOL
+        latencyMs: 6.027456183070403
+        recommended: true
+      properties:
+        backend:
+          type: string
+        type:
+          type: string
+        available:
+          type: boolean
+        costLamports:
+          type: number
+        costSOL:
+          type: string
+        latencyMs:
+          type: number
+        latencyCategory:
+          enum:
+          - fast
+          - medium
+          - slow
+          type: string
+        privacyLevel:
+          type: string
+        capabilities:
+          items:
+            type: string
+          type: array
+        score:
+          maximum: 100
+          minimum: 0
+          type: number
+        recommended:
+          type: boolean
+    backendsCompare_200_response_data_recommendation:
+      example:
+        best_value: best_value
+        fastest: fastest
+        reasoning: reasoning
+        most_private: most_private
+        best_overall: best_overall
+      properties:
+        best_overall:
+          type: string
+        best_value:
+          type: string
+        fastest:
+          type: string
+        most_private:
+          type: string
+        reasoning:
+          type: string
+    backendsCompare_200_response_data:
+      example:
+        chain: chain
+        comparisons:
+        - score: 14.658129805029452
+          privacyLevel: privacyLevel
+          capabilities:
+          - capabilities
+          - capabilities
+          costLamports: 0.8008281904610115
+          available: true
+          backend: backend
+          type: type
+          latencyCategory: fast
+          costSOL: costSOL
+          latencyMs: 6.027456183070403
+          recommended: true
+        - score: 14.658129805029452
+          privacyLevel: privacyLevel
+          capabilities:
+          - capabilities
+          - capabilities
+          costLamports: 0.8008281904610115
+          available: true
+          backend: backend
+          type: type
+          latencyCategory: fast
+          costSOL: costSOL
+          latencyMs: 6.027456183070403
+          recommended: true
+        recommendation:
+          best_value: best_value
+          fastest: fastest
+          reasoning: reasoning
+          most_private: most_private
+          best_overall: best_overall
+        operation: operation
+      properties:
+        operation:
+          type: string
+        chain:
+          type: string
+        comparisons:
+          items:
+            $ref: "#/components/schemas/backendsCompare_200_response_data_comparisons_inner"
+          type: array
+        recommendation:
+          $ref: "#/components/schemas/backendsCompare_200_response_data_recommendation"
+    backendsCompare_200_response:
+      example:
+        data:
+          chain: chain
+          comparisons:
+          - score: 14.658129805029452
+            privacyLevel: privacyLevel
+            capabilities:
+            - capabilities
+            - capabilities
+            costLamports: 0.8008281904610115
+            available: true
+            backend: backend
+            type: type
+            latencyCategory: fast
+            costSOL: costSOL
+            latencyMs: 6.027456183070403
+            recommended: true
+          - score: 14.658129805029452
+            privacyLevel: privacyLevel
+            capabilities:
+            - capabilities
+            - capabilities
+            costLamports: 0.8008281904610115
+            available: true
+            backend: backend
+            type: type
+            latencyCategory: fast
+            costSOL: costSOL
+            latencyMs: 6.027456183070403
+            recommended: true
+          recommendation:
+            best_value: best_value
+            fastest: fastest
+            reasoning: reasoning
+            most_private: most_private
+            best_overall: best_overall
+          operation: operation
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/backendsCompare_200_response_data"
+    csplWrap_request:
+      properties:
+        mint:
+          description: SPL token mint address
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        amount:
+          description: Positive integer as string (no leading zeros)
+          example: "1000000000"
+          pattern: "^[1-9]\\d*$"
+          type: string
+        owner:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        createAccount:
+          default: true
+          description: Create C-SPL account if missing
+          type: boolean
+      required:
+      - amount
+      - mint
+      - owner
+    csplWrap_200_response_data:
+      example:
+        signature: signature
+        csplMint: csplMint
+        encryptedBalance: encryptedBalance
+        token: "{}"
+      properties:
+        signature:
+          description: Transaction signature
+          type: string
+        csplMint:
+          description: Confidential token mint address
+          type: string
+        encryptedBalance:
+          description: Encrypted balance as hex
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        token:
+          description: C-SPL token metadata
+          type: object
+    csplWrap_200_response:
+      example:
+        data:
+          signature: signature
+          csplMint: csplMint
+          encryptedBalance: encryptedBalance
+          token: "{}"
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/csplWrap_200_response_data"
+    csplUnwrap_request:
+      properties:
+        csplMint:
+          description: C-SPL token mint identifier
+          type: string
+        encryptedAmount:
+          description: Encrypted amount as hex
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        owner:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        proof:
+          description: Optional proof of ownership
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+      required:
+      - csplMint
+      - encryptedAmount
+      - owner
+    csplUnwrap_200_response_data:
+      example:
+        amount: amount
+        signature: signature
+      properties:
+        signature:
+          description: Transaction signature
+          type: string
+        amount:
+          description: Decrypted amount as string
+          type: string
+    csplUnwrap_200_response:
+      example:
+        data:
+          amount: amount
+          signature: signature
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/csplUnwrap_200_response_data"
+    csplTransfer_request:
+      properties:
+        csplMint:
+          description: C-SPL token mint identifier
+          type: string
+        from:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        to:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        encryptedAmount:
+          description: Encrypted transfer amount as hex
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        memo:
+          description: Optional memo
+          maxLength: 256
+          type: string
+      required:
+      - csplMint
+      - encryptedAmount
+      - from
+      - to
+    csplTransfer_200_response_data:
+      example:
+        newSenderBalance: newSenderBalance
+        signature: signature
+        recipientPendingUpdated: true
+      properties:
+        signature:
+          description: Transaction signature
+          type: string
+        newSenderBalance:
+          description: Updated sender encrypted balance
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        recipientPendingUpdated:
+          description: Whether recipient pending balance was updated
+          type: boolean
+    csplTransfer_200_response:
+      example:
+        data:
+          newSenderBalance: newSenderBalance
+          signature: signature
+          recipientPendingUpdated: true
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/csplTransfer_200_response_data"
+    proofsFulfillmentVerify_request:
+      properties:
+        type:
+          enum:
+          - fulfillment
+          type: string
+        proof:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        publicInputs:
+          items:
+            pattern: "^0x[0-9a-fA-F]+$"
+            type: string
+          type: array
+      required:
+      - proof
+      - publicInputs
+      - type
+    submitArciumComputation_request_viewingKey:
+      properties:
+        key:
+          type: string
+        path:
+          type: string
+        hash:
+          type: string
+    submitArciumComputation_request:
+      properties:
+        circuitId:
+          description: Circuit identifier
+          enum:
+          - private_transfer
+          - check_balance
+          - validate_swap
+          type: string
+        encryptedInputs:
+          description: Encrypted inputs as hex strings
+          items:
+            pattern: "^0x[0-9a-fA-F]+$"
+            type: string
+          maxItems: 10
+          minItems: 1
+          type: array
+        chain:
+          default: solana
+          description: Target chain
+          type: string
+        cipher:
+          default: aes256
+          enum:
+          - aes128
+          - aes192
+          - aes256
+          - rescue
+          type: string
+        viewingKey:
+          $ref: "#/components/schemas/submitArciumComputation_request_viewingKey"
+        cluster:
+          description: MPC cluster to use
+          type: string
+        timeout:
+          description: Timeout in milliseconds
+          type: integer
+      required:
+      - circuitId
+      - encryptedInputs
+    submitArciumComputation_200_response_data:
+      example:
+        chain: chain
+        estimatedCompletion: 0
+        circuitId: circuitId
+        computationId: computationId
+        status: submitted
+        inputCount: 6
+      properties:
+        computationId:
+          pattern: "^arc_[0-9a-fA-F]{64}$"
+          type: string
+        status:
+          enum:
+          - submitted
+          type: string
+        estimatedCompletion:
+          type: integer
+        circuitId:
+          type: string
+        chain:
+          type: string
+        inputCount:
+          type: integer
+    submitArciumComputation_200_response:
+      example:
+        data:
+          chain: chain
+          estimatedCompletion: 0
+          circuitId: circuitId
+          computationId: computationId
+          status: submitted
+          inputCount: 6
+        success: true
+        warning: warning
+        beta: true
+      properties:
+        success:
+          type: boolean
+        beta:
+          type: boolean
+        warning:
+          type: string
+        data:
+          $ref: "#/components/schemas/submitArciumComputation_200_response_data"
+    getArciumComputationStatus_200_response_data:
+      example:
+        output: output
+        chain: chain
+        progress: 8
+        proof: proof
+        circuitId: circuitId
+        computationId: computationId
+        status: submitted
+      properties:
+        computationId:
+          type: string
+        circuitId:
+          type: string
+        chain:
+          type: string
+        status:
+          enum:
+          - submitted
+          - encrypting
+          - processing
+          - finalizing
+          - completed
+          type: string
+        progress:
+          maximum: 100
+          minimum: 0
+          type: integer
+        output:
+          description: Only present when status is completed
+          type: string
+        proof:
+          description: Only present when status is completed
+          type: string
+    getArciumComputationStatus_200_response:
+      example:
+        data:
+          output: output
+          chain: chain
+          progress: 8
+          proof: proof
+          circuitId: circuitId
+          computationId: computationId
+          status: submitted
+        success: true
+        beta: true
+      properties:
+        success:
+          type: boolean
+        beta:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/getArciumComputationStatus_200_response_data"
+    decryptArciumResult_request_viewingKey:
+      properties:
+        key:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        path:
+          type: string
+        hash:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+      required:
+      - hash
+      - key
+      - path
+    decryptArciumResult_request:
+      properties:
+        computationId:
+          pattern: "^arc_[0-9a-fA-F]{64}$"
+          type: string
+        viewingKey:
+          $ref: "#/components/schemas/decryptArciumResult_request_viewingKey"
+      required:
+      - computationId
+      - viewingKey
+    decryptArciumResult_200_response_data:
+      example:
+        verificationHash: verificationHash
+        decryptedOutput: decryptedOutput
+        circuitId: circuitId
+        computationId: computationId
+      properties:
+        computationId:
+          type: string
+        circuitId:
+          type: string
+        decryptedOutput:
+          type: string
+        verificationHash:
+          type: string
+    decryptArciumResult_200_response:
+      example:
+        data:
+          verificationHash: verificationHash
+          decryptedOutput: decryptedOutput
+          circuitId: circuitId
+          computationId: computationId
+        success: true
+        beta: true
+      properties:
+        success:
+          type: boolean
+        beta:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/decryptArciumResult_200_response_data"
+    encryptIncoValue_request_plaintext:
+      description: Value to encrypt
+      oneOf:
+      - type: number
+      - type: string
+    encryptIncoValue_request:
+      properties:
+        plaintext:
+          $ref: "#/components/schemas/encryptIncoValue_request_plaintext"
+        scheme:
+          description: FHE scheme to use
+          enum:
+          - fhew
+          - tfhe
+          type: string
+        label:
+          description: Optional label for the encryption
+          type: string
+      required:
+      - plaintext
+      - scheme
+    encryptIncoValue_200_response_data:
+      example:
+        ciphertext: ciphertext
+        scheme: fhew
+        noiseBudget: 0
+        encryptionId: encryptionId
+      properties:
+        encryptionId:
+          pattern: "^inc_[0-9a-fA-F]{64}$"
+          type: string
+        ciphertext:
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        scheme:
+          enum:
+          - fhew
+          - tfhe
+          type: string
+        noiseBudget:
+          type: integer
+    encryptIncoValue_200_response:
+      example:
+        data:
+          ciphertext: ciphertext
+          scheme: fhew
+          noiseBudget: 0
+          encryptionId: encryptionId
+        success: true
+        warning: warning
+        beta: true
+      properties:
+        success:
+          type: boolean
+        beta:
+          type: boolean
+        warning:
+          type: string
+        data:
+          $ref: "#/components/schemas/encryptIncoValue_200_response_data"
+    computeIncoCiphertexts_request:
+      properties:
+        operation:
+          description: Homomorphic operation
+          enum:
+          - add
+          - mul
+          - not
+          - compare_eq
+          - compare_lt
+          type: string
+        ciphertexts:
+          description: Ciphertexts to operate on
+          items:
+            pattern: "^0x[0-9a-fA-F]+$"
+            type: string
+          maxItems: 3
+          minItems: 1
+          type: array
+        scheme:
+          default: tfhe
+          enum:
+          - fhew
+          - tfhe
+          type: string
+      required:
+      - ciphertexts
+      - operation
+    computeIncoCiphertexts_200_response_data:
+      example:
+        scheme: scheme
+        operandCount: 0
+        noiseBudgetRemaining: 6
+        operation: operation
+        resultCiphertext: resultCiphertext
+        computationId: computationId
+        status: completed
+      properties:
+        computationId:
+          pattern: "^inc_[0-9a-fA-F]{64}$"
+          type: string
+        operation:
+          type: string
+        scheme:
+          type: string
+        operandCount:
+          type: integer
+        resultCiphertext:
+          type: string
+        noiseBudgetRemaining:
+          type: integer
+        status:
+          enum:
+          - completed
+          type: string
+    computeIncoCiphertexts_200_response:
+      example:
+        data:
+          scheme: scheme
+          operandCount: 0
+          noiseBudgetRemaining: 6
+          operation: operation
+          resultCiphertext: resultCiphertext
+          computationId: computationId
+          status: completed
+        success: true
+        warning: warning
+        beta: true
+      properties:
+        success:
+          type: boolean
+        beta:
+          type: boolean
+        warning:
+          type: string
+        data:
+          $ref: "#/components/schemas/computeIncoCiphertexts_200_response_data"
+    decryptIncoResult_request:
+      properties:
+        computationId:
+          description: Computation ID to decrypt
+          pattern: "^inc_[0-9a-fA-F]{64}$"
+          type: string
+      required:
+      - computationId
+    decryptIncoResult_200_response_data:
+      example:
+        verificationHash: verificationHash
+        decryptedOutput: decryptedOutput
+        operation: operation
+        computationId: computationId
+      properties:
+        computationId:
+          type: string
+        operation:
+          type: string
+        decryptedOutput:
+          type: string
+        verificationHash:
+          type: string
+    decryptIncoResult_200_response:
+      example:
+        data:
+          verificationHash: verificationHash
+          decryptedOutput: decryptedOutput
+          operation: operation
+          computationId: computationId
+        success: true
+        beta: true
+      properties:
+        success:
+          type: boolean
+        beta:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/decryptIncoResult_200_response_data"
+    privateSwap_request_recipientMetaAddress:
+      description: "Optional stealth meta-address. If omitted, an ephemeral one is\
+        \ generated."
+      properties:
+        spendingKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        viewingKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        chain:
+          enum:
+          - solana
+          type: string
+        label:
+          type: string
+      required:
+      - chain
+      - spendingKey
+      - viewingKey
+    privateSwap_request:
+      properties:
+        sender:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        inputMint:
+          description: SPL token mint to swap from
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        inputAmount:
+          description: Amount to swap (smallest units)
+          example: "1000000000"
+          pattern: "^[1-9]\\d*$"
+          type: string
+        outputMint:
+          description: SPL token mint to swap to
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        slippageBps:
+          default: 50
+          description: Slippage tolerance in basis points (default 50 = 0.5%)
+          maximum: 10000
+          minimum: 1
+          type: integer
+        recipientMetaAddress:
+          $ref: "#/components/schemas/privateSwap_request_recipientMetaAddress"
+      required:
+      - inputAmount
+      - inputMint
+      - outputMint
+      - sender
+    privateSwap_200_response_data_transactions_inner:
+      example:
+        description: description
+        type: wrap
+        transaction: transaction
+      properties:
+        type:
+          enum:
+          - wrap
+          - swap
+          type: string
+        transaction:
+          description: Base64-encoded transaction or signature
+          type: string
+        description:
+          type: string
+    privateSwap_200_response_data:
+      example:
+        viewingKeyHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        outputAmount: outputAmount
+        viewTag: 20
+        priceImpactPct: priceImpactPct
+        outputStealthAddress: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+        commitment: commitment
+        csplWrapped: true
+        inputAmount: inputAmount
+        estimatedComputeUnits: 1
+        outputMint: outputMint
+        transactions:
+        - description: description
+          type: wrap
+          transaction: transaction
+        - description: description
+          type: wrap
+          transaction: transaction
+        quoteId: quoteId
+        executionOrder:
+        - executionOrder
+        - executionOrder
+        blindingFactor: blindingFactor
+        slippageBps: 6
+        inputMint: inputMint
+        ephemeralPublicKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        outputAmountMin: outputAmountMin
+        sharedSecret: sharedSecret
+      properties:
+        outputStealthAddress:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        ephemeralPublicKey:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        viewTag:
+          maximum: 255
+          minimum: 0
+          type: integer
+        commitment:
+          description: Pedersen commitment for output amount
+          type: string
+        blindingFactor:
+          description: Blinding factor for commitment
+          type: string
+        viewingKeyHash:
+          description: 0x-prefixed 32-byte hex string
+          example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          pattern: "^0x[0-9a-fA-F]{64}$"
+          type: string
+        sharedSecret:
+          type: string
+        inputMint:
+          type: string
+        inputAmount:
+          type: string
+        outputMint:
+          type: string
+        outputAmount:
+          type: string
+        outputAmountMin:
+          type: string
+        quoteId:
+          pattern: "^jup_[0-9a-fA-F]{64}$"
+          type: string
+        priceImpactPct:
+          type: string
+        slippageBps:
+          type: integer
+        transactions:
+          items:
+            $ref: "#/components/schemas/privateSwap_200_response_data_transactions_inner"
+          type: array
+        executionOrder:
+          items:
+            type: string
+          type: array
+        estimatedComputeUnits:
+          type: integer
+        csplWrapped:
+          type: boolean
+    privateSwap_200_response:
+      example:
+        data:
+          viewingKeyHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          outputAmount: outputAmount
+          viewTag: 20
+          priceImpactPct: priceImpactPct
+          outputStealthAddress: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          commitment: commitment
+          csplWrapped: true
+          inputAmount: inputAmount
+          estimatedComputeUnits: 1
+          outputMint: outputMint
+          transactions:
+          - description: description
+            type: wrap
+            transaction: transaction
+          - description: description
+            type: wrap
+            transaction: transaction
+          quoteId: quoteId
+          executionOrder:
+          - executionOrder
+          - executionOrder
+          blindingFactor: blindingFactor
+          slippageBps: 6
+          inputMint: inputMint
+          ephemeralPublicKey: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+          outputAmountMin: outputAmountMin
+          sharedSecret: sharedSecret
+        success: true
+        warning: warning
+        beta: true
+      properties:
+        success:
+          type: boolean
+        beta:
+          type: boolean
+        warning:
+          type: string
+        data:
+          $ref: "#/components/schemas/privateSwap_200_response_data"
+    complianceDisclose_request_transactionData:
+      properties:
+        txHash:
+          type: string
+        amount:
+          type: string
+        sender:
+          type: string
+        receiver:
+          type: string
+      required:
+      - amount
+      - receiver
+      - sender
+      - txHash
+    complianceDisclose_request_scope:
+      properties:
+        type:
+          enum:
+          - time_range
+          - counterparty
+          - amount_threshold
+          - full
+          type: string
+        startTime:
+          type: integer
+        endTime:
+          type: integer
+        counterparty:
+          type: string
+        minAmount:
+          type: string
+      required:
+      - type
+    complianceDisclose_request_auditorVerification:
+      properties:
+        auditorKeyHash:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+        nonce:
+          pattern: "^0x[0-9a-fA-F]+$"
+          type: string
+      required:
+      - auditorKeyHash
+      - nonce
+    complianceDisclose_request:
+      properties:
+        viewingKey:
+          $ref: "#/components/schemas/ViewingKey"
+        transactionData:
+          $ref: "#/components/schemas/complianceDisclose_request_transactionData"
+        scope:
+          $ref: "#/components/schemas/complianceDisclose_request_scope"
+        auditorId:
+          type: string
+        auditorVerification:
+          $ref: "#/components/schemas/complianceDisclose_request_auditorVerification"
+      required:
+      - auditorId
+      - auditorVerification
+      - scope
+      - transactionData
+      - viewingKey
+    complianceDisclose_200_response_data:
+      example:
+        ciphertext: ciphertext
+        disclosureId: disclosureId
+        scope: "{}"
+        scopedViewingKeyHash: scopedViewingKeyHash
+        disclosedAt: 0
+        nonce: nonce
+        auditorVerified: true
+      properties:
+        disclosureId:
+          pattern: "^cmp_[0-9a-fA-F]{64}$"
+          type: string
+        scopedViewingKeyHash:
+          type: string
+        ciphertext:
+          type: string
+        nonce:
+          type: string
+        scope:
+          type: object
+        auditorVerified:
+          type: boolean
+        disclosedAt:
+          type: integer
+    complianceDisclose_200_response:
+      example:
+        data:
+          ciphertext: ciphertext
+          disclosureId: disclosureId
+          scope: "{}"
+          scopedViewingKeyHash: scopedViewingKeyHash
+          disclosedAt: 0
+          nonce: nonce
+          auditorVerified: true
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/complianceDisclose_200_response_data"
+    complianceReport_request:
+      properties:
+        viewingKey:
+          $ref: "#/components/schemas/ViewingKey"
+        startTime:
+          description: Start of reporting window (Unix ms)
+          type: integer
+        endTime:
+          description: End of reporting window (Unix ms)
+          type: integer
+        auditorId:
+          type: string
+        auditorVerification:
+          $ref: "#/components/schemas/complianceDisclose_request_auditorVerification"
+        includeCounterparties:
+          default: false
+          type: boolean
+      required:
+      - auditorId
+      - auditorVerification
+      - endTime
+      - startTime
+      - viewingKey
+    complianceReport_200_response_data_summary:
+      example:
+        totalVolume: totalVolume
+        totalTransactions: 1
+        encryptedTransactions:
+        - encryptedTransactions
+        - encryptedTransactions
+        uniqueCounterparties: 5
+      properties:
+        totalTransactions:
+          type: integer
+        totalVolume:
+          type: string
+        uniqueCounterparties:
+          type: integer
+        encryptedTransactions:
+          items:
+            type: string
+          type: array
+    complianceReport_200_response_data:
+      example:
+        summary:
+          totalVolume: totalVolume
+          totalTransactions: 1
+          encryptedTransactions:
+          - encryptedTransactions
+          - encryptedTransactions
+          uniqueCounterparties: 5
+        encryptedReport: encryptedReport
+        reportId: reportId
+        generatedAt: 0
+        reportHash: reportHash
+        expiresAt: 6
+        status: generated
+      properties:
+        reportId:
+          pattern: "^rpt_[0-9a-fA-F]{64}$"
+          type: string
+        status:
+          enum:
+          - generated
+          - encrypted
+          type: string
+        generatedAt:
+          type: integer
+        expiresAt:
+          type: integer
+        summary:
+          $ref: "#/components/schemas/complianceReport_200_response_data_summary"
+        encryptedReport:
+          type: string
+        reportHash:
+          type: string
+    complianceReport_200_response:
+      example:
+        data:
+          summary:
+            totalVolume: totalVolume
+            totalTransactions: 1
+            encryptedTransactions:
+            - encryptedTransactions
+            - encryptedTransactions
+            uniqueCounterparties: 5
+          encryptedReport: encryptedReport
+          reportId: reportId
+          generatedAt: 0
+          reportHash: reportHash
+          expiresAt: 6
+          status: generated
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/complianceReport_200_response_data"
+    getComplianceReport_200_response_data:
+      example:
+        summary: "{}"
+        encryptedReport: encryptedReport
+        reportId: reportId
+        generatedAt: 0
+        reportHash: reportHash
+        expiresAt: 6
+        status: status
+      properties:
+        reportId:
+          type: string
+        status:
+          type: string
+        generatedAt:
+          type: integer
+        expiresAt:
+          type: integer
+        summary:
+          type: object
+        encryptedReport:
+          type: string
+        reportHash:
+          type: string
+    getComplianceReport_200_response:
+      example:
+        data:
+          summary: "{}"
+          encryptedReport: encryptedReport
+          reportId: reportId
+          generatedAt: 0
+          reportHash: reportHash
+          expiresAt: 6
+          status: status
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/getComplianceReport_200_response_data"
+  securitySchemes:
+    ApiKeyAuth:
+      description: "API key for authentication. Also accepts Authorization: Bearer\
+        \ <key>."
+      in: header
+      name: X-API-Key
+      type: apiKey
