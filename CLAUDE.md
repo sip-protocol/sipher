@@ -6,7 +6,7 @@
 **Live URL:** https://sipher.sip-protocol.org
 **Tagline:** "Privacy-as-a-Skill for Multi-Chain Agents"
 **Purpose:** REST API + OpenClaw skill enabling any autonomous agent to add transaction privacy via SIP Protocol
-**Stats:** 73 endpoints | 316 tests | 17 chains supported
+**Stats:** 76 endpoints | 333 tests | 17 chains supported
 
 ---
 
@@ -68,7 +68,7 @@
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (localhost:5006)
 pnpm build                      # Build for production
-pnpm test -- --run              # Run tests (316 tests)
+pnpm test -- --run              # Run tests (333 tests)
 pnpm typecheck                  # Type check
 pnpm demo                       # Full-flow demo (requires dev server running)
 
@@ -245,13 +245,15 @@ sipher/
 │   │   ├── privacy.ts              # score (surveillance/privacy analysis)
 │   │   ├── rpc.ts                  # GET /v1/rpc/providers (provider info)
 │   │   ├── range-proof.ts          # STARK range proofs (generate, verify)
+│   │   ├── backends.ts             # Privacy backend registry (list, health, select)
 │   │   └── index.ts                # Route aggregator
 │   ├── services/
 │   │   ├── solana.ts               # Connection manager + RPC latency measurement
 │   │   ├── rpc-provider.ts         # Provider factory (helius, quicknode, triton, generic)
 │   │   ├── transaction-builder.ts  # Unsigned tx serialization (Solana)
 │   │   ├── chain-transfer-builder.ts # Chain-agnostic transfer dispatch (Solana/EVM/NEAR)
-│   │   └── stark-provider.ts       # STARK range proof provider (M31 limbs, mock prover)
+│   │   ├── stark-provider.ts       # STARK range proof provider (M31 limbs, mock prover)
+│   │   └── backend-registry.ts    # Privacy backend registry singleton (SIPNativeBackend)
 │   └── types/
 │       └── api.ts                  # ApiResponse<T>, HealthResponse
 ├── skill.md                        # OpenClaw skill file (GET /skill.md)
@@ -277,7 +279,8 @@ sipher/
 │   ├── viewing-key-hierarchy.test.ts # 11 tests (derive, verify, multi-level)
 │   ├── rpc-provider.test.ts        # 14 tests (factory, providers, masking, endpoint)
 │   ├── private-transfer.test.ts   # 25 tests (Solana/EVM/NEAR, unsupported, validation, idempotency)
-│   └── range-proof.test.ts        # 18 tests (generate, verify, edge cases, idempotency, M31 math)
+│   ├── range-proof.test.ts        # 18 tests (generate, verify, edge cases, idempotency, M31 math)
+│   └── backends.test.ts           # 17 tests (list, health, select, edge cases)
 ├── Dockerfile                      # Multi-stage Alpine
 ├── docker-compose.yml              # name: sipher, port 5006
 ├── .github/workflows/deploy.yml    # GHCR → VPS
@@ -290,7 +293,7 @@ sipher/
 
 ---
 
-## API ENDPOINTS (29 endpoints)
+## API ENDPOINTS (32 endpoints)
 
 All return `ApiResponse<T>`: `{ success, data?, error? }`
 
@@ -324,6 +327,9 @@ All return `ApiResponse<T>`: `{ success, data?, error? }`
 | POST | `/v1/viewing-key/decrypt` | Decrypt tx data with viewing key | Yes | — |
 | POST | `/v1/proofs/range/generate` | Generate STARK range proof (value >= threshold) | Yes | ✓ |
 | POST | `/v1/proofs/range/verify` | Verify STARK range proof | Yes | — |
+| GET | `/v1/backends` | List privacy backends with capabilities and health | Yes | — |
+| GET | `/v1/backends/:id/health` | Per-backend health check with metrics | Yes | — |
+| POST | `/v1/backends/select` | Set preferred backend per API key | Yes | — |
 | POST | `/v1/privacy/score` | Wallet privacy/surveillance score (0-100) | Yes | — |
 | GET | `/v1/rpc/providers` | Active RPC provider info + supported list | No | — |
 
@@ -434,7 +440,7 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 | 5 | Backend Aggregation | 5 | 🔲 Planned |
 | 6 | Enterprise | 6 | 🔲 Planned |
 
-**Progress:** 28/38 issues complete | 316 tests | 73 endpoints | 17 chains
+**Progress:** 29/38 issues complete | 333 tests | 76 endpoints | 17 chains
 
 **Quick check:** `gh issue list -R sip-protocol/sipher --state open`
 

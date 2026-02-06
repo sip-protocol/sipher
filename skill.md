@@ -533,6 +533,39 @@ Returns: `{ valid: boolean }`
 
 ---
 
+### Privacy Backends
+
+List, inspect, and select privacy backends. Each backend implements a different privacy strategy (stealth addresses, FHE, MPC).
+
+#### List All Backends
+
+```
+GET /v1/backends
+```
+
+Returns: `backends[]` (name, type, chains, enabled, priority, capabilities, health), `total`, `totalEnabled`.
+
+#### Check Backend Health
+
+```
+GET /v1/backends/:id/health
+```
+
+Probes a specific backend. Returns: `available`, `estimatedCost`, `estimatedTime`, `health` (circuit breaker state), `metrics` (request counts, latency), `capabilities`.
+
+#### Select Preferred Backend
+
+```
+POST /v1/backends/select
+Content-Type: application/json
+
+{ "backend": "sip-native" }
+```
+
+Sets the preferred privacy backend for your API key. Requires a tiered API key (Free/Pro/Enterprise). Returns: `keyId`, `preferredBackend`.
+
+---
+
 ## Idempotency
 
 Mutation endpoints (`/transfer/shield`, `/transfer/claim`, `/transfer/private`, `/commitment/create`, `/viewing-key/disclose`) support the `Idempotency-Key` header. Send a UUID v4 value to safely retry requests — duplicate keys return the cached response with `Idempotency-Replayed: true` header.
