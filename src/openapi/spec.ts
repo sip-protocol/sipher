@@ -3191,6 +3191,227 @@ export const openApiSpec = {
         },
       },
     },
+
+    // ─── Governance ───────────────────────────────────────────────────────
+    '/v1/governance/ballot/encrypt': {
+      post: {
+        tags: ['Governance'],
+        operationId: 'encryptBallot',
+        summary: 'Encrypt a vote ballot',
+        description: 'Creates a Pedersen commitment for a vote (yes/no/abstain) and generates a deterministic nullifier from the voter secret + proposal ID. The nullifier prevents double-voting without revealing voter identity.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['proposalId', 'vote', 'voterSecret'],
+                properties: {
+                  proposalId: { type: 'string', minLength: 1, maxLength: 128, description: 'Unique proposal identifier' },
+                  vote: { type: 'string', enum: ['yes', 'no', 'abstain'], description: 'Vote choice' },
+                  voterSecret: { ...hexString32, description: 'Private entropy for nullifier derivation (never stored)' },
+                  stealthAddress: { type: 'string', description: 'Optional stealth address for voter anonymity (from /stealth/derive)' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Encrypted ballot with commitment and nullifier',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    beta: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        commitment: { type: 'string', description: 'Pedersen commitment to the vote value' },
+                        blindingFactor: { type: 'string', description: 'Blinding factor for the commitment' },
+                        nullifier: { type: 'string', description: 'Deterministic nullifier (prevents double-voting)' },
+                        vote: { type: 'string', enum: ['yes', 'no', 'abstain'] },
+                        proposalId: { type: 'string' },
+                        anonymousId: { type: 'string', description: 'Anonymous voter identifier (stealth address or hash)' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+    '/v1/governance/ballot/submit': {
+      post: {
+        tags: ['Governance'],
+        operationId: 'submitBallot',
+        summary: 'Submit encrypted ballot to a proposal',
+        description: 'Submits an encrypted ballot (commitment + nullifier) to a proposal. The nullifier is checked for uniqueness — duplicate votes are rejected with 409. Proposals are created lazily on first ballot submission.',
+        parameters: [
+          { name: 'Idempotency-Key', in: 'header', required: false, schema: { type: 'string', format: 'uuid' }, description: 'UUID v4 for idempotent submission' },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['proposalId', 'commitment', 'blindingFactor', 'nullifier', 'vote'],
+                properties: {
+                  proposalId: { type: 'string', minLength: 1, maxLength: 128 },
+                  commitment: hexString32,
+                  blindingFactor: hexString32,
+                  nullifier: hexString32,
+                  vote: { type: 'string', enum: ['yes', 'no', 'abstain'] },
+                  stealthAddress: { type: 'string', description: 'Optional stealth address for voter anonymity' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Ballot accepted',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    beta: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        proposalId: { type: 'string' },
+                        nullifier: { type: 'string' },
+                        accepted: { type: 'boolean' },
+                        totalBallots: { type: 'integer' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error', content: { 'application/json': { schema: errorResponse } } },
+          409: { description: 'Double vote detected (nullifier already used)', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+    '/v1/governance/tally': {
+      post: {
+        tags: ['Governance'],
+        operationId: 'tallyVotes',
+        summary: 'Tally votes for a proposal',
+        description: 'Performs homomorphic addition of all ballot commitments for a proposal. The tally commitment can be verified against the total yes-vote count using the combined blinding factor. Returns a verification hash as proof of correct tallying.',
+        parameters: [
+          { name: 'Idempotency-Key', in: 'header', required: false, schema: { type: 'string', format: 'uuid' }, description: 'UUID v4 for idempotent tally' },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['proposalId'],
+                properties: {
+                  proposalId: { type: 'string', minLength: 1, maxLength: 128 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Tally result with verification proof',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    beta: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        tallyId: { type: 'string', pattern: '^tly_[0-9a-f]{64}$' },
+                        proposalId: { type: 'string' },
+                        totalVotes: { type: 'integer' },
+                        yesVotes: { type: 'integer' },
+                        noVotes: { type: 'integer' },
+                        abstainVotes: { type: 'integer' },
+                        tallyCommitment: { type: 'string' },
+                        tallyBlinding: { type: 'string' },
+                        verificationHash: { type: 'string' },
+                        verified: { type: 'boolean' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error', content: { 'application/json': { schema: errorResponse } } },
+          404: { description: 'Proposal not found', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+    '/v1/governance/tally/{id}': {
+      get: {
+        tags: ['Governance'],
+        operationId: 'getTally',
+        summary: 'Get tally result',
+        description: 'Retrieves a previously computed tally result by its ID. Includes vote counts, the homomorphic tally commitment, and the verification proof.',
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', pattern: '^tly_[0-9a-f]{64}$' },
+            description: 'Tally ID returned from POST /v1/governance/tally',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Tally result',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    beta: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        tallyId: { type: 'string' },
+                        proposalId: { type: 'string' },
+                        totalVotes: { type: 'integer' },
+                        yesVotes: { type: 'integer' },
+                        noVotes: { type: 'integer' },
+                        abstainVotes: { type: 'integer' },
+                        tallyCommitment: { type: 'string' },
+                        tallyBlinding: { type: 'string' },
+                        verificationHash: { type: 'string' },
+                        verified: { type: 'boolean' },
+                        talliedAt: { type: 'integer' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Invalid tally ID format', content: { 'application/json': { schema: errorResponse } } },
+          404: { description: 'Tally not found', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
   },
   tags: [
     { name: 'Health', description: 'Server health, readiness, and error catalog' },
@@ -3209,5 +3430,6 @@ export const openApiSpec = {
     { name: 'Swap', description: 'Privacy-preserving token swaps via Jupiter DEX with stealth address routing' },
     { name: 'Sessions', description: 'Agent session management — configure default parameters (chain, backend, privacy level) applied to all requests' },
     { name: 'Compliance', description: 'Enterprise compliance endpoints — selective disclosure, audit reports, and auditor verification' },
+    { name: 'Governance', description: 'Privacy-preserving governance — encrypted ballots via Pedersen commitments, nullifier-based double-vote prevention, and homomorphic vote tallying' },
   ],
 }
