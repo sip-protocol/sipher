@@ -30,7 +30,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Bundle agent script
-        run: npx esbuild scripts/colosseum.ts --bundle --platform=node --format=esm --outfile=dist/colosseum.mjs
+        run: pnpm exec esbuild scripts/colosseum.ts --bundle --platform=node --format=esm --outfile=dist/colosseum.mjs
 
       - name: Deploy and restart heartbeat
         uses: appleboy/ssh-action@v1
