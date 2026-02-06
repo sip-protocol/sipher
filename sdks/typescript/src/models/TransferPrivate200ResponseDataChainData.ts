@@ -39,7 +39,7 @@ import {
  * 
  * @export
  */
-export type TransferPrivate200ResponseDataChainData = ;
+export type TransferPrivate200ResponseDataChainData = EvmTransferData | NearTransferData | SolanaTransferData;
 
 export function TransferPrivate200ResponseDataChainDataFromJSON(json: any): TransferPrivate200ResponseDataChainData {
     return TransferPrivate200ResponseDataChainDataFromJSONTyped(json, false);
