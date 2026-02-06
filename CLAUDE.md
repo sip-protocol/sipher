@@ -6,7 +6,7 @@
 **Live URL:** https://sipher.sip-protocol.org
 **Tagline:** "Privacy-as-a-Skill for Multi-Chain Agents"
 **Purpose:** REST API + OpenClaw skill enabling any autonomous agent to add transaction privacy via SIP Protocol
-**Stats:** 103 endpoints | 539 tests | 17 chains | 4 client SDKs (TS, Python, Rust, Go)
+**Stats:** 77 endpoints | 540 tests | 17 chains | 4 client SDKs (TS, Python, Rust, Go)
 
 ---
 
@@ -68,7 +68,7 @@
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (localhost:5006)
 pnpm build                      # Build for production
-pnpm test -- --run              # Run tests (539 tests, 34 suites)
+pnpm test -- --run              # Run tests (540 tests, 34 suites)
 pnpm typecheck                  # Type check
 pnpm demo                       # Full-flow demo (requires dev server running)
 pnpm openapi:export              # Export static OpenAPI spec to dist/openapi.json
@@ -297,7 +297,7 @@ sipher/
 │   ├── colosseum.ts                # Template-based engagement (LLM for comments/posts)
 │   ├── sipher-agent.ts             # LLM-powered autonomous agent (ReAct loop)
 │   └── demo-flow.ts                # Full E2E demo (21 endpoints)
-├── tests/                          # 539 tests across 34 suites
+├── tests/                          # 540 tests across 34 suites
 │   ├── health.test.ts              # 11 tests (health + ready + root + skill + 404 + reqId)
 │   ├── stealth.test.ts             # 10 tests
 │   ├── commitment.test.ts          # 16 tests (create, verify, add, subtract)
@@ -322,7 +322,7 @@ sipher/
 │   ├── private-swap.test.ts       # 20 tests (happy path, swap details, validation, idempotency, beta, E2E)
 │   ├── backend-comparison.test.ts # 23 tests (basic, scoring, prioritize, validation, cache, edge cases)
 │   ├── session.test.ts            # 28 tests (CRUD, middleware merge, tier gating, ownership)
-│   ├── governance.test.ts         # 23 tests (encrypt, submit, tally, double-vote, E2E flow)
+│   ├── governance.test.ts         # 24 tests (encrypt, submit, tally, double-vote, ballot limit, E2E flow)
 │   ├── compliance.test.ts         # 23 tests (disclose, report, get, tier gating, auditor verification)
 │   ├── jito.test.ts               # 20 tests (relay, bundle status, tier gating, idempotency, state machine)
 │   └── billing.test.ts            # 31 tests (usage tracking, quotas, metering, subscriptions, invoices, webhooks)
@@ -491,7 +491,7 @@ All error codes are centralized in `src/errors/codes.ts` (ErrorCode enum). Full 
 ## AI GUIDELINES
 
 ### DO:
-- Run `pnpm test -- --run` after code changes (539 tests must pass)
+- Run `pnpm test -- --run` after code changes (540 tests must pass)
 - Run `pnpm typecheck` before committing
 - Use @sip-protocol/sdk for all crypto operations (never roll your own)
 - Keep API responses consistent: `{ success, data?, error? }`
@@ -538,11 +538,11 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 | 5 | Backend Aggregation | 5 | ✅ Complete |
 | 6 | Enterprise | 6 | ✅ Complete |
 
-**Progress:** 38/38 issues complete | 539 tests | 103 endpoints | 17 chains | All phases complete
+**Progress:** 38/38 issues complete | 540 tests | 77 endpoints | 17 chains | All phases complete
 
 **Quick check:** `gh issue list -R sip-protocol/sipher --state open`
 
 ---
 
 **Last Updated:** 2026-02-06
-**Status:** Phase 6 Complete | 103 Endpoints | 539 Tests | 17 Chains | Agent #274 Active
+**Status:** Phase 6 Complete | 77 Endpoints | 540 Tests | 17 Chains | Agent #274 Active
