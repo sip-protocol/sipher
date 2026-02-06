@@ -81,6 +81,15 @@ export enum ErrorCode {
   // 404 — Compliance
   COMPLIANCE_REPORT_NOT_FOUND = 'COMPLIANCE_REPORT_NOT_FOUND',
 
+  // 404 — Session
+  SESSION_NOT_FOUND = 'SESSION_NOT_FOUND',
+
+  // 410 — Session
+  SESSION_EXPIRED = 'SESSION_EXPIRED',
+
+  // 500 — Session
+  SESSION_CREATE_FAILED = 'SESSION_CREATE_FAILED',
+
   // 503 — Service Unavailable
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
   SOLANA_RPC_UNAVAILABLE = 'SOLANA_RPC_UNAVAILABLE',
@@ -360,6 +369,30 @@ export const ERROR_CATALOG: ErrorCatalogEntry[] = [
     httpStatus: 404,
     description: 'Compliance report not found. The report ID may be expired or invalid.',
     retryable: false,
+  },
+
+  // 404 — Session
+  {
+    code: ErrorCode.SESSION_NOT_FOUND,
+    httpStatus: 404,
+    description: 'Session not found. The session ID may be expired or invalid.',
+    retryable: false,
+  },
+
+  // 410 — Session
+  {
+    code: ErrorCode.SESSION_EXPIRED,
+    httpStatus: 410,
+    description: 'Session has expired. Create a new session.',
+    retryable: false,
+  },
+
+  // 500 — Session
+  {
+    code: ErrorCode.SESSION_CREATE_FAILED,
+    httpStatus: 500,
+    description: 'Failed to create agent session.',
+    retryable: true,
   },
 
   // 503

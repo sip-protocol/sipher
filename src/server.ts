@@ -20,6 +20,7 @@ import {
   auditLog,
   shutdownMiddleware,
   timeoutMiddleware,
+  sessionMiddleware,
 } from './middleware/index.js'
 import router from './routes/index.js'
 import { openApiSpec } from './openapi/spec.js'
@@ -51,6 +52,7 @@ app.use(express.json({ limit: '1mb' }))
 app.use(compression())
 app.use(requestLogger)
 app.use(auditLog)
+app.use(sessionMiddleware)
 
 // ─── OpenAPI / Swagger ─────────────────────────────────────────────────────
 
@@ -144,6 +146,12 @@ app.get('/', (_req, res) => {
       },
       swap: {
         private: 'POST /v1/swap/private',
+      },
+      sessions: {
+        create: 'POST /v1/sessions',
+        get: 'GET /v1/sessions/:id',
+        update: 'PATCH /v1/sessions/:id',
+        delete: 'DELETE /v1/sessions/:id',
       },
       compliance: {
         disclose: 'POST /v1/compliance/disclose',
