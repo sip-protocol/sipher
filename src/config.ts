@@ -7,6 +7,7 @@ export const env = cleanEnv(process.env, {
   }),
   PORT: port({ default: 5006 }),
   SOLANA_RPC_URL: str({ default: 'https://api.mainnet-beta.solana.com' }),
+  SOLANA_RPC_URL_FALLBACK: str({ default: '' }),
   RPC_PROVIDER: str({
     choices: ['generic', 'helius', 'quicknode', 'triton'] as const,
     default: 'generic',
