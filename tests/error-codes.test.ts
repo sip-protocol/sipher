@@ -49,7 +49,7 @@ describe('Error codes catalog', () => {
     })
 
     it('HTTP statuses are valid', async () => {
-      const validStatuses = [400, 401, 403, 404, 410, 422, 429, 500, 503]
+      const validStatuses = [400, 401, 403, 404, 409, 410, 422, 429, 500, 503]
       const res = await request(app).get('/v1/errors')
       for (const error of res.body.data.errors) {
         expect(validStatuses).toContain(error.httpStatus)
