@@ -153,6 +153,35 @@ Content-Type: application/json
 
 Derives stealth private key server-side, signs and submits claim transaction. Returns `txSignature`.
 
+#### Unified Private Transfer (Chain-Agnostic)
+
+```
+POST /v1/transfer/private
+Content-Type: application/json
+
+{
+  "sender": "<chain-native address>",
+  "recipientMetaAddress": {
+    "spendingKey": "0x...",
+    "viewingKey": "0x...",
+    "chain": "ethereum"
+  },
+  "amount": "1000000000000000000",
+  "token": "<optional token contract/mint>"
+}
+```
+
+**Supported chains:** solana, ethereum, polygon, arbitrum, optimism, base, near
+
+Returns chain-specific `chainData`:
+- **Solana:** `{ type: "solana", transaction: "<base64>" }` — unsigned transaction, agent signs and submits
+- **EVM:** `{ type: "evm", to, value, data, chainId }` — TX descriptor, agent builds with ethers/viem/web3
+- **NEAR:** `{ type: "near", receiverId, actions[] }` — action descriptors, agent signs with near-api-js
+
+Plus common privacy fields: `stealthAddress`, `ephemeralPublicKey`, `viewTag`, `commitment`, `blindingFactor`, `viewingKeyHash`, `sharedSecret`.
+
+Unsupported chains return `422` with `supportedChains` array.
+
 ---
 
 ### Scan for Payments
@@ -461,7 +490,7 @@ Supported tokens: `C-wSOL`, `C-USDC`, `C-USDT`. All C-SPL endpoints support `Ide
 
 ## Idempotency
 
-Mutation endpoints (`/transfer/shield`, `/transfer/claim`, `/commitment/create`, `/viewing-key/disclose`) support the `Idempotency-Key` header. Send a UUID v4 value to safely retry requests — duplicate keys return the cached response with `Idempotency-Replayed: true` header.
+Mutation endpoints (`/transfer/shield`, `/transfer/claim`, `/transfer/private`, `/commitment/create`, `/viewing-key/disclose`) support the `Idempotency-Key` header. Send a UUID v4 value to safely retry requests — duplicate keys return the cached response with `Idempotency-Replayed: true` header.
 
 ---
 
