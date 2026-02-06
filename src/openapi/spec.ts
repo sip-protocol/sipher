@@ -558,6 +558,146 @@ export const openApiSpec = {
       },
     },
 
+    // ─── Private Transfer (Unified Chain-Agnostic) ────────────────────────────
+    '/v1/transfer/private': {
+      post: {
+        summary: 'Build unified private transfer (chain-agnostic)',
+        description: 'Builds a private transfer to a stealth address on any supported chain. Returns chain-specific transaction data (Solana unsigned tx, EVM tx descriptor, or NEAR action descriptors). Currently supports: solana, ethereum, polygon, arbitrum, optimism, base, near.',
+        tags: ['Transfer'],
+        operationId: 'transferPrivate',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  sender: { type: 'string', minLength: 1, description: 'Sender address (format varies by chain)' },
+                  recipientMetaAddress: {
+                    type: 'object',
+                    properties: {
+                      spendingKey: { type: 'string', pattern: '^0x[0-9a-fA-F]{64,66}$', description: '32-byte (ed25519) or 33-byte (secp256k1) hex key' },
+                      viewingKey: { type: 'string', pattern: '^0x[0-9a-fA-F]{64,66}$', description: '32-byte (ed25519) or 33-byte (secp256k1) hex key' },
+                      chain: { type: 'string', enum: ['solana', 'near', 'aptos', 'sui', 'ethereum', 'polygon', 'arbitrum', 'optimism', 'base', 'bitcoin', 'zcash', 'cosmos', 'osmosis', 'injective', 'celestia', 'sei', 'dydx'] },
+                      label: { type: 'string' },
+                    },
+                    required: ['spendingKey', 'viewingKey', 'chain'],
+                  },
+                  amount: positiveIntString,
+                  token: { type: 'string', description: 'Token contract/mint address. Omit for native currency.' },
+                },
+                required: ['sender', 'recipientMetaAddress', 'amount'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Private transfer built successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        chain: { type: 'string' },
+                        curve: { type: 'string', enum: ['ed25519', 'secp256k1'] },
+                        stealthAddress: { type: 'string', description: 'Chain-native stealth address' },
+                        ephemeralPublicKey: hexString32,
+                        viewTag: { type: 'integer', minimum: 0, maximum: 255 },
+                        commitment: { type: 'string' },
+                        blindingFactor: hexString32,
+                        viewingKeyHash: hexString32,
+                        sharedSecret: hexString32,
+                        chainData: {
+                          oneOf: [
+                            {
+                              type: 'object',
+                              title: 'SolanaTransferData',
+                              properties: {
+                                type: { type: 'string', enum: ['solana'] },
+                                transaction: { type: 'string', description: 'Base64-encoded unsigned transaction' },
+                                mint: { type: 'string' },
+                              },
+                              required: ['type', 'transaction'],
+                            },
+                            {
+                              type: 'object',
+                              title: 'EvmTransferData',
+                              properties: {
+                                type: { type: 'string', enum: ['evm'] },
+                                to: { type: 'string', description: 'Recipient or token contract address' },
+                                value: { type: 'string', description: 'Native currency amount (wei)' },
+                                data: { type: 'string', description: 'Calldata (0x for native, ABI-encoded for ERC20)' },
+                                chainId: { type: 'integer' },
+                                tokenContract: { type: 'string' },
+                              },
+                              required: ['type', 'to', 'value', 'data', 'chainId'],
+                            },
+                            {
+                              type: 'object',
+                              title: 'NearTransferData',
+                              properties: {
+                                type: { type: 'string', enum: ['near'] },
+                                receiverId: { type: 'string' },
+                                actions: {
+                                  type: 'array',
+                                  items: {
+                                    type: 'object',
+                                    properties: {
+                                      type: { type: 'string', enum: ['Transfer', 'FunctionCall'] },
+                                      amount: { type: 'string' },
+                                      methodName: { type: 'string' },
+                                      args: { type: 'string' },
+                                      gas: { type: 'string' },
+                                      deposit: { type: 'string' },
+                                    },
+                                    required: ['type'],
+                                  },
+                                },
+                                tokenContract: { type: 'string' },
+                              },
+                              required: ['type', 'receiverId', 'actions'],
+                            },
+                          ],
+                          discriminator: { propertyName: 'type' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error', content: { 'application/json': { schema: errorResponse } } },
+          422: {
+            description: 'Chain not supported for transfers',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', enum: [false] },
+                    error: {
+                      type: 'object',
+                      properties: {
+                        code: { type: 'string', enum: ['CHAIN_TRANSFER_UNSUPPORTED'] },
+                        message: { type: 'string' },
+                        supportedChains: { type: 'array', items: { type: 'string' } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+
     // ─── Scan ─────────────────────────────────────────────────────────────────
     '/v1/scan/payments': {
       post: {
