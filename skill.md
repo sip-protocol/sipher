@@ -816,6 +816,88 @@ Returns: cached tally result (same shape as tally response). Tallies expire afte
 
 ---
 
+### Jito Gas Abstraction (Beta)
+
+Submit transactions via Jito bundles for MEV protection. Requires pro or enterprise tier.
+
+#### Relay Transaction Bundle
+
+```
+POST /v1/jito/relay
+Content-Type: application/json
+
+{
+  "transactions": ["<base64-encoded-tx>"],
+  "tipLamports": 10000,
+  "sponsorGas": false
+}
+```
+
+Returns: `bundleId` (jito_ prefix), `status`, `tipAccount`, `estimatedSlot`.
+
+Supports `Idempotency-Key` header.
+
+#### Poll Bundle Status
+
+```
+GET /v1/jito/bundle/:id
+```
+
+Returns: `bundleId`, `status` (submitted → bundled → confirming → confirmed), `progress`, `slot`, `signature`.
+
+---
+
+### Billing & Usage
+
+Track usage, manage subscriptions, and view invoices.
+
+#### Get Daily Usage
+
+```
+GET /v1/billing/usage
+```
+
+Returns: `date`, `tier`, `total` (operations today), `quotaTotal`, `categories` (per-category count and quota).
+
+#### Get Subscription
+
+```
+GET /v1/billing/subscription
+```
+
+Returns: `plan`, `status`, current period dates. Returns default free tier info if no active subscription.
+
+#### Create or Change Subscription
+
+```
+POST /v1/billing/subscribe
+Content-Type: application/json
+
+{ "plan": "pro" }
+```
+
+Plans: `free`, `pro`, `enterprise`. Changes plan if subscription already active.
+
+#### List Invoices
+
+```
+GET /v1/billing/invoices?limit=10&offset=0
+```
+
+Returns: paginated `invoices[]`, `total`, `limit`, `offset`.
+
+#### Customer Portal
+
+```
+POST /v1/billing/portal
+```
+
+Generates a Stripe customer portal URL. Requires pro or enterprise tier.
+
+Returns: `id`, `url`, `expiresAt`.
+
+---
+
 ## Idempotency
 
 Mutation endpoints (`/transfer/shield`, `/transfer/claim`, `/transfer/private`, `/commitment/create`, `/viewing-key/disclose`, `/swap/private`, `/governance/ballot/submit`, `/governance/tally`) support the `Idempotency-Key` header. Send a UUID v4 value to safely retry requests — duplicate keys return the cached response with `Idempotency-Replayed: true` header.
