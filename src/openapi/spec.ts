@@ -1545,6 +1545,8 @@ export const openApiSpec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean' },
+                    beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -1650,6 +1652,8 @@ export const openApiSpec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean' },
+                    beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -1767,6 +1771,8 @@ export const openApiSpec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean' },
+                    beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -2206,6 +2212,8 @@ export const openApiSpec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean' },
+                    beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -2257,6 +2265,8 @@ export const openApiSpec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean' },
+                    beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -2307,6 +2317,8 @@ export const openApiSpec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean' },
+                    beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -2446,6 +2458,7 @@ export const openApiSpec = {
                   properties: {
                     success: { type: 'boolean' },
                     beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -2506,6 +2519,7 @@ export const openApiSpec = {
                   properties: {
                     success: { type: 'boolean' },
                     beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -2661,6 +2675,7 @@ export const openApiSpec = {
                   properties: {
                     success: { type: 'boolean' },
                     beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -3225,6 +3240,7 @@ export const openApiSpec = {
                   properties: {
                     success: { type: 'boolean' },
                     beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -3283,6 +3299,7 @@ export const openApiSpec = {
                   properties: {
                     success: { type: 'boolean' },
                     beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -3335,6 +3352,7 @@ export const openApiSpec = {
                   properties: {
                     success: { type: 'boolean' },
                     beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -3385,6 +3403,7 @@ export const openApiSpec = {
                   properties: {
                     success: { type: 'boolean' },
                     beta: { type: 'boolean' },
+                    warning: { type: 'string' },
                     data: {
                       type: 'object',
                       properties: {
@@ -3465,6 +3484,110 @@ export const openApiSpec = {
           },
           400: { description: 'Validation error or invalid transaction', content: { 'application/json': { schema: errorResponse } } },
           403: { description: 'Gas sponsorship requires enterprise tier', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+    // ─── Admin ───────────────────────────────────────────────────────────────
+    '/v1/admin/keys': {
+      get: {
+        tags: ['Admin'],
+        operationId: 'listAdminKeys',
+        summary: 'List all API keys',
+        description: 'Returns all API keys (masked). Requires admin API key.',
+        security: [{ ApiKeyAuth: [] }],
+        responses: {
+          200: {
+            description: 'API keys listed',
+            content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, data: { type: 'object', properties: { keys: { type: 'array', items: { type: 'object' } }, total: { type: 'integer' } } } } } } },
+          },
+          401: { description: 'Admin key required', content: { 'application/json': { schema: errorResponse } } },
+          503: { description: 'Admin API not configured', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+      post: {
+        tags: ['Admin'],
+        operationId: 'createAdminKey',
+        summary: 'Create a new API key',
+        description: 'Creates a new tiered API key. The raw key is only shown once in the response. Requires admin API key.',
+        security: [{ ApiKeyAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['tier', 'name'],
+                properties: {
+                  tier: { type: 'string', enum: ['free', 'pro', 'enterprise'] },
+                  name: { type: 'string', minLength: 1, maxLength: 100 },
+                  expiresAt: { type: 'string', format: 'date-time' },
+                  metadata: { type: 'object', additionalProperties: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'API key created',
+            content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, data: { type: 'object', properties: { id: { type: 'string' }, key: { type: 'string', description: 'Raw API key — shown only once' }, tier: { type: 'string' }, name: { type: 'string' }, createdAt: { type: 'string', format: 'date-time' }, expiresAt: { type: 'string', format: 'date-time' }, limits: { type: 'object' }, notice: { type: 'string' } } } } } } },
+          },
+          400: { description: 'Validation error', content: { 'application/json': { schema: errorResponse } } },
+          401: { description: 'Admin key required', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+    '/v1/admin/keys/{id}': {
+      get: {
+        tags: ['Admin'],
+        operationId: 'getAdminKey',
+        summary: 'Get API key details',
+        description: 'Returns key details with masked key value and usage stats. Requires admin API key.',
+        security: [{ ApiKeyAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'API key ID' },
+        ],
+        responses: {
+          200: {
+            description: 'API key details',
+            content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, data: { type: 'object', properties: { id: { type: 'string' }, key: { type: 'string', description: 'Masked key (first 12 + last 4 chars)' }, tier: { type: 'string' }, name: { type: 'string' }, createdAt: { type: 'string', format: 'date-time' }, expiresAt: { type: 'string', format: 'date-time' }, revokedAt: { type: 'string', format: 'date-time' }, limits: { type: 'object' }, usage: { type: 'object', nullable: true } } } } } } },
+          },
+          401: { description: 'Admin key required', content: { 'application/json': { schema: errorResponse } } },
+          404: { description: 'Key not found', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+      delete: {
+        tags: ['Admin'],
+        operationId: 'revokeAdminKey',
+        summary: 'Revoke an API key',
+        description: 'Permanently revokes an API key. Requires admin API key.',
+        security: [{ ApiKeyAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'API key ID' },
+        ],
+        responses: {
+          200: {
+            description: 'Key revoked',
+            content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, data: { type: 'object', properties: { revoked: { type: 'boolean' } } } } } } },
+          },
+          401: { description: 'Admin key required', content: { 'application/json': { schema: errorResponse } } },
+          404: { description: 'Key not found', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+    '/v1/admin/tiers': {
+      get: {
+        tags: ['Admin'],
+        operationId: 'listAdminTiers',
+        summary: 'List available tiers and limits',
+        description: 'Returns all tier names and their associated rate/quota limits. Requires admin API key.',
+        security: [{ ApiKeyAuth: [] }],
+        responses: {
+          200: {
+            description: 'Tiers listed',
+            content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, data: { type: 'object', properties: { tiers: { type: 'array', items: { type: 'object', properties: { tier: { type: 'string' }, limits: { type: 'object' } } } } } } } } } },
+          },
+          401: { description: 'Admin key required', content: { 'application/json': { schema: errorResponse } } },
         },
       },
     },
@@ -3693,5 +3816,6 @@ export const openApiSpec = {
     { name: 'Governance', description: 'Privacy-preserving governance — encrypted ballots via Pedersen commitments, nullifier-based double-vote prevention, and homomorphic vote tallying' },
     { name: 'Gas Abstraction', description: 'Jito bundle relay for MEV-protected privacy transactions with optional gas sponsorship' },
     { name: 'Billing & Usage', description: 'Stripe billing, subscription management, usage metering, and daily operation quotas' },
+    { name: 'Admin', description: 'API key management — create, list, inspect, and revoke tiered keys. Requires ADMIN_API_KEY.' },
   ],
 }
