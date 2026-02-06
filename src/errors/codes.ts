@@ -34,6 +34,7 @@ export enum ErrorCode {
   // 422 — Unprocessable Entity
   BATCH_LIMIT_EXCEEDED = 'BATCH_LIMIT_EXCEEDED',
   BATCH_EMPTY = 'BATCH_EMPTY',
+  CHAIN_TRANSFER_UNSUPPORTED = 'CHAIN_TRANSFER_UNSUPPORTED',
 
   // 400 — Proof errors
   PROOF_GENERATION_FAILED = 'PROOF_GENERATION_FAILED',
@@ -187,6 +188,12 @@ export const ERROR_CATALOG: ErrorCatalogEntry[] = [
     code: ErrorCode.BATCH_EMPTY,
     httpStatus: 422,
     description: 'Batch request must contain at least one item.',
+    retryable: false,
+  },
+  {
+    code: ErrorCode.CHAIN_TRANSFER_UNSUPPORTED,
+    httpStatus: 422,
+    description: 'Private transfers are not yet supported for this chain. Check supportedChains in the response.',
     retryable: false,
   },
 
