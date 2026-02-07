@@ -4,8 +4,8 @@
 
 Any autonomous agent can call Sipher to add stealth addresses, hidden amounts, and compliance viewing keys to blockchain transactions across 17 chains.
 
-[![Tests](https://img.shields.io/badge/tests-273%20passing-brightgreen)](tests/)
-[![Endpoints](https://img.shields.io/badge/endpoints-70-blue)](skill.md)
+[![Tests](https://img.shields.io/badge/tests-540%20passing-brightgreen)](tests/)
+[![Endpoints](https://img.shields.io/badge/endpoints-60-blue)](skill.md)
 [![Chains](https://img.shields.io/badge/chains-17-purple)](skill.md)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -14,12 +14,17 @@ Any autonomous agent can call Sipher to add stealth addresses, hidden amounts, a
 | Capability | Description |
 |-----------|-------------|
 | **Multi-Chain Stealth** | Generate stealth addresses for 17 chains (Solana, NEAR, Ethereum, Cosmos, Bitcoin, Move) |
-| **Shielded Transfers** | Build unsigned Solana transactions with hidden recipients + Pedersen commitments |
+| **Shielded Transfers** | Build unsigned transactions with hidden recipients + Pedersen commitments |
+| **Private Transfer** | Unified chain-agnostic private transfer across Solana, EVM, and NEAR |
 | **Payment Scanning** | Detect incoming shielded payments using viewing keys |
 | **Selective Disclosure** | Encrypt transaction data for auditors/compliance without revealing spending power |
 | **Privacy Scoring** | Analyze wallet privacy posture (0-100 score with recommendations) |
-| **ZK Proofs** | Generate/verify funding, validity, and fulfillment proofs (beta) |
-| **C-SPL Tokens** | Wrap, unwrap, and transfer confidential SPL tokens (beta) |
+| **Range Proofs** | STARK range proofs with M31 limb decomposition (beta) |
+| **Privacy Backends** | Arcium MPC, Inco FHE, and SIPNative backends with comparison engine |
+| **Private Swap** | Privacy-preserving token swap via Jupiter DEX (beta) |
+| **Governance** | Encrypted ballot voting with homomorphic tally |
+| **Sessions** | Agent session management with persistent defaults |
+| **Billing** | Usage tracking, daily quotas, subscription management |
 
 ## Quick Start
 
@@ -30,7 +35,7 @@ pnpm install
 # Dev server (with Redis optional)
 pnpm dev
 
-# Run tests (273 tests)
+# Run tests (540 tests)
 pnpm test -- --run
 
 # Type check
@@ -40,7 +45,7 @@ pnpm typecheck
 pnpm build
 ```
 
-## API Endpoints (70 total)
+## API Endpoints (60 total)
 
 **Base URL:** `https://sipher.sip-protocol.org` | **Auth:** `X-API-Key` header | **Docs:** `/docs`
 
@@ -48,16 +53,22 @@ pnpm build
 |----------|-----------|-------------|
 | **Health** | `/v1/health`, `/v1/ready`, `/v1/errors` | Status, readiness, error catalog |
 | **Stealth** | `/v1/stealth/generate`, `/derive`, `/check`, `/generate/batch` | Multi-chain stealth addresses (17 chains) |
-| **Transfer** | `/v1/transfer/shield`, `/claim` | Shielded SOL/SPL transfers |
+| **Transfer** | `/v1/transfer/shield`, `/claim`, `/private` | Shielded SOL/SPL + chain-agnostic private transfer |
 | **Scan** | `/v1/scan/payments`, `/payments/batch` | Payment detection |
-| **Commitment** | `/v1/commitment/create`, `/verify`, `/add`, `/subtract`, `/create/batch` | Pedersen commitments |
-| **Viewing Key** | `/v1/viewing-key/generate`, `/derive`, `/verify-hierarchy`, `/disclose`, `/decrypt` | Compliance keys |
+| **Commitment** | `/v1/commitment/create`, `/verify`, `/add`, `/subtract`, `/create/batch` | Pedersen commitments (homomorphic) |
+| **Viewing Key** | `/v1/viewing-key/generate`, `/derive`, `/verify-hierarchy`, `/disclose`, `/decrypt` | Hierarchical compliance keys |
 | **Privacy** | `/v1/privacy/score` | Wallet privacy analysis |
-| **Proofs** | `/v1/proofs/funding/*`, `/validity/*`, `/fulfillment/*` | ZK proof generation/verification (beta) |
-| **C-SPL** | `/v1/cspl/wrap`, `/unwrap`, `/transfer` | Confidential SPL tokens (beta) |
+| **Range Proofs** | `/v1/proofs/range/generate`, `/verify` | STARK range proofs (beta) |
+| **Backends** | `/v1/backends`, `/:id/health`, `/select`, `/compare` | Privacy backend registry + comparison |
+| **Arcium** | `/v1/arcium/compute`, `/compute/:id/status`, `/decrypt` | MPC computation (beta) |
+| **Inco** | `/v1/inco/encrypt`, `/compute`, `/decrypt` | FHE encryption (beta) |
+| **Swap** | `/v1/swap/private` | Jupiter DEX private swap (beta) |
+| **Sessions** | `/v1/sessions` (CRUD) | Agent session defaults (pro+) |
+| **Governance** | `/v1/governance/ballot/encrypt`, `/submit`, `/tally`, `/tally/:id` | Encrypted voting + homomorphic tally |
+| **Compliance** | `/v1/compliance/disclose`, `/report`, `/report/:id` | Selective disclosure + audit reports (enterprise) |
+| **Jito** | `/v1/jito/relay`, `/bundle/:id` | Gas abstraction via Jito (beta) |
+| **Billing** | `/v1/billing/usage`, `/subscription`, `/subscribe`, `/invoices`, `/portal` | Usage tracking + subscriptions |
 | **RPC** | `/v1/rpc/providers` | Provider configuration |
-| **Webhooks** | `/v1/webhooks/*` | Push-based payment notifications |
-| **Admin** | `/v1/admin/keys`, `/tiers` | API key management |
 
 Full API reference: [`/docs`](https://sipher.sip-protocol.org/docs) | [`/skill.md`](https://sipher.sip-protocol.org/skill.md)
 
@@ -115,7 +126,7 @@ Agent (Claude, LangChain, OpenClaw, etc.)
 | **Blockchain** | @solana/web3.js, @solana/spl-token |
 | **Validation** | Zod |
 | **Logging** | Pino (structured JSON) |
-| **Testing** | Vitest + Supertest (273 tests) |
+| **Testing** | Vitest + Supertest (540 tests) |
 | **Deploy** | Docker + GHCR + GitHub Actions |
 | **Docs** | OpenAPI 3.1 + Swagger UI |
 
@@ -134,21 +145,39 @@ cp .env.example .env
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `SOLANA_RPC_URL` | Yes | Solana RPC endpoint |
-| `API_KEYS` | No | Comma-separated legacy API keys |
+| `SOLANA_RPC_URL_FALLBACK` | No | Fallback RPC (auto-switches on failure) |
+| `API_KEYS` | No | Comma-separated API keys |
 | `ADMIN_API_KEY` | No | Admin API key for key management |
-| `REDIS_URL` | No | Redis connection URL (falls back to in-memory) |
-| `CORS_ORIGINS` | No | Allowed CORS origins |
 | `RPC_PROVIDER` | No | RPC provider: `helius`, `quicknode`, `triton`, `generic` |
 | `RPC_PROVIDER_API_KEY` | No | API key for premium RPC provider |
+| `REDIS_URL` | No | Redis connection URL (falls back to in-memory) |
+| `STRIPE_WEBHOOK_SECRET` | No | Stripe webhook signing secret |
+| `CORS_ORIGINS` | No | Allowed CORS origins |
 
 ## Rate Limits
 
 | Tier | Requests/Hour | Features |
 |------|---------------|----------|
 | Free | 100 | Basic endpoints |
-| Pro | 10,000 | All endpoints |
-| Enterprise | 100,000 | All endpoints + priority support |
+| Pro | 10,000 | All endpoints + sessions |
+| Enterprise | 100,000 | All endpoints + compliance + priority support |
+
+## Client SDKs
+
+Auto-generated from the OpenAPI spec:
+
+| Language | Package | Transport |
+|----------|---------|-----------|
+| TypeScript | `sdks/typescript` | fetch |
+| Python | `sdks/python` | urllib3 |
+| Rust | `sdks/rust` | reqwest |
+| Go | `sdks/go` | net/http |
+
+```bash
+# Regenerate all SDKs
+pnpm sdks:generate
+```
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE)
