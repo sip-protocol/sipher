@@ -402,6 +402,22 @@ Content-Type: application/json
 }
 ```
 
+#### Scan Stealth Address Assets (Helius DAS)
+
+```
+POST /v1/scan/assets
+Content-Type: application/json
+
+{
+  "address": "S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at",
+  "displayOptions": { "showFungible": true }
+}
+```
+
+Query all assets (SPL tokens, NFTs, cNFTs) at a stealth address. Uses Helius DAS `getAssetsByOwner` when Helius is configured, falls back to standard `getTokenAccountsByOwner` otherwise.
+
+Returns: `assets` (array), `total`, `page`, `limit`, `provider` (`helius-das` or `solana-rpc`)
+
 ---
 
 ### RPC Providers
@@ -1121,7 +1137,7 @@ Returns stealth address generation (multi-chain), Pedersen commitments (homomorp
 | Module | Description | Status |
 |--------|-------------|--------|
 | anchor-transfer | On-chain shielded transfers via Anchor program | Production |
-| sunspot-verifier | Noir → Groth16 ZK proof verification (3 proof types) | Production |
+| sunspot-verifier | Noir → Groth16 ZK proof verification (3 proof types) | Roadmap |
 | privacy-adapter | Unified orchestrator (transfer, scan, claim) | Production |
 | stealth-scanner | Real-time + historical payment detection | Production |
 | providers/helius | Helius DAS API (asset queries, metadata) | Production |
@@ -1140,7 +1156,7 @@ Returns stealth address generation (multi-chain), Pedersen commitments (homomorp
 | XChaCha20-Poly1305 | @noble/ciphers | Viewing key encryption/decryption |
 | SHA-256 / Keccak256 | @noble/hashes | Key hashing, view tags, nullifiers |
 | BIP32/BIP39 | @scure/bip32 | Hierarchical key derivation |
-| Groth16 ZK | SunspotVerifier | On-chain proof verification (Noir circuits) |
+| STARK range proofs | Custom (M31 field) | Prove value >= threshold without revealing value |
 
 ---
 

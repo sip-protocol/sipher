@@ -6,6 +6,9 @@ import { validateRequest } from '../middleware/validation.js'
 import { getConnection } from '../services/solana.js'
 import { PublicKey } from '@solana/web3.js'
 import { bytesToHex } from '@noble/hashes/utils'
+import { getAssetsByOwner, isHeliusConfigured } from '../services/helius-provider.js'
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { ErrorCode } from '../errors/codes.js'
 
 const router = Router()
 
@@ -281,6 +284,123 @@ router.post(
         },
       })
     } catch (err) {
+      next(err)
+    }
+  }
+)
+
+// ─── Scan Assets (Helius DAS) ──────────────────────────────────────────────
+
+const scanAssetsSchema = z.object({
+  address: z.string().min(32).max(44),
+  displayOptions: z.object({
+    showFungible: z.boolean().default(true),
+    showNativeBalance: z.boolean().default(false),
+  }).optional(),
+  page: z.number().int().min(1).default(1),
+  limit: z.number().int().min(1).max(1000).default(100),
+})
+
+router.post(
+  '/scan/assets',
+  validateRequest({ body: scanAssetsSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { address, displayOptions, page, limit } = req.body
+
+      // Validate address is a valid Solana pubkey
+      try {
+        new PublicKey(address)
+      } catch {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ErrorCode.INVALID_ADDRESS,
+            message: 'Invalid Solana address',
+          },
+        })
+        return
+      }
+
+      // If Helius is configured, use DAS API
+      if (isHeliusConfigured()) {
+        const result = await getAssetsByOwner(
+          address,
+          displayOptions || {},
+          page,
+          limit,
+        )
+
+        res.json({
+          success: true,
+          data: {
+            assets: result.items,
+            total: result.total,
+            page: result.page,
+            limit: result.limit,
+            provider: 'helius-das',
+          },
+        })
+        return
+      }
+
+      // Fallback: use standard getTokenAccountsByOwner
+      const connection = getConnection()
+      const owner = new PublicKey(address)
+
+      const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+        owner,
+        { programId: TOKEN_PROGRAM_ID }
+      )
+
+      const assets = tokenAccounts.value.map(account => {
+        const info = account.account.data.parsed.info
+        return {
+          id: account.pubkey.toBase58(),
+          interface: 'FungibleToken',
+          token_info: {
+            balance: Number(info.tokenAmount.amount),
+            decimals: info.tokenAmount.decimals,
+          },
+          ownership: {
+            owner: info.owner,
+            frozen: info.state === 'frozen',
+            delegated: !!info.delegate,
+          },
+        }
+      })
+
+      res.json({
+        success: true,
+        data: {
+          assets,
+          total: assets.length,
+          page: 1,
+          limit: assets.length,
+          provider: 'solana-rpc',
+        },
+      })
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'HeliusDASUnavailableError') {
+        res.status(503).json({
+          success: false,
+          error: {
+            code: ErrorCode.SOLANA_RPC_UNAVAILABLE,
+            message: err.message,
+          },
+        })
+        return
+      }
+      if (err instanceof Error && err.name === 'HeliusDASError') {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: ErrorCode.SCAN_FAILED,
+            message: err.message,
+          },
+        })
+        return
+      }
       next(err)
     }
   }

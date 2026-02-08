@@ -6,7 +6,7 @@
 **Live URL:** https://sipher.sip-protocol.org
 **Tagline:** "Privacy-as-a-Skill for Multi-Chain Agents"
 **Purpose:** REST API + OpenClaw skill enabling any autonomous agent to add transaction privacy via SIP Protocol
-**Stats:** 70 endpoints | 554 tests | 17 chains | 4 client SDKs (TS, Python, Rust, Go)
+**Stats:** 71 endpoints | 566 tests | 17 chains | 4 client SDKs (TS, Python, Rust, Go)
 
 ---
 
@@ -68,7 +68,7 @@
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (localhost:5006)
 pnpm build                      # Build for production
-pnpm test -- --run              # Run tests (554 tests, 35 suites)
+pnpm test -- --run              # Run tests (566 tests, 36 suites)
 pnpm typecheck                  # Type check
 pnpm demo                       # Full-flow demo (requires dev server running)
 pnpm openapi:export              # Export static OpenAPI spec to dist/openapi.json
@@ -277,6 +277,7 @@ sipher/
 │   │   ├── arcium-backend.ts       # Arcium PrivacyBackend implementation (compute type)
 │   │   ├── inco-provider.ts       # Inco FHE mock provider (encryption, computation, noise budget)
 │   │   ├── inco-backend.ts        # Inco PrivacyBackend implementation (compute type)
+│   │   ├── helius-provider.ts      # Helius DAS API client (getAssetsByOwner, fallback)
 │   │   ├── jupiter-provider.ts    # Jupiter DEX mock provider (quotes, swap transactions)
 │   │   ├── private-swap-builder.ts # Private swap orchestrator (stealth + C-SPL + Jupiter)
 │   │   ├── backend-comparison.ts  # Backend comparison service (scoring, caching, recommendations)
@@ -305,13 +306,14 @@ sipher/
 │   ├── sipher-agent.ts             # LLM-powered autonomous agent (ReAct loop)
 │   ├── privacy-demo-agent.ts      # Privacy demo: 20-step flow, 34 endpoints (judge demo)
 │   └── demo-flow.ts                # Quick-start E2E demo (21 endpoints)
-├── tests/                          # 554 tests across 35 suites
+├── tests/                          # 566 tests across 36 suites
 │   ├── health.test.ts              # 11 tests (health + ready + root + skill + 404 + reqId)
 │   ├── stealth.test.ts             # 10 tests
 │   ├── commitment.test.ts          # 16 tests (create, verify, add, subtract)
 │   ├── transfer-shield.test.ts     # 12 tests
 │   ├── transfer-claim.test.ts      # 8 tests
 │   ├── scan.test.ts                # 12 tests
+│   ├── scan-assets.test.ts         # 12 tests (Helius DAS, fallback, validation)
 │   ├── viewing-key.test.ts         # 10 tests (generate, disclose, decrypt)
 │   ├── middleware.test.ts          # 5 tests
 │   ├── error-codes.test.ts         # 10 tests (enum, catalog, error-handler integration)
@@ -351,7 +353,7 @@ sipher/
 
 ---
 
-## API ENDPOINTS (70 endpoints)
+## API ENDPOINTS (71 endpoints)
 
 All return `ApiResponse<T>`: `{ success, data?, error? }`
 
@@ -374,6 +376,7 @@ All return `ApiResponse<T>`: `{ success, data?, error? }`
 | POST | `/v1/transfer/private` | Unified chain-agnostic private transfer (7 chains) | Yes | ✓ |
 | POST | `/v1/scan/payments` | Scan for incoming stealth payments | Yes | — |
 | POST | `/v1/scan/payments/batch` | Batch scan across multiple key pairs (max 100) | Yes | — |
+| POST | `/v1/scan/assets` | Query assets at stealth address (Helius DAS + fallback) | Yes | — |
 | POST | `/v1/commitment/create` | Create Pedersen commitment | Yes | ✓ |
 | POST | `/v1/commitment/verify` | Verify commitment opening | Yes | — |
 | POST | `/v1/commitment/add` | Add two commitments (homomorphic) | Yes | — |
@@ -504,7 +507,7 @@ All error codes are centralized in `src/errors/codes.ts` (ErrorCode enum). Full 
 ## AI GUIDELINES
 
 ### DO:
-- Run `pnpm test -- --run` after code changes (554 tests must pass)
+- Run `pnpm test -- --run` after code changes (566 tests must pass)
 - Run `pnpm typecheck` before committing
 - Use @sip-protocol/sdk for all crypto operations (never roll your own)
 - Keep API responses consistent: `{ success, data?, error? }`
@@ -551,7 +554,7 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 | 5 | Backend Aggregation | 5 | ✅ Complete |
 | 6 | Enterprise | 6 | ✅ Complete |
 
-**Progress:** 38/38 issues complete | 554 tests | 70 endpoints | 17 chains | All phases complete | Live demo at /v1/demo
+**Progress:** 38/38 issues complete | 566 tests | 71 endpoints | 17 chains | All phases complete | Live demo at /v1/demo
 
 **Quick check:** `gh issue list -R sip-protocol/sipher --state open`
 

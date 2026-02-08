@@ -1127,6 +1127,77 @@ export const openApiSpec = {
       },
     },
 
+    // ─── Scan Assets (Helius DAS) ────────────────────────────────────────────
+    '/v1/scan/assets': {
+      post: {
+        summary: 'Scan stealth address assets via Helius DAS',
+        description: 'Query all assets (SPL tokens, NFTs, cNFTs) at a stealth address using Helius DAS getAssetsByOwner API. Falls back to standard getTokenAccountsByOwner if Helius is not configured.',
+        tags: ['Scan'],
+        operationId: 'scanAssets',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  address: solanaAddress,
+                  displayOptions: {
+                    type: 'object',
+                    properties: {
+                      showFungible: { type: 'boolean', default: true },
+                      showNativeBalance: { type: 'boolean', default: false },
+                    },
+                  },
+                  page: { type: 'integer', minimum: 1, default: 1 },
+                  limit: { type: 'integer', minimum: 1, maximum: 1000, default: 100 },
+                },
+                required: ['address'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Asset list',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        assets: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              id: { type: 'string' },
+                              interface: { type: 'string' },
+                              token_info: { type: 'object' },
+                              ownership: { type: 'object' },
+                            },
+                          },
+                        },
+                        total: { type: 'integer' },
+                        page: { type: 'integer' },
+                        limit: { type: 'integer' },
+                        provider: { type: 'string', enum: ['helius-das', 'solana-rpc'] },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Invalid address', content: { 'application/json': { schema: errorResponse } } },
+          503: { description: 'Helius DAS unavailable', content: { 'application/json': { schema: errorResponse } } },
+        },
+      },
+    },
+
     // ─── Viewing Key ──────────────────────────────────────────────────────────
     '/v1/viewing-key/generate': {
       post: {
