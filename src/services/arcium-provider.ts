@@ -6,6 +6,7 @@ import { CACHE_MAX_DEFAULT, ONE_HOUR_MS } from '../constants.js'
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const DOMAIN_TAG = new TextEncoder().encode('SIPHER-ARCIUM-MPC')
+let computeCounter = 0
 
 export const SUPPORTED_CIRCUITS: Record<string, { inputs: number; description: string }> = {
   private_transfer: { inputs: 2, description: 'Private token transfer with hidden sender/receiver' },
@@ -115,9 +116,10 @@ export function submitComputation(params: SubmitParams): {
 
   // Generate deterministic computation ID
   const now = Date.now()
-  const idInput = new Uint8Array(DOMAIN_TAG.length + new TextEncoder().encode(circuitId + encryptedInputs.join('') + now.toString()).length)
+  const nonce = `${now}-${++computeCounter}`
+  const idInput = new Uint8Array(DOMAIN_TAG.length + new TextEncoder().encode(circuitId + encryptedInputs.join('') + nonce).length)
   idInput.set(DOMAIN_TAG)
-  idInput.set(new TextEncoder().encode(circuitId + encryptedInputs.join('') + now.toString()), DOMAIN_TAG.length)
+  idInput.set(new TextEncoder().encode(circuitId + encryptedInputs.join('') + nonce), DOMAIN_TAG.length)
   const computationId = 'arc_' + bytesToHex(keccak_256(idInput))
 
   // Pre-compute deterministic output
