@@ -12,7 +12,7 @@
   "type": "module",
   "scripts": {
     "start": "node dist/server.js",
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsup --watch src --onSuccess 'node dist/server.js'",
     "build": "tsup",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
