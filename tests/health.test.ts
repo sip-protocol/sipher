@@ -47,7 +47,16 @@ describe('Health endpoint', () => {
 
   it('GET /v1/health includes endpoint count', async () => {
     const res = await request(app).get('/v1/health')
-    expect(res.body.data.endpoints).toBe(60)
+    expect(res.body.data.endpoints).toBe(70)
+  })
+
+  it('GET /v1/health includes program info', async () => {
+    const res = await request(app).get('/v1/health')
+    expect(res.body.data.program).toBeDefined()
+    expect(res.body.data.program.id).toBe('S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at')
+    expect(res.body.data.program.network).toBe('mainnet-beta')
+    expect(res.body.data.sdk).toBe('@sip-protocol/sdk v0.7.4')
+    expect(res.body.data.chains).toBe(17)
   })
 })
 
@@ -70,6 +79,19 @@ describe('Root endpoint', () => {
     expect(res.body.version).toBe('0.1.0')
     expect(res.body.endpoints).toBeDefined()
     expect(res.body.endpoints.health).toBe('GET /v1/health')
+  })
+
+  it('GET / includes program metadata and stats', async () => {
+    const res = await request(app).get('/')
+    expect(res.body.program).toBeDefined()
+    expect(res.body.program.id).toBe('S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at')
+    expect(res.body.program.network).toBe('mainnet-beta')
+    expect(res.body.stats).toBeDefined()
+    expect(res.body.stats.endpoints).toBe(70)
+    expect(res.body.stats.chains).toBe(17)
+    expect(res.body.cryptography).toBeDefined()
+    expect(res.body.cryptography.length).toBeGreaterThan(0)
+    expect(res.body.demo).toBe('/v1/demo')
   })
 })
 

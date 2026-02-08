@@ -73,7 +73,26 @@ app.get('/', (_req, res) => {
   res.json({
     name: 'sipher',
     version: '0.1.0',
-    description: 'Privacy-as-a-Skill REST API for Solana Agents — powered by SIP Protocol',
+    tagline: 'Privacy-as-a-Skill for Multi-Chain Agents',
+    description: 'REST API + OpenClaw skill giving any autonomous agent stealth addresses, hidden amounts, and compliance viewing keys across 17 chains.',
+    program: {
+      id: 'S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at',
+      network: 'mainnet-beta',
+      configPDA: 'BVawZkppFewygA5nxdrLma4ThKx8Th7bW4KTCkcWTZwZ',
+      feeCollector: 'S1P6j1yeTm6zkewQVeihrTZvmfoHABRkHDhabWTuWMd',
+    },
+    stats: { endpoints: 70, tests: 540, chains: 17, sdks: 4 },
+    cryptography: [
+      'Ed25519 stealth addresses (Solana/NEAR/Move)',
+      'secp256k1 stealth addresses (EVM/Cosmos/Bitcoin)',
+      'Pedersen commitments (homomorphic)',
+      'XChaCha20-Poly1305 encryption',
+      'BIP32 hierarchical key derivation',
+      'STARK range proofs (M31 limbs)',
+      'Noir/Groth16 ZK verification (SunspotVerifier)',
+    ],
+    sdk: '@sip-protocol/sdk v0.7.4',
+    demo: '/v1/demo',
     documentation: '/skill.md',
     docs: '/docs',
     openapi: '/v1/openapi.json',
@@ -181,6 +200,10 @@ app.get('/', (_req, res) => {
         revokeKey: 'DELETE /v1/admin/keys/:id',
         listTiers: 'GET /v1/admin/tiers',
       },
+      jito: {
+        relay: 'POST /v1/jito/relay',
+        bundleStatus: 'GET /v1/jito/bundle/:id',
+      },
     },
     security: {
       authentication: isAuthEnabled() ? 'enabled' : 'disabled',
@@ -202,6 +225,60 @@ app.get('/skill.md', (_req, res) => {
       success: false,
       error: { code: 'NOT_FOUND', message: 'skill.md not found' },
     })
+  }
+})
+
+// ─── Markdown demo ──────────────────────────────────────────────────────────
+
+app.get('/demo', async (_req, res) => {
+  try {
+    const base = `${_req.protocol}://${_req.get('host')}`
+    const resp = await fetch(`${base}/v1/demo`)
+    const json = await resp.json() as any
+    if (!json.success) throw new Error('Demo failed')
+    const d = json.data
+    const lines: string[] = [
+      `# ${d.title}`,
+      '',
+      `> ${d.subtitle}`,
+      '',
+      `**Executed:** ${d.executedAt}  `,
+      `**Duration:** ${d.durationMs}ms  `,
+      `**Program:** \`${d.program.id}\` (${d.program.network})  `,
+      '',
+      '## Summary',
+      '',
+      `| Metric | Value |`,
+      `|--------|-------|`,
+      `| Steps Completed | ${d.summary.stepsCompleted} |`,
+      `| Endpoints Exercised | ${d.summary.endpointsExercised} |`,
+      `| Crypto Operations | ${d.summary.cryptoOperations} |`,
+      `| All Passed | ${d.summary.allPassed ? 'YES' : 'NO'} |`,
+      `| Chains | ${d.summary.chainsDemo.join(', ')} |`,
+      '',
+      '## Cryptographic Primitives Used',
+      '',
+      ...d.summary.realCrypto.map((c: string) => `- ${c}`),
+      '',
+      '## Steps',
+      '',
+    ]
+    for (const step of d.steps) {
+      lines.push(`### ${step.step}. ${step.name}`)
+      lines.push('')
+      lines.push(`- **Category:** ${step.category}`)
+      lines.push(`- **Crypto:** ${step.crypto}`)
+      lines.push(`- **Duration:** ${step.durationMs}ms`)
+      lines.push(`- **Passed:** ${step.passed ? 'YES' : 'NO'}`)
+      lines.push(`- **Result:** \`${JSON.stringify(step.result)}\``)
+      lines.push('')
+    }
+    lines.push('---')
+    lines.push('')
+    lines.push(`*Powered by [@sip-protocol/sdk](https://www.npmjs.com/package/@sip-protocol/sdk) v0.7.4*`)
+    res.type('text/markdown').send(lines.join('\n'))
+  } catch {
+    res.status(500).type('text/markdown').send('# Demo Error\n\nFailed to run demo. Try `/v1/demo` for JSON format.')
   }
 })
 

@@ -1090,6 +1090,60 @@ GET  /v1/admin/tiers      → List tier limits
 
 ---
 
+## Live Demo (No Auth Required)
+
+Try the live demo — 25 real cryptographic operations executing on-demand:
+
+```
+GET /v1/demo   → JSON with 25 steps, 35+ endpoints exercised, real crypto
+GET /demo      → Markdown-formatted summary (agent-readable)
+```
+
+Returns stealth address generation (multi-chain), Pedersen commitments (homomorphic math), viewing key hierarchy (BIP32), STARK range proofs, governance voting, and more — all running live.
+
+---
+
+## On-Chain Program
+
+| Field | Value |
+|-------|-------|
+| **Program ID** | `S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at` |
+| **Config PDA** | `BVawZkppFewygA5nxdrLma4ThKx8Th7bW4KTCkcWTZwZ` |
+| **Fee Collector** | `S1P6j1yeTm6zkewQVeihrTZvmfoHABRkHDhabWTuWMd` |
+| **Network** | Solana Mainnet-Beta |
+| **Features** | Transfer records (PDA), Pedersen commitments, viewing key hashes |
+| **SDK Function** | `shieldedTransfer()` — builds Anchor instructions with discriminators |
+
+---
+
+## SDK Capabilities (@sip-protocol/sdk v0.7.4)
+
+| Module | Description | Status |
+|--------|-------------|--------|
+| anchor-transfer | On-chain shielded transfers via Anchor program | Production |
+| sunspot-verifier | Noir → Groth16 ZK proof verification (3 proof types) | Production |
+| privacy-adapter | Unified orchestrator (transfer, scan, claim) | Production |
+| stealth-scanner | Real-time + historical payment detection | Production |
+| providers/helius | Helius DAS API (asset queries, metadata) | Production |
+| kit-compat | @solana/kit bridge (modern Solana stack) | Production |
+| transaction-builder | Compute budget, priority fees, versioned txs | Production |
+| ephemeral-keys | Secure generation, batch ops, crypto disposal | Production |
+| rpc-client | Retry, fallback, Tor/SOCKS5 privacy | Production |
+
+### Cryptographic Primitives
+
+| Primitive | Library | Purpose |
+|-----------|---------|---------|
+| Ed25519 stealth addresses | @noble/curves | One-time addresses via ECDH (Solana, NEAR, Move) |
+| secp256k1 stealth addresses | @noble/curves | EVM, Cosmos, Bitcoin stealth |
+| Pedersen commitments | @sip-protocol/sdk | Homomorphic hidden amounts (add, subtract, verify) |
+| XChaCha20-Poly1305 | @noble/ciphers | Viewing key encryption/decryption |
+| SHA-256 / Keccak256 | @noble/hashes | Key hashing, view tags, nullifiers |
+| BIP32/BIP39 | @scure/bip32 | Hierarchical key derivation |
+| Groth16 ZK | SunspotVerifier | On-chain proof verification (Noir circuits) |
+
+---
+
 ## Powered By
 
 - [SIP Protocol](https://sip-protocol.org) — The privacy standard for Web3

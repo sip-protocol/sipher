@@ -41,7 +41,15 @@ router.get('/health', async (_req: Request, res: Response) => {
         heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024 * 100) / 100,
         rssMB: Math.round(mem.rss / 1024 / 1024 * 100) / 100,
       },
-      endpoints: 60,
+      endpoints: 70,
+      program: {
+        id: 'S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at',
+        network: 'mainnet-beta',
+        configPDA: 'BVawZkppFewygA5nxdrLma4ThKx8Th7bW4KTCkcWTZwZ',
+      },
+      sdk: '@sip-protocol/sdk v0.7.4',
+      chains: 17,
+      sdks: 4,
     },
   })
 })

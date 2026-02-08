@@ -33,6 +33,7 @@ const SKIP_PREFIXES = [
   '/v1/rpc/',
   '/v1/billing/',
   '/v1/admin/',
+  '/v1/demo',
 ]
 
 const SKIP_EXACT = ['/', '/skill.md', '/docs']

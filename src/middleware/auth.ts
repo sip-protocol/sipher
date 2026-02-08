@@ -12,7 +12,7 @@ import type { ApiKeyTier } from '../types/api-key.js'
 const LEGACY_API_KEYS = env.API_KEYS.split(',').filter(Boolean)
 const AUTH_ENABLED = env.API_KEYS.length > 0 || env.isProduction
 
-const SKIP_PATHS = ['/', '/skill.md', '/v1/health', '/v1/ready', '/v1/errors', '/v1/openapi.json', '/v1/billing/webhook']
+const SKIP_PATHS = ['/', '/skill.md', '/v1/health', '/v1/ready', '/v1/errors', '/v1/openapi.json', '/v1/billing/webhook', '/v1/demo', '/demo']
 const SKIP_PREFIXES = ['/docs']
 
 function safeCompare(a: string, b: string): boolean {

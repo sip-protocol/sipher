@@ -22,9 +22,11 @@ import governanceRouter from './governance.js'
 import jitoRouter from './jito.js'
 import billingRouter from './billing.js'
 import adminRouter from './admin.js'
+import demoRouter from './demo.js'
 
 const router = Router()
 
+router.use(demoRouter)
 router.use(healthRouter)
 router.use(stealthRouter)
 router.use(commitmentRouter)

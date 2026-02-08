@@ -103,6 +103,11 @@ router.post(
           blindingFactor: blinding,
           viewingKeyHash,
           sharedSecret: stealthResult.sharedSecret,
+          onChainProgram: {
+            programId: 'S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at',
+            anchorFunction: 'shieldedTransfer()',
+            note: 'SDK provides Anchor program path with PDA transfer records. This endpoint returns SystemProgram.transfer for client-side signing simplicity.',
+          },
         },
       })
     } catch (err) {

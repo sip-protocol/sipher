@@ -6,7 +6,7 @@
 **Live URL:** https://sipher.sip-protocol.org
 **Tagline:** "Privacy-as-a-Skill for Multi-Chain Agents"
 **Purpose:** REST API + OpenClaw skill enabling any autonomous agent to add transaction privacy via SIP Protocol
-**Stats:** 60 endpoints | 540 tests | 17 chains | 4 client SDKs (TS, Python, Rust, Go)
+**Stats:** 70 endpoints | 554 tests | 17 chains | 4 client SDKs (TS, Python, Rust, Go)
 
 ---
 
@@ -68,7 +68,7 @@
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (localhost:5006)
 pnpm build                      # Build for production
-pnpm test -- --run              # Run tests (540 tests, 34 suites)
+pnpm test -- --run              # Run tests (554 tests, 35 suites)
 pnpm typecheck                  # Type check
 pnpm demo                       # Full-flow demo (requires dev server running)
 pnpm openapi:export              # Export static OpenAPI spec to dist/openapi.json
@@ -246,6 +246,7 @@ sipher/
 │   │   └── index.ts                # Barrel exports
 │   ├── routes/
 │   │   ├── health.ts               # GET /v1/health (extended), GET /v1/ready
+│   │   ├── demo.ts                 # GET /v1/demo (live crypto demo, 25 steps)
 │   │   ├── errors.ts               # GET /v1/errors (error catalog)
 │   │   ├── stealth.ts              # generate, derive, check, generate/batch
 │   │   ├── transfer.ts             # shield, claim (+ idempotency)
@@ -304,7 +305,7 @@ sipher/
 │   ├── sipher-agent.ts             # LLM-powered autonomous agent (ReAct loop)
 │   ├── privacy-demo-agent.ts      # Privacy demo: 20-step flow, 34 endpoints (judge demo)
 │   └── demo-flow.ts                # Quick-start E2E demo (21 endpoints)
-├── tests/                          # 540 tests across 34 suites
+├── tests/                          # 554 tests across 35 suites
 │   ├── health.test.ts              # 11 tests (health + ready + root + skill + 404 + reqId)
 │   ├── stealth.test.ts             # 10 tests
 │   ├── commitment.test.ts          # 16 tests (create, verify, add, subtract)
@@ -332,7 +333,8 @@ sipher/
 │   ├── governance.test.ts         # 24 tests (encrypt, submit, tally, double-vote, ballot limit, E2E flow)
 │   ├── compliance.test.ts         # 23 tests (disclose, report, get, tier gating, auditor verification)
 │   ├── jito.test.ts               # 20 tests (relay, bundle status, tier gating, idempotency, state machine)
-│   └── billing.test.ts            # 31 tests (usage tracking, quotas, metering, subscriptions, invoices, webhooks)
+│   ├── billing.test.ts            # 31 tests (usage tracking, quotas, metering, subscriptions, invoices, webhooks)
+│   └── demo.test.ts               # 12 tests (live demo, 25 crypto steps, no auth)
 ├── Dockerfile                      # Multi-stage Alpine
 ├── docker-compose.yml              # name: sipher, port 5006
 ├── .github/workflows/deploy.yml    # GHCR → VPS
@@ -349,7 +351,7 @@ sipher/
 
 ---
 
-## API ENDPOINTS (60 endpoints)
+## API ENDPOINTS (70 endpoints)
 
 All return `ApiResponse<T>`: `{ success, data?, error? }`
 
@@ -362,6 +364,7 @@ All return `ApiResponse<T>`: `{ success, data?, error? }`
 | GET | `/v1/health` | Health + Solana RPC latency + memory usage | No | — |
 | GET | `/v1/ready` | Readiness probe (200/503) | No | — |
 | GET | `/v1/errors` | Error code catalog (code → status → description → retry) | No | — |
+| GET | `/v1/demo` | Live crypto demo (25 steps, 35+ endpoints, real crypto) | No | — |
 | POST | `/v1/stealth/generate` | Generate stealth meta-address keypair | Yes | — |
 | POST | `/v1/stealth/derive` | Derive one-time stealth address | Yes | — |
 | POST | `/v1/stealth/check` | Check stealth address ownership | Yes | — |
@@ -501,7 +504,7 @@ All error codes are centralized in `src/errors/codes.ts` (ErrorCode enum). Full 
 ## AI GUIDELINES
 
 ### DO:
-- Run `pnpm test -- --run` after code changes (540 tests must pass)
+- Run `pnpm test -- --run` after code changes (554 tests must pass)
 - Run `pnpm typecheck` before committing
 - Use @sip-protocol/sdk for all crypto operations (never roll your own)
 - Keep API responses consistent: `{ success, data?, error? }`
@@ -548,11 +551,11 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 | 5 | Backend Aggregation | 5 | ✅ Complete |
 | 6 | Enterprise | 6 | ✅ Complete |
 
-**Progress:** 38/38 issues complete | 540 tests | 60 endpoints | 17 chains | All phases complete
+**Progress:** 38/38 issues complete | 554 tests | 70 endpoints | 17 chains | All phases complete | Live demo at /v1/demo
 
 **Quick check:** `gh issue list -R sip-protocol/sipher --state open`
 
 ---
 
-**Last Updated:** 2026-02-07
-**Status:** Phase 6 Complete | 60 Endpoints | 540 Tests | 17 Chains | Agent #274 Active
+**Last Updated:** 2026-02-08
+**Status:** Phase 6 Complete | 70 Endpoints | 554 Tests | 17 Chains | Live Demo | Agent #274 Active
