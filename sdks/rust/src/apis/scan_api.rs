@@ -15,6 +15,15 @@ use crate::{apis::ResponseContent, models};
 use super::{Error, configuration, ContentType};
 
 
+/// struct for typed errors of method [`scan_assets`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ScanAssetsError {
+    Status400(models::GetHealth503Response),
+    Status503(models::GetHealth503Response),
+    UnknownValue(serde_json::Value),
+}
+
 /// struct for typed errors of method [`scan_payments`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -31,6 +40,52 @@ pub enum ScanPaymentsBatchError {
     UnknownValue(serde_json::Value),
 }
 
+
+/// Query all assets (SPL tokens, NFTs, cNFTs) at a stealth address using Helius DAS getAssetsByOwner API. Falls back to standard getTokenAccountsByOwner if Helius is not configured.
+pub async fn scan_assets(configuration: &configuration::Configuration, scan_assets_request: models::ScanAssetsRequest) -> Result<models::ScanAssets200Response, Error<ScanAssetsError>> {
+    // add a prefix to parameters to efficiently prevent name collisions
+    let p_body_scan_assets_request = scan_assets_request;
+
+    let uri_str = format!("{}/v1/scan/assets", configuration.base_path);
+    let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
+
+    if let Some(ref user_agent) = configuration.user_agent {
+        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    }
+    if let Some(ref apikey) = configuration.api_key {
+        let key = apikey.key.clone();
+        let value = match apikey.prefix {
+            Some(ref prefix) => format!("{} {}", prefix, key),
+            None => key,
+        };
+        req_builder = req_builder.header("X-API-Key", value);
+    };
+    req_builder = req_builder.json(&p_body_scan_assets_request);
+
+    let req = req_builder.build()?;
+    let resp = configuration.client.execute(req).await?;
+
+    let status = resp.status();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream");
+    let content_type = super::ContentType::from(content_type);
+
+    if !status.is_client_error() && !status.is_server_error() {
+        let content = resp.text().await?;
+        match content_type {
+            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::ScanAssets200Response`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::ScanAssets200Response`")))),
+        }
+    } else {
+        let content = resp.text().await?;
+        let entity: Option<ScanAssetsError> = serde_json::from_str(&content).ok();
+        Err(Error::ResponseError(ResponseContent { status, content, entity }))
+    }
+}
 
 /// Scans Solana for SIP announcements matching the provided viewing key.
 pub async fn scan_payments(configuration: &configuration::Configuration, scan_payments_request: models::ScanPaymentsRequest) -> Result<models::ScanPayments200Response, Error<ScanPaymentsError>> {

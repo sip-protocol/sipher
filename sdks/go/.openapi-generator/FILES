@@ -200,6 +200,11 @@ docs/RPCAPI.md
 docs/RevokeAdminKey200Response.md
 docs/RevokeAdminKey200ResponseData.md
 docs/ScanAPI.md
+docs/ScanAssets200Response.md
+docs/ScanAssets200ResponseData.md
+docs/ScanAssets200ResponseDataAssetsInner.md
+docs/ScanAssetsRequest.md
+docs/ScanAssetsRequestDisplayOptions.md
 docs/ScanPayments200Response.md
 docs/ScanPayments200ResponseData.md
 docs/ScanPayments200ResponseDataPaymentsInner.md
@@ -444,6 +449,11 @@ model_proofs_validity_generate_request.go
 model_proofs_validity_verify_request.go
 model_revoke_admin_key_200_response.go
 model_revoke_admin_key_200_response_data.go
+model_scan_assets_200_response.go
+model_scan_assets_200_response_data.go
+model_scan_assets_200_response_data_assets_inner.go
+model_scan_assets_request.go
+model_scan_assets_request_display_options.go
 model_scan_payments_200_response.go
 model_scan_payments_200_response_data.go
 model_scan_payments_200_response_data_payments_inner.go
@@ -520,5 +530,4 @@ model_viewing_key_verify_hierarchy_200_response.go
 model_viewing_key_verify_hierarchy_200_response_data.go
 model_viewing_key_verify_hierarchy_request.go
 response.go
-test/api_admin_test.go
 utils.go

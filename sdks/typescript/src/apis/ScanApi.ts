@@ -16,6 +16,8 @@
 import * as runtime from '../runtime';
 import type {
   GetHealth503Response,
+  ScanAssets200Response,
+  ScanAssetsRequest,
   ScanPayments200Response,
   ScanPaymentsBatch200Response,
   ScanPaymentsBatchRequest,
@@ -24,6 +26,10 @@ import type {
 import {
     GetHealth503ResponseFromJSON,
     GetHealth503ResponseToJSON,
+    ScanAssets200ResponseFromJSON,
+    ScanAssets200ResponseToJSON,
+    ScanAssetsRequestFromJSON,
+    ScanAssetsRequestToJSON,
     ScanPayments200ResponseFromJSON,
     ScanPayments200ResponseToJSON,
     ScanPaymentsBatch200ResponseFromJSON,
@@ -33,6 +39,10 @@ import {
     ScanPaymentsRequestFromJSON,
     ScanPaymentsRequestToJSON,
 } from '../models/index';
+
+export interface ScanAssetsOperationRequest {
+    scanAssetsRequest: ScanAssetsRequest;
+}
 
 export interface ScanPaymentsOperationRequest {
     scanPaymentsRequest: ScanPaymentsRequest;
@@ -49,6 +59,22 @@ export interface ScanPaymentsBatchOperationRequest {
  * @interface ScanApiInterface
  */
 export interface ScanApiInterface {
+    /**
+     * Query all assets (SPL tokens, NFTs, cNFTs) at a stealth address using Helius DAS getAssetsByOwner API. Falls back to standard getTokenAccountsByOwner if Helius is not configured.
+     * @summary Scan stealth address assets via Helius DAS
+     * @param {ScanAssetsRequest} scanAssetsRequest 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ScanApiInterface
+     */
+    scanAssetsRaw(requestParameters: ScanAssetsOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ScanAssets200Response>>;
+
+    /**
+     * Query all assets (SPL tokens, NFTs, cNFTs) at a stealth address using Helius DAS getAssetsByOwner API. Falls back to standard getTokenAccountsByOwner if Helius is not configured.
+     * Scan stealth address assets via Helius DAS
+     */
+    scanAssets(scanAssetsRequest: ScanAssetsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ScanAssets200Response>;
+
     /**
      * Scans Solana for SIP announcements matching the provided viewing key.
      * @summary Scan for incoming shielded payments
@@ -87,6 +113,51 @@ export interface ScanApiInterface {
  * 
  */
 export class ScanApi extends runtime.BaseAPI implements ScanApiInterface {
+
+    /**
+     * Query all assets (SPL tokens, NFTs, cNFTs) at a stealth address using Helius DAS getAssetsByOwner API. Falls back to standard getTokenAccountsByOwner if Helius is not configured.
+     * Scan stealth address assets via Helius DAS
+     */
+    async scanAssetsRaw(requestParameters: ScanAssetsOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ScanAssets200Response>> {
+        if (requestParameters['scanAssetsRequest'] == null) {
+            throw new runtime.RequiredError(
+                'scanAssetsRequest',
+                'Required parameter "scanAssetsRequest" was null or undefined when calling scanAssets().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-API-Key"] = await this.configuration.apiKey("X-API-Key"); // ApiKeyAuth authentication
+        }
+
+
+        let urlPath = `/v1/scan/assets`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: ScanAssetsRequestToJSON(requestParameters['scanAssetsRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ScanAssets200ResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Query all assets (SPL tokens, NFTs, cNFTs) at a stealth address using Helius DAS getAssetsByOwner API. Falls back to standard getTokenAccountsByOwner if Helius is not configured.
+     * Scan stealth address assets via Helius DAS
+     */
+    async scanAssets(scanAssetsRequest: ScanAssetsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ScanAssets200Response> {
+        const response = await this.scanAssetsRaw({ scanAssetsRequest: scanAssetsRequest }, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Scans Solana for SIP announcements matching the provided viewing key.

@@ -4,9 +4,40 @@ All URIs are relative to *https://sipher.sip-protocol.org*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**scan_assets**](ScanApi.md#scan_assets) | **POST** /v1/scan/assets | Scan stealth address assets via Helius DAS
 [**scan_payments**](ScanApi.md#scan_payments) | **POST** /v1/scan/payments | Scan for incoming shielded payments
 [**scan_payments_batch**](ScanApi.md#scan_payments_batch) | **POST** /v1/scan/payments/batch | Batch scan for payments across multiple key pairs
 
+
+
+## scan_assets
+
+> models::ScanAssets200Response scan_assets(scan_assets_request)
+Scan stealth address assets via Helius DAS
+
+Query all assets (SPL tokens, NFTs, cNFTs) at a stealth address using Helius DAS getAssetsByOwner API. Falls back to standard getTokenAccountsByOwner if Helius is not configured.
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**scan_assets_request** | [**ScanAssetsRequest**](ScanAssetsRequest.md) |  | [required] |
+
+### Return type
+
+[**models::ScanAssets200Response**](scanAssets_200_response.md)
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
 ## scan_payments

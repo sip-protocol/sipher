@@ -177,6 +177,11 @@ docs/RPCApi.md
 docs/RevokeAdminKey200Response.md
 docs/RevokeAdminKey200ResponseData.md
 docs/ScanApi.md
+docs/ScanAssets200Response.md
+docs/ScanAssets200ResponseData.md
+docs/ScanAssets200ResponseDataAssetsInner.md
+docs/ScanAssetsRequest.md
+docs/ScanAssetsRequestDisplayOptions.md
 docs/ScanPayments200Response.md
 docs/ScanPayments200ResponseData.md
 docs/ScanPayments200ResponseDataPaymentsInner.md
@@ -441,6 +446,11 @@ src/models/ProofsValidityGenerateRequest.ts
 src/models/ProofsValidityVerifyRequest.ts
 src/models/RevokeAdminKey200Response.ts
 src/models/RevokeAdminKey200ResponseData.ts
+src/models/ScanAssets200Response.ts
+src/models/ScanAssets200ResponseData.ts
+src/models/ScanAssets200ResponseDataAssetsInner.ts
+src/models/ScanAssetsRequest.ts
+src/models/ScanAssetsRequestDisplayOptions.ts
 src/models/ScanPayments200Response.ts
 src/models/ScanPayments200ResponseData.ts
 src/models/ScanPayments200ResponseDataPaymentsInner.ts

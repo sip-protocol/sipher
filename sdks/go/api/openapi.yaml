@@ -500,6 +500,40 @@ paths:
       summary: Batch scan for payments across multiple key pairs
       tags:
       - Scan
+  /v1/scan/assets:
+    post:
+      description: "Query all assets (SPL tokens, NFTs, cNFTs) at a stealth address\
+        \ using Helius DAS getAssetsByOwner API. Falls back to standard getTokenAccountsByOwner\
+        \ if Helius is not configured."
+      operationId: scanAssets
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/scanAssets_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scanAssets_200_response"
+          description: Asset list
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Invalid address
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getHealth_503_response"
+          description: Helius DAS unavailable
+      summary: Scan stealth address assets via Helius DAS
+      tags:
+      - Scan
   /v1/viewing-key/generate:
     post:
       operationId: viewingKeyGenerate
@@ -3477,6 +3511,103 @@ components:
           type: boolean
         data:
           $ref: "#/components/schemas/scanPaymentsBatch_200_response_data"
+    scanAssets_request_displayOptions:
+      properties:
+        showFungible:
+          default: true
+          type: boolean
+        showNativeBalance:
+          default: false
+          type: boolean
+    scanAssets_request:
+      properties:
+        address:
+          description: Base58-encoded Solana public key
+          example: S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at
+          maxLength: 44
+          minLength: 32
+          type: string
+        displayOptions:
+          $ref: "#/components/schemas/scanAssets_request_displayOptions"
+        page:
+          default: 1
+          minimum: 1
+          type: integer
+        limit:
+          default: 100
+          maximum: 1000
+          minimum: 1
+          type: integer
+      required:
+      - address
+    scanAssets_200_response_data_assets_inner:
+      example:
+        token_info: "{}"
+        ownership: "{}"
+        id: id
+        interface: interface
+      properties:
+        id:
+          type: string
+        interface:
+          type: string
+        token_info:
+          type: object
+        ownership:
+          type: object
+    scanAssets_200_response_data:
+      example:
+        total: 0
+        assets:
+        - token_info: "{}"
+          ownership: "{}"
+          id: id
+          interface: interface
+        - token_info: "{}"
+          ownership: "{}"
+          id: id
+          interface: interface
+        provider: helius-das
+        limit: 1
+        page: 6
+      properties:
+        assets:
+          items:
+            $ref: "#/components/schemas/scanAssets_200_response_data_assets_inner"
+          type: array
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        provider:
+          enum:
+          - helius-das
+          - solana-rpc
+          type: string
+    scanAssets_200_response:
+      example:
+        data:
+          total: 0
+          assets:
+          - token_info: "{}"
+            ownership: "{}"
+            id: id
+            interface: interface
+          - token_info: "{}"
+            ownership: "{}"
+            id: id
+            interface: interface
+          provider: helius-das
+          limit: 1
+          page: 6
+        success: true
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/scanAssets_200_response_data"
     viewingKeyGenerate_request:
       properties:
         path:

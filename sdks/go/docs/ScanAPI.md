@@ -4,9 +4,76 @@ All URIs are relative to *https://sipher.sip-protocol.org*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**ScanAssets**](ScanAPI.md#ScanAssets) | **Post** /v1/scan/assets | Scan stealth address assets via Helius DAS
 [**ScanPayments**](ScanAPI.md#ScanPayments) | **Post** /v1/scan/payments | Scan for incoming shielded payments
 [**ScanPaymentsBatch**](ScanAPI.md#ScanPaymentsBatch) | **Post** /v1/scan/payments/batch | Batch scan for payments across multiple key pairs
 
+
+
+## ScanAssets
+
+> ScanAssets200Response ScanAssets(ctx).ScanAssetsRequest(scanAssetsRequest).Execute()
+
+Scan stealth address assets via Helius DAS
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/GIT_USER_ID/GIT_REPO_ID/sipher"
+)
+
+func main() {
+	scanAssetsRequest := *openapiclient.NewScanAssetsRequest("S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at") // ScanAssetsRequest | 
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.ScanAPI.ScanAssets(context.Background()).ScanAssetsRequest(scanAssetsRequest).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `ScanAPI.ScanAssets``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `ScanAssets`: ScanAssets200Response
+	fmt.Fprintf(os.Stdout, "Response from `ScanAPI.ScanAssets`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiScanAssetsRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **scanAssetsRequest** | [**ScanAssetsRequest**](ScanAssetsRequest.md) |  | 
+
+### Return type
+
+[**ScanAssets200Response**](ScanAssets200Response.md)
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
 
 
 ## ScanPayments

@@ -209,6 +209,11 @@ __all__ = [
     "ProofsValidityVerifyRequest",
     "RevokeAdminKey200Response",
     "RevokeAdminKey200ResponseData",
+    "ScanAssets200Response",
+    "ScanAssets200ResponseData",
+    "ScanAssets200ResponseDataAssetsInner",
+    "ScanAssetsRequest",
+    "ScanAssetsRequestDisplayOptions",
     "ScanPayments200Response",
     "ScanPayments200ResponseData",
     "ScanPayments200ResponseDataPaymentsInner",
@@ -481,6 +486,11 @@ from sipher_client.models.proofs_validity_generate_request import ProofsValidity
 from sipher_client.models.proofs_validity_verify_request import ProofsValidityVerifyRequest as ProofsValidityVerifyRequest
 from sipher_client.models.revoke_admin_key200_response import RevokeAdminKey200Response as RevokeAdminKey200Response
 from sipher_client.models.revoke_admin_key200_response_data import RevokeAdminKey200ResponseData as RevokeAdminKey200ResponseData
+from sipher_client.models.scan_assets200_response import ScanAssets200Response as ScanAssets200Response
+from sipher_client.models.scan_assets200_response_data import ScanAssets200ResponseData as ScanAssets200ResponseData
+from sipher_client.models.scan_assets200_response_data_assets_inner import ScanAssets200ResponseDataAssetsInner as ScanAssets200ResponseDataAssetsInner
+from sipher_client.models.scan_assets_request import ScanAssetsRequest as ScanAssetsRequest
+from sipher_client.models.scan_assets_request_display_options import ScanAssetsRequestDisplayOptions as ScanAssetsRequestDisplayOptions
 from sipher_client.models.scan_payments200_response import ScanPayments200Response as ScanPayments200Response
 from sipher_client.models.scan_payments200_response_data import ScanPayments200ResponseData as ScanPayments200ResponseData
 from sipher_client.models.scan_payments200_response_data_payments_inner import ScanPayments200ResponseDataPaymentsInner as ScanPayments200ResponseDataPaymentsInner
