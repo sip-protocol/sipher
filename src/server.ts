@@ -81,7 +81,7 @@ app.get('/', (_req, res) => {
       configPDA: 'BVawZkppFewygA5nxdrLma4ThKx8Th7bW4KTCkcWTZwZ',
       feeCollector: 'S1P6j1yeTm6zkewQVeihrTZvmfoHABRkHDhabWTuWMd',
     },
-    stats: { endpoints: 70, tests: 540, chains: 17, sdks: 4 },
+    stats: { endpoints: 71, tests: 566, chains: 17, sdks: 4 },
     cryptography: [
       'Ed25519 stealth addresses (Solana/NEAR/Move)',
       'secp256k1 stealth addresses (EVM/Cosmos/Bitcoin)',

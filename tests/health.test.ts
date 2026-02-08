@@ -47,7 +47,7 @@ describe('Health endpoint', () => {
 
   it('GET /v1/health includes endpoint count', async () => {
     const res = await request(app).get('/v1/health')
-    expect(res.body.data.endpoints).toBe(70)
+    expect(res.body.data.endpoints).toBe(71)
   })
 
   it('GET /v1/health includes program info', async () => {
@@ -87,7 +87,7 @@ describe('Root endpoint', () => {
     expect(res.body.program.id).toBe('S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at')
     expect(res.body.program.network).toBe('mainnet-beta')
     expect(res.body.stats).toBeDefined()
-    expect(res.body.stats.endpoints).toBe(70)
+    expect(res.body.stats.endpoints).toBe(71)
     expect(res.body.stats.chains).toBe(17)
     expect(res.body.cryptography).toBeDefined()
     expect(res.body.cryptography.length).toBeGreaterThan(0)
