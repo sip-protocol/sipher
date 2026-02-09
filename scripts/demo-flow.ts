@@ -150,6 +150,9 @@ async function main() {
     console.log(`View Tag:             ${shielded.viewTag}`)
     console.log(`Commitment:           ${shielded.commitment.slice(0, 20)}...`)
     console.log(`Viewing Key Hash:     ${shielded.viewingKeyHash.slice(0, 20)}...`)
+    if (shielded.instructionType) console.log(`Instruction Type:     ${shielded.instructionType}`)
+    if (shielded.noteId) console.log(`Transfer Record PDA:  ${shielded.noteId}`)
+    if (shielded.encryptedAmount) console.log(`Encrypted Amount:     ${shielded.encryptedAmount}`)
   } catch {
     console.log('(Skipped — sender address not on curve for this demo)')
   }

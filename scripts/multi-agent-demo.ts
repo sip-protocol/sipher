@@ -195,6 +195,9 @@ async function main() {
     })
     ok('Unsigned Tx', truncate(shielded.transaction, 40))
     ok('Stealth Dest', truncate(shielded.stealthAddress))
+    if (shielded.instructionType) ok('Instruction Type', shielded.instructionType)
+    if (shielded.noteId) ok('Transfer Record PDA', truncate(shielded.noteId))
+    if (shielded.encryptedAmount) ok('Encrypted Amount', shielded.encryptedAmount)
     info('Alice signs this tx with her wallet and submits to Solana')
   } catch {
     info('Shield build skipped (demo sender not on curve — expected in mock mode)')
