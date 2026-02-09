@@ -34,11 +34,11 @@ hidden amounts, and compliance viewing keys across 17 chains.**
 
 ## Table of Contents
 
-- [What is Sipher?](#-what-is-sipher)
-- [Demo Video + Live Demo](#-live-demo-no-api-key-required)
 - [The Problem](#-the-problem)
 - [The Solution](#-the-solution)
 - [Your First Private Payment](#-your-first-private-payment-in-3-api-calls)
+- [Demo Video + Live Demo](#-live-demo-no-api-key-required)
+- [What is Sipher?](#-what-is-sipher)
 - [Trust Model](#-trust-model)
 - [On-Chain Program](#%EF%B8%8F-on-chain-program)
 - [Cryptographic Primitives](#-cryptographic-primitives-real-not-mocked)
@@ -56,60 +56,6 @@ hidden amounts, and compliance viewing keys across 17 chains.**
 - [Tech Stack](#%EF%B8%8F-tech-stack)
 - [Deployment](#-deployment)
 - [License](#-license)
-
----
-
-## 🛡️ What is Sipher?
-
-Sipher wraps [SIP Protocol](https://sip-protocol.org)'s privacy SDK as a **REST API** and **OpenClaw-compatible skill**. Any autonomous agent — Claude, LangChain, CrewAI, OpenClaw, or raw HTTP — can call Sipher to transact privately across 17 blockchains.
-
-Think of it like upgrading from HTTP to HTTPS, but for agent transactions:
-
-```
-Public Transactions  →  Sipher API  →  Private Transactions
-(everyone sees)         (one call)      (only you and your auditor see)
-```
-
-**Stop exposing your agent's financial activity. Start transacting privately.**
-
----
-
-## 🎥 Live Demo (No API Key Required)
-
-<div align="center">
-
-https://github.com/user-attachments/assets/03d8faa1-220d-4d17-814f-50ff6d888bb4
-
-</div>
-
-25 real cryptographic operations executing live — no mocks, no fakes:
-
-```bash
-curl https://sipher.sip-protocol.org/v1/demo | jq '.data.summary'
-```
-
-```json
-{
-  "stepsCompleted": 25,
-  "endpointsExercised": 35,
-  "cryptoOperations": 37,
-  "allPassed": true,
-  "chainsDemo": ["solana", "ethereum", "near", "cosmos"],
-  "realCrypto": [
-    "Ed25519 ECDH (stealth addresses)",
-    "secp256k1 ECDH (EVM/Cosmos stealth)",
-    "Pedersen commitments (homomorphic)",
-    "XChaCha20-Poly1305 (viewing key encryption)",
-    "BIP32 hierarchical key derivation",
-    "STARK range proofs (M31 limbs)",
-    "Keccak256 nullifier derivation (governance)"
-  ]
-}
-```
-
-The demo generates stealth addresses on 4 chains, creates and verifies Pedersen commitments with homomorphic math, builds a BIP32 viewing key hierarchy, encrypts/decrypts transaction data, generates STARK range proofs, runs governance voting with homomorphic tallying, and more — all in under 3 seconds.
-
-**Markdown version:** `curl https://sipher.sip-protocol.org/demo`
 
 ---
 
@@ -256,6 +202,54 @@ Returns an unsigned transaction + Pedersen commitment. Sign and submit to Solana
 
 ```bash
 curl -s https://sipher.sip-protocol.org/v1/demo | jq '.data.summary'
+```
+
+---
+
+## 🎥 Live Demo (No API Key Required)
+
+<div align="center">
+
+https://github.com/user-attachments/assets/03d8faa1-220d-4d17-814f-50ff6d888bb4
+
+</div>
+
+25 real cryptographic operations executing live — no mocks, no fakes:
+
+```bash
+curl https://sipher.sip-protocol.org/v1/demo | jq '.data.summary'
+```
+
+```json
+{
+  "stepsCompleted": 25,
+  "endpointsExercised": 35,
+  "cryptoOperations": 37,
+  "allPassed": true,
+  "chainsDemo": ["solana", "ethereum", "near", "cosmos"],
+  "realCrypto": [
+    "Ed25519 ECDH (stealth addresses)",
+    "secp256k1 ECDH (EVM/Cosmos stealth)",
+    "Pedersen commitments (homomorphic)",
+    "XChaCha20-Poly1305 (viewing key encryption)",
+    "BIP32 hierarchical key derivation",
+    "STARK range proofs (M31 limbs)",
+    "Keccak256 nullifier derivation (governance)"
+  ]
+}
+```
+
+---
+
+## 🛡️ What is Sipher?
+
+Sipher wraps [SIP Protocol](https://sip-protocol.org)'s privacy SDK as a **REST API** and **OpenClaw-compatible skill**. Any autonomous agent — Claude, LangChain, CrewAI, OpenClaw, or raw HTTP — can call Sipher to transact privately across 17 blockchains.
+
+Think of it like upgrading from HTTP to HTTPS, but for agent transactions:
+
+```
+Public Transactions  →  Sipher API  →  Private Transactions
+(everyone sees)         (one call)      (only you and your auditor see)
 ```
 
 ---
