@@ -19,6 +19,8 @@
     "clean": "rm -rf dist",
     "colosseum": "tsx scripts/colosseum.ts",
     "demo": "tsx scripts/demo-flow.ts",
+    "multi-agent": "tsx scripts/multi-agent-demo.ts",
+    "benchmark": "tsx scripts/benchmark.ts",
     "gm": "bash scripts/gm.sh",
     "thanks": "bash scripts/thanks.sh",
     "openapi:export": "tsx scripts/export-openapi.ts",

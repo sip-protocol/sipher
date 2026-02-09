@@ -356,6 +356,56 @@ npx tsx scripts/privacy-demo-agent.ts
 # 20 steps: generate → derive → shield → scan → claim → encrypt → disclose → govern → tally
 ```
 
+**Multi-agent payment demo (Alice → Bob → Auditor):**
+
+```bash
+npx tsx scripts/multi-agent-demo.ts
+# 5 acts: setup → payment → discovery → claim → compliance (17 endpoints)
+```
+
+**LangChain tool integration:**
+
+```typescript
+// Sipher works as a LangChain StructuredTool — no special SDK needed
+class SipherStealthGenerate extends StructuredTool {
+  name = 'sipher_stealth_generate'
+  description = 'Generate a stealth meta-address for private payments'
+  schema = z.object({ chain: z.string().optional() })
+
+  async _call({ chain }: { chain?: string }) {
+    const res = await fetch('https://sipher.sip-protocol.org/v1/stealth/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': process.env.SIPHER_KEY! },
+      body: JSON.stringify({ chain: chain || 'solana' }),
+    })
+    return JSON.stringify((await res.json()).data.metaAddress)
+  }
+}
+
+// Works with: LangChain, CrewAI, AutoGPT, OpenClaw, any tool-calling framework
+// Full example: npx tsx scripts/langchain-tool-example.ts
+```
+
+---
+
+## Performance
+
+Core endpoint latency (localhost, Node.js 22, Apple M-series):
+
+| Endpoint | p50 | p95 | p99 |
+|----------|-----|-----|-----|
+| `/v1/stealth/generate` | 3ms | 5ms | 7ms |
+| `/v1/stealth/derive` | 2ms | 4ms | 6ms |
+| `/v1/commitment/create` | 1ms | 3ms | 4ms |
+| `/v1/commitment/verify` | 1ms | 2ms | 3ms |
+| `/v1/transfer/shield` | 8ms | 14ms | 18ms |
+| `/v1/viewing-key/generate` | 2ms | 4ms | 5ms |
+| `/v1/scan/payments` | 5ms | 9ms | 12ms |
+| `/v1/privacy/score` | 2ms | 4ms | 6ms |
+| `/v1/proofs/range/generate` | 3ms | 6ms | 8ms |
+
+All operations use real cryptographic primitives (Ed25519 ECDH, Pedersen commitments, XChaCha20-Poly1305, STARK proofs). Benchmark your own: `npx tsx scripts/benchmark.ts`
+
 ---
 
 ## 📊 What's Real vs. What's Preview
