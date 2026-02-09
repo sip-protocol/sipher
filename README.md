@@ -35,7 +35,7 @@ hidden amounts, and compliance viewing keys across 17 chains.**
 ## Table of Contents
 
 - [What is Sipher?](#-what-is-sipher)
-- [Live Demo](#-live-demo-no-api-key-required)
+- [Demo Video + Live Demo](#-live-demo-no-api-key-required)
 - [The Problem](#-the-problem)
 - [The Solution](#-the-solution)
 - [Trust Model](#-trust-model)
@@ -74,6 +74,12 @@ Public Transactions  →  Sipher API  →  Private Transactions
 
 ## 🎥 Live Demo (No API Key Required)
 
+<div align="center">
+
+https://github.com/user-attachments/assets/03d8faa1-220d-4d17-814f-50ff6d888bb4
+
+</div>
+
 25 real cryptographic operations executing live — no mocks, no fakes:
 
 ```bash
@@ -84,7 +90,7 @@ curl https://sipher.sip-protocol.org/v1/demo | jq '.data.summary'
 {
   "stepsCompleted": 25,
   "endpointsExercised": 35,
-  "cryptoOperations": 40,
+  "cryptoOperations": 37,
   "allPassed": true,
   "chainsDemo": ["solana", "ethereum", "near", "cosmos"],
   "realCrypto": [
