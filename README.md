@@ -55,6 +55,7 @@ hidden amounts, and compliance viewing keys across 17 chains.**
 - [Test Suite](#-test-suite-554-tests-35-suites)
 - [Tech Stack](#%EF%B8%8F-tech-stack)
 - [Deployment](#-deployment)
+- [Decentralization Roadmap](#%EF%B8%8F-decentralization-roadmap)
 - [License](#-license)
 
 ---
@@ -718,6 +719,22 @@ cp .env.example .env
 | Free | 100 | 1,000 ops | Basic endpoints |
 | Pro | 10,000 | 100,000 ops | All endpoints + sessions |
 | Enterprise | 100,000 | Unlimited | All endpoints + compliance + priority |
+
+---
+
+## 🗺️ Decentralization Roadmap
+
+Sipher is infrastructure, not just an API. Here's the path from convenience layer to protocol:
+
+| Phase | Timeline | What | Trust Model |
+|-------|----------|------|-------------|
+| **Phase 1** (now) | Q1 2026 | Centralized REST API | Agent trusts server (stateless, key-redacting audit logs) |
+| **Phase 2** | Q2 2026 | On-chain privacy program expansion | Stealth derivation + commitment verification as CPI-able Solana instructions. Jupiter/Raydium can compose directly. |
+| **Phase 3** | Q3 2026 | Decentralized protocol | On-chain registry of stealth meta-addresses, fee accrual to protocol, network effects. REST API becomes optional convenience layer. |
+
+**Phase 2 expands the existing mainnet program** ([`S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at`](https://solscan.io/account/S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at)) with CPI-able instructions — any Solana program can add privacy natively, without HTTP calls.
+
+**Why start centralized?** Iteration speed. A REST API lets us battle-test the crypto, refine the agent UX, and ship 71 endpoints in 10 days. The on-chain migration preserves the same primitives (stealth addresses, Pedersen commitments, viewing keys) while removing the trust assumption.
 
 ---
 
