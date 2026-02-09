@@ -73,13 +73,15 @@ echo -e "  ${CYAN}STATS:${RESET}"
 sleep 0.1
 printf "     ${GREEN}✓${RESET} Endpoints  : ${BOLD}71${RESET}\n"
 sleep 0.05
-printf "     ${GREEN}✓${RESET} Tests      : ${BOLD}568${RESET} ${DIM}(36 suites)${RESET}\n"
+printf "     ${GREEN}✓${RESET} Tests      : ${BOLD}573${RESET} ${DIM}(36 suites)${RESET}\n"
 sleep 0.05
 printf "     ${GREEN}✓${RESET} Chains     : ${BOLD}17${RESET} ${DIM}(6 families)${RESET}\n"
 sleep 0.05
 printf "     ${GREEN}✓${RESET} Client SDKs: ${BOLD}4${RESET}  ${DIM}(TypeScript, Python, Rust, Go)${RESET}\n"
 sleep 0.05
 printf "     ${GREEN}✓${RESET} Integrations: ${BOLD}Eliza Plugin${RESET} ${DIM}(5 privacy actions)${RESET}\n"
+sleep 0.05
+printf "     ${GREEN}✓${RESET} Jito Bundle : ${BOLD}Real Block Engine${RESET} ${DIM}(JSON-RPC integration)${RESET}\n"
 sleep 0.05
 printf "     ${GREEN}✓${RESET} Devnet Proof: ${BOLD}Real on-chain${RESET} ${DIM}(shielded transfer confirmed)${RESET}\n"
 echo ""
@@ -147,58 +149,75 @@ echo -e "     ${DIM}\$${RESET} ${GREEN}open \"https://solscan.io/tx/4FmLGsLkC5DY
 echo ""
 sleep 0.3
 
-# ─── Section 3: Privacy Demo Agent ───────────────────────────────────────────
-echo -e "  ${YELLOW}▸ SCENE 3: Privacy Demo Agent (20-step autonomous flow)${RESET}"
+# ─── Section 3: Jito Block Engine Integration ────────────────────────────────
+echo -e "  ${YELLOW}▸ SCENE 3: Real Jito Block Engine Integration${RESET}"
 echo ""
 sleep 0.1
-echo -e "  ${WHITE}3a. Run full Alice→Bob privacy pipeline${RESET}"
+echo -e "  ${WHITE}3a. Show dual-mode provider (real when configured, mock fallback)${RESET}"
+echo -e "     ${DIM}\$${RESET} ${GREEN}grep -A3 'isJitoLive' src/services/jito-provider.ts${RESET}"
+echo ""
+sleep 0.05
+echo -e "  ${WHITE}3b. Submit bundle via API (mock mode)${RESET}"
+echo -e "     ${DIM}\$${RESET} ${GREEN}curl -s http://localhost:5006/v1/jito/relay -X POST -H 'Content-Type: application/json' -d '{\"transactions\":[\"SGVsbG8=\"],\"tipLamports\":\"10000\"}' | jq .${RESET}"
+echo ""
+sleep 0.05
+echo -e "  ${WHITE}3c. Real Jito JSON-RPC methods: sendBundle, getBundleStatuses, getInflightBundleStatuses${RESET}"
+echo -e "     ${DIM}Set JITO_BLOCK_ENGINE_URL=https://mainnet.block-engine.jito.wtf/api/v1/bundles${RESET}"
+echo ""
+sleep 0.3
+
+# ─── Section 4: Privacy Demo Agent ───────────────────────────────────────────
+echo -e "  ${YELLOW}▸ SCENE 4: Privacy Demo Agent (20-step autonomous flow)${RESET}"
+echo ""
+sleep 0.1
+echo -e "  ${WHITE}4a. Run full Alice→Bob privacy pipeline${RESET}"
 echo -e "     ${DIM}\$${RESET} ${GREEN}npx tsx scripts/privacy-demo-agent.ts${RESET}"
 echo -e "     ${DIM}Shows: stealth → shield → scan → claim → compliance → governance${RESET}"
 echo ""
 sleep 0.3
 
 # ─── Section 4: Test Suite ───────────────────────────────────────────────────
-echo -e "  ${YELLOW}▸ SCENE 4: Test Suite (568 tests)${RESET}"
+echo -e "  ${YELLOW}▸ SCENE 5: Test Suite (573 tests)${RESET}"
 echo ""
 sleep 0.1
-echo -e "  ${WHITE}4a. Run all tests${RESET}"
+echo -e "  ${WHITE}5a. Run all tests${RESET}"
 echo -e "     ${DIM}\$${RESET} ${GREEN}pnpm test -- --run${RESET}"
 echo ""
 sleep 0.3
 
 # ─── Section 5: Client SDKs ─────────────────────────────────────────────────
-echo -e "  ${YELLOW}▸ SCENE 5: Generated Client SDKs${RESET}"
+echo -e "  ${YELLOW}▸ SCENE 6: Generated Client SDKs${RESET}"
 echo ""
 sleep 0.1
-echo -e "  ${WHITE}5a. Show 4 SDKs (auto-generated from OpenAPI spec)${RESET}"
+echo -e "  ${WHITE}6a. Show 4 SDKs (auto-generated from OpenAPI spec)${RESET}"
 echo -e "     ${DIM}\$${RESET} ${GREEN}ls sdks/${RESET}"
 echo -e "     ${DIM}TypeScript (fetch), Python (urllib3), Rust (reqwest), Go (net/http)${RESET}"
 echo ""
 sleep 0.05
-echo -e "  ${WHITE}5b. OpenAPI spec export${RESET}"
+echo -e "  ${WHITE}6b. OpenAPI spec export${RESET}"
 echo -e "     ${DIM}\$${RESET} ${GREEN}pnpm openapi:export && cat dist/openapi.json | jq '.info'${RESET}"
 echo ""
 sleep 0.3
 
 # ─── Section 6: Eliza Integration ────────────────────────────────────────────
-echo -e "  ${YELLOW}▸ SCENE 6: Eliza Plugin Integration${RESET}"
+echo -e "  ${YELLOW}▸ SCENE 7: Eliza Plugin Integration${RESET}"
 echo ""
 sleep 0.1
-echo -e "  ${WHITE}6a. Show plugin structure (5 privacy actions)${RESET}"
+echo -e "  ${WHITE}7a. Show plugin structure (5 privacy actions)${RESET}"
 echo -e "     ${DIM}\$${RESET} ${GREEN}ls integrations/eliza/src/actions/${RESET}"
 echo -e "     ${DIM}stealthGenerate, transferShield, scanPayments, privacyScore, commitmentCreate${RESET}"
 echo ""
 sleep 0.05
-echo -e "  ${WHITE}6b. Run plugin demo (no Eliza runtime needed)${RESET}"
+echo -e "  ${WHITE}7b. Run plugin demo (no Eliza runtime needed)${RESET}"
 echo -e "     ${DIM}\$${RESET} ${GREEN}npx tsx scripts/eliza-plugin-demo.ts${RESET}"
 echo ""
 sleep 0.3
 
 # ─── Section 7: OpenClaw Skill ───────────────────────────────────────────────
-echo -e "  ${YELLOW}▸ SCENE 7: OpenClaw Skill (agent-native interface)${RESET}"
+echo -e "  ${YELLOW}▸ SCENE 8: OpenClaw Skill (agent-native interface)${RESET}"
 echo ""
 sleep 0.1
-echo -e "  ${WHITE}7a. Skill file (any agent can discover capabilities)${RESET}"
+echo -e "  ${WHITE}8a. Skill file (any agent can discover capabilities)${RESET}"
 echo -e "     ${DIM}\$${RESET} ${GREEN}curl -s https://sipher.sip-protocol.org/skill.md | head -30${RESET}"
 echo ""
 sleep 0.3
@@ -207,8 +226,8 @@ echo -e "${CYAN}================================================================
 echo ""
 echo -e "  ${BOLD}${GREEN}GM! ${RESET}${DIM}Let's demo some privacy.${RESET}"
 echo ""
-echo -e "  ${DIM}Recording tip: Run scenes 1-3 for a 90-second demo.${RESET}"
-echo -e "  ${DIM}Full showcase (all 7 scenes): ~3 minutes.${RESET}"
+echo -e "  ${DIM}Recording tip: Run scenes 1-4 for a 90-second demo.${RESET}"
+echo -e "  ${DIM}Full showcase (all 8 scenes): ~3 minutes.${RESET}"
 echo ""
 echo -e "${CYAN}===============================================================================${RESET}"
 echo ""
