@@ -43,6 +43,7 @@ hidden amounts, and compliance viewing keys across 17 chains.**
 - [On-Chain Program](#%EF%B8%8F-on-chain-program)
 - [Cryptographic Primitives](#-cryptographic-primitives-real-not-mocked)
 - [Key Features](#-key-features)
+- [Built for Agents, Not Humans](#-built-for-agents-not-humans)
 - [What's Real vs. What's Beta](#-whats-real-vs-whats-beta)
 - [Quick Start](#-quick-start)
 - [SDK Depth](#-sdk-depth-sip-protocolsdk-v074)
@@ -338,6 +339,27 @@ All `@noble/*` and `@scure/*` libraries are by [Paul Miller](https://paulmillr.c
 - **4 Auto-Generated Client SDKs** — TypeScript, Python, Rust, Go
 - **OpenClaw Skill File** — `GET /skill.md` for agent discovery
 - **Live Demo** — `GET /v1/demo` runs 25 real crypto operations, no auth required
+
+---
+
+## 🤖 Built for Agents, Not Humans
+
+Sipher isn't a human tool with an API bolted on. Every design decision prioritizes autonomous agents:
+
+| Pillar | How Sipher Delivers |
+|--------|-------------------|
+| **Discovery** | [`/skill.md`](https://sipher.sip-protocol.org/skill.md) — OpenClaw-compatible skill file. Agents discover, parse, and use all 71 endpoints without human configuration. Self-describing API at `/`, error catalog at `/v1/errors`, full schema at `/v1/openapi.json`. |
+| **Integration** | Pure REST + JSON. No browser, no OAuth, no cookies. 4 auto-generated SDKs (TypeScript, Python, Rust, Go). API key auth via `X-API-Key` header — the simplest auth pattern for agents. |
+| **Autonomy** | [`privacy-demo-agent.ts`](scripts/privacy-demo-agent.ts) runs 20 steps across 34 endpoints with zero human intervention. Sessions (`X-Session-Id`) maintain state across multi-step workflows. No CAPTCHA, no manual verification. |
+| **Reliability** | 11+ mutation endpoints support `Idempotency-Key` for safe retries. Structured error responses with machine-readable codes and retry guidance. Agents can reason about failures, not parse HTML error pages. |
+| **Economy** | Usage metering + daily quotas + tiered billing (free/pro/enterprise). Agents can check quota at `/v1/billing/usage` and plan operations. Pay-per-use infrastructure for the agent economy. |
+
+**Autonomous agent demo (zero human intervention):**
+
+```bash
+npx tsx scripts/privacy-demo-agent.ts
+# 20 steps: generate → derive → shield → scan → claim → encrypt → disclose → govern → tally
+```
 
 ---
 
