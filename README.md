@@ -17,7 +17,7 @@ hidden amounts, and compliance viewing keys across 17 chains.**
 
 *Stealth addresses • Pedersen commitments • Viewing key hierarchies • On-chain Anchor program • 4 client SDKs*
 
-[![Tests](https://img.shields.io/badge/tests-566%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-573%20passing-brightgreen)]()
 [![Endpoints](https://img.shields.io/badge/endpoints-71-blue)]()
 [![Chains](https://img.shields.io/badge/chains-17-purple)]()
 [![SDKs](https://img.shields.io/badge/SDKs-4-orange)]()
@@ -211,7 +211,7 @@ curl -s https://sipher.sip-protocol.org/v1/demo | jq '.data.summary'
 
 <div align="center">
 
-https://github.com/user-attachments/assets/03d8faa1-220d-4d17-814f-50ff6d888bb4
+https://github.com/user-attachments/assets/a4a87b0c-7168-4677-b8e6-457debb98cb0
 
 </div>
 
@@ -432,7 +432,7 @@ Judges reward transparency. Here's exactly what's production-grade and what's in
 | Inco FHE | 🧪 **Preview** | Production interface, mock encryption backend |
 | Private swap | 🧪 **Preview** | Jupiter DEX integration stubbed |
 | STARK range proofs | 🧪 **Preview** | Hash-based placeholder (real Stwo/Murkl WASM roadmapped) |
-| Jito gas abstraction | 🧪 **Preview** | Bundle relay with mock block engine |
+| Jito gas abstraction | ✅ **Production** | Real Jito Block Engine JSON-RPC (dual-mode: real when configured, mock fallback) |
 
 ---
 
@@ -447,7 +447,7 @@ pnpm install
 # Start dev server
 pnpm dev
 
-# Run tests (566 tests, 36 suites)
+# Run tests (573 tests, 36 suites)
 pnpm test -- --run
 
 # Type check
@@ -680,7 +680,7 @@ CI workflow auto-regenerates SDKs on spec changes (`.github/workflows/generate-s
 
 ---
 
-## 🧪 Test Suite (566 tests, 36 suites)
+## 🧪 Test Suite (573 tests, 36 suites)
 
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
@@ -711,7 +711,7 @@ CI workflow auto-regenerates SDKs on spec changes (`.github/workflows/generate-s
 | `session.test.ts` | 28 | CRUD, middleware merge, tier gating |
 | `governance.test.ts` | 24 | Encrypt, submit, tally, double-vote, E2E |
 | `compliance.test.ts` | 23 | Disclose, report, tier gating, auditor verify |
-| `jito.test.ts` | 20 | Relay, bundle status, tier gating, state machine |
+| `jito.test.ts` | 25 | Relay, bundle status, tier gating, state machine, real mode |
 | `billing.test.ts` | 31 | Usage, quotas, metering, subscriptions, webhooks |
 | `demo.test.ts` | 12 | Live demo (25 steps, all crypto, no auth) |
 | *+ 6 more* | 67 | C-SPL, proofs, admin, OpenAPI |
