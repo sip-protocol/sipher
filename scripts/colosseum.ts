@@ -101,7 +101,7 @@ const DRY_RUN = process.env.DRY_RUN === '1'
 const MAX_COMMENTS_PER_RUN = parseInt(process.env.MAX_COMMENTS || '15', 10)
 const COMMENT_DELAY_MS = 800 // delay between comments to avoid rate limits
 const HEARTBEAT_INTERVAL_MS = parseInt(process.env.HEARTBEAT_INTERVAL_MS || '1800000', 10) // 30 min
-const HACKATHON_END = new Date('2026-02-12T17:00:00.000Z')
+const HACKATHON_END = new Date('2026-02-13T17:00:00.000Z')
 
 // LLM Configuration
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || ''
