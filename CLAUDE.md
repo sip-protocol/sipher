@@ -37,10 +37,9 @@
 
 ## CONTEXT
 
-**Origin:** Colosseum Agent Hackathon (Feb 2-12, 2026) — $100K USDC prize pool
-**Agent ID:** 274 | **Status:** active
+**Origin:** Colosseum Agent Hackathon (Feb 2-13, 2026) — $100K USDC prize pool
+**Agent ID:** 274 | **Status:** completed (hackathon ended Feb 13, 2026)
 **Credentials:** `~/.claude/sip-protocol/sipher/CREDENTIALS.md` (never commit)
-**Hackathon API:** `https://agents.colosseum.com/api`
 
 ---
 
@@ -146,80 +145,11 @@ Two engagement systems available:
 
 ---
 
-## COLOSSEUM HACKATHON STATUS
+## COLOSSEUM HACKATHON (ARCHIVED)
 
-**Deadline:** Feb 13, 2026 12:00 ET (extended from Feb 12)
-**Prize Pool:** $100K USDC
-**IMPORTANT:** Votes are for project discovery, NOT final ranking. Winners determined by judge panel. Focus on product quality, not vote count.
-**Submission:** All v1.8.0 fields updated (Feb 12) — problemStatement, technicalApproach, targetAudience, businessModel, competitiveLandscape, futureVision, refreshed description + solanaIntegration, liveAppLink → /v1/demo, presentationLink → MP4.
-
-### Current Stats (Feb 5, 2026)
-| Metric | Value |
-|--------|-------|
-| **Rank** | #9 of 50 |
-| **Agent Votes** | 25 |
-| **Human Votes** | 6 |
-| **Comments Posted** | 716 |
-| **Projects Voted** | 71 |
-| **Forum Posts** | 11+ |
-
-### Our Project
-- **Agent ID:** 274
-- **Project ID:** 148
-- **Slug:** sipher-privacy-as-a-skill-for-solana-agents
-- **URL:** https://colosseum.com/agent-hackathon/projects/sipher-privacy-as-a-skill-for-solana-agents
-
-### Our Forum Posts
-| ID | Date | Title | Tags |
-|----|------|-------|------|
-| 373 | Feb 3 | Sipher: Privacy-as-a-Skill — Give Your Agent Stealth Addresses | infra, privacy, team-formation |
-| 374 | Feb 3 | Why Agent-to-Agent Payments Need Privacy | ai, payments, privacy |
-| 376 | Feb 3 | Sipher Day 1: Deployed to Mainnet — 13 Privacy Endpoints Live | infra, privacy, progress-update |
-| 498 | Feb 4 | Add Privacy to Your Agent in 2 API Calls | infra, privacy |
-| 499 | Feb 4 | Sipher Day 2: Autonomous Heartbeat Live | infra, progress-update |
-| 500 | Feb 4 | Calling AEGIS, Makora, Clodds, AutoVault, ZNAP | privacy, team-formation |
-| 504 | Feb 4 | Your Agent's Wallet is a Public Diary | privacy, ai |
-| 572 | Feb 4 | Sipher Progress: 13 to 26 Endpoints in 24 Hours | infra, privacy, progress-update |
-| 642 | Feb 4 | Sipher Day 3: API Key Tiers, Per-Key Rate Limiting | infra, privacy, progress-update |
-| 1103 | Feb 5 | MEV Nightmare: How I Lost $250k in 12 Minutes | privacy, trading, defi, security |
-
-### Competitor Analysis: AgentShield (#1, 92 agent votes)
-
-**Posting Strategy:**
-- Posts every **2-4 hours** (not 12h like us!)
-- 3 posts in 6 hours: 19:44 → 21:45 → 01:45 UTC
-- Consistent "Security" theme across all posts
-- Fear-based + data-driven content ("17.4% malicious", "$2.2B stolen")
-
-**Our Response:**
-- Reduced posting interval from 12h to **2h**
-- Multi-tag strategy (privacy + relevant verticals)
-- LLM-generated contextual content
-
-### VPS Heartbeat Deployment
-**Location:** `sip@176.222.53.185:~/sipher/`
-**Config:** LLM comments (Haiku), posts every 2h, engagement every 30min
-
-```bash
-# Check heartbeat status
-ssh sip "ps aux | grep colosseum"
-ssh sip "tail -50 ~/sipher/heartbeat.log"
-
-# Restart heartbeat
-ssh sip "pkill -f 'colosseum.mjs' || true"
-ssh sip "cd ~/sipher && export \$(cat .env | xargs) && nohup node colosseum.mjs heartbeat >> heartbeat.log 2>&1 &"
-
-# Deploy new version
-npx esbuild scripts/colosseum.ts --bundle --platform=node --format=esm --outfile=/tmp/colosseum.mjs
-scp /tmp/colosseum.mjs sip:~/sipher/
-```
-
-**Environment on VPS:**
-```
-~/sipher/.env:
-  COLOSSEUM_API_KEY=xxx
-  OPENROUTER_API_KEY=xxx  # For LLM comments/posts
-```
+**Status:** Completed (Feb 2-13, 2026) | Ranked #9 of 50 | 25 agent votes, 6 human votes
+**Project:** https://colosseum.com/agent-hackathon/projects/sipher-privacy-as-a-skill-for-solana-agents
+**Agent ID:** 274 | **Project ID:** 148
 
 ---
 
@@ -520,11 +450,26 @@ All error codes are centralized in `src/errors/codes.ts` (ErrorCode enum). Full 
 
 | Field | Value |
 |-------|-------|
-| **User** | sipher |
+| **Host** | 176.222.53.185 (reclabs3) |
+| **User** | sip |
 | **Port** | 5006 |
 | **Domain** | sipher.sip-protocol.org |
-| **Container** | sipher |
-| **SSH** | `ssh sipher` |
+| **Containers** | sipher (API), sipher-redis |
+| **SSH** | `ssh sip@176.222.53.185` |
+| **Compose** | `~/sipher/docker-compose.yml` |
+
+```bash
+# Quick health check
+ssh sip@176.222.53.185 "docker ps --format 'table {{.Names}}\t{{.Status}}' | grep sipher"
+
+# Restart services
+ssh sip@176.222.53.185 "cd ~/sipher && docker compose up -d"
+
+# View logs
+ssh sip@176.222.53.185 "docker logs sipher --tail 50"
+```
+
+**Note:** After VPS migrations, containers need manual `docker compose up -d` — the `unless-stopped` restart policy only survives Docker daemon restarts, not host migrations.
 
 ---
 
@@ -584,6 +529,6 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 
 ---
 
-**Last Updated:** 2026-02-09
-**Status:** Phase 6 Complete | 71 Endpoints | 573 Tests | 17 Chains | 4 SDKs | Eliza Plugin | Devnet Proof | Real Jito Integration | Agent #274 Active
+**Last Updated:** 2026-03-11
+**Status:** Phase 6 Complete | 71 Endpoints | 573 Tests | 17 Chains | 4 SDKs | Eliza Plugin | Devnet Proof | Real Jito Integration | Hackathon Completed
 **Devnet Proof:** [Solscan](https://solscan.io/tx/4FmLGsLkC5DYJojpQeSQoGMArsJonTEnx729gnFCeYEjFsr8Z46VrDzKQXLhFrpM9Uj6ezBtCQckU28odzvjvV4a?cluster=devnet) — real 0.01 SOL shielded transfer via stealth address
