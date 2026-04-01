@@ -81,7 +81,8 @@ export async function executeTool(
 
 const DEFAULT_MODEL = process.env.SIPHER_MODEL || 'anthropic/claude-sonnet-4-6'
 const DEFAULT_MAX_TOKENS = 1024
-const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+// Anthropic SDK appends /v1/messages, so base URL must NOT include /v1
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api'
 
 export interface AgentOptions {
   model?: string
