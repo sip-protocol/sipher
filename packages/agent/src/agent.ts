@@ -104,7 +104,7 @@ export async function chat(
 ): Promise<Anthropic.Message> {
   const client = new Anthropic({
     baseURL: OPENROUTER_BASE_URL,
-    apiKey: options.apiKey || process.env.OPENROUTER_API_KEY,
+    apiKey: options.apiKey || process.env.SIPHER_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY,
   })
   const model = options.model ?? DEFAULT_MODEL
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS
