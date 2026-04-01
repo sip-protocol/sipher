@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PublicKey } from '@solana/web3.js'
+import { Connection, PublicKey } from '@solana/web3.js'
 import {
   deriveVaultConfigPDA,
   deriveDepositRecordPDA,
@@ -23,6 +23,14 @@ import {
   DEVNET_CONFIG,
   MAINNET_CONFIG,
   getConfig,
+  createConnection,
+  WSOL_MINT,
+  USDC_MINT,
+  USDT_MINT,
+  resolveTokenMint,
+  getTokenDecimals,
+  toBaseUnits,
+  fromBaseUnits,
 } from '../src/index.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -456,5 +464,157 @@ describe('deserializeDepositRecord', () => {
     const record = deserializeDepositRecord(buf)
     const available = record.balance - record.lockedAmount
     expect(available).toBe(300_000n)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Connection helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('createConnection', () => {
+  it('returns a Connection instance for devnet', () => {
+    const conn = createConnection('devnet')
+    expect(conn).toBeInstanceOf(Connection)
+  })
+
+  it('returns a Connection instance for mainnet', () => {
+    const conn = createConnection('mainnet-beta')
+    expect(conn).toBeInstanceOf(Connection)
+  })
+
+  it('defaults to devnet', () => {
+    const conn = createConnection()
+    expect(conn).toBeInstanceOf(Connection)
+  })
+
+  it('accepts custom RPC URL override', () => {
+    const conn = createConnection('devnet', 'https://custom.example.com')
+    expect(conn).toBeInstanceOf(Connection)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Token resolution
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('token mints', () => {
+  it('WSOL_MINT matches expected address', () => {
+    expect(WSOL_MINT.toBase58()).toBe('So11111111111111111111111111111111111111112')
+  })
+
+  it('USDC_MINT matches expected address', () => {
+    expect(USDC_MINT.toBase58()).toBe('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
+  })
+
+  it('USDT_MINT matches expected address', () => {
+    expect(USDT_MINT.toBase58()).toBe('Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB')
+  })
+})
+
+describe('resolveTokenMint', () => {
+  it('resolves SOL to wSOL mint', () => {
+    expect(resolveTokenMint('SOL').equals(WSOL_MINT)).toBe(true)
+  })
+
+  it('resolves WSOL to wSOL mint', () => {
+    expect(resolveTokenMint('WSOL').equals(WSOL_MINT)).toBe(true)
+  })
+
+  it('resolves USDC to USDC mint', () => {
+    expect(resolveTokenMint('USDC').equals(USDC_MINT)).toBe(true)
+  })
+
+  it('resolves USDT to USDT mint', () => {
+    expect(resolveTokenMint('USDT').equals(USDT_MINT)).toBe(true)
+  })
+
+  it('is case-insensitive', () => {
+    expect(resolveTokenMint('sol').equals(WSOL_MINT)).toBe(true)
+    expect(resolveTokenMint('Usdc').equals(USDC_MINT)).toBe(true)
+    expect(resolveTokenMint('usdt').equals(USDT_MINT)).toBe(true)
+  })
+
+  it('resolves raw base58 mint address', () => {
+    const mint = resolveTokenMint('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
+    expect(mint.equals(USDC_MINT)).toBe(true)
+  })
+
+  it('throws for unknown symbol and invalid address', () => {
+    expect(() => resolveTokenMint('FAKECOIN')).toThrow('Unknown token "FAKECOIN"')
+  })
+
+  it('trims whitespace', () => {
+    expect(resolveTokenMint('  SOL  ').equals(WSOL_MINT)).toBe(true)
+  })
+})
+
+describe('getTokenDecimals', () => {
+  it('returns 9 for wSOL', () => {
+    expect(getTokenDecimals(WSOL_MINT)).toBe(9)
+  })
+
+  it('returns 6 for USDC', () => {
+    expect(getTokenDecimals(USDC_MINT)).toBe(6)
+  })
+
+  it('returns 6 for USDT', () => {
+    expect(getTokenDecimals(USDT_MINT)).toBe(6)
+  })
+
+  it('returns 9 as default for unknown mints', () => {
+    const unknown = new PublicKey('11111111111111111111111111111112')
+    expect(getTokenDecimals(unknown)).toBe(9)
+  })
+})
+
+describe('toBaseUnits', () => {
+  it('converts 1 SOL to 1_000_000_000 lamports', () => {
+    expect(toBaseUnits(1, 9)).toBe(1_000_000_000n)
+  })
+
+  it('converts 1.5 SOL correctly', () => {
+    expect(toBaseUnits(1.5, 9)).toBe(1_500_000_000n)
+  })
+
+  it('converts 1 USDC to 1_000_000', () => {
+    expect(toBaseUnits(1, 6)).toBe(1_000_000n)
+  })
+
+  it('converts 0.01 USDC correctly', () => {
+    expect(toBaseUnits(0.01, 6)).toBe(10_000n)
+  })
+
+  it('handles 0', () => {
+    expect(toBaseUnits(0, 9)).toBe(0n)
+  })
+
+  it('handles whole numbers without decimals', () => {
+    expect(toBaseUnits(100, 6)).toBe(100_000_000n)
+  })
+})
+
+describe('fromBaseUnits', () => {
+  it('converts 1_000_000_000 lamports to "1"', () => {
+    expect(fromBaseUnits(1_000_000_000n, 9)).toBe('1')
+  })
+
+  it('converts 1_500_000_000 lamports to "1.5"', () => {
+    expect(fromBaseUnits(1_500_000_000n, 9)).toBe('1.5')
+  })
+
+  it('converts 1_000_000 to "1" (USDC)', () => {
+    expect(fromBaseUnits(1_000_000n, 6)).toBe('1')
+  })
+
+  it('converts 10_000 to "0.01" (USDC)', () => {
+    expect(fromBaseUnits(10_000n, 6)).toBe('0.01')
+  })
+
+  it('converts 0 to "0"', () => {
+    expect(fromBaseUnits(0n, 9)).toBe('0')
+  })
+
+  it('strips trailing zeros', () => {
+    expect(fromBaseUnits(1_100_000_000n, 9)).toBe('1.1')
   })
 })

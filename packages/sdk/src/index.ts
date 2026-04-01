@@ -33,6 +33,20 @@ export {
   getConfig,
 } from './config.js'
 
+// Connection helper
+export { createConnection } from './connection.js'
+
+// Token resolution
+export {
+  WSOL_MINT,
+  USDC_MINT,
+  USDT_MINT,
+  resolveTokenMint,
+  getTokenDecimals,
+  toBaseUnits,
+  fromBaseUnits,
+} from './tokens.js'
+
 // Vault operations
 export {
   deriveVaultConfigPDA,

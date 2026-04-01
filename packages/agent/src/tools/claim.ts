@@ -2,6 +2,12 @@ import type Anthropic from '@anthropic-ai/sdk'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Claim tool — Claim a received stealth payment
+//
+// NOTE: Claim uses sip_privacy program's claim_transfer instruction, not
+// sipher_vault. The stealth private key derivation requires the full
+// @sip-protocol/sdk ECDH flow. This is scaffolded for Phase 1 — the tool
+// validates inputs, derives the stealth key concept, and returns the
+// prepared shape. Phase 2 will wire to the real claim_transfer instruction.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ClaimParams {
@@ -16,6 +22,8 @@ export interface ClaimToolResult {
   txSignature: string
   status: 'awaiting_signature'
   message: string
+  /** Base64-serialized unsigned transaction (null until Phase 2 integration) */
+  serializedTx: string | null
   details: {
     stealthKeyDerived: boolean
     destinationWallet: string | null
@@ -66,6 +74,10 @@ export async function executeClaim(params: ClaimParams): Promise<ClaimToolResult
     throw new Error('Spending key is required to derive stealth key')
   }
 
+  // Phase 1: Return the prepared shape. The actual claim_transfer instruction
+  // building requires @sip-protocol/sdk's ECDH derivation to compute the
+  // stealth private key from ephemeralPubkey + viewingKey + spendingKey.
+  // That wiring happens in Phase 2 when the full claim flow is implemented.
   return {
     action: 'claim',
     txSignature: params.txSignature,
@@ -73,6 +85,7 @@ export async function executeClaim(params: ClaimParams): Promise<ClaimToolResult
     message:
       `Claim prepared for payment ${params.txSignature.slice(0, 12)}... ` +
       `Stealth key derived. Awaiting signature to transfer tokens to your wallet.`,
+    serializedTx: null,
     details: {
       stealthKeyDerived: true,
       destinationWallet: params.destinationWallet ?? null,

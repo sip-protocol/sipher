@@ -1,4 +1,12 @@
 import type Anthropic from '@anthropic-ai/sdk'
+import { PublicKey } from '@solana/web3.js'
+import {
+  createConnection,
+  getVaultBalance,
+  resolveTokenMint,
+  getTokenDecimals,
+  fromBaseUnits,
+} from '@sipher/sdk'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Balance tool — Check vault balance for a depositor
@@ -57,24 +65,47 @@ export async function executeBalance(params: BalanceParams): Promise<BalanceTool
   }
 
   const token = params.token.toUpperCase()
+  const tokenMint = resolveTokenMint(params.token)
+  const decimals = getTokenDecimals(tokenMint)
 
-  // Phase 1: Return prepared result shape.
-  // Task 5 (Integration) wires this to getVaultBalance() from @sipher/sdk.
+  let depositor: PublicKey
+  try {
+    depositor = new PublicKey(params.wallet)
+  } catch {
+    throw new Error(`Invalid wallet address: ${params.wallet}`)
+  }
+
+  // Read-only — call SDK directly against devnet
+  const connection = createConnection('devnet')
+  const vaultBalance = await getVaultBalance(connection, depositor, tokenMint)
+
+  const total = fromBaseUnits(vaultBalance.balance, decimals)
+  const available = fromBaseUnits(vaultBalance.available, decimals)
+  const locked = fromBaseUnits(vaultBalance.lockedAmount, decimals)
+  const volume = fromBaseUnits(vaultBalance.cumulativeVolume, decimals)
+
+  const lastDeposit = vaultBalance.lastDepositAt > 0
+    ? new Date(vaultBalance.lastDepositAt * 1000).toISOString()
+    : null
+
+  const message = vaultBalance.exists
+    ? `Vault balance for ${params.wallet}: ${total} ${token} (${available} available, ${locked} locked).`
+    : `Vault balance for ${params.wallet}: 0 ${token} (no deposit record found). ` +
+      `Deposit first to start using privacy features.`
+
   return {
     action: 'balance',
     token,
     wallet: params.wallet,
     status: 'success',
     balance: {
-      total: '0',
-      available: '0',
-      locked: '0',
-      cumulativeVolume: '0',
-      lastDepositAt: null,
-      exists: false,
+      total,
+      available,
+      locked,
+      cumulativeVolume: volume,
+      lastDepositAt: lastDeposit,
+      exists: vaultBalance.exists,
     },
-    message:
-      `Vault balance for ${params.wallet}: 0 ${token} (no deposit record found). ` +
-      `Deposit first to start using privacy features.`,
+    message,
   }
 }

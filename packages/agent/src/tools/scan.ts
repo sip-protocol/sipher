@@ -1,4 +1,9 @@
 import type Anthropic from '@anthropic-ai/sdk'
+import {
+  createConnection,
+  scanForPayments,
+  fromBaseUnits,
+} from '@sipher/sdk'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scan tool — Scan for incoming stealth payments
@@ -21,6 +26,7 @@ export interface ScanToolResult {
 
 interface ScanPaymentSummary {
   txSignature: string
+  stealthAddress: string
   amount: string
   fee: string
   timestamp: number
@@ -63,16 +69,57 @@ export async function executeScan(params: ScanParams): Promise<ScanToolResult> {
 
   const limit = Math.min(Math.max(params.limit ?? 100, 1), 1000)
 
-  // Phase 1: Return prepared result shape.
-  // Task 5 (Integration) wires this to scanForPayments() from @sipher/sdk.
+  // Convert viewing key string to bytes (hex-encoded)
+  let viewingPrivateKey: Uint8Array
+  try {
+    const hex = params.viewingKey.replace(/^0x/, '')
+    viewingPrivateKey = new Uint8Array(
+      hex.match(/.{1,2}/g)?.map((b) => parseInt(b, 16)) ?? []
+    )
+  } catch {
+    throw new Error('Invalid viewing key format — expected hex string')
+  }
+
+  // Convert spending pubkey to bytes (base58 pubkey -> 32 bytes)
+  let spendingPublicKey: Uint8Array
+  try {
+    const { PublicKey } = await import('@solana/web3.js')
+    spendingPublicKey = new PublicKey(params.spendingPubkey).toBytes()
+  } catch {
+    throw new Error('Invalid spending public key — expected base58')
+  }
+
+  const connection = createConnection('devnet')
+
+  const result = await scanForPayments({
+    connection,
+    viewingPrivateKey,
+    spendingPublicKey,
+    limit,
+  })
+
+  // Default to 9 decimals (SOL) for display — in production, resolve per-token
+  const decimals = 9
+
+  const payments: ScanPaymentSummary[] = result.payments.map((p) => ({
+    txSignature: p.txSignature,
+    stealthAddress: p.stealthAddress.toBase58(),
+    amount: fromBaseUnits(p.transferAmount, decimals),
+    fee: fromBaseUnits(p.feeAmount, decimals),
+    timestamp: p.timestamp,
+  }))
+
+  const message = payments.length > 0
+    ? `Found ${payments.length} payment(s) across ${result.eventsScanned} transactions.`
+    : `Scanned ${limit} recent transactions — no payments found for this keypair. ` +
+      `This is normal if no one has sent you a private payment yet.`
+
   return {
     action: 'scan',
     status: 'success',
-    payments: [],
-    eventsScanned: 0,
-    hasMore: false,
-    message:
-      `Scanned ${limit} recent transactions — no payments found for this keypair. ` +
-      `This is normal if no one has sent you a private payment yet.`,
+    payments,
+    eventsScanned: result.eventsScanned,
+    hasMore: result.hasMore,
+    message,
   }
 }
