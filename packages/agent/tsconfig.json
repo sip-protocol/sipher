@@ -3,7 +3,7 @@
     "target": "ES2022",
     "module": "ES2022",
     "moduleResolution": "bundler",
-    "declaration": true,
+    "declaration": false,
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,

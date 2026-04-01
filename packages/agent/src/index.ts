@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 import express from 'express'
 import { chat, SYSTEM_PROMPT, TOOLS, executeTool } from './agent.js'
 
@@ -5,11 +7,16 @@ import { chat, SYSTEM_PROMPT, TOOLS, executeTool } from './agent.js'
 // Express server — Sipher Agent API
 // ─────────────────────────────────────────────────────────────────────────────
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 const app = express()
 app.use(express.json({ limit: '1mb' }))
 
-// Serve web chat UI (static files from app/dist when available)
-app.use(express.static('../app/dist'))
+// Serve web chat UI (static files from app/dist)
+// In production: packages/agent/dist/ -> ../../../app/dist
+// Resolved via __dirname so it works regardless of cwd
+const webRoot = path.resolve(__dirname, '../../../app/dist')
+app.use(express.static(webRoot))
 
 // ─── Chat endpoint ──────────────────────────────────────────────────────────
 

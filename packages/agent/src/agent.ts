@@ -52,12 +52,12 @@ export const TOOLS: Anthropic.Tool[] = [
 type ToolExecutor = (params: Record<string, unknown>) => Promise<unknown>
 
 const TOOL_EXECUTORS: Record<string, ToolExecutor> = {
-  deposit: (p) => executeDeposit(p as Parameters<typeof executeDeposit>[0]),
-  send: (p) => executeSend(p as Parameters<typeof executeSend>[0]),
-  refund: (p) => executeRefund(p as Parameters<typeof executeRefund>[0]),
-  balance: (p) => executeBalance(p as Parameters<typeof executeBalance>[0]),
-  scan: (p) => executeScan(p as Parameters<typeof executeScan>[0]),
-  claim: (p) => executeClaim(p as Parameters<typeof executeClaim>[0]),
+  deposit: (p) => executeDeposit(p as unknown as Parameters<typeof executeDeposit>[0]),
+  send: (p) => executeSend(p as unknown as Parameters<typeof executeSend>[0]),
+  refund: (p) => executeRefund(p as unknown as Parameters<typeof executeRefund>[0]),
+  balance: (p) => executeBalance(p as unknown as Parameters<typeof executeBalance>[0]),
+  scan: (p) => executeScan(p as unknown as Parameters<typeof executeScan>[0]),
+  claim: (p) => executeClaim(p as unknown as Parameters<typeof executeClaim>[0]),
 }
 
 /**
