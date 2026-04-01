@@ -77,9 +77,23 @@ app.get('/api/tools', (_req, res) => {
   })
 })
 
-// ─── Start server ───────────────────────────────────────────────────────────
+// ─── Mount Mode 2 REST API (71 endpoints at /v1/*) ─────────────────────────
+// The Mode 2 app is built by tsup to dist/app.js (root level).
+// From packages/agent/dist/index.js the relative path is ../../../dist/app.js.
+// Dynamic import ensures Mode 2 failures are non-fatal — agent keeps running.
 
 const PORT = parseInt(process.env.PORT ?? '5006', 10)
+
+try {
+  const mode2Path = path.resolve(__dirname, '../../../dist/app.js')
+  const { default: mode2App } = await import(mode2Path)
+  app.use(mode2App)
+  console.log('  Mode 2:  /v1/* (REST API - 71 endpoints)')
+} catch (err) {
+  console.warn('  Mode 2:  unavailable -', (err as Error).message)
+}
+
+// ─── Start server ───────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
   console.log(`Sipher agent listening on port ${PORT}`)
