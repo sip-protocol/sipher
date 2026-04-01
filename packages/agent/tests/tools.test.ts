@@ -12,6 +12,14 @@ import {
   executeScan,
   claimTool,
   executeClaim,
+  swapTool,
+  executeSwap,
+  viewingKeyTool,
+  executeViewingKey,
+  historyTool,
+  executeHistory,
+  statusTool,
+  executeStatus,
 } from '../src/tools/index.js'
 import { TOOLS, SYSTEM_PROMPT, executeTool } from '../src/agent.js'
 
@@ -55,12 +63,18 @@ vi.mock('@sipher/sdk', async (importOriginal) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('tool definitions', () => {
-  const allTools = [depositTool, sendTool, refundTool, balanceTool, scanTool, claimTool]
-  const toolNames = ['deposit', 'send', 'refund', 'balance', 'scan', 'claim']
+  const allTools = [
+    depositTool, sendTool, refundTool, balanceTool, scanTool, claimTool,
+    swapTool, viewingKeyTool, historyTool, statusTool,
+  ]
+  const toolNames = [
+    'deposit', 'send', 'refund', 'balance', 'scan', 'claim',
+    'swap', 'viewingKey', 'history', 'status',
+  ]
 
-  it('exports exactly 6 tools', () => {
-    expect(allTools).toHaveLength(6)
-    expect(TOOLS).toHaveLength(6)
+  it('exports exactly 10 tools', () => {
+    expect(allTools).toHaveLength(10)
+    expect(TOOLS).toHaveLength(10)
   })
 
   it('all tools have unique names', () => {
@@ -112,13 +126,17 @@ describe('system prompt', () => {
     expect(SYSTEM_PROMPT).toContain('Plug in. Go private.')
   })
 
-  it('references all 6 tools', () => {
+  it('references all 10 tools', () => {
     expect(SYSTEM_PROMPT).toContain('deposit')
     expect(SYSTEM_PROMPT).toContain('send')
     expect(SYSTEM_PROMPT).toContain('refund')
     expect(SYSTEM_PROMPT).toContain('balance')
     expect(SYSTEM_PROMPT).toContain('scan')
     expect(SYSTEM_PROMPT).toContain('claim')
+    expect(SYSTEM_PROMPT).toContain('swap')
+    expect(SYSTEM_PROMPT).toContain('viewingKey')
+    expect(SYSTEM_PROMPT).toContain('history')
+    expect(SYSTEM_PROMPT).toContain('status')
   })
 
   it('includes the confirmation rule for fund-moving operations', () => {
@@ -173,6 +191,30 @@ describe('executeTool', () => {
       spendingKey: 'def',
     })
     expect(result).toHaveProperty('action', 'claim')
+  })
+
+  it('dispatches to swap', async () => {
+    const result = await executeTool('swap', {
+      amount: 1,
+      fromToken: 'SOL',
+      toToken: 'USDC',
+    })
+    expect(result).toHaveProperty('action', 'swap')
+  })
+
+  it('dispatches to viewingKey', async () => {
+    const result = await executeTool('viewingKey', { action: 'generate' })
+    expect(result).toHaveProperty('action', 'viewingKey')
+  })
+
+  it('dispatches to history', async () => {
+    const result = await executeTool('history', { wallet: VALID_WALLET })
+    expect(result).toHaveProperty('action', 'history')
+  })
+
+  it('dispatches to status', async () => {
+    const result = await executeTool('status', {})
+    expect(result).toHaveProperty('action', 'status')
   })
 
   it('throws for unknown tool', async () => {
@@ -454,5 +496,218 @@ describe('executeClaim', () => {
     await expect(
       executeClaim({ ...validParams, spendingKey: '' })
     ).rejects.toThrow('Spending key is required')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Swap tool
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('executeSwap', () => {
+  const validParams = { amount: 2, fromToken: 'SOL', toToken: 'USDC' }
+
+  it('returns correct result shape', async () => {
+    const result = await executeSwap(validParams)
+    expect(result.action).toBe('swap')
+    expect(result.amount).toBe(2)
+    expect(result.fromToken).toBe('SOL')
+    expect(result.toToken).toBe('USDC')
+    expect(result.status).toBe('awaiting_quote')
+    expect(result.serializedTx).toBeNull()
+    expect(result.recipient).toBeNull()
+    expect(result.quote.note).toContain('Jupiter')
+  })
+
+  it('normalizes tokens to uppercase', async () => {
+    const result = await executeSwap({ amount: 1, fromToken: 'sol', toToken: 'usdc' })
+    expect(result.fromToken).toBe('SOL')
+    expect(result.toToken).toBe('USDC')
+  })
+
+  it('defaults slippage to 50 bps', async () => {
+    const result = await executeSwap(validParams)
+    expect(result.slippageBps).toBe(50)
+  })
+
+  it('accepts custom slippage', async () => {
+    const result = await executeSwap({ ...validParams, slippageBps: 100 })
+    expect(result.slippageBps).toBe(100)
+  })
+
+  it('clamps slippage to valid range', async () => {
+    const low = await executeSwap({ ...validParams, slippageBps: 0 })
+    expect(low.slippageBps).toBe(1)
+
+    const high = await executeSwap({ ...validParams, slippageBps: 5000 })
+    expect(high.slippageBps).toBe(1000)
+  })
+
+  it('includes recipient when provided', async () => {
+    const result = await executeSwap({ ...validParams, recipient: VALID_WALLET })
+    expect(result.recipient).toBe(VALID_WALLET)
+  })
+
+  it('rejects zero amount', async () => {
+    await expect(executeSwap({ ...validParams, amount: 0 })).rejects.toThrow(
+      'Swap amount must be greater than zero'
+    )
+  })
+
+  it('rejects negative amount', async () => {
+    await expect(executeSwap({ ...validParams, amount: -1 })).rejects.toThrow(
+      'Swap amount must be greater than zero'
+    )
+  })
+
+  it('rejects empty fromToken', async () => {
+    await expect(executeSwap({ ...validParams, fromToken: '' })).rejects.toThrow(
+      'Source token (fromToken) is required'
+    )
+  })
+
+  it('rejects empty toToken', async () => {
+    await expect(executeSwap({ ...validParams, toToken: '' })).rejects.toThrow(
+      'Destination token (toToken) is required'
+    )
+  })
+
+  it('rejects same fromToken and toToken', async () => {
+    await expect(executeSwap({ amount: 1, fromToken: 'SOL', toToken: 'sol' })).rejects.toThrow(
+      'Source and destination tokens must be different'
+    )
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Viewing Key tool
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('executeViewingKey', () => {
+  it('generate: returns correct result shape', async () => {
+    const result = await executeViewingKey({ action: 'generate' })
+    expect(result.action).toBe('viewingKey')
+    expect(result.keyAction).toBe('generate')
+    expect(result.status).toBe('success')
+    expect(result.hasDownload).toBe(true)
+    expect(result.details.txSignature).toBeNull()
+    expect(result.message).toContain('Download')
+    expect(result.message).toContain('NOT be shown in chat')
+  })
+
+  it('export: returns correct result shape with txSignature', async () => {
+    const result = await executeViewingKey({ action: 'export', txSignature: 'sig_export_123abc' })
+    expect(result.keyAction).toBe('export')
+    expect(result.hasDownload).toBe(true)
+    expect(result.details.txSignature).toBe('sig_export_123abc')
+    expect(result.message).toContain('sig_export_1')
+  })
+
+  it('verify: returns correct result shape', async () => {
+    const result = await executeViewingKey({ action: 'verify', txSignature: 'sig_verify_456def' })
+    expect(result.keyAction).toBe('verify')
+    expect(result.hasDownload).toBe(false)
+    expect(result.details.txSignature).toBe('sig_verify_456def')
+    expect(result.details.verified).toBe(true)
+  })
+
+  it('rejects export without txSignature', async () => {
+    await expect(executeViewingKey({ action: 'export' })).rejects.toThrow(
+      "Transaction signature is required for 'export' action"
+    )
+  })
+
+  it('rejects verify without txSignature', async () => {
+    await expect(executeViewingKey({ action: 'verify' })).rejects.toThrow(
+      "Transaction signature is required for 'verify' action"
+    )
+  })
+
+  it('rejects invalid action', async () => {
+    await expect(
+      executeViewingKey({ action: 'invalid' as 'generate' })
+    ).rejects.toThrow('Action must be one of: generate, export, verify')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// History tool
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('executeHistory', () => {
+  it('returns correct result shape (empty history)', async () => {
+    const result = await executeHistory({ wallet: VALID_WALLET })
+    expect(result.action).toBe('history')
+    expect(result.wallet).toBe(VALID_WALLET)
+    expect(result.token).toBeNull()
+    expect(result.status).toBe('success')
+    expect(result.transactions).toEqual([])
+    expect(result.total).toBe(0)
+    expect(result.hasMore).toBe(false)
+  })
+
+  it('includes token filter when provided', async () => {
+    const result = await executeHistory({ wallet: VALID_WALLET, token: 'usdc' })
+    expect(result.token).toBe('USDC')
+    expect(result.message).toContain('USDC')
+  })
+
+  it('message contains truncated wallet address', async () => {
+    const result = await executeHistory({ wallet: VALID_WALLET })
+    expect(result.message).toContain(VALID_WALLET.slice(0, 8))
+  })
+
+  it('rejects empty wallet', async () => {
+    await expect(executeHistory({ wallet: '' })).rejects.toThrow(
+      'Wallet address is required'
+    )
+  })
+
+  it('rejects invalid wallet address', async () => {
+    await expect(executeHistory({ wallet: 'not-a-pubkey' })).rejects.toThrow(
+      'Invalid wallet address'
+    )
+  })
+
+  it('clamps limit to valid range', async () => {
+    // We can't directly assert the internal limit, but we verify no error
+    const result = await executeHistory({ wallet: VALID_WALLET, limit: 500 })
+    expect(result.status).toBe('success')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status tool
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('executeStatus', () => {
+  it('returns correct result shape (config not found)', async () => {
+    // Mock returns null for getAccountInfo => getVaultConfig returns null
+    const result = await executeStatus()
+    expect(result.action).toBe('status')
+    expect(result.status).toBe('success')
+    expect(result.vault.programId).toBe('S1Phr5rmDfkZTyLXzH5qUHeiqZS3Uf517SQzRbU4kHB')
+    expect(result.vault.configFound).toBe(false)
+    expect(result.vault.feeBps).toBe(10)
+    expect(result.vault.refundTimeout).toBe(86400)
+    expect(result.vault.paused).toBe(false)
+    expect(result.vault.totalDeposits).toBe(0)
+    expect(result.vault.totalDepositors).toBe(0)
+    expect(result.vault.authority).toBeNull()
+  })
+
+  it('message indicates config not found', async () => {
+    const result = await executeStatus()
+    expect(result.message).toContain('not found')
+    expect(result.message).toContain('default')
+  })
+
+  it('returns default fee as percentage string', async () => {
+    const result = await executeStatus()
+    expect(result.vault.feePercent).toBe('0.1%')
+  })
+
+  it('returns human-readable refund timeout', async () => {
+    const result = await executeStatus()
+    expect(result.vault.refundTimeoutHuman).toBe('24 hours')
   })
 })

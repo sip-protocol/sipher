@@ -15,3 +15,15 @@ export type { ScanParams, ScanToolResult } from './scan.js'
 
 export { claimTool, executeClaim } from './claim.js'
 export type { ClaimParams, ClaimToolResult } from './claim.js'
+
+export { swapTool, executeSwap } from './swap.js'
+export type { SwapParams, SwapToolResult } from './swap.js'
+
+export { viewingKeyTool, executeViewingKey } from './viewing-key.js'
+export type { ViewingKeyParams, ViewingKeyToolResult } from './viewing-key.js'
+
+export { historyTool, executeHistory } from './history.js'
+export type { HistoryParams, HistoryToolResult } from './history.js'
+
+export { statusTool, executeStatus } from './status.js'
+export type { StatusToolResult } from './status.js'

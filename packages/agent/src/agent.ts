@@ -12,6 +12,14 @@ import {
   executeScan,
   claimTool,
   executeClaim,
+  swapTool,
+  executeSwap,
+  viewingKeyTool,
+  executeViewingKey,
+  historyTool,
+  executeHistory,
+  statusTool,
+  executeStatus,
 } from './tools/index.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,7 +35,7 @@ Users deposit tokens, then you execute private sends, swaps, and refunds.
 Tone: Confident, technical, slightly cypherpunk. Never corporate.
 Never say "I'm just an AI." Speak like a privacy engineer who cares.
 
-Available tools: deposit, send, refund, balance, scan, claim.
+Available tools: deposit, send, refund, balance, scan, claim, swap, viewingKey, history, status.
 
 Rules:
 - Every fund-moving operation shows a confirmation before executing
@@ -47,6 +55,10 @@ export const TOOLS: Anthropic.Tool[] = [
   balanceTool,
   scanTool,
   claimTool,
+  swapTool,
+  viewingKeyTool,
+  historyTool,
+  statusTool,
 ]
 
 type ToolExecutor = (params: Record<string, unknown>) => Promise<unknown>
@@ -58,6 +70,10 @@ const TOOL_EXECUTORS: Record<string, ToolExecutor> = {
   balance: (p) => executeBalance(p as unknown as Parameters<typeof executeBalance>[0]),
   scan: (p) => executeScan(p as unknown as Parameters<typeof executeScan>[0]),
   claim: (p) => executeClaim(p as unknown as Parameters<typeof executeClaim>[0]),
+  swap: (p) => executeSwap(p as unknown as Parameters<typeof executeSwap>[0]),
+  viewingKey: (p) => executeViewingKey(p as unknown as Parameters<typeof executeViewingKey>[0]),
+  history: (p) => executeHistory(p as unknown as Parameters<typeof executeHistory>[0]),
+  status: () => executeStatus(),
 }
 
 /**
