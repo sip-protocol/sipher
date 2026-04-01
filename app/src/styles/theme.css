@@ -474,6 +474,26 @@ body {
   color: var(--text-muted);
 }
 
+.confirmation__status--error {
+  color: var(--red);
+  word-break: break-word;
+}
+
+.confirmation__footer {
+  border-top: 1px solid var(--border);
+}
+
+.confirmation__sig-link {
+  color: var(--cyan);
+  text-decoration: none;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+}
+
+.confirmation__sig-link:hover {
+  text-decoration: underline;
+}
+
 /* Quick Actions */
 .quick-actions {
   display: flex;

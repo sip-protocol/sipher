@@ -3,6 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import TextMessage from './TextMessage'
 import ConfirmationPrompt, { type ConfirmationData, type ConfirmationStatus } from './ConfirmationPrompt'
 import QuickActions from './QuickActions'
+import { useTransactionSigner, type SignStatus } from '../hooks/useTransactionSigner'
 
 interface ChatMessage {
   id: string
@@ -33,6 +34,7 @@ const API_URL = '/api/chat'
 
 export default function ChatContainer() {
   const { connected, publicKey } = useWallet()
+  const { signAndBroadcast } = useTransactionSigner()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -54,6 +56,17 @@ export default function ChatContainer() {
 
   const addMessage = useCallback((msg: Message) => {
     setMessages(prev => [...prev, msg])
+  }, [])
+
+  const updateConfirmation = useCallback((confirmId: string, patch: Partial<ConfirmationData>) => {
+    setMessages(prev =>
+      prev.map(msg => {
+        if (isConfirmation(msg) && msg.data.id === confirmId) {
+          return { ...msg, data: { ...msg.data, ...patch } }
+        }
+        return msg
+      })
+    )
   }, [])
 
   const sendToAgent = useCallback(async (userText: string) => {
@@ -92,15 +105,17 @@ export default function ChatContainer() {
 
       // If the response includes a confirmation request, render it
       if (data.confirmation) {
+        const confirmId = generateId()
         addMessage({
           id: generateId(),
           type: 'confirmation',
           data: {
-            id: generateId(),
+            id: confirmId,
             action: data.confirmation.action ?? 'Transaction',
             amount: data.confirmation.amount,
             fee: data.confirmation.fee,
             recipient: data.confirmation.recipient,
+            serializedTx: data.confirmation.serializedTx,
             status: 'pending',
           },
           timestamp: new Date(),
@@ -147,32 +162,51 @@ export default function ChatContainer() {
   }
 
   const handleConfirm = (id: string) => {
-    setMessages(prev =>
-      prev.map(msg => {
-        if (isConfirmation(msg) && msg.data.id === id) {
-          return { ...msg, data: { ...msg.data, status: 'confirmed' as ConfirmationStatus } }
-        }
-        return msg
-      })
-    )
-    // In a real implementation, this would trigger wallet signing via useWallet
+    updateConfirmation(id, { status: 'confirmed' as ConfirmationStatus })
     addMessage({
       id: generateId(),
       role: 'agent',
-      content: 'Transaction confirmed. Waiting for wallet signature...',
+      content: 'Transaction confirmed (no on-chain transaction for this action).',
       timestamp: new Date(),
     })
   }
 
-  const handleCancel = (id: string) => {
-    setMessages(prev =>
-      prev.map(msg => {
-        if (isConfirmation(msg) && msg.data.id === id) {
-          return { ...msg, data: { ...msg.data, status: 'cancelled' as ConfirmationStatus } }
-        }
-        return msg
+  const handleSign = useCallback(async (confirmId: string, serializedTx: string) => {
+    updateConfirmation(confirmId, { signStatus: 'signing' as SignStatus })
+
+    const result = await signAndBroadcast(serializedTx)
+
+    if (result.signature) {
+      updateConfirmation(confirmId, {
+        status: 'confirmed',
+        signStatus: 'confirmed',
+        signature: result.signature,
       })
-    )
+      addMessage({
+        id: generateId(),
+        role: 'agent',
+        content: `Transaction confirmed: ${result.signature}`,
+        timestamp: new Date(),
+      })
+    } else {
+      updateConfirmation(confirmId, {
+        signStatus: 'error',
+        txError: result.error ?? 'Transaction failed',
+      })
+      addMessage({
+        id: generateId(),
+        role: 'agent',
+        content: `Transaction failed: ${result.error}`,
+        timestamp: new Date(),
+        error: true,
+      })
+    }
+
+    return result
+  }, [signAndBroadcast, updateConfirmation, addMessage])
+
+  const handleCancel = (id: string) => {
+    updateConfirmation(id, { status: 'cancelled' as ConfirmationStatus })
     addMessage({
       id: generateId(),
       role: 'agent',
@@ -205,6 +239,7 @@ export default function ChatContainer() {
                   data={msg.data}
                   onConfirm={handleConfirm}
                   onCancel={handleCancel}
+                  onSign={handleSign}
                 />
               ) : (
                 <TextMessage
