@@ -90,6 +90,6 @@ jobs:
             docker compose pull
             docker compose up -d
             sleep 5
-            curl -sf http://localhost:5006/v1/health || exit 1
+            curl -sf http://localhost:5006/api/health || curl -sf http://localhost:5006/v1/health || exit 1
             docker image prune -af --filter "until=24h"
             echo "Deploy successful"
