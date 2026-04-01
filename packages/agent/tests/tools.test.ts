@@ -29,8 +29,8 @@ import { TOOLS, SYSTEM_PROMPT, executeTool } from '../src/agent.js'
 
 /** A valid on-curve wallet address (devnet test wallet) */
 const VALID_WALLET = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
-/** A valid spending pubkey (USDC mint address) */
-const VALID_SPENDING_PUBKEY = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+/** A valid spending private key (32 bytes = 64 hex chars) */
+const VALID_SPENDING_KEY = 'cd'.repeat(32)
 /** A valid hex viewing key (32 bytes = 64 hex chars) */
 const VALID_VIEWING_KEY = 'ab'.repeat(32)
 
@@ -158,7 +158,7 @@ describe('executeTool', () => {
     const result = await executeTool('send', {
       amount: 1,
       token: 'SOL',
-      recipient: VALID_SPENDING_PUBKEY,
+      recipient: VALID_SPENDING_KEY,
     })
     expect(result).toHaveProperty('action', 'send')
   })
@@ -179,7 +179,7 @@ describe('executeTool', () => {
   it('dispatches to scan', async () => {
     const result = await executeTool('scan', {
       viewingKey: VALID_VIEWING_KEY,
-      spendingPubkey: VALID_SPENDING_PUBKEY,
+      spendingKey: VALID_SPENDING_KEY,
     })
     expect(result).toHaveProperty('action', 'scan')
   })
@@ -289,14 +289,14 @@ describe('executeDeposit', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('executeSend', () => {
-  const validParams = { amount: 10, token: 'USDC', recipient: VALID_SPENDING_PUBKEY }
+  const validParams = { amount: 10, token: 'USDC', recipient: VALID_SPENDING_KEY }
 
   it('returns correct result shape (no wallet)', async () => {
     const result = await executeSend(validParams)
     expect(result.action).toBe('send')
     expect(result.amount).toBe(10)
     expect(result.token).toBe('USDC')
-    expect(result.recipient).toBe(VALID_SPENDING_PUBKEY)
+    expect(result.recipient).toBe(VALID_SPENDING_KEY)
     expect(result.status).toBe('awaiting_signature')
     expect(result.serializedTx).toBeNull()
     expect(result.privacy.commitmentGenerated).toBe(true)
@@ -410,7 +410,7 @@ describe('executeBalance', () => {
 describe('executeScan', () => {
   const validParams = {
     viewingKey: VALID_VIEWING_KEY,
-    spendingPubkey: VALID_SPENDING_PUBKEY,
+    spendingKey: VALID_SPENDING_KEY,
   }
 
   it('returns correct result shape', async () => {
@@ -439,9 +439,9 @@ describe('executeScan', () => {
     )
   })
 
-  it('rejects empty spending pubkey', async () => {
-    await expect(executeScan({ ...validParams, spendingPubkey: '' })).rejects.toThrow(
-      'Spending public key is required'
+  it('rejects empty spending key', async () => {
+    await expect(executeScan({ ...validParams, spendingKey: '' })).rejects.toThrow(
+      'Spending private key is required'
     )
   })
 })

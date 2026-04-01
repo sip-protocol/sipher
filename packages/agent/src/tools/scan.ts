@@ -11,7 +11,7 @@ import {
 
 export interface ScanParams {
   viewingKey: string
-  spendingPubkey: string
+  spendingKey: string
   limit?: number
 }
 
@@ -45,16 +45,16 @@ export const scanTool: Anthropic.Tool = {
         type: 'string',
         description: 'Your viewing private key (hex or base58). Used to detect payments addressed to you.',
       },
-      spendingPubkey: {
+      spendingKey: {
         type: 'string',
-        description: 'Your spending public key (base58). Used to match stealth addresses.',
+        description: 'Your spending private key (hex). Used with viewing key to verify stealth address ownership.',
       },
       limit: {
         type: 'number',
         description: 'Maximum number of transactions to scan (default: 100, max: 1000)',
       },
     },
-    required: ['viewingKey', 'spendingPubkey'],
+    required: ['viewingKey', 'spendingKey'],
   },
 }
 
@@ -63,8 +63,8 @@ export async function executeScan(params: ScanParams): Promise<ScanToolResult> {
     throw new Error('Viewing key is required to scan for payments')
   }
 
-  if (!params.spendingPubkey || params.spendingPubkey.trim().length === 0) {
-    throw new Error('Spending public key is required')
+  if (!params.spendingKey || params.spendingKey.trim().length === 0) {
+    throw new Error('Spending private key is required')
   }
 
   const limit = Math.min(Math.max(params.limit ?? 100, 1), 1000)
@@ -80,13 +80,15 @@ export async function executeScan(params: ScanParams): Promise<ScanToolResult> {
     throw new Error('Invalid viewing key format — expected hex string')
   }
 
-  // Convert spending pubkey to bytes (base58 pubkey -> 32 bytes)
-  let spendingPublicKey: Uint8Array
+  // Convert spending private key to bytes (hex-encoded)
+  let spendingPrivateKey: Uint8Array
   try {
-    const { PublicKey } = await import('@solana/web3.js')
-    spendingPublicKey = new PublicKey(params.spendingPubkey).toBytes()
+    const hex = params.spendingKey.replace(/^0x/, '')
+    spendingPrivateKey = new Uint8Array(
+      hex.match(/.{1,2}/g)?.map((b) => parseInt(b, 16)) ?? []
+    )
   } catch {
-    throw new Error('Invalid spending public key — expected base58')
+    throw new Error('Invalid spending key format — expected hex string')
   }
 
   const connection = createConnection('devnet')
@@ -94,7 +96,7 @@ export async function executeScan(params: ScanParams): Promise<ScanToolResult> {
   const result = await scanForPayments({
     connection,
     viewingPrivateKey,
-    spendingPublicKey,
+    spendingPrivateKey,
     limit,
   })
 

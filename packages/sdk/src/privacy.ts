@@ -5,6 +5,11 @@ import {
   TransactionInstruction,
 } from '@solana/web3.js'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { checkEd25519StealthAddress } from '@sip-protocol/sdk'
+import type { StealthAddress } from '@sip-protocol/sdk'
+import { ed25519 } from '@noble/curves/ed25519'
+import { sha256 as sha256Hash } from '@noble/hashes/sha256'
+import { sha512 } from '@noble/hashes/sha512'
 import {
   SIPHER_VAULT_PROGRAM_ID,
   VAULT_CONFIG_SEED,
@@ -203,10 +208,10 @@ export async function buildPrivateSendTx(
 
 export interface ScanParams {
   connection: Connection
-  /** The viewing private key used to check if payments are addressed to us */
+  /** The viewing private key used to derive shared secrets for stealth matching */
   viewingPrivateKey: Uint8Array
-  /** The spending public key to match against stealth addresses */
-  spendingPublicKey: Uint8Array
+  /** The spending private key used to verify stealth address ownership */
+  spendingPrivateKey: Uint8Array
   /** Maximum number of signatures to scan (default: 100) */
   limit?: number
   /** Signature to start scanning before (for pagination) */
@@ -219,19 +224,17 @@ export interface ScanParams {
  * Scan for payments addressed to the given viewing/spending keypair.
  *
  * This scans VaultWithdrawEvent logs emitted by the sipher_vault program.
- * For each event, it checks if the ephemeral pubkey + viewing private key
- * derives the stealth address matching our spending public key.
- *
- * NOTE: The actual stealth address matching requires @sip-protocol/sdk's
- * checkStealthAddress function. Task 5 (Integration) will wire this to
- * the real @sip-protocol/sdk. For now, this returns the raw parsed events
- * without filtering — callers can apply their own matching logic.
+ * For each event, it reconstructs a StealthAddress from the on-chain data
+ * and calls checkEd25519StealthAddress to verify the payment is addressed
+ * to our keypair. Only matching payments are returned.
  */
 export async function scanForPayments(
   params: ScanParams
 ): Promise<ScanResult> {
   const {
     connection,
+    viewingPrivateKey,
+    spendingPrivateKey,
     limit = 100,
     before,
     programId = SIPHER_VAULT_PROGRAM_ID,
@@ -247,6 +250,16 @@ export async function scanForPayments(
   if (signatures.length === 0) {
     return { payments: [], eventsScanned: 0, hasMore: false }
   }
+
+  // Convert keypair bytes to 0x-prefixed hex for @sip-protocol/sdk
+  const spendingKeyHex = bytesToHex(spendingPrivateKey) as `0x${string}`
+  const viewingKeyHex = bytesToHex(viewingPrivateKey) as `0x${string}`
+
+  // Pre-compute the spending scalar for viewTag derivation.
+  // checkEd25519StealthAddress uses viewTag as an early-exit filter,
+  // but on-chain events don't store the viewTag. We compute it here
+  // so the check function doesn't reject valid payments.
+  const spendingScalar = deriveEd25519Scalar(spendingPrivateKey)
 
   const payments: StealthPayment[] = []
 
@@ -276,11 +289,36 @@ export async function scanForPayments(
 
       try {
         const payment = parseWithdrawEvent(eventData, txSignatures[i])
-        if (payment) {
+        if (!payment) continue
+
+        // Check if this payment is addressed to us using stealth address matching.
+        // The ephemeral pubkey is stored as 33 bytes on-chain (0x00 prefix + 32-byte ed25519).
+        // Strip the prefix to get the raw 32-byte ed25519 pubkey for matching.
+        const ephRaw = payment.ephemeralPubkey[0] === 0x00
+          ? payment.ephemeralPubkey.slice(1)
+          : payment.ephemeralPubkey
+
+        // Skip events with zero-filled ephemeral keys (pre-integration placeholder sends)
+        if (ephRaw.every((b) => b === 0)) continue
+
+        // Compute viewTag: sha256(spendingScalar * ephemeralPub)[0]
+        // This matches what checkEd25519StealthAddress does internally.
+        const ephPoint = ed25519.ExtendedPoint.fromHex(ephRaw)
+        const sharedSecretPoint = ephPoint.multiply(spendingScalar)
+        const sharedSecretHash = sha256Hash(sharedSecretPoint.toRawBytes())
+        const viewTag = sharedSecretHash[0]
+
+        const stealthAddr: StealthAddress = {
+          address: bytesToHex(payment.stealthAddress.toBytes()) as `0x${string}`,
+          ephemeralPublicKey: bytesToHex(ephRaw) as `0x${string}`,
+          viewTag,
+        }
+
+        if (checkEd25519StealthAddress(stealthAddr, spendingKeyHex, viewingKeyHex)) {
           payments.push(payment)
         }
       } catch {
-        // Skip malformed events
+        // Skip malformed events or failed stealth checks
       }
     }
   }
@@ -290,6 +328,31 @@ export async function scanForPayments(
     eventsScanned: signatures.length,
     hasMore: signatures.length === limit,
   }
+}
+
+/** Convert Uint8Array to 0x-prefixed hex string */
+function bytesToHex(bytes: Uint8Array): string {
+  return '0x' + Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/** ed25519 curve order */
+const ED25519_ORDER = 2n ** 252n + 27742317777372353535851937790883648493n
+
+/**
+ * Derive the ed25519 scalar from a raw private key (matches @sip-protocol/sdk internals).
+ * SHA-512 hash -> clamp lower 32 bytes -> convert to little-endian bigint -> mod n
+ */
+function deriveEd25519Scalar(privateKey: Uint8Array): bigint {
+  const hash = sha512(privateKey)
+  const scalar = hash.slice(0, 32)
+  scalar[0] &= 248
+  scalar[31] &= 127
+  scalar[31] |= 64
+  let value = 0n
+  for (let i = 0; i < 32; i++) {
+    value |= BigInt(scalar[i]) << BigInt(i * 8)
+  }
+  return value % ED25519_ORDER
 }
 
 /**

@@ -2,6 +2,12 @@ import type Anthropic from '@anthropic-ai/sdk'
 import { PublicKey } from '@solana/web3.js'
 import { getAssociatedTokenAddress } from '@solana/spl-token'
 import {
+  generateEd25519StealthAddress,
+  ed25519PublicKeyToSolanaAddress,
+  commit,
+} from '@sip-protocol/sdk'
+import { sha256 } from '@noble/hashes/sha256'
+import {
   createConnection,
   buildPrivateSendTx,
   resolveTokenMint,
@@ -136,28 +142,65 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
 
   // Parse recipient — could be sip:solana:<spend>:<view> or raw base58 pubkey
   let stealthPubkey: PublicKey
-  try {
-    if (params.recipient.startsWith('sip:')) {
-      const parts = params.recipient.split(':')
-      stealthPubkey = new PublicKey(parts[2])
-    } else {
-      stealthPubkey = new PublicKey(params.recipient)
+  let amountCommitment: Uint8Array
+  let ephemeralPubkey: Uint8Array
+  let viewingKeyHash: Uint8Array
+
+  const isStealthMetaAddress = params.recipient.startsWith('sip:solana:')
+
+  if (isStealthMetaAddress) {
+    // Full stealth meta-address: sip:solana:0x<spendingKey>:0x<viewingKey>
+    const parts = params.recipient.split(':')
+    if (parts.length !== 4 || !parts[2] || !parts[3]) {
+      throw new Error(
+        `Invalid stealth meta-address: expected sip:solana:<spendingKey>:<viewingKey>, ` +
+        `got ${params.recipient}`
+      )
     }
-  } catch {
-    throw new Error(`Invalid recipient address: ${params.recipient}`)
+
+    const metaAddress = {
+      spendingKey: parts[2] as `0x${string}`,
+      viewingKey: parts[3] as `0x${string}`,
+      chain: 'solana' as const,
+    }
+
+    // Generate a one-time stealth address for this recipient
+    const stealth = generateEd25519StealthAddress(metaAddress)
+    const solanaAddress = ed25519PublicKeyToSolanaAddress(stealth.stealthAddress.address)
+    stealthPubkey = new PublicKey(solanaAddress)
+
+    // Real Pedersen commitment: C = amount*G + blinding*H
+    const { commitment } = commit(BigInt(amountBase))
+    amountCommitment = hexToBytes(commitment)
+
+    // Ephemeral pubkey: 32-byte ed25519 -> pad to 33 bytes with 0x00 prefix
+    // On-chain program stores but doesn't validate the curve — opaque bytes for the scanner
+    const ephRaw = hexToBytes(stealth.stealthAddress.ephemeralPublicKey)
+    ephemeralPubkey = new Uint8Array(33)
+    ephemeralPubkey[0] = 0x00
+    ephemeralPubkey.set(ephRaw, 1)
+
+    // SHA-256 hash of the viewing key bytes
+    const vkBytes = hexToBytes(metaAddress.viewingKey)
+    viewingKeyHash = sha256(vkBytes)
+  } else {
+    // Raw base58 pubkey — no stealth derivation possible without viewing key.
+    // Use zero-filled crypto params; the on-chain program accepts them.
+    try {
+      stealthPubkey = new PublicKey(params.recipient)
+    } catch {
+      throw new Error(`Invalid recipient address: ${params.recipient}`)
+    }
+
+    amountCommitment = new Uint8Array(33).fill(0)
+    ephemeralPubkey = new Uint8Array(33).fill(0)
+    viewingKeyHash = new Uint8Array(32).fill(0)
   }
 
-  // Placeholder cryptographic parameters — in production, these come from
-  // @sip-protocol/sdk's stealth address derivation. For Phase 1, we use
-  // deterministic placeholders so the transaction structure is correct.
-  const amountCommitment = new Uint8Array(33).fill(0)
-  const ephemeralPubkey = new Uint8Array(33).fill(0)
-  const viewingKeyHash = new Uint8Array(32).fill(0)
   const encryptedAmount = new Uint8Array(0)
   const proof = new Uint8Array(0)
 
-  // The stealth token account — for Phase 1, use the recipient's ATA.
-  // In production, this would be a freshly-created ATA for the derived stealth address.
+  // Derive the stealth recipient's associated token account
   const stealthTokenAccount = await getAssociatedTokenAddress(tokenMint, stealthPubkey)
 
   const result = await buildPrivateSendTx({
@@ -190,11 +233,21 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
     serializedTx,
     privacy: {
       stealthAddress: stealthPubkey.toBase58(),
-      commitmentGenerated: true,
-      viewingKeyHashIncluded: true,
+      commitmentGenerated: isStealthMetaAddress,
+      viewingKeyHashIncluded: isStealthMetaAddress,
       feeBps,
       estimatedFee: fromBaseUnits(result.feeAmount, decimals) + ` ${token}`,
       netAmount: fromBaseUnits(result.netAmount, decimals),
     },
   }
+}
+
+/** Convert a 0x-prefixed hex string to Uint8Array */
+function hexToBytes(hex: string): Uint8Array {
+  const h = hex.replace(/^0x/, '')
+  const bytes = new Uint8Array(h.length / 2)
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16)
+  }
+  return bytes
 }
