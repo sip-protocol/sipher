@@ -79,8 +79,9 @@ export async function executeTool(
 // Agent conversation loop
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DEFAULT_MODEL = 'claude-sonnet-4-6'
+const DEFAULT_MODEL = process.env.SIPHER_MODEL || 'anthropic/claude-sonnet-4-6'
 const DEFAULT_MAX_TOKENS = 1024
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 
 export interface AgentOptions {
   model?: string
@@ -101,7 +102,10 @@ export async function chat(
   messages: Anthropic.MessageParam[],
   options: AgentOptions = {}
 ): Promise<Anthropic.Message> {
-  const client = new Anthropic({ apiKey: options.apiKey })
+  const client = new Anthropic({
+    baseURL: OPENROUTER_BASE_URL,
+    apiKey: options.apiKey || process.env.OPENROUTER_API_KEY,
+  })
   const model = options.model ?? DEFAULT_MODEL
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS
 
