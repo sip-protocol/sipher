@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import express from 'express'
-import { chat, SYSTEM_PROMPT, TOOLS, executeTool } from './agent.js'
+import { chat, chatStream, SYSTEM_PROMPT, TOOLS, executeTool } from './agent.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Express server — Sipher Agent API
@@ -37,6 +37,45 @@ app.post('/api/chat', async (req, res) => {
     const message = error instanceof Error ? error.message : 'Internal server error'
     console.error('[agent] chat error:', message)
     res.status(500).json({ error: message })
+  }
+})
+
+// ─── SSE streaming chat endpoint ────────────────────────────────────────────
+
+app.post('/api/chat/stream', async (req, res) => {
+  const { messages } = req.body
+
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    res.status(400).json({
+      error: 'messages is required and must be a non-empty array',
+    })
+    return
+  }
+
+  // SSE headers — keep the connection open for streaming
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  res.flushHeaders()
+
+  try {
+    for await (const event of chatStream(messages)) {
+      // Check if client disconnected
+      if (res.writableEnded) break
+      res.write(`data: ${JSON.stringify(event)}\n\n`)
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error'
+    console.error('[agent] stream error:', message)
+
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ type: 'error', message })}\n\n`)
+    }
+  } finally {
+    if (!res.writableEnded) {
+      res.write('data: [DONE]\n\n')
+      res.end()
+    }
   }
 })
 
@@ -99,6 +138,7 @@ app.listen(PORT, () => {
   console.log(`Sipher agent listening on port ${PORT}`)
   console.log(`  Health:  http://localhost:${PORT}/api/health`)
   console.log(`  Chat:    POST http://localhost:${PORT}/api/chat`)
+  console.log(`  Stream:  POST http://localhost:${PORT}/api/chat/stream`)
   console.log(`  Tools:   http://localhost:${PORT}/api/tools`)
 })
 

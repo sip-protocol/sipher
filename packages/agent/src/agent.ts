@@ -106,6 +106,43 @@ export interface AgentOptions {
   apiKey?: string
 }
 
+// ─── SSE event types emitted by chatStream ──────────────────────────────────
+
+export interface SSEContentDelta {
+  type: 'content_block_delta'
+  text: string
+}
+
+export interface SSEToolUse {
+  type: 'tool_use'
+  name: string
+  id: string
+}
+
+export interface SSEToolResult {
+  type: 'tool_result'
+  name: string
+  id: string
+  success: boolean
+}
+
+export interface SSEMessageComplete {
+  type: 'message_complete'
+  content: string
+}
+
+export interface SSEError {
+  type: 'error'
+  message: string
+}
+
+export type SSEEvent =
+  | SSEContentDelta
+  | SSEToolUse
+  | SSEToolResult
+  | SSEMessageComplete
+  | SSEError
+
 /**
  * Run a single chat turn with tool execution loop.
  *
@@ -177,5 +214,95 @@ export async function chat(
 
     // Feed tool results back
     conversationMessages.push({ role: 'user', content: toolResults })
+  }
+}
+
+/**
+ * Streaming version of chat() — yields SSE-compatible events as tokens arrive.
+ *
+ * Handles the agentic tool loop: when Claude responds with tool_use, we execute
+ * the tools, yield status events, and continue streaming until stop_reason is
+ * 'end_turn'.
+ */
+export async function* chatStream(
+  messages: Anthropic.MessageParam[],
+  options: AgentOptions = {}
+): AsyncGenerator<SSEEvent> {
+  const client = new Anthropic({
+    baseURL: OPENROUTER_BASE_URL,
+    apiKey: options.apiKey || process.env.SIPHER_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY,
+  })
+  const model = options.model ?? DEFAULT_MODEL
+  const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS
+
+  const conversationMessages = [...messages]
+  let fullText = ''
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const stream = client.messages.stream({
+      model,
+      max_tokens: maxTokens,
+      system: SYSTEM_PROMPT,
+      tools: TOOLS,
+      messages: conversationMessages,
+    })
+
+    // Consume the stream's async iterator — each item is a MessageStreamEvent
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta') {
+        const delta = event.delta as { type: string; text?: string }
+        if (delta.type === 'text_delta' && delta.text) {
+          fullText += delta.text
+          yield { type: 'content_block_delta', text: delta.text }
+        }
+      }
+    }
+
+    // Stream consumed — get the final message to check stop_reason + tool_use blocks
+    const finalMsg = await stream.finalMessage()
+
+    if (finalMsg.stop_reason !== 'tool_use') {
+      yield { type: 'message_complete', content: fullText }
+      return
+    }
+
+    // Tool loop — extract tool_use blocks, execute, and continue
+    const toolUseBlocks = finalMsg.content.filter(
+      (b): b is Anthropic.ContentBlockParam & { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } =>
+        b.type === 'tool_use'
+    )
+
+    conversationMessages.push({ role: 'assistant', content: finalMsg.content })
+
+    const toolResults: Anthropic.ToolResultBlockParam[] = []
+
+    for (const block of toolUseBlocks) {
+      yield { type: 'tool_use', name: block.name, id: block.id }
+
+      try {
+        const result = await executeTool(block.name, block.input)
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: block.id,
+          content: JSON.stringify(result),
+        })
+        yield { type: 'tool_result', name: block.name, id: block.id, success: true }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: block.id,
+          content: JSON.stringify({ error: message }),
+          is_error: true,
+        })
+        yield { type: 'tool_result', name: block.name, id: block.id, success: false }
+      }
+    }
+
+    conversationMessages.push({ role: 'user', content: toolResults })
+
+    // Reset fullText for next streaming round — tool responses may produce new text
+    fullText = ''
   }
 }

@@ -31,6 +31,7 @@ function generateId(): string {
 }
 
 const API_URL = '/api/chat'
+const STREAM_URL = '/api/chat/stream'
 
 export default function ChatContainer() {
   const { connected, publicKey } = useWallet()
@@ -69,18 +70,28 @@ export default function ChatContainer() {
     )
   }, [])
 
-  const sendToAgent = useCallback(async (userText: string) => {
-    // Build conversation history for the API
-    const chatHistory = messages
-      .filter((m): m is ChatMessage => !isConfirmation(m))
-      .map(m => ({ role: m.role === 'user' ? 'user' as const : 'assistant' as const, content: m.content }))
+  const updateMessage = useCallback((id: string, patch: Partial<ChatMessage>) => {
+    setMessages(prev =>
+      prev.map(msg => {
+        if (!isConfirmation(msg) && msg.id === id) {
+          return { ...msg, ...patch }
+        }
+        return msg
+      })
+    )
+  }, [])
 
-    chatHistory.push({ role: 'user', content: userText })
-
-    setLoading(true)
-
+  /**
+   * Try SSE streaming first — real-time token delivery.
+   * Returns true if streaming succeeded, false if it should fall back to POST.
+   */
+  const tryStreamingChat = useCallback(async (
+    chatHistory: { role: 'user' | 'assistant'; content: string }[],
+    placeholderId: string,
+  ): Promise<boolean> => {
+    let res: Response
     try {
-      const res = await fetch(API_URL, {
+      res = await fetch(STREAM_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -88,51 +99,143 @@ export default function ChatContainer() {
           wallet: publicKey?.toBase58() ?? null,
         }),
       })
+    } catch {
+      return false // Network error — fall back to POST
+    }
 
-      if (!res.ok) {
-        throw new Error(`Agent responded with ${res.status}`)
+    if (!res.ok || !res.body) return false
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let accumulated = ''
+
+    try {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        // Keep the last incomplete line in the buffer
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data: ')) continue
+          const payload = trimmed.slice(6)
+
+          if (payload === '[DONE]') break
+
+          try {
+            const event = JSON.parse(payload)
+
+            if (event.type === 'content_block_delta' && event.text) {
+              accumulated += event.text
+              updateMessage(placeholderId, { content: accumulated })
+            } else if (event.type === 'message_complete') {
+              // Final content — ensure full text is set
+              if (event.content) {
+                updateMessage(placeholderId, { content: event.content })
+              }
+            } else if (event.type === 'error') {
+              updateMessage(placeholderId, {
+                content: event.message ?? 'Stream error occurred.',
+                error: true,
+              })
+              return true // Error delivered via stream — don't fall back
+            }
+          } catch {
+            // Malformed JSON line — skip it
+          }
+        }
       }
+    } finally {
+      reader.releaseLock()
+    }
 
-      const data = await res.json()
-      const agentText = data.content ?? data.message ?? 'No response from agent.'
+    return true
+  }, [publicKey, updateMessage])
 
+  /**
+   * Fallback: POST to /api/chat and wait for full response.
+   */
+  const postChat = useCallback(async (
+    chatHistory: { role: 'user' | 'assistant'; content: string }[],
+    placeholderId: string,
+  ): Promise<void> => {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: chatHistory,
+        wallet: publicKey?.toBase58() ?? null,
+      }),
+    })
+
+    if (!res.ok) {
+      throw new Error(`Agent responded with ${res.status}`)
+    }
+
+    const data = await res.json()
+    const agentText = data.content ?? data.message ?? 'No response from agent.'
+
+    updateMessage(placeholderId, { content: agentText })
+
+    // If the response includes a confirmation request, render it
+    if (data.confirmation) {
+      const confirmId = generateId()
       addMessage({
         id: generateId(),
-        role: 'agent',
-        content: agentText,
+        type: 'confirmation',
+        data: {
+          id: confirmId,
+          action: data.confirmation.action ?? 'Transaction',
+          amount: data.confirmation.amount,
+          fee: data.confirmation.fee,
+          recipient: data.confirmation.recipient,
+          serializedTx: data.confirmation.serializedTx,
+          status: 'pending',
+        },
         timestamp: new Date(),
       })
+    }
+  }, [publicKey, addMessage, updateMessage])
 
-      // If the response includes a confirmation request, render it
-      if (data.confirmation) {
-        const confirmId = generateId()
-        addMessage({
-          id: generateId(),
-          type: 'confirmation',
-          data: {
-            id: confirmId,
-            action: data.confirmation.action ?? 'Transaction',
-            amount: data.confirmation.amount,
-            fee: data.confirmation.fee,
-            recipient: data.confirmation.recipient,
-            serializedTx: data.confirmation.serializedTx,
-            status: 'pending',
-          },
-          timestamp: new Date(),
-        })
+  const sendToAgent = useCallback(async (userText: string) => {
+    const chatHistory = messages
+      .filter((m): m is ChatMessage => !isConfirmation(m))
+      .map(m => ({ role: m.role === 'user' ? 'user' as const : 'assistant' as const, content: m.content }))
+
+    chatHistory.push({ role: 'user', content: userText })
+
+    // Create a placeholder message for real-time streaming updates
+    const placeholderId = generateId()
+    addMessage({
+      id: placeholderId,
+      role: 'agent',
+      content: '',
+      timestamp: new Date(),
+    })
+
+    setLoading(true)
+
+    try {
+      // Try streaming first, fall back to POST on failure
+      const streamed = await tryStreamingChat(chatHistory, placeholderId)
+      if (!streamed) {
+        await postChat(chatHistory, placeholderId)
       }
     } catch {
-      addMessage({
-        id: generateId(),
-        role: 'agent',
+      updateMessage(placeholderId, {
         content: 'Sipher agent is offline. Make sure the server is running on /api/chat.',
-        timestamp: new Date(),
         error: true,
       })
     } finally {
       setLoading(false)
     }
-  }, [messages, publicKey, addMessage])
+  }, [messages, publicKey, addMessage, updateMessage, tryStreamingChat, postChat])
 
   const handleSend = useCallback((text?: string) => {
     const msg = (text ?? input).trim()
