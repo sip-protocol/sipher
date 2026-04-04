@@ -158,6 +158,10 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
       )
     }
 
+    if (!parts[2].startsWith('0x') || !parts[3].startsWith('0x')) {
+      throw new Error('Stealth meta-address keys must be 0x-prefixed hex strings')
+    }
+
     const metaAddress = {
       spendingKey: parts[2] as `0x${string}`,
       viewingKey: parts[3] as `0x${string}`,
@@ -170,7 +174,9 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
     stealthPubkey = new PublicKey(solanaAddress)
 
     // Real Pedersen commitment: C = amount*G + blinding*H
-    const { commitment } = commit(BigInt(amountBase))
+    const { commitment, blinding } = commit(BigInt(amountBase))
+    // TODO: encrypt blinding factor into encryptedAmount for recipient to verify commitment
+    void blinding
     amountCommitment = hexToBytes(commitment)
 
     // Ephemeral pubkey: 32-byte ed25519 -> pad to 33 bytes with 0x00 prefix

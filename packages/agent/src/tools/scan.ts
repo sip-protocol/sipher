@@ -80,6 +80,10 @@ export async function executeScan(params: ScanParams): Promise<ScanToolResult> {
     throw new Error('Invalid viewing key format — expected hex string')
   }
 
+  if (viewingPrivateKey.length !== 32) {
+    throw new Error(`Viewing key must be 32 bytes (64 hex chars), got ${viewingPrivateKey.length} bytes`)
+  }
+
   // Convert spending private key to bytes (hex-encoded)
   let spendingPrivateKey: Uint8Array
   try {
@@ -89,6 +93,10 @@ export async function executeScan(params: ScanParams): Promise<ScanToolResult> {
     )
   } catch {
     throw new Error('Invalid spending key format — expected hex string')
+  }
+
+  if (spendingPrivateKey.length !== 32) {
+    throw new Error(`Spending key must be 32 bytes (64 hex chars), got ${spendingPrivateKey.length} bytes`)
   }
 
   const connection = createConnection('devnet')
