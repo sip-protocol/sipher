@@ -238,8 +238,9 @@ export async function* chatStream(
   const conversationMessages = [...messages]
   let fullText = ''
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
+  const MAX_TOOL_ROUNDS = 10
+  let round = 0
+  while (round++ < MAX_TOOL_ROUNDS) {
     const stream = client.messages.stream({
       model,
       max_tokens: maxTokens,
@@ -305,4 +306,7 @@ export async function* chatStream(
     // Reset fullText for next streaming round — tool responses may produce new text
     fullText = ''
   }
+
+  // Exited loop without yielding message_complete — guard triggered
+  yield { type: 'error' as const, message: 'Tool loop exceeded maximum iterations' }
 }

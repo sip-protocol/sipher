@@ -111,6 +111,7 @@ export default function ChatContainer() {
     let accumulated = ''
 
     try {
+      let finished = false
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read()
@@ -126,7 +127,7 @@ export default function ChatContainer() {
           if (!trimmed.startsWith('data: ')) continue
           const payload = trimmed.slice(6)
 
-          if (payload === '[DONE]') break
+          if (payload === '[DONE]') { finished = true; break }
 
           try {
             const event = JSON.parse(payload)
@@ -150,6 +151,7 @@ export default function ChatContainer() {
             // Malformed JSON line — skip it
           }
         }
+        if (finished) break
       }
     } finally {
       reader.releaseLock()

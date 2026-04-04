@@ -56,12 +56,16 @@ app.post('/api/chat/stream', async (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
   res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no')
   res.flushHeaders()
+
+  let aborted = false
+  req.on('close', () => { aborted = true })
 
   try {
     for await (const event of chatStream(messages)) {
       // Check if client disconnected
-      if (res.writableEnded) break
+      if (aborted || res.writableEnded) break
       res.write(`data: ${JSON.stringify(event)}\n\n`)
     }
   } catch (error) {
