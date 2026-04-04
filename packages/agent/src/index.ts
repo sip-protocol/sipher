@@ -60,7 +60,7 @@ app.post('/api/chat/stream', async (req, res) => {
   res.flushHeaders()
 
   let aborted = false
-  req.on('close', () => { aborted = true })
+  res.on('close', () => { aborted = true })
 
   try {
     for await (const event of chatStream(messages)) {
