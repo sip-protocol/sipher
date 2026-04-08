@@ -457,3 +457,103 @@ export function getSessionStats(): SessionStatsResult {
   const row = conn.prepare('SELECT COUNT(*) as count FROM sessions').get() as { count: number }
   return { total: row.count }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scheduled operations
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ScheduledOp {
+  id: string
+  session_id: string
+  action: string
+  params: Record<string, unknown>
+  wallet_signature: string
+  next_exec: number
+  expires_at: number
+  max_exec: number
+  exec_count: number
+  status: string
+  created_at: number
+}
+
+export interface CreateScheduledOpData {
+  id?: string
+  session_id: string
+  action: string
+  params: Record<string, unknown>
+  wallet_signature: string
+  next_exec: number
+  expires_at: number
+  max_exec: number
+}
+
+type ScheduledOpRow = {
+  id: string; session_id: string; action: string; params: string
+  wallet_signature: string; next_exec: number; expires_at: number
+  max_exec: number; exec_count: number; status: string; created_at: number
+}
+
+function parseOpRow(row: ScheduledOpRow): ScheduledOp {
+  return { ...row, params: JSON.parse(row.params) }
+}
+
+export function createScheduledOp(data: CreateScheduledOpData): ScheduledOp {
+  const conn = getDb()
+  const id = data.id ?? randomUUID()
+  const now = Date.now()
+  conn.prepare(`
+    INSERT INTO scheduled_ops
+      (id, session_id, action, params, wallet_signature, next_exec, expires_at, max_exec, exec_count, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'pending', ?)
+  `).run(id, data.session_id, data.action, JSON.stringify(data.params), data.wallet_signature, data.next_exec, data.expires_at, data.max_exec, now)
+  return {
+    id, session_id: data.session_id, action: data.action, params: data.params,
+    wallet_signature: data.wallet_signature, next_exec: data.next_exec,
+    expires_at: data.expires_at, max_exec: data.max_exec, exec_count: 0,
+    status: 'pending', created_at: now,
+  }
+}
+
+export function getScheduledOp(id: string): ScheduledOp | null {
+  const conn = getDb()
+  const row = conn.prepare('SELECT * FROM scheduled_ops WHERE id = ?').get(id) as ScheduledOpRow | undefined
+  return row ? parseOpRow(row) : null
+}
+
+export function getScheduledOpsBySession(sessionId: string, limit = 50): ScheduledOp[] {
+  const conn = getDb()
+  const rows = conn.prepare(
+    'SELECT * FROM scheduled_ops WHERE session_id = ? ORDER BY next_exec ASC LIMIT ?',
+  ).all(sessionId, limit) as ScheduledOpRow[]
+  return rows.map(parseOpRow)
+}
+
+export function getPendingOps(now?: number): ScheduledOp[] {
+  const conn = getDb()
+  const ts = now ?? Date.now()
+  const rows = conn.prepare(
+    "SELECT * FROM scheduled_ops WHERE status = 'pending' AND next_exec <= ? ORDER BY next_exec ASC",
+  ).all(ts) as ScheduledOpRow[]
+  return rows.map(parseOpRow)
+}
+
+export function updateScheduledOp(
+  id: string,
+  updates: { status?: string; exec_count?: number; next_exec?: number },
+): void {
+  const conn = getDb()
+  const sets: string[] = []
+  const values: (string | number)[] = []
+  if (updates.status !== undefined) { sets.push('status = ?'); values.push(updates.status) }
+  if (updates.exec_count !== undefined) { sets.push('exec_count = ?'); values.push(updates.exec_count) }
+  if (updates.next_exec !== undefined) { sets.push('next_exec = ?'); values.push(updates.next_exec) }
+  if (sets.length === 0) return
+  values.push(id)
+  conn.prepare(`UPDATE scheduled_ops SET ${sets.join(', ')} WHERE id = ?`).run(...values)
+}
+
+export function cancelScheduledOp(id: string): void {
+  const conn = getDb()
+  const result = conn.prepare("UPDATE scheduled_ops SET status = 'cancelled' WHERE id = ?").run(id)
+  if (result.changes === 0) throw new Error(`Scheduled op not found: ${id}`)
+}
