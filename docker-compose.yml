@@ -13,6 +13,8 @@ services:
       - API_KEYS=${API_KEYS}
       - ADMIN_API_KEY=${ADMIN_API_KEY}
       - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.mainnet-beta.solana.com}
+      - SIPHER_HELIUS_API_KEY=${SIPHER_HELIUS_API_KEY:-}
+      - RPC_PROVIDER=${RPC_PROVIDER:-generic}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://sipher.sip-protocol.org,https://sip-protocol.org,https://app.sip-protocol.org}
       - REDIS_URL=redis://redis:6379
       - TRUST_PROXY=1

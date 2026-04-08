@@ -13,6 +13,7 @@ export const env = cleanEnv(process.env, {
     default: 'generic',
   }),
   RPC_PROVIDER_API_KEY: str({ default: '' }),
+  SIPHER_HELIUS_API_KEY: str({ default: '' }),
   API_KEYS: str({ default: '' }),
   ADMIN_API_KEY: str({ default: '' }),
   REDIS_URL: str({ default: '' }),
@@ -28,6 +29,18 @@ export const env = cleanEnv(process.env, {
   }),
   SHUTDOWN_TIMEOUT_MS: num({ default: 30000 }),
 })
+
+/**
+ * Resolve the effective API key for the active RPC provider.
+ * When provider is 'helius', SIPHER_HELIUS_API_KEY takes precedence over the
+ * generic RPC_PROVIDER_API_KEY (unless the generic one is explicitly set).
+ */
+export function resolveRpcApiKey(): string {
+  if (env.RPC_PROVIDER === 'helius') {
+    return env.RPC_PROVIDER_API_KEY || env.SIPHER_HELIUS_API_KEY
+  }
+  return env.RPC_PROVIDER_API_KEY
+}
 
 export function logConfigWarnings(logger: { warn: (msg: string) => void }): void {
   if (env.isProduction) {

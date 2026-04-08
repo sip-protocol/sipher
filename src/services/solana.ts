@@ -1,5 +1,5 @@
 import { Connection } from '@solana/web3.js'
-import { env } from '../config.js'
+import { env, resolveRpcApiKey } from '../config.js'
 import { logger } from '../logger.js'
 import {
   createProviderConnection,
@@ -16,7 +16,7 @@ function initPrimary(): { connection: Connection; info: RpcProviderInfo } {
   const result = createProviderConnection({
     provider: resolveProviderType(env.RPC_PROVIDER),
     rpcUrl: env.SOLANA_RPC_URL,
-    apiKey: env.RPC_PROVIDER_API_KEY || undefined,
+    apiKey: resolveRpcApiKey() || undefined,
   })
   primaryConnection = result.connection
   providerInfo = result.info

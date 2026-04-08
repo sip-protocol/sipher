@@ -45,8 +45,8 @@ router.get('/rpc/providers', async (_req: Request, res: Response) => {
       },
       supported: SUPPORTED_PROVIDERS,
       configuration: {
-        env: ['RPC_PROVIDER', 'SOLANA_RPC_URL', 'RPC_PROVIDER_API_KEY'],
-        description: 'Set RPC_PROVIDER to switch providers. Use RPC_PROVIDER_API_KEY for authenticated providers.',
+        env: ['RPC_PROVIDER', 'SOLANA_RPC_URL', 'RPC_PROVIDER_API_KEY', 'SIPHER_HELIUS_API_KEY'],
+        description: 'Set RPC_PROVIDER to switch providers. Use RPC_PROVIDER_API_KEY for authenticated providers, or SIPHER_HELIUS_API_KEY for dedicated Helius access.',
       },
     },
   })

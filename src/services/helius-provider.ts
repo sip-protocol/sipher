@@ -1,4 +1,4 @@
-import { env } from '../config.js'
+import { env, resolveRpcApiKey } from '../config.js'
 
 export interface DASAsset {
   id: string
@@ -45,7 +45,7 @@ export interface DisplayOptions {
 
 function getHeliusRpcUrl(): string | null {
   if (env.RPC_PROVIDER !== 'helius') return null
-  const apiKey = env.RPC_PROVIDER_API_KEY
+  const apiKey = resolveRpcApiKey()
   if (!apiKey) return null
   const base = env.SOLANA_RPC_URL.includes('devnet')
     ? 'https://devnet.helius-rpc.com'
@@ -109,7 +109,7 @@ export async function getAssetsByOwner(
 }
 
 export function isHeliusConfigured(): boolean {
-  return env.RPC_PROVIDER === 'helius' && !!env.RPC_PROVIDER_API_KEY
+  return env.RPC_PROVIDER === 'helius' && !!resolveRpcApiKey()
 }
 
 export class HeliusDASError extends Error {
