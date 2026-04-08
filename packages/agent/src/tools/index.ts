@@ -42,3 +42,6 @@ export type { ThreatCheckParams, ThreatCheckToolResult } from './threat-check.js
 
 export { scheduleSendTool, executeScheduleSend } from './schedule-send.js'
 export type { ScheduleSendParams, ScheduleSendToolResult } from './schedule-send.js'
+
+export { splitSendTool, executeSplitSend } from './split-send.js'
+export type { SplitSendParams, SplitSendToolResult, ChunkInfo } from './split-send.js'
