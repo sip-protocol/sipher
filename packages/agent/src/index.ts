@@ -2,6 +2,21 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import express from 'express'
 import { chat, chatStream, SYSTEM_PROMPT, TOOLS, executeTool } from './agent.js'
+import { getDb } from './db.js'
+import { resolveSession, activeSessionCount, purgeStale } from './session.js'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Database & session initialization
+// ─────────────────────────────────────────────────────────────────────────────
+
+getDb()
+console.log('  Database: SQLite initialized')
+
+// Purge stale in-memory conversations every 5 minutes
+setInterval(() => {
+  const purged = purgeStale()
+  if (purged > 0) console.log(`[session] purged ${purged} stale sessions`)
+}, 5 * 60 * 1000)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Express server — Sipher Agent API
@@ -21,13 +36,19 @@ app.use(express.static(webRoot))
 // ─── Chat endpoint ──────────────────────────────────────────────────────────
 
 app.post('/api/chat', async (req, res) => {
-  const { messages } = req.body
+  const { messages, wallet } = req.body
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     res.status(400).json({
       error: 'messages is required and must be a non-empty array',
     })
     return
+  }
+
+  // Resolve session context when wallet is provided
+  const session = wallet ? resolveSession(wallet) : null
+  if (session) {
+    console.log(`[session] resolved ${session.id.slice(0, 8)}… for ${wallet}`)
   }
 
   try {
@@ -43,13 +64,19 @@ app.post('/api/chat', async (req, res) => {
 // ─── SSE streaming chat endpoint ────────────────────────────────────────────
 
 app.post('/api/chat/stream', async (req, res) => {
-  const { messages } = req.body
+  const { messages, wallet } = req.body
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     res.status(400).json({
       error: 'messages is required and must be a non-empty array',
     })
     return
+  }
+
+  // Resolve session context when wallet is provided
+  const session = wallet ? resolveSession(wallet) : null
+  if (session) {
+    console.log(`[session] resolved ${session.id.slice(0, 8)}… for ${wallet}`)
   }
 
   // SSE headers — keep the connection open for streaming
@@ -107,6 +134,7 @@ app.get('/api/health', (_req, res) => {
     version: '0.1.0',
     tools: TOOLS.map((t) => t.name),
     uptime: process.uptime(),
+    activeSessions: activeSessionCount(),
   })
 })
 
