@@ -87,6 +87,7 @@ vi.mock('@sipher/sdk', async (importOriginal) => {
     }),
     getSignaturesForAddress: vi.fn().mockResolvedValue([]),
     getParsedTransactions: vi.fn().mockResolvedValue([]),
+    getParsedTransaction: vi.fn().mockResolvedValue(null),
   }
 
   return {
@@ -621,31 +622,55 @@ describe('executeSwap', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('executeViewingKey', () => {
-  it('generate: returns correct result shape', async () => {
+  it('generate: returns downloadable blob with real key data', async () => {
     const result = await executeViewingKey({ action: 'generate' })
     expect(result.action).toBe('viewingKey')
     expect(result.keyAction).toBe('generate')
     expect(result.status).toBe('success')
     expect(result.hasDownload).toBe(true)
+    expect(result.downloadData).not.toBeNull()
+    expect(result.downloadData!.filename).toBe('sip-viewing-key.json')
     expect(result.details.txSignature).toBeNull()
+    expect(result.details.viewingKeyHash).toBeTruthy()
+    expect(result.details.viewingKeyHash).toMatch(/^0x[0-9a-f]{64}$/)
     expect(result.message).toContain('Download')
     expect(result.message).toContain('NOT be shown in chat')
   })
 
-  it('export: returns correct result shape with txSignature', async () => {
+  it('generate: blob is valid JSON with key, path, hash fields', async () => {
+    const result = await executeViewingKey({ action: 'generate' })
+    const json = JSON.parse(Buffer.from(result.downloadData!.blob, 'base64').toString('utf-8'))
+    expect(json).toHaveProperty('key')
+    expect(json).toHaveProperty('path')
+    expect(json).toHaveProperty('hash')
+    expect(json.key).toMatch(/^0x[0-9a-f]{64}$/)
+    expect(json.hash).toMatch(/^0x[0-9a-f]{64}$/)
+    expect(json.path).toBe('m/0')
+  })
+
+  it('export: returns transaction-scoped key', async () => {
     const result = await executeViewingKey({ action: 'export', txSignature: 'sig_export_123abc' })
     expect(result.keyAction).toBe('export')
     expect(result.hasDownload).toBe(true)
+    expect(result.downloadData).not.toBeNull()
+    expect(result.downloadData!.filename).toContain('sig_expo')
     expect(result.details.txSignature).toBe('sig_export_123abc')
+    expect(result.details.viewingKeyHash).toMatch(/^0x[0-9a-f]{64}$/)
     expect(result.message).toContain('sig_export_1')
+
+    // Verify the blob contains a derived key with tx path
+    const json = JSON.parse(Buffer.from(result.downloadData!.blob, 'base64').toString('utf-8'))
+    expect(json.path).toContain('tx/sig_export_123abc')
   })
 
-  it('verify: returns correct result shape', async () => {
-    const result = await executeViewingKey({ action: 'verify', txSignature: 'sig_verify_456def' })
-    expect(result.keyAction).toBe('verify')
-    expect(result.hasDownload).toBe(false)
-    expect(result.details.txSignature).toBe('sig_verify_456def')
-    expect(result.details.verified).toBe(true)
+  it('verify: rejects when TX not found', async () => {
+    await expect(
+      executeViewingKey({
+        action: 'verify',
+        txSignature: 'sig_verify_456def',
+        viewingKeyHex: VALID_VIEWING_KEY,
+      })
+    ).rejects.toThrow('Transaction not found: sig_verify_456def')
   })
 
   it('rejects export without txSignature', async () => {
@@ -655,8 +680,18 @@ describe('executeViewingKey', () => {
   })
 
   it('rejects verify without txSignature', async () => {
-    await expect(executeViewingKey({ action: 'verify' })).rejects.toThrow(
+    await expect(
+      executeViewingKey({ action: 'verify', viewingKeyHex: VALID_VIEWING_KEY })
+    ).rejects.toThrow(
       "Transaction signature is required for 'verify' action"
+    )
+  })
+
+  it('rejects verify without viewingKeyHex', async () => {
+    await expect(
+      executeViewingKey({ action: 'verify', txSignature: 'sig_123' })
+    ).rejects.toThrow(
+      "Viewing key hex is required for 'verify' action"
     )
   })
 
