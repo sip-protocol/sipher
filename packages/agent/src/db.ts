@@ -375,3 +375,85 @@ export function markPaymentLinkPaid(id: string, txSignature: string): void {
   conn.prepare('UPDATE payment_links SET status = ?, paid_tx = ? WHERE id = ?')
     .run('paid', txSignature, id)
 }
+
+/** List payment links for a session, newest first. Default limit: 50. */
+export function getPaymentLinksBySession(sessionId: string, limit = 50): PaymentLink[] {
+  const conn = getDb()
+  const rows = conn.prepare(
+    'SELECT * FROM payment_links WHERE session_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?',
+  ).all(sessionId, limit) as Array<{
+    id: string; session_id: string | null; stealth_address: string
+    ephemeral_pubkey: string; amount: number | null; token: string
+    memo: string | null; type: string; invoice_meta: string | null
+    status: string; expires_at: number; paid_tx: string | null; created_at: number
+  }>
+  return rows.map((r) => ({
+    ...r,
+    invoice_meta: r.invoice_meta ? JSON.parse(r.invoice_meta) : null,
+  }))
+}
+
+/** Expire all pending links whose expires_at is in the past. Returns count changed. */
+export function expireStaleLinks(): number {
+  const conn = getDb()
+  const result = conn.prepare(
+    "UPDATE payment_links SET status = 'expired' WHERE status = 'pending' AND expires_at < ?",
+  ).run(Date.now())
+  return result.changes
+}
+
+export interface PaymentLinkStatsResult {
+  total: number
+  pending: number
+  paid: number
+  expired: number
+  cancelled: number
+}
+
+/** Count payment links grouped by status. */
+export function getPaymentLinkStats(): PaymentLinkStatsResult {
+  const conn = getDb()
+  const rows = conn.prepare(
+    'SELECT status, COUNT(*) as count FROM payment_links GROUP BY status',
+  ).all() as Array<{ status: string; count: number }>
+  const stats: PaymentLinkStatsResult = { total: 0, pending: 0, paid: 0, expired: 0, cancelled: 0 }
+  for (const row of rows) {
+    stats.total += row.count
+    if (row.status in stats) {
+      (stats as Record<string, number>)[row.status] = row.count
+    }
+  }
+  return stats
+}
+
+export interface AuditStatsResult {
+  total: number
+  byAction: Record<string, number>
+}
+
+/** Count audit log entries by action within a time window (milliseconds from now). */
+export function getAuditStats(windowMs: number): AuditStatsResult {
+  const conn = getDb()
+  const since = Date.now() - windowMs
+  const rows = conn.prepare(
+    'SELECT action, COUNT(*) as count FROM audit_log WHERE created_at >= ? GROUP BY action',
+  ).all(since) as Array<{ action: string; count: number }>
+  const byAction: Record<string, number> = {}
+  let total = 0
+  for (const row of rows) {
+    byAction[row.action] = row.count
+    total += row.count
+  }
+  return { total, byAction }
+}
+
+export interface SessionStatsResult {
+  total: number
+}
+
+/** Return total session count. */
+export function getSessionStats(): SessionStatsResult {
+  const conn = getDb()
+  const row = conn.prepare('SELECT COUNT(*) as count FROM sessions').get() as { count: number }
+  return { total: row.count }
+}
