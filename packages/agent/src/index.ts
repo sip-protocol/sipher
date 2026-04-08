@@ -2,8 +2,10 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import express from 'express'
 import { chat, chatStream, SYSTEM_PROMPT, TOOLS, executeTool } from './agent.js'
-import { getDb } from './db.js'
+import { getDb, expireStaleLinks } from './db.js'
 import { resolveSession, activeSessionCount, purgeStale } from './session.js'
+import { payRouter } from './routes/pay.js'
+import { adminRouter } from './routes/admin.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Database & session initialization
@@ -16,6 +18,8 @@ console.log('  Database: SQLite initialized')
 setInterval(() => {
   const purged = purgeStale()
   if (purged > 0) console.log(`[session] purged ${purged} stale sessions`)
+  const expired = expireStaleLinks()
+  if (expired > 0) console.log(`[links] expired ${expired} stale payment links`)
 }, 5 * 60 * 1000)
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,6 +30,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const app = express()
 app.use(express.json({ limit: '1mb' }))
+
+// ─── Pay and Admin routes ────────────────────────────────────────────────────
+
+app.use('/pay', payRouter)
+app.use('/admin', adminRouter)
 
 // Serve web chat UI (static files from app/dist)
 // In production: packages/agent/dist/ -> ../../../app/dist
@@ -172,6 +181,8 @@ app.listen(PORT, () => {
   console.log(`  Chat:    POST http://localhost:${PORT}/api/chat`)
   console.log(`  Stream:  POST http://localhost:${PORT}/api/chat/stream`)
   console.log(`  Tools:   http://localhost:${PORT}/api/tools`)
+  console.log(`  Pay:     http://localhost:${PORT}/pay/:id`)
+  console.log(`  Admin:   http://localhost:${PORT}/admin/`)
 })
 
 export { app }

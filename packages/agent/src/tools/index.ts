@@ -27,3 +27,15 @@ export type { HistoryParams, HistoryToolResult } from './history.js'
 
 export { statusTool, executeStatus } from './status.js'
 export type { StatusToolResult } from './status.js'
+
+export { paymentLinkTool, executePaymentLink } from './payment-link.js'
+export type { PaymentLinkParams, PaymentLinkToolResult } from './payment-link.js'
+
+export { invoiceTool, executeInvoice } from './invoice.js'
+export type { InvoiceParams, InvoiceToolResult } from './invoice.js'
+
+export { privacyScoreTool, executePrivacyScore } from './privacy-score.js'
+export type { PrivacyScoreParams, PrivacyScoreToolResult } from './privacy-score.js'
+
+export { threatCheckTool, executeThreatCheck } from './threat-check.js'
+export type { ThreatCheckParams, ThreatCheckToolResult } from './threat-check.js'

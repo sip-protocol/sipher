@@ -68,6 +68,14 @@ vi.mock('../src/tools/index.js', () => {
     executeHistory: makeExecutor(),
     statusTool: makeTool('status'),
     executeStatus: makeExecutor(),
+    paymentLinkTool: makeTool('paymentLink'),
+    executePaymentLink: makeExecutor(),
+    invoiceTool: makeTool('invoice'),
+    executeInvoice: makeExecutor(),
+    privacyScoreTool: makeTool('privacyScore'),
+    executePrivacyScore: makeExecutor(),
+    threatCheckTool: makeTool('threatCheck'),
+    executeThreatCheck: makeExecutor(),
   }
 })
 

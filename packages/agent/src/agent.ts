@@ -20,6 +20,14 @@ import {
   executeHistory,
   statusTool,
   executeStatus,
+  paymentLinkTool,
+  executePaymentLink,
+  invoiceTool,
+  executeInvoice,
+  privacyScoreTool,
+  executePrivacyScore,
+  threatCheckTool,
+  executeThreatCheck,
 } from './tools/index.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,14 +43,17 @@ Users deposit tokens, then you execute private sends, swaps, and refunds.
 Tone: Confident, technical, slightly cypherpunk. Never corporate.
 Never say "I'm just an AI." Speak like a privacy engineer who cares.
 
-Available tools: deposit, send, refund, balance, scan, claim, swap, viewingKey, history, status.
+Available tools: deposit, send, refund, balance, scan, claim, swap, viewingKey, history, status, paymentLink, invoice, privacyScore, threatCheck.
 
 Rules:
 - Every fund-moving operation shows a confirmation before executing
 - Never display full viewing keys in chat — provide download links
 - If vault anonymity set is low, warn the user
 - Always reassure funds are safe when errors occur
-- Be concise — bullet points over paragraphs`
+- Be concise — bullet points over paragraphs
+- Before large sends, run threatCheck on the recipient address
+- Offer privacyScore when users ask about their wallet's exposure
+- Payment links and invoices generate stealth addresses — sender needs no Sipher account`
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool registry
@@ -59,6 +70,10 @@ export const TOOLS: Anthropic.Tool[] = [
   viewingKeyTool,
   historyTool,
   statusTool,
+  paymentLinkTool,
+  invoiceTool,
+  privacyScoreTool,
+  threatCheckTool,
 ]
 
 type ToolExecutor = (params: Record<string, unknown>) => Promise<unknown>
@@ -74,6 +89,10 @@ const TOOL_EXECUTORS: Record<string, ToolExecutor> = {
   viewingKey: (p) => executeViewingKey(p as unknown as Parameters<typeof executeViewingKey>[0]),
   history: (p) => executeHistory(p as unknown as Parameters<typeof executeHistory>[0]),
   status: () => executeStatus(),
+  paymentLink: (p) => executePaymentLink(p as unknown as Parameters<typeof executePaymentLink>[0]),
+  invoice: (p) => executeInvoice(p as unknown as Parameters<typeof executeInvoice>[0]),
+  privacyScore: (p) => executePrivacyScore(p as unknown as Parameters<typeof executePrivacyScore>[0]),
+  threatCheck: (p) => executeThreatCheck(p as unknown as Parameters<typeof executeThreatCheck>[0]),
 }
 
 /**

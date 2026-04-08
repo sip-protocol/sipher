@@ -20,6 +20,14 @@ import {
   executeHistory,
   statusTool,
   executeStatus,
+  paymentLinkTool,
+  executePaymentLink,
+  invoiceTool,
+  executeInvoice,
+  privacyScoreTool,
+  executePrivacyScore,
+  threatCheckTool,
+  executeThreatCheck,
 } from '../src/tools/index.js'
 import { TOOLS, SYSTEM_PROMPT, executeTool } from '../src/agent.js'
 
@@ -105,15 +113,17 @@ describe('tool definitions', () => {
   const allTools = [
     depositTool, sendTool, refundTool, balanceTool, scanTool, claimTool,
     swapTool, viewingKeyTool, historyTool, statusTool,
+    paymentLinkTool, invoiceTool, privacyScoreTool, threatCheckTool,
   ]
   const toolNames = [
     'deposit', 'send', 'refund', 'balance', 'scan', 'claim',
     'swap', 'viewingKey', 'history', 'status',
+    'paymentLink', 'invoice', 'privacyScore', 'threatCheck',
   ]
 
-  it('exports exactly 10 tools', () => {
-    expect(allTools).toHaveLength(10)
-    expect(TOOLS).toHaveLength(10)
+  it('exports exactly 14 tools', () => {
+    expect(allTools).toHaveLength(14)
+    expect(TOOLS).toHaveLength(14)
   })
 
   it('all tools have unique names', () => {
@@ -165,7 +175,7 @@ describe('system prompt', () => {
     expect(SYSTEM_PROMPT).toContain('Plug in. Go private.')
   })
 
-  it('references all 10 tools', () => {
+  it('references all 14 tools', () => {
     expect(SYSTEM_PROMPT).toContain('deposit')
     expect(SYSTEM_PROMPT).toContain('send')
     expect(SYSTEM_PROMPT).toContain('refund')
@@ -176,6 +186,10 @@ describe('system prompt', () => {
     expect(SYSTEM_PROMPT).toContain('viewingKey')
     expect(SYSTEM_PROMPT).toContain('history')
     expect(SYSTEM_PROMPT).toContain('status')
+    expect(SYSTEM_PROMPT).toContain('paymentLink')
+    expect(SYSTEM_PROMPT).toContain('invoice')
+    expect(SYSTEM_PROMPT).toContain('privacyScore')
+    expect(SYSTEM_PROMPT).toContain('threatCheck')
   })
 
   it('includes the confirmation rule for fund-moving operations', () => {
