@@ -39,3 +39,6 @@ export type { PrivacyScoreParams, PrivacyScoreToolResult } from './privacy-score
 
 export { threatCheckTool, executeThreatCheck } from './threat-check.js'
 export type { ThreatCheckParams, ThreatCheckToolResult } from './threat-check.js'
+
+export { scheduleSendTool, executeScheduleSend } from './schedule-send.js'
+export type { ScheduleSendParams, ScheduleSendToolResult } from './schedule-send.js'
