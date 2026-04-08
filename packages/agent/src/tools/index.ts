@@ -45,3 +45,6 @@ export type { ScheduleSendParams, ScheduleSendToolResult } from './schedule-send
 
 export { splitSendTool, executeSplitSend } from './split-send.js'
 export type { SplitSendParams, SplitSendToolResult, ChunkInfo } from './split-send.js'
+
+export { dripTool, executeDrip } from './drip.js'
+export type { DripParams, DripToolResult, DripInfo } from './drip.js'
