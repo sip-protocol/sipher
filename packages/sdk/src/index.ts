@@ -68,3 +68,14 @@ export {
   scanForPayments,
 } from './privacy.js'
 export type { PrivateSendParams, ScanParams } from './privacy.js'
+
+// Jupiter swap helpers
+export {
+  getJupiterQuote,
+  buildSwapTx,
+} from './swap.js'
+export type {
+  JupiterQuote,
+  JupiterRouteLeg,
+  JupiterSwapResponse,
+} from './swap.js'

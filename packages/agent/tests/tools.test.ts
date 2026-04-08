@@ -35,6 +35,43 @@ const VALID_SPENDING_KEY = 'cd'.repeat(32)
 const VALID_VIEWING_KEY = 'ab'.repeat(32)
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Mock fetch globally — Jupiter API calls in swap tool go through native fetch
+// ─────────────────────────────────────────────────────────────────────────────
+
+vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string, opts?: RequestInit) => {
+  // Jupiter quote endpoint (GET)
+  if (typeof url === 'string' && url.includes('/quote')) {
+    return {
+      ok: true,
+      json: async () => ({
+        inputMint: 'So11111111111111111111111111111111111111112',
+        outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        inAmount: '2000000000',
+        outAmount: '300000000',
+        otherAmountThreshold: '297000000',
+        swapMode: 'ExactIn',
+        slippageBps: 50,
+        priceImpactPct: '0.01',
+        routePlan: [{ swapInfo: { ammKey: 'test', label: 'Raydium', inputMint: '', outputMint: '', inAmount: '0', outAmount: '0', feeAmount: '0', feeMint: '' }, percent: 100 }],
+      }),
+    }
+  }
+  // Jupiter swap endpoint (POST)
+  if (opts?.method === 'POST') {
+    return {
+      ok: true,
+      json: async () => ({
+        swapTransaction: 'AQAAAA==',
+        lastValidBlockHeight: 200,
+        prioritizationFeeLamports: 5000,
+        computeUnitLimit: 200000,
+      }),
+    }
+  }
+  return { ok: false, status: 404, text: async () => 'Not found' }
+}))
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Mock @solana/web3.js Connection to prevent real RPC calls in unit tests
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -506,16 +543,17 @@ describe('executeClaim', () => {
 describe('executeSwap', () => {
   const validParams = { amount: 2, fromToken: 'SOL', toToken: 'USDC' }
 
-  it('returns correct result shape', async () => {
+  it('returns correct result shape (preview)', async () => {
     const result = await executeSwap(validParams)
     expect(result.action).toBe('swap')
     expect(result.amount).toBe(2)
     expect(result.fromToken).toBe('SOL')
     expect(result.toToken).toBe('USDC')
-    expect(result.status).toBe('awaiting_quote')
+    expect(result.status).toBe('preview')
     expect(result.serializedTx).toBeNull()
     expect(result.recipient).toBeNull()
-    expect(result.quote.note).toContain('Jupiter')
+    expect(result.quote.estimatedOutput).toBeTruthy()
+    expect(result.privacy.stealthRouted).toBe(false)
   })
 
   it('normalizes tokens to uppercase', async () => {
