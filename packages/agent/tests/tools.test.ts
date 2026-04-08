@@ -93,6 +93,7 @@ vi.mock('@sipher/sdk', async (importOriginal) => {
   return {
     ...actual,
     createConnection: vi.fn().mockReturnValue(mockConnection),
+    getVaultHistory: vi.fn().mockResolvedValue({ events: [], hasMore: false }),
   }
 })
 

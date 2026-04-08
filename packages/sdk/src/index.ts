@@ -69,6 +69,18 @@ export {
 } from './privacy.js'
 export type { PrivateSendParams, ScanParams } from './privacy.js'
 
+// Event parsing
+export {
+  parseVaultEvents,
+  getVaultHistory,
+} from './events.js'
+export type {
+  VaultEventType,
+  VaultEvent,
+  VaultHistoryResult,
+  VaultHistoryOptions,
+} from './events.js'
+
 // Jupiter swap helpers
 export {
   getJupiterQuote,
