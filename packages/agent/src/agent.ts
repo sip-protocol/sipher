@@ -28,6 +28,20 @@ import {
   executePrivacyScore,
   threatCheckTool,
   executeThreatCheck,
+  roundAmountTool,
+  executeRoundAmount,
+  scheduleSendTool,
+  executeScheduleSend,
+  splitSendTool,
+  executeSplitSend,
+  dripTool,
+  executeDrip,
+  recurringTool,
+  executeRecurring,
+  sweepTool,
+  executeSweep,
+  consolidateTool,
+  executeConsolidate,
 } from './tools/index.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -43,7 +57,7 @@ Users deposit tokens, then you execute private sends, swaps, and refunds.
 Tone: Confident, technical, slightly cypherpunk. Never corporate.
 Never say "I'm just an AI." Speak like a privacy engineer who cares.
 
-Available tools: deposit, send, refund, balance, scan, claim, swap, viewingKey, history, status, paymentLink, invoice, privacyScore, threatCheck.
+Available tools: deposit, send, refund, balance, scan, claim, swap, viewingKey, history, status, paymentLink, invoice, privacyScore, threatCheck, roundAmount, scheduleSend, splitSend, drip, recurring, sweep, consolidate.
 
 Rules:
 - Every fund-moving operation shows a confirmation before executing
@@ -53,7 +67,11 @@ Rules:
 - Be concise — bullet points over paragraphs
 - Before large sends, run threatCheck on the recipient address
 - Offer privacyScore when users ask about their wallet's exposure
-- Payment links and invoices generate stealth addresses — sender needs no Sipher account`
+- Payment links and invoices generate stealth addresses — sender needs no Sipher account
+- Scheduled ops (scheduleSend, splitSend, drip, recurring) run via the crank worker — user signs once
+- Suggest splitSend for large amounts and drip for recurring distributions
+- sweep is persistent — runs every 60 seconds until expired
+- consolidate staggers claims to prevent timing analysis`
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool registry
@@ -74,6 +92,13 @@ export const TOOLS: Anthropic.Tool[] = [
   invoiceTool,
   privacyScoreTool,
   threatCheckTool,
+  roundAmountTool,
+  scheduleSendTool,
+  splitSendTool,
+  dripTool,
+  recurringTool,
+  sweepTool,
+  consolidateTool,
 ]
 
 type ToolExecutor = (params: Record<string, unknown>) => Promise<unknown>
@@ -93,6 +118,13 @@ const TOOL_EXECUTORS: Record<string, ToolExecutor> = {
   invoice: (p) => executeInvoice(p as unknown as Parameters<typeof executeInvoice>[0]),
   privacyScore: (p) => executePrivacyScore(p as unknown as Parameters<typeof executePrivacyScore>[0]),
   threatCheck: (p) => executeThreatCheck(p as unknown as Parameters<typeof executeThreatCheck>[0]),
+  roundAmount: (p) => executeRoundAmount(p as unknown as Parameters<typeof executeRoundAmount>[0]),
+  scheduleSend: (p) => executeScheduleSend(p as unknown as Parameters<typeof executeScheduleSend>[0]),
+  splitSend: (p) => executeSplitSend(p as unknown as Parameters<typeof executeSplitSend>[0]),
+  drip: (p) => executeDrip(p as unknown as Parameters<typeof executeDrip>[0]),
+  recurring: (p) => executeRecurring(p as unknown as Parameters<typeof executeRecurring>[0]),
+  sweep: (p) => executeSweep(p as unknown as Parameters<typeof executeSweep>[0]),
+  consolidate: (p) => executeConsolidate(p as unknown as Parameters<typeof executeConsolidate>[0]),
 }
 
 /**

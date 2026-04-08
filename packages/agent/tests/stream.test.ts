@@ -76,6 +76,20 @@ vi.mock('../src/tools/index.js', () => {
     executePrivacyScore: makeExecutor(),
     threatCheckTool: makeTool('threatCheck'),
     executeThreatCheck: makeExecutor(),
+    roundAmountTool: makeTool('roundAmount'),
+    executeRoundAmount: makeExecutor(),
+    scheduleSendTool: makeTool('scheduleSend'),
+    executeScheduleSend: makeExecutor(),
+    splitSendTool: makeTool('splitSend'),
+    executeSplitSend: makeExecutor(),
+    dripTool: makeTool('drip'),
+    executeDrip: makeExecutor(),
+    recurringTool: makeTool('recurring'),
+    executeRecurring: makeExecutor(),
+    sweepTool: makeTool('sweep'),
+    executeSweep: makeExecutor(),
+    consolidateTool: makeTool('consolidate'),
+    executeConsolidate: makeExecutor(),
   }
 })
 

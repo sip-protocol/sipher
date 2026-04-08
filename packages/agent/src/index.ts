@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import express from 'express'
 import { chat, chatStream, SYSTEM_PROMPT, TOOLS, executeTool } from './agent.js'
+import { startCrank } from './crank.js'
 import { getDb, expireStaleLinks } from './db.js'
 import { resolveSession, activeSessionCount, purgeStale } from './session.js'
 import { payRouter } from './routes/pay.js'
@@ -13,6 +14,10 @@ import { adminRouter } from './routes/admin.js'
 
 getDb()
 console.log('  Database: SQLite initialized')
+
+// Start crank worker (60s interval for scheduled operations)
+startCrank((action, params) => executeTool(action, params))
+console.log('  Crank:   60s interval (scheduled ops)')
 
 // Purge stale in-memory conversations every 5 minutes
 setInterval(() => {
