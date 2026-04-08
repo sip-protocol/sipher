@@ -90,15 +90,18 @@ export async function executeConsolidate(
   const session = getOrCreateSession(params.wallet)
   const now = Date.now()
   const claims: ClaimInfo[] = []
+  const minGap = 1 * 3600_000
+  const maxGap = 4 * 3600_000
+  let cumulativeMs = 0
 
   for (let i = 0; i < scanResult.payments.length; i++) {
     const payment = scanResult.payments[i]
 
-    // Stagger: 1-4 hours of cumulative gap between each claim
-    const minGap = 1 * 3600_000
-    const maxGap = 4 * 3600_000
-    const cumulativeDelay = i * (minGap + Math.random() * (maxGap - minGap))
-    const executesAt = now + Math.max(60_000, cumulativeDelay)
+    // Stagger: 1-4 hours between each claim (cumulative, monotonic)
+    if (i > 0) {
+      cumulativeMs += minGap + Math.random() * (maxGap - minGap)
+    }
+    const executesAt = now + Math.max(60_000, cumulativeMs)
 
     const op = createScheduledOp({
       session_id: session.id,
