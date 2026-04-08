@@ -24,6 +24,10 @@ export const DEPOSIT_RECORD_SEED = Buffer.from('deposit_record')
 export const VAULT_TOKEN_SEED = Buffer.from('vault_token')
 export const FEE_TOKEN_SEED = Buffer.from('fee_token')
 
+// SIP Privacy program PDA seeds (must match sip_privacy constants)
+export const SIP_CONFIG_SEED = Buffer.from('config')
+export const SIP_TRANSFER_RECORD_SEED = Buffer.from('transfer_record')
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Default program constants (mirrors on-chain defaults)
 // ─────────────────────────────────────────────────────────────────────────────

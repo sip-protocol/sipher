@@ -1,6 +1,7 @@
 import {
   Connection,
   PublicKey,
+  SystemProgram,
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js'
@@ -12,10 +13,14 @@ import { sha256 as sha256Hash } from '@noble/hashes/sha256'
 import { sha512 } from '@noble/hashes/sha512'
 import {
   SIPHER_VAULT_PROGRAM_ID,
+  SIP_PRIVACY_PROGRAM_ID,
   VAULT_CONFIG_SEED,
   DEPOSIT_RECORD_SEED,
   VAULT_TOKEN_SEED,
   FEE_TOKEN_SEED,
+  SIP_CONFIG_SEED,
+  SIP_TRANSFER_RECORD_SEED,
+  ANCHOR_DISCRIMINATOR_SIZE,
 } from './config.js'
 import { anchorDiscriminator, deriveVaultConfigPDA } from './vault.js'
 import type { WithdrawResult, ScanResult, StealthPayment } from './types.js'
@@ -57,14 +62,18 @@ export interface PrivateSendParams {
  * to a stealth address, with a Pedersen commitment hiding the amount.
  *
  * Accounts (order matches WithdrawPrivate context in lib.rs):
- *   0. config           (ro)   — VaultConfig PDA
- *   1. deposit_record   (mut)  — DepositRecord PDA
- *   2. vault_token      (mut)  — Vault token PDA
- *   3. fee_token        (mut)  — Fee token PDA
- *   4. stealth_token    (mut)  — Stealth recipient's token account
- *   5. token_mint       (ro)   — SPL token mint
- *   6. depositor        (mut, signer)
- *   7. token_program    (ro)
+ *   0. config              (ro)   — VaultConfig PDA
+ *   1. deposit_record      (mut)  — DepositRecord PDA
+ *   2. vault_token         (mut)  — Vault token PDA
+ *   3. fee_token           (mut)  — Fee token PDA
+ *   4. stealth_token       (mut)  — Stealth recipient's token account
+ *   5. token_mint          (ro)   — SPL token mint
+ *   6. depositor           (mut, signer)
+ *   7. token_program       (ro)
+ *   8. sip_config          (mut)  — SIP Privacy Config PDA (for CPI)
+ *   9. sip_transfer_record (mut)  — TransferRecord PDA (init by CPI)
+ *  10. sip_privacy_program (ro)   — SIP Privacy program
+ *  11. system_program      (ro)   — System program (for CPI init)
  *
  * Instruction data layout:
  *   discriminator(8) + amount(u64, 8) + amount_commitment([u8;33], 33)
@@ -103,7 +112,7 @@ export async function buildPrivateSendTx(
     throw new Error(`viewingKeyHash must be 32 bytes, got ${viewingKeyHash.length}`)
   }
 
-  // Derive PDAs
+  // Derive sipher_vault PDAs
   const [configPDA] = deriveVaultConfigPDA(programId)
   const [depositRecordPDA] = PublicKey.findProgramAddressSync(
     [DEPOSIT_RECORD_SEED, depositor.toBuffer(), tokenMint.toBuffer()],
@@ -118,13 +127,40 @@ export async function buildPrivateSendTx(
     programId
   )
 
-  // Fetch config to compute fee
-  const configInfo = await connection.getAccountInfo(configPDA)
+  // Derive sip_privacy PDAs for CPI (create_transfer_announcement)
+  const [sipConfigPDA] = PublicKey.findProgramAddressSync(
+    [SIP_CONFIG_SEED],
+    SIP_PRIVACY_PROGRAM_ID
+  )
+
+  // Fetch both configs in parallel: vault (for fee) + sip_privacy (for total_transfers)
+  const [configInfo, sipConfigInfo] = await Promise.all([
+    connection.getAccountInfo(configPDA),
+    connection.getAccountInfo(sipConfigPDA),
+  ])
+
   let feeBps = 10 // fallback to default
   if (configInfo) {
     // fee_bps is at offset 8 (discriminator) + 32 (authority) = 40, u16 LE
     feeBps = configInfo.data.readUInt16LE(40)
   }
+
+  // Read total_transfers from sip_privacy Config to derive the TransferRecord PDA.
+  // SIP Privacy Config layout (after 8-byte disc): authority(32) + fee_bps(2) + paused(1) + total_transfers(u64, 8)
+  let sipTotalTransfers = 0n
+  if (sipConfigInfo) {
+    sipTotalTransfers = sipConfigInfo.data.readBigUInt64LE(
+      ANCHOR_DISCRIMINATOR_SIZE + 32 + 2 + 1
+    )
+  }
+
+  // TransferRecord PDA: [b"transfer_record", sender, total_transfers.to_le_bytes()]
+  const totalTransfersBuffer = Buffer.alloc(8)
+  totalTransfersBuffer.writeBigUInt64LE(sipTotalTransfers)
+  const [sipTransferRecordPDA] = PublicKey.findProgramAddressSync(
+    [SIP_TRANSFER_RECORD_SEED, depositor.toBuffer(), totalTransfersBuffer],
+    SIP_PRIVACY_PROGRAM_ID
+  )
 
   const feeAmount = (amount * BigInt(feeBps)) / 10_000n
   const netAmount = amount - feeAmount
@@ -175,6 +211,7 @@ export async function buildPrivateSendTx(
   const ix = new TransactionInstruction({
     programId,
     keys: [
+      // Original WithdrawPrivate accounts
       { pubkey: configPDA, isSigner: false, isWritable: false },
       { pubkey: depositRecordPDA, isSigner: false, isWritable: true },
       { pubkey: vaultTokenPDA, isSigner: false, isWritable: true },
@@ -183,6 +220,11 @@ export async function buildPrivateSendTx(
       { pubkey: tokenMint, isSigner: false, isWritable: false },
       { pubkey: depositor, isSigner: true, isWritable: true },
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      // CPI accounts for sip_privacy::create_transfer_announcement
+      { pubkey: sipConfigPDA, isSigner: false, isWritable: true },
+      { pubkey: sipTransferRecordPDA, isSigner: false, isWritable: true },
+      { pubkey: SIP_PRIVACY_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
     data,
   })
