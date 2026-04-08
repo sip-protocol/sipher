@@ -89,6 +89,9 @@ export async function executePaymentLink(
   const expiresIn = Math.min(Math.max(params.expiresInMinutes ?? 60, 1), 10080)
   const expiresAt = Date.now() + expiresIn * 60 * 1000
 
+  // Phase 1: ephemeral stealth address from random keys. The recipient claims
+  // via the payment page flow, not by deriving the stealth private key.
+  // Phase 2 will use the wallet's actual spending/viewing keypair.
   const dummyKey = '0x' + randomBytes(32).toString('hex') as `0x${string}`
   const stealth = generateEd25519StealthAddress({
     spendingKey: dummyKey,

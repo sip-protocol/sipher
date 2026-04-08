@@ -94,6 +94,8 @@ export async function executeInvoice(
   const expiresIn = Math.min(Math.max(params.expiresInMinutes ?? 10080, 1), 43200)
   const expiresAt = Date.now() + expiresIn * 60 * 1000
 
+  // Phase 1: ephemeral stealth address from random keys (same as paymentLink).
+  // Phase 2 will use the wallet's actual spending/viewing keypair.
   const dummyKey = '0x' + randomBytes(32).toString('hex') as `0x${string}`
   const stealth = generateEd25519StealthAddress({
     spendingKey: dummyKey,

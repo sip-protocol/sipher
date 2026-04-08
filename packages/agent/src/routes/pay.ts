@@ -33,8 +33,8 @@ payRouter.get('/:id', (req, res) => {
 payRouter.post('/:id/confirm', (req, res) => {
   const { txSignature } = req.body
 
-  if (!txSignature || typeof txSignature !== 'string') {
-    res.status(400).json({ error: 'txSignature is required' })
+  if (!txSignature || typeof txSignature !== 'string' || txSignature.length > 200) {
+    res.status(400).json({ error: 'txSignature is required and must be a valid transaction signature' })
     return
   }
 
@@ -47,6 +47,11 @@ payRouter.post('/:id/confirm', (req, res) => {
 
   if (link.status === 'paid') {
     res.status(409).json({ error: 'Payment link already paid' })
+    return
+  }
+
+  if (link.status === 'expired' || link.expires_at < Date.now()) {
+    res.status(410).json({ error: 'Payment link has expired' })
     return
   }
 

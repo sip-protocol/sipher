@@ -81,7 +81,7 @@ adminRouter.post('/login', (req, res) => {
   adminTokens.add(token)
   res.setHeader(
     'Set-Cookie',
-    `${COOKIE_NAME}=${token}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=${TWENTY_FOUR_HOURS / 1000}`,
+    `${COOKIE_NAME}=${token}; Path=/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=${TWENTY_FOUR_HOURS / 1000}`,
   )
   res.redirect('/admin/dashboard')
 })

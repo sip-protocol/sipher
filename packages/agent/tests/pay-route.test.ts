@@ -137,6 +137,21 @@ describe('POST /pay/:id/confirm', () => {
     expect(res.status).toBe(400)
   })
 
+  it('rejects confirm on expired link', async () => {
+    createPaymentLink({
+      id: 'expired-confirm',
+      stealth_address: 'StEaLtH1111',
+      ephemeral_pubkey: '0xeph',
+      expires_at: Date.now() - 1000,
+    })
+    const app = createApp()
+    const res = await supertest(app)
+      .post('/pay/expired-confirm/confirm')
+      .send({ txSignature: 'tx-hash' })
+    expect(res.status).toBe(410)
+    expect(res.body.error).toMatch(/expired/i)
+  })
+
   it('returns 404 for non-existent link', async () => {
     const app = createApp()
     const res = await supertest(app)
