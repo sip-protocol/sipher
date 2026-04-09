@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { adaptTool, adaptTools } from '../../packages/agent/src/pi/tool-adapter.js'
-import { depositTool } from '../../packages/agent/src/tools/deposit.js'
-import { balanceTool } from '../../packages/agent/src/tools/balance.js'
+import { adaptTool, adaptTools } from '../../src/pi/tool-adapter.js'
+import { depositTool } from '../../src/tools/deposit.js'
+import { balanceTool } from '../../src/tools/balance.js'
 
 describe('adaptTool', () => {
   it('converts Anthropic tool schema to Pi Tool', () => {
