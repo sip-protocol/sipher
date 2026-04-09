@@ -17,6 +17,7 @@
     "express": "^5.0.0",
     "ioredis": "^5.9.2",
     "jsonwebtoken": "^9.0.3",
+    "twitter-api-v2": "^1.29.0",
     "ulid": "^3.0.2",
     "ws": "^8.18.0"
   },
