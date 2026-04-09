@@ -7,7 +7,10 @@ export interface PoolEntry {
 export interface AgentPoolOptions {
   maxSize: number
   idleTimeoutMs: number
+  maxMessages?: number
 }
+
+const DEFAULT_MAX_MESSAGES = 100
 
 export class AgentPool {
   private agents = new Map<string, PoolEntry>()
@@ -15,6 +18,16 @@ export class AgentPool {
 
   constructor(options: AgentPoolOptions) {
     this.options = options
+  }
+
+  /** Append messages to a pool entry, capping at maxMessages to prevent unbounded growth. */
+  appendMessages(wallet: string, msgs: PoolEntry['messages']): void {
+    const entry = this.getOrCreate(wallet)
+    const cap = this.options.maxMessages ?? DEFAULT_MAX_MESSAGES
+    entry.messages.push(...msgs)
+    if (entry.messages.length > cap) {
+      entry.messages = entry.messages.slice(-cap)
+    }
   }
 
   getOrCreate(wallet: string): PoolEntry {
