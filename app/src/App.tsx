@@ -11,6 +11,7 @@ import CommandBar from './components/CommandBar'
 import StreamView from './views/StreamView'
 import VaultView from './views/VaultView'
 import HeraldView from './views/HeraldView'
+import SquadView from './views/SquadView'
 import { useAuth } from './hooks/useAuth'
 import { useSSE } from './hooks/useSSE'
 
@@ -39,9 +40,7 @@ export default function App() {
               {activeView === 'stream' && <StreamView events={events} token={token} />}
               {activeView === 'vault' && <VaultView token={token} />}
               {activeView === 'herald' && <HeraldView token={token} />}
-              {activeView === 'squad' && (
-                <div className="text-[#71717A] text-sm text-center py-20">Squad — coming in Task 8</div>
-              )}
+              {activeView === 'squad' && <SquadView token={token} />}
             </main>
             <div className="shrink-0 bg-[#0A0A0B] border-t border-[#1E1E22] pb-[env(safe-area-inset-bottom)]">
               <CommandBar token={token} />
