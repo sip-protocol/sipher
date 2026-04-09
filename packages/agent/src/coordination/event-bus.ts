@@ -27,6 +27,10 @@ export class EventBus {
     this.emitter.on(EventBus.WILDCARD, handler)
   }
 
+  offAny(handler: EventHandler): void {
+    this.emitter.removeListener(EventBus.WILDCARD, handler)
+  }
+
   emit(event: GuardianEvent): void {
     this.emitter.emit(event.type, event)
     this.emitter.emit(EventBus.WILDCARD, event)
