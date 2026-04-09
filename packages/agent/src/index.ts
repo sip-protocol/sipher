@@ -2,8 +2,8 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import express, { type Request, type Response } from 'express'
 import { chat, chatStream, SYSTEM_PROMPT, TOOLS, executeTool } from './agent.js'
-import { startCrank } from './crank.js'
-import { getDb, expireStaleLinks, getActivity } from './db.js'
+import { startCrank, stopCrank } from './crank.js'
+import { getDb, closeDb, expireStaleLinks, getActivity } from './db.js'
 import { resolveSession, activeSessionCount, purgeStale } from './session.js'
 import { payRouter } from './routes/pay.js'
 import { adminRouter } from './routes/admin.js'
@@ -41,7 +41,7 @@ setInterval(() => {
 }, 5 * 60 * 1000).unref()
 
 // Start crank worker (60s interval for scheduled operations)
-startCrank((action, params) => executeTool(action, params))
+const crankTimer = startCrank((action, params) => executeTool(action, params))
 console.log('  Crank:   60s interval (scheduled ops)')
 
 // Initialize and start SENTINEL (blockchain monitor — no LLM, pure event emitter)
@@ -121,7 +121,8 @@ app.post('/api/chat', verifyJwt, async (req, res) => {
     return
   }
 
-  const { messages, wallet } = req.body
+  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const { messages } = req.body
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     res.status(400).json({
@@ -130,10 +131,10 @@ app.post('/api/chat', verifyJwt, async (req, res) => {
     return
   }
 
-  // Resolve session context when wallet is provided
-  const session = wallet ? resolveSession(wallet) : null
+  // Resolve session context from JWT-authenticated wallet
+  const session = resolveSession(wallet)
   if (session) {
-    console.log(`[session] resolved ${session.id.slice(0, 8)}… for ${wallet}`)
+    console.log(`[session] resolved ${session.id.slice(0, 8)}… for ${wallet.slice(0, 4)}…${wallet.slice(-4)}`)
   }
 
   try {
@@ -154,7 +155,8 @@ app.post('/api/chat/stream', verifyJwt, async (req, res) => {
     return
   }
 
-  const { messages, wallet } = req.body
+  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const { messages } = req.body
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     res.status(400).json({
@@ -163,10 +165,10 @@ app.post('/api/chat/stream', verifyJwt, async (req, res) => {
     return
   }
 
-  // Resolve session context when wallet is provided
-  const session = wallet ? resolveSession(wallet) : null
+  // Resolve session context from JWT-authenticated wallet
+  const session = resolveSession(wallet)
   if (session) {
-    console.log(`[session] resolved ${session.id.slice(0, 8)}… for ${wallet}`)
+    console.log(`[session] resolved ${session.id.slice(0, 8)}… for ${wallet.slice(0, 4)}…${wallet.slice(-4)}`)
   }
 
   // SSE headers — keep the connection open for streaming
@@ -202,9 +204,19 @@ app.post('/api/chat/stream', verifyJwt, async (req, res) => {
 
 // ─── Tool execution endpoint (for direct tool calls from the UI) ────────────
 
+// Fund-moving tools blocked from direct execution — must go through /api/command confirmation flow
+const BLOCKED_TOOLS = new Set(['send', 'deposit', 'refund', 'sweep', 'consolidate', 'swap', 'splitSend', 'scheduleSend', 'drip', 'recurring'])
+
 app.post('/api/tools/:name', verifyJwt, async (req, res) => {
   const { name } = req.params
-  const input = req.body
+
+  if (BLOCKED_TOOLS.has(name)) {
+    res.status(403).json({ success: false, error: `tool '${name}' requires confirmation flow — use /api/command instead` })
+    return
+  }
+
+  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const input = { ...req.body, wallet }
 
   try {
     const result = await executeTool(name, input)
@@ -256,7 +268,7 @@ try {
 
 // ─── Start server ───────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Sipher agent listening on port ${PORT}`)
   console.log(`  Health:  http://localhost:${PORT}/api/health`)
   console.log(`  Chat:    POST http://localhost:${PORT}/api/chat`)
@@ -283,5 +295,30 @@ app.listen(PORT, () => {
     })
   }
 })
+
+// ─── Graceful shutdown ─────────────────────────────────────────────────────
+
+function shutdown(signal: string) {
+  console.log(`[shutdown] ${signal} received — shutting down gracefully`)
+
+  // Stop accepting new connections
+  sentinel.stop()
+  stopCrank(crankTimer)
+
+  server.close(() => {
+    closeDb()
+    console.log('[shutdown] complete')
+    process.exit(0)
+  })
+
+  // Force exit after 10s if graceful shutdown hangs
+  setTimeout(() => {
+    console.error('[shutdown] forced exit after timeout')
+    process.exit(1)
+  }, 10_000).unref()
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))
 
 export { app }
