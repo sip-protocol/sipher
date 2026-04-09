@@ -5,10 +5,12 @@ import { apiFetch } from '../api/client'
 
 export default function StreamView({ events, token }: { events: ActivityEvent[], token: string | null }) {
   const [history, setHistory] = useState<ActivityEvent[]>([])
+  const [loadError, setLoadError] = useState(false)
 
   // Load initial history on mount
   useEffect(() => {
     if (!token) return
+    setLoadError(false)
     apiFetch<{ activity: any[] }>('/api/activity', { token })
       .then(data => {
         setHistory((data.activity ?? []).map((a: any) => ({
@@ -20,7 +22,7 @@ export default function StreamView({ events, token }: { events: ActivityEvent[],
           timestamp: a.created_at,
         })))
       })
-      .catch(() => {})
+      .catch(() => { setLoadError(true) })
   }, [token])
 
   const allEvents = [...events, ...history]
@@ -36,6 +38,11 @@ export default function StreamView({ events, token }: { events: ActivityEvent[],
 
   return (
     <div className="flex flex-col gap-3">
+      {loadError && (
+        <div className="text-[#71717A] text-xs font-mono bg-[#141416] border border-[#1E1E22] rounded-lg px-3 py-2 mb-3">
+          Could not load activity history
+        </div>
+      )}
       {allEvents.map(event => (
         <ActivityEntry
           key={event.id}

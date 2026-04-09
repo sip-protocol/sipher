@@ -12,17 +12,22 @@ export interface ActivityEvent {
 
 export function useSSE(token: string | null) {
   const [events, setEvents] = useState<ActivityEvent[]>([])
+  const [connected, setConnected] = useState(false)
   const sourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
-    if (!token) return
+    if (!token) { setConnected(false); return }
     const source = connectSSE(token, (e) => {
       const data = JSON.parse(e.data) as ActivityEvent
       setEvents(prev => [data, ...prev].slice(0, 200))
     })
     sourceRef.current = source
-    return () => { source.close(); sourceRef.current = null }
+    setConnected(true)
+
+    source.onerror = () => setConnected(false)
+
+    return () => { source.close(); sourceRef.current = null; setConnected(false) }
   }, [token])
 
-  return { events, connected: !!sourceRef.current }
+  return { events, connected }
 }

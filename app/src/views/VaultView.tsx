@@ -133,21 +133,23 @@ const MOCK_ACTIVITY: ActivityRow[] = [
 export default function VaultView({ token }: { token: string | null }) {
   const [data, setData] = useState<VaultData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     if (!token) return
     setLoading(true)
+    setLoadError(false)
     apiFetch<VaultData>('/api/vault', { token })
       .then(setData)
-      .catch(() => {})
+      .catch(() => { setLoadError(true) })
       .finally(() => setLoading(false))
   }, [token])
 
-  // Prefer real data when available, fall back to mocks when API hasn't returned yet
-  const balance = data?.balance ?? MOCK_BALANCE
-  const usd = data?.usd ?? MOCK_USD
-  const fees = data?.fees ?? MOCK_FEES
-  const pendingOps = data?.pending_ops ?? MOCK_PENDING
+  // Only use mock data when API explicitly provides these fields
+  const balance = data?.balance ?? null
+  const usd = data?.usd ?? null
+  const fees = data?.fees ?? null
+  const pendingOps = data?.pending_ops ?? []
   const activity = data?.activity?.length ? data.activity : MOCK_ACTIVITY
   const wallet = data?.wallet ?? null
 
@@ -159,6 +161,12 @@ export default function VaultView({ token }: { token: string | null }) {
   return (
     <div className="flex flex-col gap-6 pb-2">
 
+      {loadError && (
+        <div className="text-[#71717A] text-xs font-mono bg-[#141416] border border-[#1E1E22] rounded-lg px-3 py-2">
+          Could not load vault data
+        </div>
+      )}
+
       {/* ── Balance Card ───────────────────────────────────────────────────── */}
       <section className="bg-[#141416] border border-[#1E1E22] rounded-lg p-5">
         <h2 className="text-[11px] font-semibold text-[#71717A] tracking-widest uppercase mb-4">
@@ -166,9 +174,9 @@ export default function VaultView({ token }: { token: string | null }) {
         </h2>
         <div className="flex items-baseline gap-3 mb-5">
           <span className="text-[32px] font-mono font-bold text-[#F5F5F5] tracking-tight">
-            {balance} SOL
+            {balance !== null ? `${balance} SOL` : '\u2014 SOL'}
           </span>
-          <span className="text-sm font-mono text-[#71717A]">≈ {usd}</span>
+          <span className="text-sm font-mono text-[#71717A]">{usd !== null ? `\u2248 ${usd}` : '\u2248 \u2014'}</span>
         </div>
         {wallet && (
           <p className="font-mono text-[11px] text-[#71717A] mb-4">
@@ -195,6 +203,10 @@ export default function VaultView({ token }: { token: string | null }) {
         {loading ? (
           <div className="bg-[#141416] border border-[#1E1E22] rounded-lg p-3.5">
             <span className="text-[#71717A] text-xs font-mono">Loading...</span>
+          </div>
+        ) : pendingOps.length === 0 ? (
+          <div className="bg-[#141416] border border-[#1E1E22] rounded-lg p-3.5">
+            <span className="text-[#71717A] text-xs font-mono">No pending operations</span>
           </div>
         ) : (
           pendingOps.map(op => (
@@ -264,7 +276,7 @@ export default function VaultView({ token }: { token: string | null }) {
       <div className="text-center pb-1">
         <p className="text-xs font-mono text-[#71717A]/60">
           Fees collected:{' '}
-          {realFeeCount !== null ? `${realFeeCount} events` : `${fees} SOL`}{' '}
+          {realFeeCount !== null ? `${realFeeCount} events` : fees !== null ? `${fees} SOL` : '\u2014 SOL'}{' '}
           (10 bps)
         </p>
       </div>
