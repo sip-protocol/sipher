@@ -12,29 +12,40 @@ export function getPendingPosts(): Array<Record<string, unknown>> {
 /**
  * Get posts ready to publish: approved posts + auto-approved if enabled.
  * Returns approved posts where scheduled_at is NULL or <= now, or auto-approved pending posts.
+ *
+ * Auto-approve uses a transaction with a CAS guard (WHERE status = 'pending')
+ * to prevent TOCTOU races when multiple callers invoke this concurrently.
  */
 export function getReadyToPublish(): Array<Record<string, unknown>> {
   const db = getDb()
+
+  // Get already-approved posts
   const approved = db.prepare(
     "SELECT * FROM herald_queue WHERE status = 'approved' AND (scheduled_at IS NULL OR scheduled_at <= ?) ORDER BY created_at ASC"
   ).all(new Date().toISOString()) as Array<Record<string, unknown>>
 
-  if (process.env.HERALD_AUTO_APPROVE_POSTS === 'true') {
-    const timeoutSec = Number(process.env.HERALD_AUTO_APPROVE_TIMEOUT ?? '1800')
-    const cutoff = new Date(Date.now() - timeoutSec * 1000).toISOString()
-    const autoApprove = db.prepare(
+  if (process.env.HERALD_AUTO_APPROVE_POSTS !== 'true') return approved
+
+  const timeoutSec = Number(process.env.HERALD_AUTO_APPROVE_TIMEOUT ?? '1800')
+  const cutoff = new Date(Date.now() - timeoutSec * 1000).toISOString()
+  const now = new Date().toISOString()
+
+  // Atomically select-and-update in a transaction to prevent race conditions
+  const autoApproved = db.transaction(() => {
+    const pending = db.prepare(
       "SELECT * FROM herald_queue WHERE status = 'pending' AND created_at <= ? ORDER BY created_at ASC"
     ).all(cutoff) as Array<Record<string, unknown>>
 
-    // Auto-approve each pending post that's old enough
-    for (const post of autoApprove) {
-      approvePost(post.id as string, 'auto')
+    for (const post of pending) {
+      db.prepare(
+        'UPDATE herald_queue SET status = ?, approved_by = ?, approved_at = ? WHERE id = ? AND status = ?'
+      ).run('approved', 'auto', now, post.id, 'pending')
     }
 
-    return [...approved, ...autoApprove]
-  }
+    return pending
+  })()
 
-  return approved
+  return [...approved, ...autoApproved]
 }
 
 /**
