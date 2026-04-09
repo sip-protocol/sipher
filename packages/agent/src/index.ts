@@ -7,6 +7,15 @@ import { getDb, expireStaleLinks } from './db.js'
 import { resolveSession, activeSessionCount, purgeStale } from './session.js'
 import { payRouter } from './routes/pay.js'
 import { adminRouter } from './routes/admin.js'
+import { authRouter, verifyJwt } from './routes/auth.js'
+import { streamHandler } from './routes/stream.js'
+import { commandHandler } from './routes/command.js'
+import { confirmRouter } from './routes/confirm.js'
+import { vaultRouter } from './routes/vault-api.js'
+import { squadRouter } from './routes/squad-api.js'
+import { guardianBus } from './coordination/event-bus.js'
+import { attachLogger } from './coordination/activity-logger.js'
+import { AgentPool } from './agents/pool.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Database & session initialization
@@ -14,6 +23,20 @@ import { adminRouter } from './routes/admin.js'
 
 getDb()
 console.log('  Database: SQLite initialized')
+
+// Wire EventBus → ActivityLogger (persists events to DB)
+attachLogger(guardianBus)
+console.log('  EventBus: guardianBus + activity logger attached')
+
+// Initialize AgentPool (max 100 agents, 30 min idle timeout)
+const agentPool = new AgentPool({ maxSize: 100, idleTimeoutMs: 30 * 60 * 1000 })
+console.log('  AgentPool: initialized (max=100, idle=30m)')
+
+// Evict idle agents every 5 minutes
+setInterval(() => {
+  const evicted = agentPool.evictIdle()
+  if (evicted > 0) console.log(`[pool] evicted ${evicted} idle agent(s)`)
+}, 5 * 60 * 1000).unref()
 
 // Start crank worker (60s interval for scheduled operations)
 startCrank((action, params) => executeTool(action, params))
@@ -40,6 +63,26 @@ app.use(express.json({ limit: '1mb' }))
 
 app.use('/pay', payRouter)
 app.use('/admin', adminRouter)
+
+// ─── Phase 2 — Guardian Command infrastructure ───────────────────────────────
+
+// Auth (nonce + JWT verify) — no auth required on these two
+app.use('/api/auth', authRouter)
+
+// Activity SSE stream — JWT required (EventSource passes ?token=)
+app.get('/api/stream', verifyJwt, streamHandler)
+
+// Command bar → SIPHER agent — JWT required
+app.post('/api/command', verifyJwt, commandHandler)
+
+// Fund-movement confirmation resolution — JWT required
+app.use('/api/confirm', verifyJwt, confirmRouter)
+
+// Vault activity feed (per-wallet) — JWT required
+app.use('/api/vault', verifyJwt, vaultRouter)
+
+// Squad dashboard + kill switch — admin auth handled by squad route internally
+app.use('/api/squad', squadRouter)
 
 // Serve web chat UI (static files from app/dist)
 // In production: packages/agent/dist/ -> ../../../app/dist
@@ -188,6 +231,12 @@ app.listen(PORT, () => {
   console.log(`  Tools:   http://localhost:${PORT}/api/tools`)
   console.log(`  Pay:     http://localhost:${PORT}/pay/:id`)
   console.log(`  Admin:   http://localhost:${PORT}/admin/`)
+  console.log(`  Auth:    POST http://localhost:${PORT}/api/auth/nonce|verify`)
+  console.log(`  SSE:     GET  http://localhost:${PORT}/api/stream`)
+  console.log(`  Command: POST http://localhost:${PORT}/api/command`)
+  console.log(`  Confirm: POST http://localhost:${PORT}/api/confirm/:id`)
+  console.log(`  Vault:   GET  http://localhost:${PORT}/api/vault`)
+  console.log(`  Squad:   http://localhost:${PORT}/api/squad`)
 })
 
 export { app }
