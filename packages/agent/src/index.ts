@@ -17,6 +17,7 @@ import { heraldRouter } from './routes/herald-api.js'
 import { guardianBus } from './coordination/event-bus.js'
 import { attachLogger } from './coordination/activity-logger.js'
 import { AgentPool } from './agents/pool.js'
+import { SentinelWorker } from './sentinel/sentinel.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Database & session initialization
@@ -42,6 +43,11 @@ setInterval(() => {
 // Start crank worker (60s interval for scheduled operations)
 startCrank((action, params) => executeTool(action, params))
 console.log('  Crank:   60s interval (scheduled ops)')
+
+// Initialize and start SENTINEL (blockchain monitor — no LLM, pure event emitter)
+const sentinel = new SentinelWorker()
+sentinel.start()
+console.log('  SENTINEL: started (blockchain monitor, no wallets yet)')
 
 // Purge stale in-memory conversations every 5 minutes
 setInterval(() => {
