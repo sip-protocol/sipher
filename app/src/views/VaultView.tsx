@@ -18,6 +18,11 @@ interface ActivityRow {
 interface VaultData {
   wallet: string
   activity: ActivityRow[]
+  // TODO: Vault API should be extended to return balance, usd, pending_ops, and fees
+  balance?: string
+  usd?: string
+  fees?: string
+  pending_ops?: Array<{ id: string; label: string; detail: string; nextExecSec: number }>
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -138,12 +143,16 @@ export default function VaultView({ token }: { token: string | null }) {
       .finally(() => setLoading(false))
   }, [token])
 
-  // Prefer real activity if available and non-empty, else fall back to mock
+  // Prefer real data when available, fall back to mocks when API hasn't returned yet
+  const balance = data?.balance ?? MOCK_BALANCE
+  const usd = data?.usd ?? MOCK_USD
+  const fees = data?.fees ?? MOCK_FEES
+  const pendingOps = data?.pending_ops ?? MOCK_PENDING
   const activity = data?.activity?.length ? data.activity : MOCK_ACTIVITY
   const wallet = data?.wallet ?? null
 
-  // Derive fee from real activity if possible (count deposit/refund events)
-  const realFees = data?.activity?.length
+  // Derive fee display from real activity if possible (count fee events)
+  const realFeeCount = data?.activity?.length
     ? data.activity.filter(a => a.type?.includes('fee') || a.agent === 'fee').length
     : null
 
@@ -157,9 +166,9 @@ export default function VaultView({ token }: { token: string | null }) {
         </h2>
         <div className="flex items-baseline gap-3 mb-5">
           <span className="text-[32px] font-mono font-bold text-[#F5F5F5] tracking-tight">
-            {MOCK_BALANCE} SOL
+            {balance} SOL
           </span>
-          <span className="text-sm font-mono text-[#71717A]">≈ {MOCK_USD}</span>
+          <span className="text-sm font-mono text-[#71717A]">≈ {usd}</span>
         </div>
         {wallet && (
           <p className="font-mono text-[11px] text-[#71717A] mb-4">
@@ -188,7 +197,7 @@ export default function VaultView({ token }: { token: string | null }) {
             <span className="text-[#71717A] text-xs font-mono">Loading...</span>
           </div>
         ) : (
-          MOCK_PENDING.map(op => (
+          pendingOps.map(op => (
             <div
               key={op.id}
               className="bg-[#141416] border border-[#1E1E22] rounded-lg p-3.5 flex justify-between items-center"
@@ -255,7 +264,7 @@ export default function VaultView({ token }: { token: string | null }) {
       <div className="text-center pb-1">
         <p className="text-xs font-mono text-[#71717A]/60">
           Fees collected:{' '}
-          {realFees !== null ? `${realFees} events` : `${MOCK_FEES} SOL`}{' '}
+          {realFeeCount !== null ? `${realFeeCount} events` : `${fees} SOL`}{' '}
           (10 bps)
         </p>
       </div>
