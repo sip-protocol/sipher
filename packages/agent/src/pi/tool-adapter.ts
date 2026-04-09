@@ -9,14 +9,14 @@ import type { Tool } from '@mariozechner/pi-ai'
 
 export interface AnthropicTool {
   name: string
-  description: string
+  description?: string
   input_schema: Record<string, unknown>
 }
 
 export function adaptTool(anthropicTool: AnthropicTool): Tool {
   return {
     name: anthropicTool.name,
-    description: anthropicTool.description,
+    description: anthropicTool.description ?? '',
     parameters: anthropicTool.input_schema as any,  // Both use JSON Schema format
   }
 }

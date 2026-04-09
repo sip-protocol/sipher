@@ -15,7 +15,7 @@ export function attachLogger(bus: EventBus): void {
       type: event.type.split(':')[1] ?? event.type,
       title: formatTitle(event),
       detail: JSON.stringify(event.data),
-      wallet: event.wallet ?? null,
+      wallet: event.wallet ?? undefined,
     })
   })
 }

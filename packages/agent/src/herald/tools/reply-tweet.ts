@@ -31,7 +31,8 @@ export const replyTweetTool: Tool = {
       },
     },
     required: ['tweet_id', 'text'],
-  } as Tool['parameters'],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON Schema ↔ TypeBox TSchema bridge
+  } as any,
 }
 
 export async function executeReplyTweet(params: ReplyTweetParams): Promise<ReplyTweetResult> {

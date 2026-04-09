@@ -26,7 +26,8 @@ export const likeTweetTool: Tool = {
       },
     },
     required: ['tweet_id'],
-  } as Tool['parameters'],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON Schema ↔ TypeBox TSchema bridge
+  } as any,
 }
 
 export async function executeLikeTweet(params: LikeTweetParams): Promise<LikeTweetResult> {

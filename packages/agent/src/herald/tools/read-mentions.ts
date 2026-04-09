@@ -37,7 +37,8 @@ export const readMentionsTool: Tool = {
       },
     },
     required: [],
-  } as Tool['parameters'],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON Schema ↔ TypeBox TSchema bridge
+  } as any,
 }
 
 export async function executeReadMentions(params: ReadMentionsParams = {}): Promise<ReadMentionsResult> {

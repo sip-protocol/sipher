@@ -42,7 +42,8 @@ export const searchPostsTool: Tool = {
       },
     },
     required: ['query'],
-  } as Tool['parameters'],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON Schema ↔ TypeBox TSchema bridge
+  } as any,
 }
 
 export async function executeSearchPosts(params: SearchPostsParams): Promise<SearchPostsResult> {

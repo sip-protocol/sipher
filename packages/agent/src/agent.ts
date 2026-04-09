@@ -234,7 +234,7 @@ export async function chat(
 
     // Execute each tool_use block
     const toolUseBlocks = response.content.filter(
-      (b): b is Anthropic.ContentBlockParam & { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } =>
+      (b: Anthropic.ContentBlock): b is Anthropic.ContentBlock & { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } =>
         b.type === 'tool_use'
     )
 
@@ -321,7 +321,7 @@ export async function* chatStream(
 
     // Tool loop — extract tool_use blocks, execute, and continue
     const toolUseBlocks = finalMsg.content.filter(
-      (b): b is Anthropic.ContentBlockParam & { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } =>
+      (b: Anthropic.ContentBlock): b is Anthropic.ContentBlock & { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } =>
         b.type === 'tool_use'
     )
 

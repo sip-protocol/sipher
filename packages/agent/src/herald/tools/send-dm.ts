@@ -33,7 +33,8 @@ export const sendDMTool: Tool = {
       },
     },
     required: ['user_id', 'text'],
-  } as Tool['parameters'],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON Schema ↔ TypeBox TSchema bridge
+  } as any,
 }
 
 export async function executeSendDM(params: SendDMParams): Promise<SendDMResult> {

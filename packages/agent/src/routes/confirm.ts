@@ -17,7 +17,7 @@ export const confirmRouter = Router()
  * Body: { action: 'confirm' | 'cancel' }
  */
 confirmRouter.post('/:id', (req: Request, res: Response) => {
-  const { id } = req.params
+  const id = req.params.id as string
   const { action } = req.body as { action?: 'confirm' | 'cancel' }
 
   const entry = pending.get(id)
