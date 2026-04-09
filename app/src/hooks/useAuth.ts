@@ -6,10 +6,12 @@ export function useAuth() {
   const { publicKey, signMessage } = useWallet()
   const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const authenticate = useCallback(async () => {
     if (!publicKey || !signMessage) return null
     setLoading(true)
+    setError(null)
     try {
       const wallet = publicKey.toBase58()
       const { nonce, message } = await requestNonce(wallet)
@@ -19,10 +21,14 @@ export function useAuth() {
       const result = await verifySignature(wallet, nonce, sigHex)
       setToken(result.token)
       return result.token
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Authentication failed'
+      setError(message)
+      return null
     } finally {
       setLoading(false)
     }
   }, [publicKey, signMessage])
 
-  return { token, authenticate, loading, isAuthenticated: !!token }
+  return { token, authenticate, loading, error, isAuthenticated: !!token }
 }

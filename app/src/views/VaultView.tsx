@@ -33,6 +33,7 @@ function classifyActivity(row: ActivityRow): {
   label: string
   statusLabel: string
   statusColor: string
+  isStealth?: boolean
 } {
   const t = row.type?.toLowerCase() ?? ''
   const title = row.title?.toLowerCase() ?? ''
@@ -63,7 +64,7 @@ function classifyActivity(row: ActivityRow): {
       statusLabel: 'Stealth',
       statusColor: 'text-[#71717A]',
       isStealth: true,
-    } as any
+    }
   }
   if (t.includes('send') || title.includes('send')) {
     return {
@@ -73,7 +74,7 @@ function classifyActivity(row: ActivityRow): {
       statusLabel: 'Stealth',
       statusColor: 'text-[#71717A]',
       isStealth: true,
-    } as any
+    }
   }
   if (t.includes('swap') || title.includes('swap')) {
     return {
@@ -237,7 +238,7 @@ export default function VaultView({ token }: { token: string | null }) {
         <div className="border border-[#1E1E22] bg-[#141416] rounded-lg flex flex-col font-mono text-sm overflow-hidden">
           {activity.map((row, i) => {
             const cls = classifyActivity(row)
-            const isStealth = (cls as any).isStealth === true
+            const isStealth = cls.isStealth === true
             const amount = extractAmount(row)
             const isLast = i === activity.length - 1
 
