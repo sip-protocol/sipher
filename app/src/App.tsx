@@ -7,6 +7,7 @@ import './styles/theme.css'
 
 import Header from './components/Header'
 import BottomNav from './components/BottomNav'
+import CommandBar from './components/CommandBar'
 import { useAuth } from './hooks/useAuth'
 import { useSSE } from './hooks/useSSE'
 
@@ -40,14 +41,7 @@ export default function App() {
               </div>
             </main>
             <div className="shrink-0 bg-[#0A0A0B] border-t border-[#1E1E22] pb-[env(safe-area-inset-bottom)]">
-              <div className="px-4 py-3">
-                <div className="bg-[#141416] border border-[#1E1E22] rounded-lg flex items-center px-3 py-2 cursor-text">
-                  <div className="flex-1 flex items-center gap-2">
-                    <span className="text-[#71717A] text-[13px]">Talk to SIPHER...</span>
-                  </div>
-                  <div className="border border-[#1E1E22] bg-[#0A0A0B] px-1.5 py-[1px] rounded text-[10px] text-[#71717A] font-mono">⌘K</div>
-                </div>
-              </div>
+              <CommandBar token={token} />
               <BottomNav active={activeView} onChange={setActiveView} />
             </div>
           </div>
