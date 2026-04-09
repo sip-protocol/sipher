@@ -32,9 +32,11 @@ heraldRouter.post('/approve/:id', (req: Request, res: Response) => {
     return
   }
 
+  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+
   switch (action) {
     case 'approve':
-      approvePost(id, 'rector')
+      approvePost(id, wallet)
       res.json({ status: 'approved', id })
       break
 
