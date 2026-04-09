@@ -1,13 +1,13 @@
 import type { Tool } from '@mariozechner/pi-ai'
-import { readMentionsTool, executeReadMentions } from './tools/read-mentions.js'
-import { readDMsTool, executeReadDMs } from './tools/read-dms.js'
-import { searchPostsTool, executeSearchPosts } from './tools/search-posts.js'
-import { readUserProfileTool, executeReadUserProfile } from './tools/read-user.js'
-import { postTweetTool, executePostTweet } from './tools/post-tweet.js'
-import { replyTweetTool, executeReplyTweet } from './tools/reply-tweet.js'
-import { likeTweetTool, executeLikeTweet } from './tools/like-tweet.js'
-import { sendDMTool, executeSendDM } from './tools/send-dm.js'
-import { schedulePostTool, executeSchedulePost } from './tools/schedule-post.js'
+import { readMentionsTool, executeReadMentions, type ReadMentionsParams } from './tools/read-mentions.js'
+import { readDMsTool, executeReadDMs, type ReadDMsParams } from './tools/read-dms.js'
+import { searchPostsTool, executeSearchPosts, type SearchPostsParams } from './tools/search-posts.js'
+import { readUserProfileTool, executeReadUserProfile, type ReadUserProfileParams } from './tools/read-user.js'
+import { postTweetTool, executePostTweet, type PostTweetParams } from './tools/post-tweet.js'
+import { replyTweetTool, executeReplyTweet, type ReplyTweetParams } from './tools/reply-tweet.js'
+import { likeTweetTool, executeLikeTweet, type LikeTweetParams } from './tools/like-tweet.js'
+import { sendDMTool, executeSendDM, type SendDMParams } from './tools/send-dm.js'
+import { schedulePostTool, executeSchedulePost, type SchedulePostParams } from './tools/schedule-post.js'
 
 export const HERALD_SYSTEM_PROMPT = `You are HERALD — SIP Protocol's content and engagement agent on X/Twitter.
 
@@ -43,15 +43,15 @@ export const HERALD_TOOLS: Tool[] = [
 type ToolExecutor = (params: Record<string, unknown>) => Promise<unknown>
 
 export const HERALD_TOOL_EXECUTORS: Record<string, ToolExecutor> = {
-  readMentions: (p) => executeReadMentions(p as any),
-  readDMs: (p) => executeReadDMs(p as any),
-  searchPosts: (p) => executeSearchPosts(p as any),
-  readUserProfile: (p) => executeReadUserProfile(p as any),
-  postTweet: (p) => executePostTweet(p as any),
-  replyTweet: (p) => executeReplyTweet(p as any),
-  likeTweet: (p) => executeLikeTweet(p as any),
-  sendDM: (p) => executeSendDM(p as any),
-  schedulePost: (p) => executeSchedulePost(p as any),
+  readMentions: (p) => executeReadMentions(p as unknown as ReadMentionsParams),
+  readDMs: (p) => executeReadDMs(p as unknown as ReadDMsParams),
+  searchPosts: (p) => executeSearchPosts(p as unknown as SearchPostsParams),
+  readUserProfile: (p) => executeReadUserProfile(p as unknown as ReadUserProfileParams),
+  postTweet: (p) => executePostTweet(p as unknown as PostTweetParams),
+  replyTweet: (p) => executeReplyTweet(p as unknown as ReplyTweetParams),
+  likeTweet: (p) => executeLikeTweet(p as unknown as LikeTweetParams),
+  sendDM: (p) => executeSendDM(p as unknown as SendDMParams),
+  schedulePost: (p) => executeSchedulePost(p as unknown as SchedulePostParams),
 }
 
 export const HERALD_IDENTITY = {

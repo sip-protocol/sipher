@@ -6,6 +6,15 @@ import { trackXApiCost, canMakeCall } from '../budget.js'
 // readDMs — Fetch DM events (requires user context OAuth 1.0a)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Extended DM event fields returned by the API but missing from DMEventV2 typings */
+interface DMEventFields {
+  id: string
+  text?: string
+  event_type?: string
+  created_at?: string
+  sender_id?: string
+}
+
 export interface ReadDMsParams {
   max_results?: number
 }
@@ -53,14 +62,14 @@ export async function executeReadDMs(params: ReadDMsParams = {}): Promise<ReadDM
       'dm_event.fields': ['id', 'text', 'event_type', 'created_at', 'sender_id'],
     })
 
-    const events = response.data?.data ?? []
+    const events = (response.data?.data ?? []) as DMEventFields[]
 
     dms = events.map((event) => ({
       id: event.id,
-      text: (event as any).text,
-      event_type: (event as any).event_type,
-      created_at: (event as any).created_at,
-      sender_id: (event as any).sender_id,
+      text: event.text,
+      event_type: event.event_type,
+      created_at: event.created_at,
+      sender_id: event.sender_id,
     }))
   } catch (err) {
     // DM access may be restricted based on subscription tier —
