@@ -1,6 +1,6 @@
 import type { Tool } from '@mariozechner/pi-ai'
 import { getWriteClient, getHeraldUserId } from '../x-client.js'
-import { trackXApiCost } from '../budget.js'
+import { trackXApiCost, canMakeCall } from '../budget.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // likeTweet — AUTO. Likes a tweet from the @SipProtocol account directly.
@@ -30,6 +30,10 @@ export const likeTweetTool: Tool = {
 }
 
 export async function executeLikeTweet(params: LikeTweetParams): Promise<LikeTweetResult> {
+  if (!canMakeCall('user_interaction')) {
+    return { liked: false }
+  }
+
   if (!params.tweet_id || params.tweet_id.trim().length === 0) {
     throw new Error('tweet_id is required')
   }

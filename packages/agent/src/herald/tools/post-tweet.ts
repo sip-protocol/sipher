@@ -1,6 +1,6 @@
 import type { Tool } from '@mariozechner/pi-ai'
 import { getWriteClient } from '../x-client.js'
-import { trackXApiCost } from '../budget.js'
+import { trackXApiCost, canMakeCall } from '../budget.js'
 import { getDb } from '../../db.js'
 import { ulid } from 'ulid'
 import { guardianBus } from '../../coordination/event-bus.js'
@@ -75,6 +75,10 @@ export async function executePostTweet(params: PostTweetParams): Promise<PostTwe
  * approves a queued item — NOT called by the agent directly.
  */
 export async function publishTweet(text: string): Promise<PublishTweetResult> {
+  if (!canMakeCall('content_create')) {
+    throw new Error('budget gate: content_create blocked')
+  }
+
   const client = getWriteClient()
   const response = await client.v2.tweet(text)
   const tweetId = response.data.id

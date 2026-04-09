@@ -1,6 +1,6 @@
 import type { Tool } from '@mariozechner/pi-ai'
 import { getWriteClient } from '../x-client.js'
-import { trackXApiCost } from '../budget.js'
+import { trackXApiCost, canMakeCall } from '../budget.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // replyTweet — AUTO. Posts a reply to an existing tweet directly via X API.
@@ -35,6 +35,10 @@ export const replyTweetTool: Tool = {
 }
 
 export async function executeReplyTweet(params: ReplyTweetParams): Promise<ReplyTweetResult> {
+  if (!canMakeCall('content_create')) {
+    throw new Error('budget gate: content_create blocked')
+  }
+
   if (!params.tweet_id || params.tweet_id.trim().length === 0) {
     throw new Error('tweet_id is required')
   }

@@ -1,6 +1,6 @@
 import type { Tool } from '@mariozechner/pi-ai'
 import { getWriteClient } from '../x-client.js'
-import { trackXApiCost } from '../budget.js'
+import { trackXApiCost, canMakeCall } from '../budget.js'
 import { guardianBus } from '../../coordination/event-bus.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -37,6 +37,10 @@ export const sendDMTool: Tool = {
 }
 
 export async function executeSendDM(params: SendDMParams): Promise<SendDMResult> {
+  if (!canMakeCall('dm_create')) {
+    throw new Error('budget gate: dm_create blocked')
+  }
+
   if (!params.user_id || params.user_id.trim().length === 0) {
     throw new Error('user_id is required')
   }
