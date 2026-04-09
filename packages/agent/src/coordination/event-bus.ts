@@ -15,6 +15,10 @@ export class EventBus {
   private emitter = new EventEmitter()
   private static WILDCARD = '__any__'
 
+  constructor() {
+    this.emitter.setMaxListeners(200)
+  }
+
   on(type: string, handler: EventHandler): void {
     this.emitter.on(type, handler)
   }
