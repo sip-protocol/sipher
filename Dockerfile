@@ -44,17 +44,16 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/sdk/package.json packages/sdk/
 COPY packages/agent/package.json packages/agent/
 
-# Install production deps only
-RUN pnpm install --frozen-lockfile --prod
+# Copy entire node_modules from builder (includes native modules already compiled)
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/sdk/node_modules ./packages/sdk/node_modules
+COPY --from=builder /app/packages/agent/node_modules ./packages/agent/node_modules
 
 # Copy built artifacts
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/packages/sdk/dist ./packages/sdk/dist
 COPY --from=builder /app/packages/agent/dist ./packages/agent/dist
 COPY --from=builder /app/app/dist ./app/dist
-
-# Copy native modules built in builder stage (better-sqlite3)
-COPY --from=builder /app/node_modules/.pnpm/better-sqlite3*/node_modules/better-sqlite3/build ./node_modules/.pnpm/better-sqlite3@12.8.0/node_modules/better-sqlite3/build
 
 # Copy runtime files needed by the old REST API
 COPY --from=builder /app/skill.md ./
