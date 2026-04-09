@@ -13,6 +13,7 @@ import { commandHandler } from './routes/command.js'
 import { confirmRouter } from './routes/confirm.js'
 import { vaultRouter } from './routes/vault-api.js'
 import { squadRouter } from './routes/squad-api.js'
+import { heraldRouter } from './routes/herald-api.js'
 import { guardianBus } from './coordination/event-bus.js'
 import { attachLogger } from './coordination/activity-logger.js'
 import { AgentPool } from './agents/pool.js'
@@ -83,6 +84,9 @@ app.use('/api/vault', verifyJwt, vaultRouter)
 
 // Squad dashboard + kill switch — admin auth handled by squad route internally
 app.use('/api/squad', squadRouter)
+
+// HERALD approval queue + budget dashboard — admin auth handled internally
+app.use('/api/herald', heraldRouter)
 
 // Serve web chat UI (static files from app/dist)
 // In production: packages/agent/dist/ -> ../../../app/dist
@@ -237,6 +241,18 @@ app.listen(PORT, () => {
   console.log(`  Confirm: POST http://localhost:${PORT}/api/confirm/:id`)
   console.log(`  Vault:   GET  http://localhost:${PORT}/api/vault`)
   console.log(`  Squad:   http://localhost:${PORT}/api/squad`)
+  console.log(`  Herald:  http://localhost:${PORT}/api/herald`)
+
+  // Start HERALD poller only when X API credentials are present
+  if (process.env.X_BEARER_TOKEN && process.env.X_CONSUMER_KEY) {
+    import('./herald/poller.js').then(({ createPollerState, startPoller }) => {
+      const heraldState = createPollerState()
+      startPoller(heraldState)
+      console.log('  HERALD:  poller started (mentions + DMs + scheduled posts)')
+    }).catch(err => {
+      console.warn('  HERALD:  poller not started:', (err as Error).message)
+    })
+  }
 })
 
 export { app }
