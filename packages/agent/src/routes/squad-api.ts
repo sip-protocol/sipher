@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { getCostTotals, getAgentEvents } from '../db.js'
+import { guardianBus } from '../coordination/event-bus.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Kill switch — module-level so it persists across requests within a process.
@@ -38,6 +39,13 @@ squadRouter.get('/', (_req: Request, res: Response) => {
  */
 squadRouter.post('/kill', (_req: Request, res: Response) => {
   killSwitchActive = !killSwitchActive
+  guardianBus.emit({
+    source: 'sipher',
+    type: 'guardian:kill-switch',
+    level: 'critical',
+    data: { active: killSwitchActive },
+    timestamp: new Date().toISOString(),
+  })
   res.json({ killSwitch: killSwitchActive })
 })
 

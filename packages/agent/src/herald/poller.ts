@@ -5,6 +5,7 @@ import { getReadyToPublish, markPublished } from './approval.js'
 import { publishTweet } from './tools/post-tweet.js'
 import { getBudgetStatus } from './budget.js'
 import { guardianBus } from '../coordination/event-bus.js'
+import { isKillSwitchActive } from '../routes/squad-api.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -68,6 +69,8 @@ export function getNextInterval(state: PollerState): number {
  * Updates lastMentionId on results; increments emptyStreaks on empty.
  */
 export async function pollMentions(state: PollerState): Promise<void> {
+  if (isKillSwitchActive()) return
+
   const { gate } = getBudgetStatus()
   if (gate === 'paused' || gate === 'dm-only') return
 
@@ -110,6 +113,8 @@ export async function pollMentions(state: PollerState): Promise<void> {
  * Skips if budget gate is 'paused' (dm_read is blocked).
  */
 export async function pollDMs(state: PollerState): Promise<void> {
+  if (isKillSwitchActive()) return
+
   const { gate } = getBudgetStatus()
   if (gate === 'paused') return
 
@@ -147,6 +152,8 @@ export async function pollDMs(state: PollerState): Promise<void> {
  * Stops on first error (budget exceeded or X API failure).
  */
 export async function checkScheduledPosts(): Promise<void> {
+  if (isKillSwitchActive()) return
+
   const posts = getReadyToPublish()
   if (posts.length === 0) return
 

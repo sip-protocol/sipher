@@ -2,6 +2,7 @@ import { getSentinelConfig, type SentinelConfig } from './config.js'
 import { scanWallet } from './scanner.js'
 import { toGuardianEvent } from './detector.js'
 import { guardianBus, type GuardianEvent } from '../coordination/event-bus.js'
+import { isKillSwitchActive } from '../routes/squad-api.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Identity
@@ -100,6 +101,11 @@ export class SentinelWorker {
 
   private async tick(): Promise<void> {
     if (!this.running) return
+
+    if (isKillSwitchActive()) {
+      this.scheduleTick()
+      return
+    }
 
     const allWallets = this.getWallets()
 

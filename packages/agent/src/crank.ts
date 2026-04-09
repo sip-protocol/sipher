@@ -4,6 +4,7 @@ import {
   logAudit,
 } from './db.js'
 import { guardianBus } from './coordination/event-bus.js'
+import { isKillSwitchActive } from './routes/squad-api.js'
 
 const MISS_WINDOW_MS = 5 * 60 * 1000
 
@@ -24,6 +25,10 @@ export interface CrankTickResult {
 }
 
 export async function crankTick(executor: OpExecutor): Promise<CrankTickResult> {
+  if (isKillSwitchActive()) {
+    return { executed: 0, expired: 0, missed: 0, failed: 0 }
+  }
+
   const now = Date.now()
   const ops = getPendingOps(now)
   const result: CrankTickResult = { executed: 0, expired: 0, missed: 0, failed: 0 }

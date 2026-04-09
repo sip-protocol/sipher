@@ -12,7 +12,7 @@ import { streamHandler } from './routes/stream.js'
 import { commandHandler } from './routes/command.js'
 import { confirmRouter } from './routes/confirm.js'
 import { vaultRouter } from './routes/vault-api.js'
-import { squadRouter } from './routes/squad-api.js'
+import { squadRouter, isKillSwitchActive } from './routes/squad-api.js'
 import { heraldRouter } from './routes/herald-api.js'
 import { guardianBus } from './coordination/event-bus.js'
 import { attachLogger } from './coordination/activity-logger.js'
@@ -79,8 +79,14 @@ app.use('/api/auth', authRouter)
 // Activity SSE stream — JWT required (EventSource passes ?token=)
 app.get('/api/stream', verifyJwt, streamHandler)
 
-// Command bar → SIPHER agent — JWT required
-app.post('/api/command', verifyJwt, commandHandler)
+// Command bar → SIPHER agent — JWT required (kill switch blocks execution)
+app.post('/api/command', verifyJwt, (req, res, next) => {
+  if (isKillSwitchActive()) {
+    res.status(503).json({ error: 'operations paused — kill switch active' })
+    return
+  }
+  commandHandler(req, res).catch(next)
+})
 
 // Fund-movement confirmation resolution — JWT required
 app.use('/api/confirm', verifyJwt, confirmRouter)
@@ -110,6 +116,11 @@ app.use(express.static(webRoot))
 // ─── Chat endpoint ──────────────────────────────────────────────────────────
 
 app.post('/api/chat', verifyJwt, async (req, res) => {
+  if (isKillSwitchActive()) {
+    res.status(503).json({ error: 'operations paused — kill switch active' })
+    return
+  }
+
   const { messages, wallet } = req.body
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -138,6 +149,11 @@ app.post('/api/chat', verifyJwt, async (req, res) => {
 // ─── SSE streaming chat endpoint ────────────────────────────────────────────
 
 app.post('/api/chat/stream', verifyJwt, async (req, res) => {
+  if (isKillSwitchActive()) {
+    res.status(503).json({ error: 'operations paused — kill switch active' })
+    return
+  }
+
   const { messages, wallet } = req.body
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
