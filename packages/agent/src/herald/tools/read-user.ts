@@ -40,7 +40,8 @@ export const readUserProfileTool: Tool = {
       },
     },
     required: ['username'],
-  } as Tool['parameters'],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON Schema ↔ TypeBox TSchema bridge
+  } as any,
 }
 
 export async function executeReadUserProfile(params: ReadUserProfileParams): Promise<ReadUserProfileResult> {

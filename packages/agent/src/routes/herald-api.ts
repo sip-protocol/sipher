@@ -20,7 +20,7 @@ heraldRouter.get('/', (_req: Request, res: Response) => {
 
 // POST /api/herald/approve/:id — approve, reject, or edit a queued post
 heraldRouter.post('/approve/:id', (req: Request, res: Response) => {
-  const { id } = req.params
+  const id = req.params.id as string
   const { action, content } = req.body as { action?: string; content?: string }
 
   const post = getDb()

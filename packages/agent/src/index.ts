@@ -208,7 +208,7 @@ app.post('/api/chat/stream', verifyJwt, async (req, res) => {
 const BLOCKED_TOOLS = new Set(['send', 'deposit', 'refund', 'sweep', 'consolidate', 'swap', 'splitSend', 'scheduleSend', 'drip', 'recurring'])
 
 app.post('/api/tools/:name', verifyJwt, async (req, res) => {
-  const { name } = req.params
+  const name = req.params.name as string
 
   if (BLOCKED_TOOLS.has(name)) {
     res.status(403).json({ success: false, error: `tool '${name}' requires confirmation flow — use /api/command instead` })

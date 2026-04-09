@@ -42,7 +42,8 @@ export const readDMsTool: Tool = {
       },
     },
     required: [],
-  } as Tool['parameters'],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON Schema ↔ TypeBox TSchema bridge
+  } as any,
 }
 
 export async function executeReadDMs(params: ReadDMsParams = {}): Promise<ReadDMsResult> {

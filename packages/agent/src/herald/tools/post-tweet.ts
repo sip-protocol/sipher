@@ -35,7 +35,8 @@ export const postTweetTool: Tool = {
       },
     },
     required: ['text'],
-  } as Tool['parameters'],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON Schema ↔ TypeBox TSchema bridge
+  } as any,
 }
 
 /**

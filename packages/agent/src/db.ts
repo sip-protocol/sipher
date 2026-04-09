@@ -504,7 +504,7 @@ export function getPaymentLinkStats(): PaymentLinkStatsResult {
   for (const row of rows) {
     stats.total += row.count
     if (row.status in stats) {
-      (stats as Record<string, number>)[row.status] = row.count
+      (stats as unknown as Record<string, number>)[row.status] = row.count
     }
   }
   return stats
