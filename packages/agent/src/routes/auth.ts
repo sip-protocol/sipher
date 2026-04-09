@@ -165,7 +165,7 @@ authRouter.post('/verify', (req: Request, res: Response) => {
   // One-time use — consume before responding
   pendingNonces.delete(nonce)
 
-  const token = jwt.sign({ wallet }, getSecret(), { expiresIn: JWT_EXPIRY })
+  const token = jwt.sign({ wallet }, getSecret(), { expiresIn: JWT_EXPIRY, algorithm: 'HS256' })
   res.json({ token, expiresIn: JWT_EXPIRY })
 })
 
@@ -182,9 +182,10 @@ authRouter.post('/verify', (req: Request, res: Response) => {
  */
 export function verifyJwt(req: Request, res: Response, next: NextFunction): void {
   // Query param takes precedence (needed for SSE via EventSource)
+  const authHeader = req.headers.authorization
   const token =
     (req.query.token as string | undefined) ??
-    req.headers.authorization?.replace('Bearer ', '')
+    (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined)
 
   if (!token) {
     res.status(401).json({ error: 'authentication required' })
@@ -192,7 +193,7 @@ export function verifyJwt(req: Request, res: Response, next: NextFunction): void
   }
 
   try {
-    const decoded = jwt.verify(token, getSecret()) as { wallet: string }
+    const decoded = jwt.verify(token, getSecret(), { algorithms: ['HS256'] }) as { wallet: string }
     ;(req as unknown as Record<string, unknown>).wallet = decoded.wallet
     next()
   } catch {
