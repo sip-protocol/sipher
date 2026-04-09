@@ -1,0 +1,179 @@
+<!--
+aesthetic_dna:
+  theme: "Cyber-Utility / Stealth Crypto"
+  visual_tension: "Stark contrast, zero-noise, highly dense typography-driven UI"
+  ui_paradigm: "Mobile-first single-column dataloop, fixed spatial headers/footers with scrolling meso-layer"
+  palette: "Obsidian Canvas (#0A0A0B), Dense Carbon (#141416) with High-Key Agent Spot Colors"
+-->
+<!DOCTYPE html>
+<html lang="en" class="antialiased text-[#F5F5F5] bg-[#0A0A0B]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Guardian Command | Sipher</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        app: { bg: '#0A0A0B', card: '#141416', border: '#1E1E22', text: '#F5F5F5', muted: '#71717A' },
+                        agent: { sipher: '#10B981', herald: '#3B82F6', sentinel: '#F59E0B', courier: '#8B5CF6' }
+                    },
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                    boxShadow: { 'cmd': '0 -4px 20px rgba(0,0,0,0.4)' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { overscroll-behavior-y: none; -webkit-font-smoothing: antialiased; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .radius-exact { border-radius: 8px; }
+    </style>
+</head>
+<body class="flex justify-center w-full min-h-screen bg-black">
+    <main class="w-full max-w-[720px] bg-app-bg h-[100dvh] flex flex-col relative border-x border-[#1E1E22] overflow-hidden">
+        <header class="h-[56px] border-b border-app-border flex items-center justify-between px-4 shrink-0 bg-app-bg z-10 w-full">
+            <div class="flex items-center gap-2">
+                <i class="ph ph-shield-check text-agent-sipher text-lg"></i>
+                <span class="font-semibold text-[13px] tracking-widest uppercase text-app-text font-sans">Sipher</span>
+            </div>
+            <button class="flex items-center gap-2.5 bg-app-card border border-app-border px-3 py-1.5 radius-exact transition-colors hover:bg-[#1A1A1D]">
+                <div class="w-1.5 h-1.5 rounded-full bg-agent-sipher shadow-[0_0_0_2px_rgba(16,185,129,0.2)]"></div>
+                <span class="text-[12px] font-mono text-app-text">5k9Q...P2vX</span>
+            </button>
+        </header>
+        <div class="flex-1 overflow-y-auto no-scrollbar px-4 py-5 space-y-3 pb-6 relative z-0">
+            <div class="bg-app-card border border-app-border radius-exact p-3.5 flex flex-col gap-2">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <div class="w-1.5 h-1.5 rounded-full bg-agent-sipher"></div>
+                        <span class="text-agent-sipher text-[11px] font-semibold tracking-widest uppercase">Sipher</span>
+                    </div>
+                    <span class="text-app-muted text-[11px]">2m ago</span>
+                </div>
+                <p class="text-app-text text-[14px] leading-snug">Deposited 2 SOL into vault.</p>
+                <div class="flex items-center gap-2 text-[12px]">
+                    <span class="text-app-muted">TX:</span>
+                    <span class="text-app-muted font-mono">4Hc3...5s5c</span>
+                </div>
+                <div class="mt-1">
+                    <button class="inline-flex items-center justify-center border border-app-border bg-app-bg hover:bg-app-border transition-colors text-[11px] px-3 py-1.5 radius-exact font-medium text-app-text">View TX</button>
+                </div>
+            </div>
+            <div class="bg-app-card border border-app-border radius-exact p-3.5 flex flex-col gap-2">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <div class="w-1.5 h-1.5 rounded-full bg-agent-herald"></div>
+                        <span class="text-agent-herald text-[11px] font-semibold tracking-widest uppercase">Herald</span>
+                    </div>
+                    <span class="text-app-muted text-[11px]">5m ago</span>
+                </div>
+                <p class="text-app-text text-[14px] leading-snug">Posted: "Your wallet is a diary. SIP makes it private."</p>
+                <div class="text-app-muted text-[12px]"><span>12 likes · 3 RTs</span></div>
+                <div class="mt-1">
+                    <button class="inline-flex items-center gap-1.5 border border-app-border bg-app-bg hover:bg-app-border transition-colors text-[11px] px-3 py-1.5 radius-exact font-medium text-app-text"><i class="ph ph-x-logo"></i> View on X</button>
+                </div>
+            </div>
+            <div class="bg-app-card border-y border-r border-[#1E1E22] border-l-[3px] border-l-agent-sentinel radius-exact p-3.5 flex flex-col gap-2">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <div class="w-1.5 h-1.5 rounded-full bg-agent-sentinel"></div>
+                        <span class="text-agent-sentinel text-[11px] font-semibold tracking-widest uppercase">Sentinel</span>
+                    </div>
+                    <span class="text-app-muted text-[11px]">12m ago</span>
+                </div>
+                <p class="text-app-text text-[14px] font-medium leading-snug tracking-wide">⚠ Unclaimed stealth payment: 1.5 SOL</p>
+                <div class="flex items-center gap-2 text-[12px]">
+                    <span class="text-app-muted">Ephemeral key:</span>
+                    <span class="text-agent-sentinel font-mono opacity-80">0x04def...789</span>
+                </div>
+                <div class="mt-1">
+                    <button class="inline-flex items-center justify-center border border-app-border bg-app-bg hover:bg-[#1E1E22] hover:border-agent-sentinel/30 transition-colors text-[11px] px-3 py-1.5 radius-exact font-semibold text-agent-sentinel">Claim Now</button>
+                </div>
+            </div>
+            <div class="bg-app-card border border-app-border radius-exact p-3.5 flex flex-col gap-2">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <div class="w-1.5 h-1.5 rounded-full bg-agent-sipher"></div>
+                        <span class="text-agent-sipher text-[11px] font-semibold tracking-widest uppercase">Sipher</span>
+                    </div>
+                    <span class="text-app-muted text-[11px]">15m ago</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <p class="text-app-text text-[14px] leading-snug">Privacy score: 87/100</p>
+                    <span class="text-app-muted text-[12px]">12% traceable</span>
+                </div>
+                <div class="w-full h-1 bg-[#1A1A1D] rounded-full overflow-hidden mt-1">
+                    <div class="h-full bg-agent-sipher w-[87%]"></div>
+                </div>
+            </div>
+            <div class="bg-app-card border border-app-border radius-exact p-3.5 flex flex-col gap-2">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <div class="w-1.5 h-1.5 rounded-full bg-agent-courier"></div>
+                        <span class="text-agent-courier text-[11px] font-semibold tracking-widest uppercase">Courier</span>
+                    </div>
+                    <span class="text-app-muted text-[11px]">20m ago</span>
+                </div>
+                <p class="text-app-text text-[14px] leading-snug flex items-center gap-2">Executed scheduled send: 0.5 SOL <i class="ph ph-arrow-right text-app-muted text-[12px]"></i> stealth</p>
+                <div class="flex items-center gap-2 text-[12px] mt-0.5">
+                    <span class="text-app-muted">TX:</span>
+                    <span class="text-app-muted font-mono">m5oJ...qVwv</span>
+                </div>
+            </div>
+            <div class="bg-app-card border border-app-border radius-exact p-3.5 flex flex-col gap-2">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <div class="w-1.5 h-1.5 rounded-full bg-agent-herald"></div>
+                        <span class="text-agent-herald text-[11px] font-semibold tracking-widest uppercase">Herald</span>
+                    </div>
+                    <span class="text-app-muted text-[11px]">30m ago</span>
+                </div>
+                <p class="text-app-text text-[14px] leading-snug">Replied to @privacy_maxi on X</p>
+                <div class="bg-app-bg border border-[#1E1E22] radius-exact p-2 mt-1 relative">
+                    <div class="absolute w-[2px] h-[calc(100%-16px)] bg-[#1E1E22] left-2.5 top-2"></div>
+                    <p class="text-app-muted text-[12px] italic pl-3 relative pr-1">"Stealth addresses solve this completely. By generating ephemeral keys per transaction, the link between sender and receiver is severed on-chain."</p>
+                </div>
+            </div>
+            <div class="h-2"></div>
+        </div>
+        <div class="shrink-0 bg-[#0A0A0B] shadow-cmd relative z-20 border-t border-app-border pb-[env(safe-area-inset-bottom)]">
+            <div class="px-4 py-3">
+                <div class="bg-app-card border border-app-border radius-exact flex items-center px-3 py-2 cursor-text transition-colors hover:border-[#2C2C30]">
+                    <div class="flex-1 flex items-center gap-2">
+                        <i class="ph ph-terminal-window text-app-muted text-base"></i>
+                        <span class="text-app-muted text-[13px]">Talk to SIPHER...</span>
+                    </div>
+                    <div class="border border-app-border bg-app-bg px-1.5 py-[1px] rounded text-[10px] text-app-muted font-mono font-medium tracking-wide">⌘K</div>
+                </div>
+            </div>
+            <nav class="flex w-full px-2 pb-1 border-t border-[#1E1E22]/50">
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-text">
+                    <i class="ph-fill ph-waves text-[20px]"></i>
+                    <span class="text-[10px] font-medium tracking-wide">Stream</span>
+                </button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted hover:text-[#CCC] transition-colors">
+                    <i class="ph ph-vault text-[20px]"></i>
+                    <span class="text-[10px] font-medium tracking-wide">Vault</span>
+                </button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted hover:text-[#CCC] transition-colors relative">
+                    <i class="ph ph-broadcast text-[20px]"></i>
+                    <span class="text-[10px] font-medium tracking-wide uppercase">Herald</span>
+                    <div class="absolute top-2 right-[25%] w-1.5 h-1.5 rounded-full bg-agent-herald"></div>
+                </button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted hover:text-[#CCC] transition-colors">
+                    <i class="ph ph-users-three text-[20px]"></i>
+                    <span class="text-[10px] font-medium tracking-wide">Squad</span>
+                </button>
+            </nav>
+        </div>
+    </main>
+</body>
+</html>

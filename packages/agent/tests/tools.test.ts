@@ -20,6 +20,21 @@ import {
   executeHistory,
   statusTool,
   executeStatus,
+  paymentLinkTool,
+  executePaymentLink,
+  invoiceTool,
+  executeInvoice,
+  privacyScoreTool,
+  executePrivacyScore,
+  threatCheckTool,
+  executeThreatCheck,
+  roundAmountTool,
+  scheduleSendTool,
+  splitSendTool,
+  dripTool,
+  recurringTool,
+  sweepTool,
+  consolidateTool,
 } from '../src/tools/index.js'
 import { TOOLS, SYSTEM_PROMPT, executeTool } from '../src/agent.js'
 
@@ -105,15 +120,21 @@ describe('tool definitions', () => {
   const allTools = [
     depositTool, sendTool, refundTool, balanceTool, scanTool, claimTool,
     swapTool, viewingKeyTool, historyTool, statusTool,
+    paymentLinkTool, invoiceTool, privacyScoreTool, threatCheckTool,
+    roundAmountTool, scheduleSendTool, splitSendTool, dripTool,
+    recurringTool, sweepTool, consolidateTool,
   ]
   const toolNames = [
     'deposit', 'send', 'refund', 'balance', 'scan', 'claim',
     'swap', 'viewingKey', 'history', 'status',
+    'paymentLink', 'invoice', 'privacyScore', 'threatCheck',
+    'roundAmount', 'scheduleSend', 'splitSend', 'drip',
+    'recurring', 'sweep', 'consolidate',
   ]
 
-  it('exports exactly 10 tools', () => {
-    expect(allTools).toHaveLength(10)
-    expect(TOOLS).toHaveLength(10)
+  it('exports exactly 21 tools', () => {
+    expect(allTools).toHaveLength(21)
+    expect(TOOLS).toHaveLength(21)
   })
 
   it('all tools have unique names', () => {
@@ -165,7 +186,7 @@ describe('system prompt', () => {
     expect(SYSTEM_PROMPT).toContain('Plug in. Go private.')
   })
 
-  it('references all 10 tools', () => {
+  it('references all 21 tools', () => {
     expect(SYSTEM_PROMPT).toContain('deposit')
     expect(SYSTEM_PROMPT).toContain('send')
     expect(SYSTEM_PROMPT).toContain('refund')
@@ -176,6 +197,17 @@ describe('system prompt', () => {
     expect(SYSTEM_PROMPT).toContain('viewingKey')
     expect(SYSTEM_PROMPT).toContain('history')
     expect(SYSTEM_PROMPT).toContain('status')
+    expect(SYSTEM_PROMPT).toContain('paymentLink')
+    expect(SYSTEM_PROMPT).toContain('invoice')
+    expect(SYSTEM_PROMPT).toContain('privacyScore')
+    expect(SYSTEM_PROMPT).toContain('threatCheck')
+    expect(SYSTEM_PROMPT).toContain('roundAmount')
+    expect(SYSTEM_PROMPT).toContain('scheduleSend')
+    expect(SYSTEM_PROMPT).toContain('splitSend')
+    expect(SYSTEM_PROMPT).toContain('drip')
+    expect(SYSTEM_PROMPT).toContain('recurring')
+    expect(SYSTEM_PROMPT).toContain('sweep')
+    expect(SYSTEM_PROMPT).toContain('consolidate')
   })
 
   it('includes the confirmation rule for fund-moving operations', () => {

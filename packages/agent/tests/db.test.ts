@@ -12,6 +12,11 @@ import {
   createPaymentLink,
   getPaymentLink,
   markPaymentLinkPaid,
+  getPaymentLinksBySession,
+  expireStaleLinks,
+  getPaymentLinkStats,
+  getAuditStats,
+  getSessionStats,
 } from '../src/db.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -316,5 +321,156 @@ describe('payment links', () => {
 
     const retrieved = getPaymentLink(link.id)
     expect(retrieved!.session_id).toBe(session.id)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getPaymentLinksBySession
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('getPaymentLinksBySession', () => {
+  it('returns links for a session sorted by created_at DESC', () => {
+    const session = getOrCreateSession(WALLET_A)
+    createPaymentLink({
+      session_id: session.id,
+      stealth_address: '0xfirst',
+      ephemeral_pubkey: '0xeph1',
+      expires_at: Date.now() + 3600_000,
+    })
+    createPaymentLink({
+      session_id: session.id,
+      stealth_address: '0xsecond',
+      ephemeral_pubkey: '0xeph2',
+      expires_at: Date.now() + 3600_000,
+    })
+    const links = getPaymentLinksBySession(session.id)
+    expect(links).toHaveLength(2)
+    expect(links[0].stealth_address).toBe('0xsecond')
+    expect(links[1].stealth_address).toBe('0xfirst')
+  })
+
+  it('returns empty array for unknown session', () => {
+    const links = getPaymentLinksBySession('nonexistent')
+    expect(links).toHaveLength(0)
+  })
+
+  it('respects limit', () => {
+    const session = getOrCreateSession(WALLET_A)
+    for (let i = 0; i < 5; i++) {
+      createPaymentLink({
+        session_id: session.id,
+        stealth_address: `0xaddr${i}`,
+        ephemeral_pubkey: `0xeph${i}`,
+        expires_at: Date.now() + 3600_000,
+      })
+    }
+    const links = getPaymentLinksBySession(session.id, 2)
+    expect(links).toHaveLength(2)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// expireStaleLinks
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('expireStaleLinks', () => {
+  it('marks expired pending links as expired', () => {
+    createPaymentLink({
+      stealth_address: '0xexpired',
+      ephemeral_pubkey: '0xeph',
+      expires_at: Date.now() - 1000,
+    })
+    createPaymentLink({
+      stealth_address: '0xactive',
+      ephemeral_pubkey: '0xeph2',
+      expires_at: Date.now() + 3600_000,
+    })
+    const count = expireStaleLinks()
+    expect(count).toBe(1)
+    const db = getDb()
+    const expired = db.prepare("SELECT * FROM payment_links WHERE stealth_address = '0xexpired'").get() as { status: string }
+    expect(expired.status).toBe('expired')
+    const active = db.prepare("SELECT * FROM payment_links WHERE stealth_address = '0xactive'").get() as { status: string }
+    expect(active.status).toBe('pending')
+  })
+
+  it('does not expire already-paid links', () => {
+    const link = createPaymentLink({
+      stealth_address: '0xpaid',
+      ephemeral_pubkey: '0xeph',
+      expires_at: Date.now() - 1000,
+    })
+    markPaymentLinkPaid(link.id, 'some-tx')
+    const count = expireStaleLinks()
+    expect(count).toBe(0)
+    const retrieved = getPaymentLink(link.id)
+    expect(retrieved!.status).toBe('paid')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getPaymentLinkStats
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('getPaymentLinkStats', () => {
+  it('returns counts by status', () => {
+    createPaymentLink({ stealth_address: '0xa', ephemeral_pubkey: '0xe1', expires_at: Date.now() + 3600_000 })
+    createPaymentLink({ stealth_address: '0xb', ephemeral_pubkey: '0xe2', expires_at: Date.now() + 3600_000 })
+    const link3 = createPaymentLink({ stealth_address: '0xc', ephemeral_pubkey: '0xe3', expires_at: Date.now() + 3600_000 })
+    markPaymentLinkPaid(link3.id, 'tx123')
+    const stats = getPaymentLinkStats()
+    expect(stats.pending).toBe(2)
+    expect(stats.paid).toBe(1)
+    expect(stats.total).toBe(3)
+  })
+
+  it('returns zeros when no links exist', () => {
+    const stats = getPaymentLinkStats()
+    expect(stats.total).toBe(0)
+    expect(stats.pending).toBe(0)
+    expect(stats.paid).toBe(0)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getAuditStats
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('getAuditStats', () => {
+  it('returns action counts within time window', () => {
+    const session = getOrCreateSession(WALLET_A)
+    logAudit(session.id, 'send', { to: 'addr' })
+    logAudit(session.id, 'send', { to: 'addr2' })
+    logAudit(session.id, 'deposit', { amount: 5 })
+    logAudit(session.id, 'swap', { from: 'SOL', to: 'USDC' })
+    const stats = getAuditStats(24 * 60 * 60 * 1000)
+    expect(stats.total).toBe(4)
+    expect(stats.byAction.send).toBe(2)
+    expect(stats.byAction.deposit).toBe(1)
+    expect(stats.byAction.swap).toBe(1)
+  })
+
+  it('returns zeros for empty log', () => {
+    const stats = getAuditStats(24 * 60 * 60 * 1000)
+    expect(stats.total).toBe(0)
+    expect(stats.byAction).toEqual({})
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getSessionStats
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('getSessionStats', () => {
+  it('returns session counts', () => {
+    getOrCreateSession(WALLET_A)
+    getOrCreateSession(WALLET_B)
+    const stats = getSessionStats()
+    expect(stats.total).toBe(2)
+  })
+
+  it('returns zero when no sessions', () => {
+    const stats = getSessionStats()
+    expect(stats.total).toBe(0)
   })
 })

@@ -27,3 +27,36 @@ export type { HistoryParams, HistoryToolResult } from './history.js'
 
 export { statusTool, executeStatus } from './status.js'
 export type { StatusToolResult } from './status.js'
+
+export { paymentLinkTool, executePaymentLink } from './payment-link.js'
+export type { PaymentLinkParams, PaymentLinkToolResult } from './payment-link.js'
+
+export { invoiceTool, executeInvoice } from './invoice.js'
+export type { InvoiceParams, InvoiceToolResult } from './invoice.js'
+
+export { privacyScoreTool, executePrivacyScore } from './privacy-score.js'
+export type { PrivacyScoreParams, PrivacyScoreToolResult } from './privacy-score.js'
+
+export { threatCheckTool, executeThreatCheck } from './threat-check.js'
+export type { ThreatCheckParams, ThreatCheckToolResult } from './threat-check.js'
+
+export { roundAmountTool, executeRoundAmount } from './round-amount.js'
+export type { RoundAmountParams, RoundAmountToolResult } from './round-amount.js'
+
+export { scheduleSendTool, executeScheduleSend } from './schedule-send.js'
+export type { ScheduleSendParams, ScheduleSendToolResult } from './schedule-send.js'
+
+export { splitSendTool, executeSplitSend } from './split-send.js'
+export type { SplitSendParams, SplitSendToolResult, ChunkInfo } from './split-send.js'
+
+export { dripTool, executeDrip } from './drip.js'
+export type { DripParams, DripToolResult, DripInfo } from './drip.js'
+
+export { recurringTool, executeRecurring } from './recurring.js'
+export type { RecurringParams, RecurringToolResult } from './recurring.js'
+
+export { sweepTool, executeSweep } from './sweep.js'
+export type { SweepParams, SweepToolResult } from './sweep.js'
+
+export { consolidateTool, executeConsolidate } from './consolidate.js'
+export type { ConsolidateParams, ConsolidateToolResult } from './consolidate.js'

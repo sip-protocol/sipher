@@ -26,6 +26,9 @@ interface ConversationEntry {
 
 const conversations = new Map<string, ConversationEntry>()
 
+/** Maximum number of messages retained per conversation. */
+const MAX_CONVERSATION_MESSAGES = 100
+
 /** Maximum idle time before a conversation is eligible for purge (30 minutes). */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000
 
@@ -79,10 +82,13 @@ export function appendConversation(
 
   if (entry) {
     entry.messages.push(...messages)
+    if (entry.messages.length > MAX_CONVERSATION_MESSAGES) {
+      entry.messages = entry.messages.slice(-MAX_CONVERSATION_MESSAGES)
+    }
     entry.lastActive = now
   } else {
     conversations.set(sessionId, {
-      messages: [...messages],
+      messages: [...messages].slice(-MAX_CONVERSATION_MESSAGES),
       lastActive: now,
     })
   }
