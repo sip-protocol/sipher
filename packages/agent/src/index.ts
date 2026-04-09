@@ -88,11 +88,11 @@ app.use('/api/confirm', verifyJwt, confirmRouter)
 // Vault activity feed (per-wallet) — JWT required
 app.use('/api/vault', verifyJwt, vaultRouter)
 
-// Squad dashboard + kill switch — admin auth handled by squad route internally
-app.use('/api/squad', squadRouter)
+// Squad dashboard + kill switch — JWT required
+app.use('/api/squad', verifyJwt, squadRouter)
 
-// HERALD approval queue + budget dashboard — admin auth handled internally
-app.use('/api/herald', heraldRouter)
+// HERALD approval queue + budget dashboard — JWT required
+app.use('/api/herald', verifyJwt, heraldRouter)
 
 // Serve web chat UI (static files from app/dist)
 // In production: packages/agent/dist/ -> ../../../app/dist
@@ -102,7 +102,7 @@ app.use(express.static(webRoot))
 
 // ─── Chat endpoint ──────────────────────────────────────────────────────────
 
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', verifyJwt, async (req, res) => {
   const { messages, wallet } = req.body
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -130,7 +130,7 @@ app.post('/api/chat', async (req, res) => {
 
 // ─── SSE streaming chat endpoint ────────────────────────────────────────────
 
-app.post('/api/chat/stream', async (req, res) => {
+app.post('/api/chat/stream', verifyJwt, async (req, res) => {
   const { messages, wallet } = req.body
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -179,7 +179,7 @@ app.post('/api/chat/stream', async (req, res) => {
 
 // ─── Tool execution endpoint (for direct tool calls from the UI) ────────────
 
-app.post('/api/tools/:name', async (req, res) => {
+app.post('/api/tools/:name', verifyJwt, async (req, res) => {
   const { name } = req.params
   const input = req.body
 
