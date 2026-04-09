@@ -898,11 +898,22 @@ export function getExecutionLink(id: string): Record<string, unknown> | undefine
   return conn.prepare('SELECT * FROM execution_links WHERE id = ?').get(id) as Record<string, unknown> | undefined
 }
 
+/** Columns that may be updated on execution_links (allowlist to prevent SQL injection). */
+const EXECUTION_LINK_COLUMNS = new Set([
+  'wallet', 'action', 'params', 'source', 'status', 'expires_at', 'signed_tx',
+])
+
 /** Update arbitrary fields on an execution link. Throws if the link doesn't exist. */
 export function updateExecutionLink(id: string, updates: Record<string, unknown>): void {
   const conn = getDb()
   const keys = Object.keys(updates)
   if (keys.length === 0) return
+
+  for (const key of keys) {
+    if (!EXECUTION_LINK_COLUMNS.has(key)) {
+      throw new Error(`Unknown column: ${key}`)
+    }
+  }
 
   const sets = keys.map(k => `${k} = ?`).join(', ')
   const values = [...Object.values(updates) as (string | number | null)[], id]
