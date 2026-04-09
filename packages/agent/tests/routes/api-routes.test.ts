@@ -93,9 +93,10 @@ describe('POST /api/command', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('POST /api/confirm/:id', () => {
-  function createApp() {
+  function createApp(wallet = TEST_WALLET) {
     const app = express()
     app.use(express.json())
+    app.use(mockAuth(wallet))
     app.use('/api/confirm', confirmRouter)
     return app
   }
@@ -113,7 +114,7 @@ describe('POST /api/confirm/:id', () => {
     const id = 'confirm-test-001'
 
     // Register the pending confirmation (short timeout — won't fire in test)
-    const promise = requestConfirmation(id, 10_000)
+    const promise = requestConfirmation(id, TEST_WALLET, 10_000)
 
     const res = await supertest(app)
       .post(`/api/confirm/${id}`)
@@ -128,7 +129,7 @@ describe('POST /api/confirm/:id', () => {
     const app = createApp()
     const id = 'confirm-test-002'
 
-    const promise = requestConfirmation(id, 10_000)
+    const promise = requestConfirmation(id, TEST_WALLET, 10_000)
 
     const res = await supertest(app)
       .post(`/api/confirm/${id}`)
@@ -143,7 +144,7 @@ describe('POST /api/confirm/:id', () => {
     const app = createApp()
     const id = 'confirm-test-003'
 
-    requestConfirmation(id, 10_000)
+    requestConfirmation(id, TEST_WALLET, 10_000)
 
     // First call — consumes the entry
     await supertest(app).post(`/api/confirm/${id}`).send({ action: 'confirm' })
@@ -151,6 +152,20 @@ describe('POST /api/confirm/:id', () => {
     // Second call — entry is gone
     const res = await supertest(app).post(`/api/confirm/${id}`).send({ action: 'confirm' })
     expect(res.status).toBe(404)
+  })
+
+  it('returns 403 when wallet does not match the confirmation owner', async () => {
+    const id = 'confirm-test-004'
+    requestConfirmation(id, TEST_WALLET, 10_000)
+
+    // Different wallet tries to confirm
+    const app = createApp('DifferentWallet22222222222222222222222222222222')
+    const res = await supertest(app)
+      .post(`/api/confirm/${id}`)
+      .send({ action: 'confirm' })
+
+    expect(res.status).toBe(403)
+    expect(res.body.error).toMatch(/different wallet/i)
   })
 })
 
@@ -162,7 +177,7 @@ describe('requestConfirmation timeout', () => {
   it('resolves false after timeout elapses', async () => {
     vi.useFakeTimers()
     const id = 'timeout-test-001'
-    const promise = requestConfirmation(id, 500)
+    const promise = requestConfirmation(id, TEST_WALLET, 500)
 
     vi.advanceTimersByTime(600)
     await expect(promise).resolves.toBe(false)

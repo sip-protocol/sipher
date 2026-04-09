@@ -7,7 +7,7 @@ import { Router, type Request, type Response } from 'express'
 // Timed-out entries auto-resolve to false.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const pending = new Map<string, { resolve: (confirmed: boolean) => void; timer: NodeJS.Timeout }>()
+const pending = new Map<string, { resolve: (confirmed: boolean) => void; timer: NodeJS.Timeout; wallet: string }>()
 
 export const confirmRouter = Router()
 
@@ -26,6 +26,12 @@ confirmRouter.post('/:id', (req: Request, res: Response) => {
     return
   }
 
+  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  if (entry.wallet !== wallet) {
+    res.status(403).json({ error: 'confirmation belongs to a different wallet' })
+    return
+  }
+
   clearTimeout(entry.timer)
   pending.delete(id)
   entry.resolve(action === 'confirm')
@@ -38,13 +44,13 @@ confirmRouter.post('/:id', (req: Request, res: Response) => {
  * Resolves true when the user confirms, false on cancel or timeout.
  * The timer is unref'd so it doesn't block process exit.
  */
-export function requestConfirmation(id: string, timeoutMs = 120_000): Promise<boolean> {
+export function requestConfirmation(id: string, wallet: string, timeoutMs = 120_000): Promise<boolean> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       pending.delete(id)
       resolve(false)
     }, timeoutMs)
     timer.unref()
-    pending.set(id, { resolve, timer })
+    pending.set(id, { resolve, timer, wallet })
   })
 }
