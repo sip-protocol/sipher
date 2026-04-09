@@ -83,7 +83,8 @@ export async function scanWallet(
   let rpcCalls = 0
 
   // Build connection — local only, no RPC call consumed
-  const connection = createConnection('devnet')
+  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta' | 'testnet'
+  const connection = createConnection(network)
 
   // ── Step 1: Vault balance ──────────────────────────────────────────────────
   let vaultBalance = 0
