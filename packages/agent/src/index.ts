@@ -1,9 +1,9 @@
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import express from 'express'
+import express, { type Request, type Response } from 'express'
 import { chat, chatStream, SYSTEM_PROMPT, TOOLS, executeTool } from './agent.js'
 import { startCrank } from './crank.js'
-import { getDb, expireStaleLinks } from './db.js'
+import { getDb, expireStaleLinks, getActivity } from './db.js'
 import { resolveSession, activeSessionCount, purgeStale } from './session.js'
 import { payRouter } from './routes/pay.js'
 import { adminRouter } from './routes/admin.js'
@@ -93,6 +93,13 @@ app.use('/api/squad', verifyJwt, squadRouter)
 
 // HERALD approval queue + budget dashboard — JWT required
 app.use('/api/herald', verifyJwt, heraldRouter)
+
+// Activity stream (per-wallet history from DB) — JWT required
+app.get('/api/activity', verifyJwt, (req: Request, res: Response) => {
+  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const activity = getActivity(wallet)
+  res.json({ activity })
+})
 
 // Serve web chat UI (static files from app/dist)
 // In production: packages/agent/dist/ -> ../../../app/dist

@@ -1,6 +1,15 @@
 import { type Request, type Response } from 'express'
 import { guardianBus, type GuardianEvent } from '../coordination/event-bus.js'
 
+/** Map guardian event types to SSE event names for frontend listeners. */
+function sseEventName(type: string): string {
+  if (type.startsWith('courier:')) return 'confirm'
+  if (type.includes('budget')) return 'budget'
+  if (type.includes('cost')) return 'cost'
+  if (type.includes('status')) return 'agent-status'
+  return 'activity'
+}
+
 export function streamHandler(req: Request, res: Response): void {
   const wallet = (req as unknown as Record<string, unknown>).wallet as string
 
@@ -30,7 +39,7 @@ export function streamHandler(req: Request, res: Response): void {
       data: event.data,
       timestamp: event.timestamp,
     })
-    res.write(`event: activity\ndata: ${sseData}\n\n`)
+    res.write(`event: ${sseEventName(event.type)}\ndata: ${sseData}\n\n`)
   }
 
   guardianBus.onAny(handler)
