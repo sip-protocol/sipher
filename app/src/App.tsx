@@ -8,6 +8,7 @@ import './styles/theme.css'
 import Header from './components/Header'
 import BottomNav from './components/BottomNav'
 import CommandBar from './components/CommandBar'
+import StreamView from './views/StreamView'
 import { useAuth } from './hooks/useAuth'
 import { useSSE } from './hooks/useSSE'
 
@@ -33,12 +34,16 @@ export default function App() {
           <div className="flex flex-col h-dvh bg-[#0A0A0B] max-w-[720px] mx-auto border-x border-[#1E1E22]">
             <Header onAuth={authenticate} isAuthenticated={isAuthenticated} />
             <main className="flex-1 overflow-y-auto px-4 py-5">
-              <div className="text-[#71717A] text-sm text-center py-20">
-                {activeView === 'stream' && `Activity Stream — ${events.length} events`}
-                {activeView === 'vault' && 'Vault — coming in Task 6'}
-                {activeView === 'herald' && 'HERALD — coming in Task 7'}
-                {activeView === 'squad' && 'Squad — coming in Task 8'}
-              </div>
+              {activeView === 'stream' && <StreamView events={events} token={token} />}
+              {activeView === 'vault' && (
+                <div className="text-[#71717A] text-sm text-center py-20">Vault — coming in Task 6</div>
+              )}
+              {activeView === 'herald' && (
+                <div className="text-[#71717A] text-sm text-center py-20">HERALD — coming in Task 7</div>
+              )}
+              {activeView === 'squad' && (
+                <div className="text-[#71717A] text-sm text-center py-20">Squad — coming in Task 8</div>
+              )}
             </main>
             <div className="shrink-0 bg-[#0A0A0B] border-t border-[#1E1E22] pb-[env(safe-area-inset-bottom)]">
               <CommandBar token={token} />
