@@ -44,7 +44,13 @@ confirmRouter.post('/:id', (req: Request, res: Response) => {
  * Resolves true when the user confirms, false on cancel or timeout.
  * The timer is unref'd so it doesn't block process exit.
  */
+const MAX_PENDING_CONFIRMATIONS = 1000
+
 export function requestConfirmation(id: string, wallet: string, timeoutMs = 120_000): Promise<boolean> {
+  if (pending.size >= MAX_PENDING_CONFIRMATIONS) {
+    return Promise.resolve(false)
+  }
+
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       pending.delete(id)

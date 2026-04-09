@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import express, { type Request, type Response } from 'express'
-import { chat, chatStream, SYSTEM_PROMPT, TOOLS, executeTool } from './agent.js'
+import { chat, chatStream, TOOLS, executeTool } from './agent.js'
 import { startCrank, stopCrank } from './crank.js'
 import { getDb, closeDb, expireStaleLinks, getActivity } from './db.js'
 import { resolveSession, activeSessionCount, purgeStale } from './session.js'
@@ -246,7 +246,6 @@ app.get('/api/tools', (_req, res) => {
       name: t.name,
       description: t.description,
     })),
-    systemPrompt: SYSTEM_PROMPT,
   })
 })
 

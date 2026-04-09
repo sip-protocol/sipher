@@ -18,9 +18,9 @@ const pendingNonces = new Map<string, { wallet: string; expires: number }>()
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getSecret(): string {
-  const secret = process.env.JWT_SECRET ?? process.env.SIPHER_ADMIN_PASSWORD
+  const secret = process.env.JWT_SECRET
   if (!secret || secret.length < 16) {
-    throw new Error('JWT_SECRET must be at least 16 chars')
+    throw new Error('JWT_SECRET must be set and at least 16 chars')
   }
   return secret
 }
@@ -95,6 +95,11 @@ authRouter.post('/nonce', (req: Request, res: Response) => {
 
   if (!wallet || typeof wallet !== 'string') {
     res.status(400).json({ error: 'wallet required' })
+    return
+  }
+
+  if (pendingNonces.size >= 10_000) {
+    res.status(429).json({ error: 'too many pending nonces — try again later' })
     return
   }
 

@@ -10,13 +10,22 @@ import type { DashboardStats } from '../views/admin-page.js'
 
 export const adminRouter = Router()
 
-const adminTokens = new Set<string>()
+const adminTokens = new Map<string, number>() // token → expiresAt
 const COOKIE_NAME = 'sipher_admin'
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+function isValidAdminToken(token: string): boolean {
+  const expiresAt = adminTokens.get(token)
+  if (!expiresAt || expiresAt < Date.now()) {
+    adminTokens.delete(token)
+    return false
+  }
+  return true
+}
 
 function checkPassword(input: string): boolean {
   const expected = process.env.SIPHER_ADMIN_PASSWORD
@@ -39,7 +48,7 @@ function requireAuth(
   next: () => void,
 ): void {
   const token = getCookie(req, COOKIE_NAME)
-  if (!token || !adminTokens.has(token)) {
+  if (!token || !isValidAdminToken(token)) {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
@@ -78,7 +87,7 @@ adminRouter.post('/login', (req, res) => {
     return
   }
   const token = randomBytes(32).toString('hex')
-  adminTokens.add(token)
+  adminTokens.set(token, Date.now() + TWENTY_FOUR_HOURS)
   res.setHeader(
     'Set-Cookie',
     `${COOKIE_NAME}=${token}; Path=/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=${TWENTY_FOUR_HOURS / 1000}`,
@@ -106,3 +115,14 @@ adminRouter.get('/api/stats', requireAuth as any, (_req, res) => {
   const stats = buildStats()
   ;(res as any).json(stats)
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Background cleanup — expire stale admin tokens
+// ─────────────────────────────────────────────────────────────────────────────
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [token, expiresAt] of adminTokens) {
+    if (expiresAt < now) adminTokens.delete(token)
+  }
+}, 60 * 60 * 1000).unref()
