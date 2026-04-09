@@ -21,11 +21,23 @@ services:
       - LOG_LEVEL=info
       - RATE_LIMIT_MAX=100
       - RATE_LIMIT_WINDOW_MS=60000
+      # Phase 2 — Guardian Command
+      - JWT_SECRET=${JWT_SECRET}
+      - SIPHER_ADMIN_PASSWORD=${SIPHER_ADMIN_PASSWORD}
+      - AUTHORIZED_WALLETS=${AUTHORIZED_WALLETS:-}
+      - SOLANA_NETWORK=${SOLANA_NETWORK:-mainnet-beta}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
+      - X_CONSUMER_KEY=${X_CONSUMER_KEY:-}
+      - X_CONSUMER_SECRET=${X_CONSUMER_SECRET:-}
+      - X_ACCESS_TOKEN=${X_ACCESS_TOKEN:-}
+      - X_ACCESS_SECRET=${X_ACCESS_SECRET:-}
+      - HERALD_MONTHLY_BUDGET=${HERALD_MONTHLY_BUDGET:-150}
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/v1/ready').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
