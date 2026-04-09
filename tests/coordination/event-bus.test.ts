@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { EventBus, type GuardianEvent } from '../../src/coordination/event-bus.js'
+import { EventBus, type GuardianEvent } from '../../packages/agent/src/coordination/event-bus.js'
 
 describe('EventBus', () => {
   let bus: EventBus
