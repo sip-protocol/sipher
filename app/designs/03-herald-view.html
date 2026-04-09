@@ -1,0 +1,178 @@
+<!-- HERALD View — Guardian Command. Run ID: ca757fb5-2dce-4228-a1a8-c2a910dace2e -->
+<!-- Content reference: budget bar, sub-tabs (Activity/Queue/DMs), timeline, queue cards, DM summaries -->
+<!-- Header + bottom nav will use stream view canonical version in React -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HERALD | Guardian Command</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: {
+                colors: { app: { bg: '#0A0A0B', card: '#141416', border: '#1E1E22', text: '#F5F5F5', muted: '#71717A' }, agent: { sipher: '#10B981', herald: '#3B82F6', sentinel: '#F59E0B', courier: '#8B5CF6' } },
+                fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                boxShadow: { 'cmd': '0 -4px 20px rgba(0,0,0,0.4)' }
+            }}
+        }
+    </script>
+    <style>
+        body { overscroll-behavior-y: none; -webkit-font-smoothing: antialiased; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .radius-exact { border-radius: 8px; }
+    </style>
+</head>
+<body class="flex justify-center w-full min-h-screen bg-black">
+    <main class="w-full max-w-[720px] bg-app-bg h-[100dvh] flex flex-col relative border-x border-app-border overflow-hidden">
+        <!-- Header (canonical) -->
+        <header class="h-[56px] border-b border-app-border flex items-center justify-between px-4 shrink-0 bg-app-bg z-10">
+            <div class="flex items-center gap-2"><i class="ph ph-shield-check text-agent-sipher text-lg"></i><span class="font-semibold text-[13px] tracking-widest uppercase text-app-text">Sipher</span></div>
+            <button class="flex items-center gap-2.5 bg-app-card border border-app-border px-3 py-1.5 radius-exact"><div class="w-1.5 h-1.5 rounded-full bg-agent-sipher"></div><span class="text-[12px] font-mono text-app-text">5k9Q...P2vX</span></button>
+        </header>
+
+        <!-- Budget Bar -->
+        <div class="px-4 py-3 border-b border-app-border shrink-0">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] text-app-muted font-medium uppercase tracking-wider">X API Budget</span>
+                <div class="font-mono text-xs"><span class="text-app-text">$47.20</span><span class="text-app-muted"> / $150</span></div>
+            </div>
+            <div class="w-full h-1 bg-app-card rounded-full overflow-hidden"><div class="h-full bg-agent-sipher rounded-full" style="width:31.4%"></div></div>
+        </div>
+
+        <!-- Sub-tabs -->
+        <div class="flex px-4 border-b border-app-border shrink-0">
+            <button class="px-4 py-3 text-sm text-app-text font-medium relative">Activity<div class="absolute bottom-0 left-0 w-full h-[2px] bg-agent-herald"></div></button>
+            <button class="px-4 py-3 text-sm text-app-muted">Queue</button>
+            <button class="px-4 py-3 text-sm text-app-muted">DMs</button>
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto no-scrollbar px-4 py-5 flex flex-col gap-6 pb-6">
+
+            <!-- Activity Timeline -->
+            <div class="relative pl-4">
+                <div class="absolute left-[3px] top-2 bottom-4 w-px bg-app-border"></div>
+
+                <!-- Post -->
+                <div class="flex gap-3 mb-6 relative">
+                    <div class="w-2 h-2 rounded-full bg-agent-herald mt-1.5 relative z-10 ring-4 ring-app-bg"></div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1.5"><span class="text-xs font-medium text-app-text">Posted</span><span class="font-mono text-[10px] text-app-muted">30m ago</span></div>
+                        <div class="bg-app-card border border-app-border radius-exact p-3 flex flex-col gap-2">
+                            <p class="text-sm text-gray-300">"Your wallet is a diary. SIP makes it private."</p>
+                            <div class="flex items-center justify-between border-t border-app-border pt-2 mt-1">
+                                <div class="flex items-center gap-3 font-mono text-[10px] text-app-muted">
+                                    <span><i class="ph-fill ph-heart"></i> 12</span><span><i class="ph ph-arrows-left-right"></i> 3</span><span><i class="ph ph-chat-circle"></i> 2</span>
+                                </div>
+                                <button class="text-[10px] font-mono text-app-muted border border-app-border px-2 py-1 rounded bg-app-bg flex items-center gap-1">View on X <i class="ph ph-arrow-up-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reply -->
+                <div class="flex gap-3 mb-6 relative">
+                    <div class="w-2 h-2 rounded-full bg-agent-herald mt-1.5 relative z-10 ring-4 ring-app-bg"></div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1.5"><span class="text-xs font-medium text-app-text">Replied to</span><span class="font-mono text-[10px] text-agent-herald">@privacy_maxi</span><span class="font-mono text-[10px] text-app-muted">45m ago</span></div>
+                        <div class="bg-app-card border border-app-border radius-exact p-3">
+                            <div class="pl-2.5 border-l-2 border-app-border"><p class="text-[13px] text-gray-400 italic">"Stealth addresses solve this completely..."</p></div>
+                            <div class="flex justify-end mt-2"><button class="text-[10px] font-mono text-app-muted border border-app-border px-2 py-1 rounded bg-app-bg flex items-center gap-1">View on X <i class="ph ph-arrow-up-right"></i></button></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Like -->
+                <div class="flex gap-3 mb-6 relative">
+                    <div class="w-2 h-2 rounded-full bg-agent-herald mt-1.5 relative z-10 ring-4 ring-app-bg"></div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1"><span class="text-xs font-medium text-app-text">Liked</span><span class="font-mono text-[10px] text-app-muted">1h ago</span></div>
+                        <p class="text-sm text-gray-400"><i class="ph-fill ph-heart text-gray-500"></i> Liked <span class="font-mono text-xs text-app-text">@anon_dev</span>'s post about zero-knowledge privacy</p>
+                    </div>
+                </div>
+
+                <!-- DM Handled -->
+                <div class="flex gap-3 relative">
+                    <div class="w-2 h-2 rounded-full bg-agent-herald mt-1.5 relative z-10 ring-4 ring-app-bg"></div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1"><span class="text-xs font-medium text-app-text">DM Handled</span><span class="font-mono text-[10px] text-app-muted">2h ago</span></div>
+                        <div class="bg-app-card border border-app-border border-dashed radius-exact p-3">
+                            <span class="font-mono text-xs text-agent-herald">@dev_0x:</span> <span class="text-sm text-gray-400">"how do I integrate?"</span>
+                            <div class="flex items-center gap-1.5 text-[11px] text-app-muted mt-2"><i class="ph ph-arrow-right"></i> Sent docs link</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Queue Section -->
+            <div class="pt-4 border-t border-app-border">
+                <h3 class="text-[10px] font-semibold text-app-muted tracking-widest uppercase mb-3">Pending Posts (2)</h3>
+                <div class="flex flex-col gap-3">
+                    <div class="bg-app-card border border-app-border radius-exact p-4 flex flex-col gap-3">
+                        <p class="text-sm text-gray-200">"How Pedersen commitments hide amounts — a thread"</p>
+                        <div class="flex items-center gap-2 font-mono text-[10px] text-app-muted"><i class="ph ph-calendar-blank"></i> Tomorrow 9:00 AM UTC</div>
+                        <div class="flex gap-2 mt-1">
+                            <button class="flex-1 text-[11px] border border-agent-sipher/50 text-agent-sipher bg-agent-sipher/10 py-1.5 radius-exact font-medium">Approve</button>
+                            <button class="px-4 text-[11px] border border-app-border text-gray-300 bg-app-bg py-1.5 radius-exact">Edit</button>
+                            <button class="px-3 border border-app-border text-app-muted bg-app-bg py-1.5 radius-exact hover:text-red-400"><i class="ph ph-x"></i></button>
+                        </div>
+                    </div>
+                    <div class="bg-app-card border border-app-border radius-exact p-4 flex flex-col gap-3">
+                        <p class="text-sm text-gray-200">"SIP vault now live on mainnet. Deposit, go private."</p>
+                        <div class="flex items-center gap-2 font-mono text-[10px] text-app-muted"><i class="ph ph-calendar-blank"></i> Today 6:00 PM UTC</div>
+                        <div class="flex gap-2 mt-1">
+                            <button class="flex-1 text-[11px] border border-agent-sipher/50 text-agent-sipher bg-agent-sipher/10 py-1.5 radius-exact font-medium">Approve</button>
+                            <button class="px-4 text-[11px] border border-app-border text-gray-300 bg-app-bg py-1.5 radius-exact">Edit</button>
+                            <button class="px-3 border border-app-border text-app-muted bg-app-bg py-1.5 radius-exact hover:text-red-400"><i class="ph ph-x"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DMs Section -->
+            <div class="pt-4 border-t border-app-border">
+                <h3 class="text-[10px] font-semibold text-app-muted tracking-widest uppercase mb-3">Recent DMs</h3>
+                <div class="bg-app-card border border-app-border radius-exact overflow-hidden">
+                    <div class="flex flex-col p-3 border-b border-app-border/50">
+                        <div class="flex justify-between mb-1"><span class="font-mono text-xs text-agent-herald">@dev_0x</span><span class="text-[9px] text-green-500 bg-green-900/30 px-1.5 py-0.5 rounded border border-green-900/50">Resolved</span></div>
+                        <p class="text-[13px] text-gray-400 mb-1">"how do I integrate?"</p>
+                        <div class="flex items-center gap-1.5 text-[11px] text-app-muted"><i class="ph ph-arrow-elbow-down-right"></i> Sent docs link</div>
+                    </div>
+                    <div class="flex flex-col p-3 border-b border-app-border/50">
+                        <div class="flex justify-between mb-1"><span class="font-mono text-xs text-agent-herald">@anon_whale</span><span class="text-[9px] text-green-500 bg-green-900/30 px-1.5 py-0.5 rounded border border-green-900/50">Resolved</span></div>
+                        <p class="text-[13px] text-gray-400 mb-1">"privacy score?"</p>
+                        <div class="flex items-center gap-1.5 text-[11px] text-app-muted"><i class="ph ph-arrow-elbow-down-right"></i> Score: 72/100</div>
+                    </div>
+                    <div class="flex flex-col p-3">
+                        <div class="flex justify-between mb-1"><span class="font-mono text-xs text-agent-herald">@new_user</span><span class="text-[9px] text-yellow-500 bg-yellow-900/30 px-1.5 py-0.5 rounded border border-yellow-900/50">Actioned</span></div>
+                        <p class="text-[13px] text-gray-400 mb-1">"send 1 SOL"</p>
+                        <div class="flex items-center gap-1.5 text-[11px] text-agent-herald"><i class="ph ph-link"></i> Execution link sent</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Command Bar + Nav (canonical) -->
+        <div class="shrink-0 bg-app-bg shadow-cmd relative z-20 border-t border-app-border pb-[env(safe-area-inset-bottom)]">
+            <div class="px-4 py-3">
+                <div class="bg-app-card border border-app-border radius-exact flex items-center px-3 py-2">
+                    <div class="flex-1 flex items-center gap-2"><i class="ph ph-terminal-window text-app-muted text-base"></i><span class="text-app-muted text-[13px]">Talk to SIPHER...</span></div>
+                    <div class="border border-app-border bg-app-bg px-1.5 py-[1px] rounded text-[10px] text-app-muted font-mono">⌘K</div>
+                </div>
+            </div>
+            <nav class="flex w-full px-2 pb-1 border-t border-[#1E1E22]/50">
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted"><i class="ph ph-waves text-[20px]"></i><span class="text-[10px] font-medium tracking-wide">Stream</span></button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted"><i class="ph ph-vault text-[20px]"></i><span class="text-[10px] font-medium tracking-wide">Vault</span></button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-text relative"><i class="ph-fill ph-broadcast text-[20px]"></i><span class="text-[10px] font-medium tracking-wide uppercase">Herald</span></button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted"><i class="ph ph-users-three text-[20px]"></i><span class="text-[10px] font-medium tracking-wide">Squad</span></button>
+            </nav>
+        </div>
+    </main>
+</body>
+</html>

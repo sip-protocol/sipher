@@ -1,0 +1,149 @@
+<!-- Squad View — Guardian Command. Run ID: 28e19178-0670-4c00-9eac-e752d87c0265 -->
+<!-- Content: 2x2 agent status grid, today's stats, coordination log, kill switch -->
+<!-- Header + nav normalized to canonical -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Squad | Guardian Command</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: {
+            colors: { app: { bg: '#0A0A0B', card: '#141416', border: '#1E1E22', text: '#F5F5F5', muted: '#71717A' }, agent: { sipher: '#10B981', herald: '#3B82F6', sentinel: '#F59E0B', courier: '#8B5CF6' } },
+            fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+            boxShadow: { 'cmd': '0 -4px 20px rgba(0,0,0,0.4)' }
+        }}}
+    </script>
+    <style>
+        body { overscroll-behavior-y: none; -webkit-font-smoothing: antialiased; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .radius-exact { border-radius: 8px; }
+    </style>
+</head>
+<body class="flex justify-center w-full min-h-screen bg-black">
+    <main class="w-full max-w-[720px] bg-app-bg h-[100dvh] flex flex-col relative border-x border-app-border overflow-hidden">
+        <!-- Header (canonical) -->
+        <header class="h-[56px] border-b border-app-border flex items-center justify-between px-4 shrink-0 bg-app-bg z-10">
+            <div class="flex items-center gap-2"><i class="ph ph-shield-check text-agent-sipher text-lg"></i><span class="font-semibold text-[13px] tracking-widest uppercase text-app-text">Sipher</span></div>
+            <button class="flex items-center gap-2.5 bg-app-card border border-app-border px-3 py-1.5 radius-exact"><div class="w-1.5 h-1.5 rounded-full bg-agent-sipher"></div><span class="text-[12px] font-mono text-app-text">5k9Q...P2vX</span></button>
+        </header>
+
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto no-scrollbar px-4 py-5 flex flex-col gap-6 pb-6">
+
+            <!-- Agent Status Grid (2x2) -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-app-card border border-app-border radius-exact p-3 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-agent-sipher"></div><span class="text-xs font-semibold text-agent-sipher uppercase tracking-wide">SIPHER</span></div>
+                        <span class="text-[10px] font-mono text-app-muted">$2.14</span>
+                    </div>
+                    <div class="text-[11px] text-app-muted">Active · 3 sessions</div>
+                </div>
+                <div class="bg-app-card border border-app-border radius-exact p-3 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-agent-herald"></div><span class="text-xs font-semibold text-agent-herald uppercase tracking-wide">HERALD</span></div>
+                        <span class="text-[10px] font-mono text-app-muted">$1.87</span>
+                    </div>
+                    <div class="text-[11px] text-app-muted">Polling · next: 8m</div>
+                </div>
+                <div class="bg-app-card border border-app-border radius-exact p-3 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-agent-sentinel"></div><span class="text-xs font-semibold text-agent-sentinel uppercase tracking-wide">SENTINEL</span></div>
+                        <span class="text-[10px] font-mono text-app-muted">—</span>
+                    </div>
+                    <div class="text-[11px] text-app-muted">Scanning · next: 45s</div>
+                </div>
+                <div class="bg-app-card border border-app-border radius-exact p-3 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-agent-courier"></div><span class="text-xs font-semibold text-agent-courier uppercase tracking-wide">COURIER</span></div>
+                        <span class="text-[10px] font-mono text-app-muted">—</span>
+                    </div>
+                    <div class="text-[11px] text-app-muted">Idle · next op: 6h</div>
+                </div>
+            </div>
+
+            <!-- Today's Stats -->
+            <section>
+                <h3 class="text-[10px] font-semibold text-app-muted tracking-widest uppercase mb-3 px-1">Today's Stats</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-app-card border border-app-border radius-exact p-3"><div class="text-[22px] font-mono font-medium text-app-text leading-none mb-1">47</div><div class="text-[10px] text-app-muted uppercase tracking-wide">Tool calls</div></div>
+                    <div class="bg-app-card border border-app-border radius-exact p-3"><div class="text-[22px] font-mono font-medium text-app-text leading-none mb-1">3</div><div class="text-[10px] text-app-muted uppercase tracking-wide">Wallet sessions</div></div>
+                    <div class="bg-app-card border border-app-border radius-exact p-3"><div class="text-[22px] font-mono font-medium text-app-text leading-none mb-1">2</div><div class="text-[10px] text-app-muted uppercase tracking-wide">X posts</div></div>
+                    <div class="bg-app-card border border-app-border radius-exact p-3"><div class="text-[22px] font-mono font-medium text-app-text leading-none mb-1">8</div><div class="text-[10px] text-app-muted uppercase tracking-wide">X replies</div></div>
+                    <div class="bg-app-card border border-app-border radius-exact p-3"><div class="text-[22px] font-mono font-medium text-app-text leading-none mb-1">2,841</div><div class="text-[10px] text-app-muted uppercase tracking-wide">Blocks scanned</div></div>
+                    <div class="bg-app-card border border-app-border radius-exact p-3"><div class="text-[22px] font-mono font-medium text-app-text leading-none mb-1">1</div><div class="text-[10px] text-app-muted uppercase tracking-wide">Alerts</div></div>
+                </div>
+            </section>
+
+            <!-- Coordination Log -->
+            <section>
+                <h3 class="text-[10px] font-semibold text-app-muted tracking-widest uppercase mb-3 px-1">Coordination (last 24h)</h3>
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-start gap-4">
+                        <div class="text-[11px] font-mono text-app-muted pt-[1px] w-[38px] shrink-0">14:32</div>
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex items-center gap-1.5 text-[10px] font-mono text-app-muted uppercase tracking-wider">
+                                <div class="w-[5px] h-[5px] rounded-full bg-agent-sentinel"></div><span>SENTINEL</span>
+                                <i class="ph ph-arrow-right text-[9px]"></i>
+                                <div class="w-[5px] h-[5px] rounded-full bg-agent-sipher"></div><span>SIPHER</span>
+                            </div>
+                            <div class="text-[13px] text-app-text">Unclaimed payment detected, notifying user</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="text-[11px] font-mono text-app-muted pt-[1px] w-[38px] shrink-0">14:30</div>
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex items-center gap-1.5 text-[10px] font-mono text-app-muted uppercase tracking-wider">
+                                <div class="w-[5px] h-[5px] rounded-full bg-agent-herald"></div><span>HERALD</span>
+                                <i class="ph ph-arrow-right text-[9px]"></i>
+                                <div class="w-[5px] h-[5px] rounded-full bg-agent-sipher"></div><span>SIPHER</span>
+                            </div>
+                            <div class="text-[13px] text-app-text">Running <span class="font-mono text-[12px] bg-app-card px-1 py-0.5 rounded border border-app-border">privacyScore</span> for @dev_0x DM request</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="text-[11px] font-mono text-app-muted pt-[1px] w-[38px] shrink-0">11:00</div>
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex items-center gap-1.5 text-[10px] font-mono text-app-muted uppercase tracking-wider">
+                                <div class="w-[5px] h-[5px] rounded-full bg-agent-sentinel"></div><span>SENTINEL</span>
+                                <i class="ph ph-arrow-right text-[9px]"></i>
+                                <div class="w-[5px] h-[5px] rounded-full bg-agent-courier"></div><span>COURIER</span>
+                            </div>
+                            <div class="text-[13px] text-app-text">Deposit #42 expired, triggering auto-refund</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Kill Switch -->
+            <button class="w-full flex items-center justify-center gap-2 py-3.5 px-4 border border-red-500/30 text-red-500 radius-exact hover:bg-red-500/10 hover:border-red-500 transition-all mt-2">
+                <i class="ph ph-warning-octagon text-lg"></i>
+                <span class="text-sm font-semibold tracking-wide">Pause All Vault Ops</span>
+            </button>
+        </div>
+
+        <!-- Command Bar + Nav (canonical) -->
+        <div class="shrink-0 bg-app-bg shadow-cmd relative z-20 border-t border-app-border pb-[env(safe-area-inset-bottom)]">
+            <div class="px-4 py-3">
+                <div class="bg-app-card border border-app-border radius-exact flex items-center px-3 py-2">
+                    <div class="flex-1 flex items-center gap-2"><i class="ph ph-terminal-window text-app-muted text-base"></i><span class="text-app-muted text-[13px]">Talk to SIPHER...</span></div>
+                    <div class="border border-app-border bg-app-bg px-1.5 py-[1px] rounded text-[10px] text-app-muted font-mono">⌘K</div>
+                </div>
+            </div>
+            <nav class="flex w-full px-2 pb-1 border-t border-[#1E1E22]/50">
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted"><i class="ph ph-waves text-[20px]"></i><span class="text-[10px] font-medium tracking-wide">Stream</span></button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted"><i class="ph ph-vault text-[20px]"></i><span class="text-[10px] font-medium tracking-wide">Vault</span></button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted"><i class="ph ph-broadcast text-[20px]"></i><span class="text-[10px] font-medium tracking-wide uppercase">Herald</span></button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-text relative"><i class="ph-fill ph-users-three text-[20px]"></i><span class="text-[10px] font-medium tracking-wide">Squad</span></button>
+            </nav>
+        </div>
+    </main>
+</body>
+</html>

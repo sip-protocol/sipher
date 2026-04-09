@@ -1,0 +1,176 @@
+<!-- Vault View — Guardian Command. NOTE: header + bottom nav will use stream view's canonical version in React. This file is for vault content area reference only. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guardian Command - Vault</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                    colors: {
+                        app: { bg: '#0A0A0B', card: '#141416', border: '#1E1E22', text: '#F5F5F5', muted: '#71717A' },
+                        agent: { sipher: '#10B981', herald: '#3B82F6', sentinel: '#F59E0B', courier: '#8B5CF6' }
+                    },
+                    boxShadow: { 'cmd': '0 -4px 20px rgba(0,0,0,0.4)' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { overscroll-behavior-y: none; -webkit-font-smoothing: antialiased; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .radius-exact { border-radius: 8px; }
+    </style>
+</head>
+<body class="flex justify-center w-full min-h-screen bg-black">
+    <main class="w-full max-w-[720px] bg-app-bg h-[100dvh] flex flex-col relative border-x border-app-border overflow-hidden">
+        <!-- Header (canonical from stream view) -->
+        <header class="h-[56px] border-b border-app-border flex items-center justify-between px-4 shrink-0 bg-app-bg z-10">
+            <div class="flex items-center gap-2">
+                <i class="ph ph-shield-check text-agent-sipher text-lg"></i>
+                <span class="font-semibold text-[13px] tracking-widest uppercase text-app-text font-sans">Sipher</span>
+            </div>
+            <button class="flex items-center gap-2.5 bg-app-card border border-app-border px-3 py-1.5 radius-exact transition-colors hover:bg-[#1A1A1D]">
+                <div class="w-1.5 h-1.5 rounded-full bg-agent-sipher shadow-[0_0_0_2px_rgba(16,185,129,0.2)]"></div>
+                <span class="text-[12px] font-mono text-app-text">5k9Q...P2vX</span>
+            </button>
+        </header>
+
+        <!-- Vault Content -->
+        <div class="flex-1 overflow-y-auto no-scrollbar px-4 py-5 pb-6 flex flex-col gap-6">
+
+            <!-- Balance Card -->
+            <section class="bg-app-card border border-app-border radius-exact p-5">
+                <h2 class="text-[11px] font-semibold text-app-muted tracking-widest uppercase mb-4">Vault Balance</h2>
+                <div class="flex items-baseline gap-3 mb-5">
+                    <span class="text-[32px] font-mono font-bold text-app-text tracking-tight">12.45 SOL</span>
+                    <span class="text-sm font-mono text-app-muted">≈ $2,614.50</span>
+                </div>
+                <div class="flex gap-3">
+                    <button class="flex-1 border border-agent-sipher text-agent-sipher py-2.5 px-4 radius-exact text-sm font-medium hover:bg-agent-sipher/10 transition-colors flex justify-center items-center gap-2">
+                        <i class="ph ph-arrow-down-left"></i> Deposit
+                    </button>
+                    <button class="flex-1 border border-app-border text-app-text py-2.5 px-4 radius-exact text-sm font-medium hover:bg-app-border transition-colors flex justify-center items-center gap-2">
+                        <i class="ph ph-mask-happy"></i> Withdraw Privately
+                    </button>
+                </div>
+            </section>
+
+            <!-- Pending Operations -->
+            <section class="flex flex-col gap-3">
+                <h3 class="text-[10px] font-semibold text-app-muted tracking-widest uppercase px-1">Pending Operations</h3>
+                <div class="bg-app-card border border-app-border radius-exact p-3.5 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-2 rounded-full bg-agent-courier"></div>
+                        <span class="font-mono text-sm text-app-text">Drip: <span class="text-app-muted">0.1 SOL/day</span> → stealth</span>
+                    </div>
+                    <span class="font-mono text-xs text-app-muted">Next: 6h</span>
+                </div>
+                <div class="bg-app-card border border-app-border radius-exact p-3.5 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-2 rounded-full bg-agent-courier"></div>
+                        <span class="font-mono text-sm text-app-text">Recurring: <span class="text-app-muted">1 SOL weekly</span> → 7xKz...</span>
+                    </div>
+                    <span class="font-mono text-xs text-app-muted">Next: 3d</span>
+                </div>
+            </section>
+
+            <!-- Recent Activity -->
+            <section class="flex flex-col gap-3">
+                <h3 class="text-[10px] font-semibold text-app-muted tracking-widest uppercase px-1">Recent Activity</h3>
+                <div class="border border-app-border bg-app-card radius-exact flex flex-col font-mono text-sm overflow-hidden">
+                    <div class="flex items-center justify-between p-3 border-b border-app-border">
+                        <div class="flex items-center gap-2">
+                            <i class="ph ph-arrow-down text-agent-sipher"></i>
+                            <span class="text-app-muted">Deposit</span>
+                            <span class="text-app-text font-medium">2.0 SOL</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-app-muted text-xs">2h ago</span>
+                            <span class="text-agent-sipher text-xs">Confirmed</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between p-3 border-b border-app-border">
+                        <div class="flex items-center gap-2">
+                            <i class="ph ph-arrow-up text-app-text"></i>
+                            <span class="text-app-text">Withdraw</span>
+                            <span class="text-app-text font-medium">0.5 SOL</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-app-muted text-xs">1d ago</span>
+                            <span class="text-app-muted text-xs flex items-center gap-1">Stealth <i class="ph-fill ph-check-circle text-app-text"></i></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between p-3 border-b border-app-border">
+                        <div class="flex items-center gap-2">
+                            <i class="ph ph-arrow-down text-agent-sipher"></i>
+                            <span class="text-app-muted">Deposit</span>
+                            <span class="text-app-text font-medium">10.0 SOL</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-app-muted text-xs">3d ago</span>
+                            <span class="text-agent-sipher text-xs">Confirmed</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between p-3">
+                        <div class="flex items-center gap-2">
+                            <i class="ph ph-arrow-u-up-left text-agent-courier"></i>
+                            <span class="text-app-muted">Refund</span>
+                            <span class="text-app-text font-medium">1.0 SOL</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-app-muted text-xs">5d ago</span>
+                            <span class="text-agent-courier text-xs">Auto-refund</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Fee Summary -->
+            <div class="text-center">
+                <p class="text-xs font-mono text-app-muted/60">Fees collected: 0.062 SOL (10 bps)</p>
+            </div>
+        </div>
+
+        <!-- Command Bar + Nav (canonical from stream view) -->
+        <div class="shrink-0 bg-app-bg shadow-cmd relative z-20 border-t border-app-border pb-[env(safe-area-inset-bottom)]">
+            <div class="px-4 py-3">
+                <div class="bg-app-card border border-app-border radius-exact flex items-center px-3 py-2 cursor-text transition-colors hover:border-[#2C2C30]">
+                    <div class="flex-1 flex items-center gap-2">
+                        <i class="ph ph-terminal-window text-app-muted text-base"></i>
+                        <span class="text-app-muted text-[13px]">Talk to SIPHER...</span>
+                    </div>
+                    <div class="border border-app-border bg-app-bg px-1.5 py-[1px] rounded text-[10px] text-app-muted font-mono font-medium tracking-wide">⌘K</div>
+                </div>
+            </div>
+            <nav class="flex w-full px-2 pb-1 border-t border-[#1E1E22]/50">
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted hover:text-[#CCC] transition-colors">
+                    <i class="ph ph-waves text-[20px]"></i>
+                    <span class="text-[10px] font-medium tracking-wide">Stream</span>
+                </button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-text relative">
+                    <i class="ph-fill ph-vault text-[20px]"></i>
+                    <span class="text-[10px] font-medium tracking-wide">Vault</span>
+                </button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted hover:text-[#CCC] transition-colors relative">
+                    <i class="ph ph-broadcast text-[20px]"></i>
+                    <span class="text-[10px] font-medium tracking-wide uppercase">Herald</span>
+                </button>
+                <button class="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-app-muted hover:text-[#CCC] transition-colors">
+                    <i class="ph ph-users-three text-[20px]"></i>
+                    <span class="text-[10px] font-medium tracking-wide">Squad</span>
+                </button>
+            </nav>
+        </div>
+    </main>
+</body>
+</html>
