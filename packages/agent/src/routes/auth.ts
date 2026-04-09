@@ -197,19 +197,84 @@ authRouter.post('/verify', (req: Request, res: Response) => {
   res.json({ token, expiresIn: JWT_EXPIRY })
 })
 
+// ─── SSE Ticket Exchange ─────────────────────────────────────────────────────
+// Short-lived one-time tickets for SSE connections (avoids JWT in URL)
+
+const SSE_TICKET_TTL = 30_000 // 30 seconds
+const sseTickets = new Map<string, { wallet: string; expires: number }>()
+
+/**
+ * POST /auth/sse-ticket
+ * Exchanges a valid JWT for a short-lived, one-time SSE connection ticket.
+ * The ticket is a random string (not a JWT), safe to appear in URLs.
+ */
+authRouter.post('/sse-ticket', (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined
+
+  if (!token) {
+    res.status(401).json({ error: 'Bearer token required' })
+    return
+  }
+
+  try {
+    const decoded = jwt.verify(token, getSecret(), { algorithms: ['HS256'] }) as { wallet: string }
+    const ticket = crypto.randomBytes(32).toString('hex')
+    sseTickets.set(ticket, { wallet: decoded.wallet, expires: Date.now() + SSE_TICKET_TTL })
+
+    // Cap ticket store — evict oldest entry on overflow
+    if (sseTickets.size > 10_000) {
+      const oldest = sseTickets.keys().next().value
+      if (oldest) sseTickets.delete(oldest)
+    }
+
+    res.json({ ticket, expiresIn: SSE_TICKET_TTL / 1000 })
+  } catch {
+    res.status(401).json({ error: 'invalid or expired token' })
+  }
+})
+
+/**
+ * Validate and consume an SSE ticket. Returns the wallet if valid, null otherwise.
+ * Tickets are one-time use — deleted after first validation.
+ */
+export function consumeSseTicket(ticket: string): string | null {
+  const entry = sseTickets.get(ticket)
+  if (!entry || entry.expires < Date.now()) {
+    sseTickets.delete(ticket)
+    return null
+  }
+  sseTickets.delete(ticket) // one-time use
+  return entry.wallet
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Middleware
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Express middleware that validates a JWT from:
- *   - ?token= query param (preferred for SSE — EventSource cannot set headers)
- *   - Authorization: Bearer <token> header
+ * Express middleware that validates auth from (in priority order):
+ *   1. ?ticket= query param (preferred for SSE — short-lived, one-time, no JWT in URL)
+ *   2. ?token= query param (legacy SSE fallback — discouraged, exposes JWT in URL)
+ *   3. Authorization: Bearer <token> header
  *
  * On success, attaches `wallet` to the request object and calls next().
  */
 export function verifyJwt(req: Request, res: Response, next: NextFunction): void {
-  // Query param takes precedence (needed for SSE via EventSource)
+  // SSE ticket (preferred — no JWT in URL)
+  const ticket = req.query.ticket as string | undefined
+  if (ticket) {
+    const wallet = consumeSseTicket(ticket)
+    if (!wallet) {
+      res.status(401).json({ error: 'invalid or expired SSE ticket' })
+      return
+    }
+    ;(req as unknown as Record<string, unknown>).wallet = wallet
+    next()
+    return
+  }
+
+  // JWT from query param (legacy SSE) or Authorization header
   const authHeader = req.headers.authorization
   const token =
     (req.query.token as string | undefined) ??
@@ -268,3 +333,10 @@ setInterval(() => {
     if (entry.resetAt < now) verifyAttempts.delete(ip)
   }
 }, 5 * 60 * 1000).unref()
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [ticket, data] of sseTickets) {
+    if (data.expires < now) sseTickets.delete(ticket)
+  }
+}, 30_000).unref()
