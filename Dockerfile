@@ -17,7 +17,9 @@ COPY packages/sdk/package.json packages/sdk/
 COPY packages/agent/package.json packages/agent/
 COPY app/package.json app/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile && \
+    cd node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3 && \
+    npx --yes node-gyp rebuild
 
 # Copy source code
 COPY . .
