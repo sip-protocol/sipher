@@ -10,6 +10,7 @@ import BottomNav from './components/BottomNav'
 import CommandBar from './components/CommandBar'
 import StreamView from './views/StreamView'
 import VaultView from './views/VaultView'
+import HeraldView from './views/HeraldView'
 import { useAuth } from './hooks/useAuth'
 import { useSSE } from './hooks/useSSE'
 
@@ -37,9 +38,7 @@ export default function App() {
             <main className="flex-1 overflow-y-auto px-4 py-5">
               {activeView === 'stream' && <StreamView events={events} token={token} />}
               {activeView === 'vault' && <VaultView token={token} />}
-              {activeView === 'herald' && (
-                <div className="text-[#71717A] text-sm text-center py-20">HERALD — coming in Task 7</div>
-              )}
+              {activeView === 'herald' && <HeraldView token={token} />}
               {activeView === 'squad' && (
                 <div className="text-[#71717A] text-sm text-center py-20">Squad — coming in Task 8</div>
               )}
