@@ -7,8 +7,9 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Install pnpm via corepack (built into Node 22)
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm via corepack + native build tools for better-sqlite3
+RUN corepack enable && corepack prepare pnpm@latest --activate && \
+    apk add --no-cache python3 make g++
 
 # Copy workspace config and all package.json files first (cache deps layer)
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
