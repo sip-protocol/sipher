@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import crypto from 'node:crypto'
+import { ed25519 } from '@noble/curves/ed25519'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -22,6 +23,61 @@ function getSecret(): string {
     throw new Error('JWT_SECRET must be at least 16 chars')
   }
   return secret
+}
+
+// Base58 alphabet (Bitcoin/Solana standard)
+const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+const BASE58_MAP = new Map(BASE58_ALPHABET.split('').map((c, i) => [c, BigInt(i)]))
+
+function decodeBase58(input: string): Uint8Array {
+  let num = 0n
+  for (const char of input) {
+    const val = BASE58_MAP.get(char)
+    if (val === undefined) throw new Error(`invalid base58 character: ${char}`)
+    num = num * 58n + val
+  }
+
+  // Convert bigint to bytes
+  const hex = num.toString(16).padStart(2, '0')
+  const rawBytes = new Uint8Array(hex.length / 2 + (hex.length % 2))
+  const padded = hex.length % 2 ? '0' + hex : hex
+  for (let i = 0; i < padded.length; i += 2) {
+    rawBytes[i / 2] = parseInt(padded.slice(i, i + 2), 16)
+  }
+
+  // Preserve leading zero bytes (leading '1's in base58)
+  let leadingZeros = 0
+  for (const char of input) {
+    if (char !== '1') break
+    leadingZeros++
+  }
+
+  const result = new Uint8Array(leadingZeros + rawBytes.length)
+  result.set(rawBytes, leadingZeros)
+  return result
+}
+
+/**
+ * Decode a signature from base58 or hex format to 64 bytes.
+ */
+function decodeSignature(sig: string): Uint8Array {
+  // Hex-encoded signature (128 hex chars = 64 bytes)
+  if (/^[0-9a-fA-F]{128}$/.test(sig)) {
+    const bytes = new Uint8Array(64)
+    for (let i = 0; i < 128; i += 2) {
+      bytes[i / 2] = parseInt(sig.slice(i, i + 2), 16)
+    }
+    return bytes
+  }
+  // Base58-encoded signature (Solana wallet default)
+  return decodeBase58(sig)
+}
+
+/**
+ * Decode a Solana wallet address (base58) to 32-byte public key.
+ */
+function decodePublicKey(wallet: string): Uint8Array {
+  return decodeBase58(wallet)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,9 +106,8 @@ authRouter.post('/nonce', (req: Request, res: Response) => {
 
 /**
  * POST /auth/verify
- * Verifies a signed nonce and returns a JWT.
- * Signature cryptographic verification is deferred to on-chain tooling —
- * the nonce itself provides replay protection.
+ * Verifies a signed nonce via ed25519 and returns a JWT.
+ * The wallet must cryptographically prove ownership by signing the nonce message.
  */
 authRouter.post('/verify', (req: Request, res: Response) => {
   const { wallet, nonce, signature } = req.body as {
@@ -72,6 +127,38 @@ authRouter.post('/verify', (req: Request, res: Response) => {
     // Always clean up — prevents probing expired entries
     pendingNonces.delete(nonce)
     res.status(401).json({ error: 'invalid or expired nonce' })
+    return
+  }
+
+  // ── Cryptographic signature verification ──────────────────────────────
+  try {
+    const publicKeyBytes = decodePublicKey(wallet)
+    if (publicKeyBytes.length !== 32) {
+      pendingNonces.delete(nonce)
+      res.status(401).json({ error: 'invalid wallet address: expected 32-byte ed25519 public key' })
+      return
+    }
+
+    const signatureBytes = decodeSignature(signature)
+    if (signatureBytes.length !== 64) {
+      pendingNonces.delete(nonce)
+      res.status(401).json({ error: 'invalid signature: expected 64-byte ed25519 signature' })
+      return
+    }
+
+    // The message the wallet signed (must match what /nonce returns)
+    const message = `Sign this nonce to authenticate: ${nonce}`
+    const messageBytes = new TextEncoder().encode(message)
+
+    const valid = ed25519.verify(signatureBytes, messageBytes, publicKeyBytes)
+    if (!valid) {
+      pendingNonces.delete(nonce)
+      res.status(401).json({ error: 'signature verification failed' })
+      return
+    }
+  } catch {
+    pendingNonces.delete(nonce)
+    res.status(401).json({ error: 'signature verification failed' })
     return
   }
 

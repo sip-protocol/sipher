@@ -2,8 +2,47 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import express from 'express'
 import supertest from 'supertest'
 import jwt from 'jsonwebtoken'
+import { ed25519 } from '@noble/curves/ed25519'
 
 const JWT_SECRET = 'test-jwt-secret-at-least-16-chars'
+
+// Base58 alphabet (Bitcoin/Solana standard)
+const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
+function encodeBase58(bytes: Uint8Array): string {
+  let num = 0n
+  for (const b of bytes) num = num * 256n + BigInt(b)
+  let str = ''
+  while (num > 0n) {
+    str = BASE58_ALPHABET[Number(num % 58n)] + str
+    num = num / 58n
+  }
+  // Preserve leading zero bytes
+  for (const b of bytes) {
+    if (b !== 0) break
+    str = '1' + str
+  }
+  return str || '1'
+}
+
+/**
+ * Generate a test wallet (ed25519 keypair) with base58-encoded public key.
+ * Returns { privateKey, publicKey, wallet } where wallet is the base58 address.
+ */
+function generateTestWallet() {
+  const privateKey = ed25519.utils.randomPrivateKey()
+  const publicKey = ed25519.getPublicKey(privateKey)
+  return { privateKey, publicKey, wallet: encodeBase58(publicKey) }
+}
+
+/**
+ * Sign a message string with the test wallet's private key, return base58 signature.
+ */
+function signMessage(message: string, privateKey: Uint8Array): string {
+  const msgBytes = new TextEncoder().encode(message)
+  const sig = ed25519.sign(msgBytes, privateKey)
+  return encodeBase58(sig)
+}
 
 beforeEach(() => {
   process.env.JWT_SECRET = JWT_SECRET
@@ -76,21 +115,23 @@ describe('POST /auth/nonce', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('POST /auth/verify', () => {
-  it('returns JWT token for valid nonce (signature check deferred)', async () => {
+  it('returns JWT token for valid wallet signature', async () => {
     const app = createApp()
-    const wallet = 'testWallet111'
+    const { privateKey, wallet } = generateTestWallet()
 
     // Get a nonce
     const nonceRes = await supertest(app)
       .post('/auth/nonce')
       .send({ wallet })
     expect(nonceRes.status).toBe(200)
-    const { nonce } = nonceRes.body
+    const { nonce, message } = nonceRes.body
 
-    // Verify with any signature (acceptance is the current behaviour)
+    // Sign the nonce message with the real private key
+    const signature = signMessage(message, privateKey)
+
     const verifyRes = await supertest(app)
       .post('/auth/verify')
-      .send({ wallet, nonce, signature: 'any-signature-value' })
+      .send({ wallet, nonce, signature })
     expect(verifyRes.status).toBe(200)
     expect(verifyRes.body.token).toBeDefined()
     expect(verifyRes.body.expiresIn).toBe('1h')
@@ -98,6 +139,63 @@ describe('POST /auth/verify', () => {
     // Token must be a valid JWT with correct wallet claim
     const decoded = jwt.verify(verifyRes.body.token, JWT_SECRET) as { wallet: string }
     expect(decoded.wallet).toBe(wallet)
+  })
+
+  it('accepts hex-encoded signatures', async () => {
+    const app = createApp()
+    const { privateKey, wallet } = generateTestWallet()
+
+    const nonceRes = await supertest(app)
+      .post('/auth/nonce')
+      .send({ wallet })
+    const { nonce, message } = nonceRes.body
+
+    // Sign and convert to hex instead of base58
+    const msgBytes = new TextEncoder().encode(message)
+    const sigBytes = ed25519.sign(msgBytes, privateKey)
+    const hexSig = Array.from(sigBytes).map(b => b.toString(16).padStart(2, '0')).join('')
+
+    const verifyRes = await supertest(app)
+      .post('/auth/verify')
+      .send({ wallet, nonce, signature: hexSig })
+    expect(verifyRes.status).toBe(200)
+    expect(verifyRes.body.token).toBeDefined()
+  })
+
+  it('rejects an invalid signature (wrong key)', async () => {
+    const app = createApp()
+    const { wallet } = generateTestWallet()
+    const attacker = generateTestWallet()
+
+    const nonceRes = await supertest(app)
+      .post('/auth/nonce')
+      .send({ wallet })
+    const { nonce, message } = nonceRes.body
+
+    // Attacker signs with their own key but claims victim's wallet
+    const badSig = signMessage(message, attacker.privateKey)
+
+    const res = await supertest(app)
+      .post('/auth/verify')
+      .send({ wallet, nonce, signature: badSig })
+    expect(res.status).toBe(401)
+    expect(res.body.error).toMatch(/signature verification failed/i)
+  })
+
+  it('rejects a garbage signature string', async () => {
+    const app = createApp()
+    const { wallet } = generateTestWallet()
+
+    const nonceRes = await supertest(app)
+      .post('/auth/nonce')
+      .send({ wallet })
+    const { nonce } = nonceRes.body
+
+    const res = await supertest(app)
+      .post('/auth/verify')
+      .send({ wallet, nonce, signature: 'not-a-real-signature!!!' })
+    expect(res.status).toBe(401)
+    expect(res.body.error).toMatch(/signature verification failed/i)
   })
 
   it('rejects missing wallet', async () => {
@@ -129,48 +227,54 @@ describe('POST /auth/verify', () => {
 
   it('rejects invalid (unknown) nonce', async () => {
     const app = createApp()
+    const { wallet } = generateTestWallet()
     const res = await supertest(app)
       .post('/auth/verify')
-      .send({ wallet: 'wallet1', nonce: 'nonexistent-nonce', signature: 'sig' })
+      .send({ wallet, nonce: 'nonexistent-nonce', signature: 'sig' })
     expect(res.status).toBe(401)
     expect(res.body.error).toMatch(/invalid|expired/i)
   })
 
   it('rejects nonce issued for a different wallet', async () => {
     const app = createApp()
+    const walletA = generateTestWallet()
+    const walletB = generateTestWallet()
 
     // Issue nonce for wallet A
     const nonceRes = await supertest(app)
       .post('/auth/nonce')
-      .send({ wallet: 'walletA' })
+      .send({ wallet: walletA.wallet })
     const { nonce } = nonceRes.body
 
     // Try to claim with wallet B
     const res = await supertest(app)
       .post('/auth/verify')
-      .send({ wallet: 'walletB', nonce, signature: 'sig' })
+      .send({ wallet: walletB.wallet, nonce, signature: 'sig' })
     expect(res.status).toBe(401)
     expect(res.body.error).toMatch(/invalid|expired/i)
   })
 
   it('rejects nonce reuse (one-time use)', async () => {
     const app = createApp()
-    const wallet = 'walletReuse'
+    const { privateKey, wallet } = generateTestWallet()
 
     const nonceRes = await supertest(app)
       .post('/auth/nonce')
       .send({ wallet })
-    const { nonce } = nonceRes.body
+    const { nonce, message } = nonceRes.body
+
+    const signature = signMessage(message, privateKey)
 
     // First use — succeeds
-    await supertest(app)
+    const first = await supertest(app)
       .post('/auth/verify')
-      .send({ wallet, nonce, signature: 'sig' })
+      .send({ wallet, nonce, signature })
+    expect(first.status).toBe(200)
 
-    // Second use — must fail
+    // Second use — must fail (nonce consumed)
     const res = await supertest(app)
       .post('/auth/verify')
-      .send({ wallet, nonce, signature: 'sig' })
+      .send({ wallet, nonce, signature })
     expect(res.status).toBe(401)
   })
 })
