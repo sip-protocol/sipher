@@ -7,7 +7,7 @@ import { getDb, expireStaleLinks, getActivity } from './db.js'
 import { resolveSession, activeSessionCount, purgeStale } from './session.js'
 import { payRouter } from './routes/pay.js'
 import { adminRouter } from './routes/admin.js'
-import { authRouter, verifyJwt } from './routes/auth.js'
+import { authRouter, verifyJwt, requireOwner } from './routes/auth.js'
 import { streamHandler } from './routes/stream.js'
 import { commandHandler } from './routes/command.js'
 import { confirmRouter } from './routes/confirm.js'
@@ -94,11 +94,11 @@ app.use('/api/confirm', verifyJwt, confirmRouter)
 // Vault activity feed (per-wallet) — JWT required
 app.use('/api/vault', verifyJwt, vaultRouter)
 
-// Squad dashboard + kill switch — JWT required
-app.use('/api/squad', verifyJwt, squadRouter)
+// Squad dashboard + kill switch — JWT + owner required
+app.use('/api/squad', verifyJwt, requireOwner, squadRouter)
 
-// HERALD approval queue + budget dashboard — JWT required
-app.use('/api/herald', verifyJwt, heraldRouter)
+// HERALD approval queue + budget dashboard — JWT + owner required
+app.use('/api/herald', verifyJwt, requireOwner, heraldRouter)
 
 // Activity stream (per-wallet history from DB) — JWT required
 app.get('/api/activity', verifyJwt, (req: Request, res: Response) => {

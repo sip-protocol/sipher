@@ -200,6 +200,28 @@ export function verifyJwt(req: Request, res: Response, next: NextFunction): void
   }
 }
 
+/**
+ * Authorization middleware — checks that the JWT wallet is in the AUTHORIZED_WALLETS allowlist.
+ * Must be placed AFTER verifyJwt in the middleware chain.
+ */
+export function requireOwner(req: Request, res: Response, next: NextFunction): void {
+  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const allowed = (process.env.AUTHORIZED_WALLETS ?? '').split(',').map(w => w.trim()).filter(Boolean)
+
+  // If no wallets configured, deny all — fail closed
+  if (allowed.length === 0) {
+    res.status(403).json({ error: 'no authorized wallets configured' })
+    return
+  }
+
+  if (!allowed.includes(wallet)) {
+    res.status(403).json({ error: 'wallet not authorized for admin operations' })
+    return
+  }
+
+  next()
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Background cleanup — prevent unbounded nonce accumulation
 // ─────────────────────────────────────────────────────────────────────────────
