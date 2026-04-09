@@ -184,25 +184,20 @@ export async function checkScheduledPosts(): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type PollerTimers = {
-  mentionsTimer: ReturnType<typeof setInterval>
+  mentionsTimer: ReturnType<typeof setTimeout>
   dmsTimer: ReturnType<typeof setInterval>
   scheduledTimer: ReturnType<typeof setInterval>
 }
 
 /**
- * Start 3 interval timers: mentions, DMs, and scheduled post publisher.
- * All timers are unref'd so they don't prevent process exit.
- * Returns handles for cleanup via stopPoller().
+ * Schedule next mention poll using recursive setTimeout.
+ * Each tick computes the correct interval (with backoff), executes,
+ * then schedules the next tick — preventing the permanent-stop bug
+ * that occurred with setInterval + clearInterval.
  */
-export function startPoller(state: PollerState): PollerTimers {
-  state.running = true
-
-  const mentionsTimer = setInterval(() => {
-    const interval = getNextInterval(state)
-    // Adjust mention timer interval dynamically if backing off
-    if (interval !== state.mentionInterval) {
-      clearInterval(mentionsTimer)
-    }
+function scheduleMentionPoll(state: PollerState, timers: PollerTimers): void {
+  const interval = getNextInterval(state)
+  timers.mentionsTimer = setTimeout(() => {
     pollMentions(state).catch((err) => {
       guardianBus.emit({
         source: 'herald',
@@ -211,10 +206,32 @@ export function startPoller(state: PollerState): PollerTimers {
         data: { poller: 'mentions', error: err instanceof Error ? err.message : String(err) },
         timestamp: new Date().toISOString(),
       })
+    }).finally(() => {
+      if (state.running) scheduleMentionPoll(state, timers)
     })
-  }, state.mentionInterval)
+  }, interval)
+  timers.mentionsTimer.unref()
+}
 
-  const dmsTimer = setInterval(() => {
+/**
+ * Start 3 timers: mentions (recursive setTimeout), DMs + scheduled (setInterval).
+ * All timers are unref'd so they don't prevent process exit.
+ * Returns handles for cleanup via stopPoller().
+ */
+export function startPoller(state: PollerState): PollerTimers {
+  state.running = true
+
+  const timers: PollerTimers = {
+    mentionsTimer: null as unknown as ReturnType<typeof setTimeout>,
+    dmsTimer: null as unknown as ReturnType<typeof setInterval>,
+    scheduledTimer: null as unknown as ReturnType<typeof setInterval>,
+  }
+
+  // Mentions: recursive setTimeout for adaptive backoff
+  scheduleMentionPoll(state, timers)
+
+  // DMs: fixed interval (no backoff needed)
+  timers.dmsTimer = setInterval(() => {
     pollDMs(state).catch((err) => {
       guardianBus.emit({
         source: 'herald',
@@ -227,7 +244,7 @@ export function startPoller(state: PollerState): PollerTimers {
   }, state.dmInterval)
 
   // Scheduled posts checked every minute regardless of mention backoff
-  const scheduledTimer = setInterval(() => {
+  timers.scheduledTimer = setInterval(() => {
     checkScheduledPosts().catch((err) => {
       guardianBus.emit({
         source: 'herald',
@@ -239,18 +256,17 @@ export function startPoller(state: PollerState): PollerTimers {
     })
   }, 60_000)
 
-  mentionsTimer.unref()
-  dmsTimer.unref()
-  scheduledTimer.unref()
+  timers.dmsTimer.unref()
+  timers.scheduledTimer.unref()
 
-  return { mentionsTimer, dmsTimer, scheduledTimer }
+  return timers
 }
 
 /**
- * Stop all poller intervals and mark state as not running.
+ * Stop all poller timers and mark state as not running.
  */
 export function stopPoller(state: PollerState, timers: PollerTimers): void {
-  clearInterval(timers.mentionsTimer)
+  clearTimeout(timers.mentionsTimer)
   clearInterval(timers.dmsTimer)
   clearInterval(timers.scheduledTimer)
   state.running = false
