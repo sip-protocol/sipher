@@ -1,9 +1,9 @@
 import { type Request, type Response } from 'express'
+import { chat } from '../agent.js'
 
 /**
  * POST /api/command
  * Command bar → SIPHER agent.
- * Placeholder until wired to the Pi agent in Task 14.
  */
 export async function commandHandler(req: Request, res: Response): Promise<void> {
   const wallet = (req as unknown as Record<string, unknown>).wallet as string
@@ -14,6 +14,11 @@ export async function commandHandler(req: Request, res: Response): Promise<void>
     return
   }
 
-  // Placeholder — Task 14 wires this to the Pi agent loop
-  res.json({ status: 'received', wallet, message })
+  try {
+    const response = await chat([{ role: 'user', content: message }])
+    res.json({ status: 'ok', wallet, response })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Command execution failed'
+    res.status(500).json({ error: msg })
+  }
 }

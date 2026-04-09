@@ -25,15 +25,22 @@ interface ActivityEntry {
 interface QueueItem {
   id: string
   content: string
-  scheduledFor: string
+  scheduled_at?: string
+  status?: string
 }
 
 interface DmEntry {
   id: string
-  username: string
-  preview: string
-  resolution: string
+  x_user_id?: string
+  username?: string
+  text?: string
+  preview?: string
+  intent?: string
+  tool?: string
+  response?: string
+  resolution?: string
   action?: string
+  created_at?: string
 }
 
 interface HeraldData {
@@ -244,7 +251,7 @@ function QueueTab({
           <p className="text-sm text-gray-200">{item.content}</p>
           <div className="flex items-center gap-2 font-mono text-[10px] text-[#71717A]">
             <span>📅</span>
-            <span>{item.scheduledFor}</span>
+            <span>{item.scheduled_at ?? '—'}</span>
           </div>
           <div className="flex gap-2 mt-1">
             <button
@@ -290,7 +297,7 @@ function DmsTab({ dms }: { dms: DmEntry[] }) {
           className={`flex flex-col p-3 ${i < dms.length - 1 ? 'border-b border-[#1E1E22]/50' : ''}`}
         >
           <div className="flex justify-between mb-1">
-            <span className="font-mono text-xs text-[#3B82F6]">@{dm.username}</span>
+            <span className="font-mono text-xs text-[#3B82F6]">@{dm.x_user_id ?? dm.username ?? 'unknown'}</span>
             {dm.resolution === 'resolved' ? (
               <span className="text-[9px] text-green-500 bg-green-900/30 px-1.5 py-0.5 rounded border border-green-900/50">
                 Resolved
@@ -301,10 +308,10 @@ function DmsTab({ dms }: { dms: DmEntry[] }) {
               </span>
             )}
           </div>
-          <p className="text-[13px] text-gray-400 mb-1">{dm.preview}</p>
+          <p className="text-[13px] text-gray-400 mb-1">{dm.text ?? dm.preview ?? ''}</p>
           {dm.action && (
             <div className={`flex items-center gap-1.5 text-[11px] ${dm.resolution === 'resolved' ? 'text-[#71717A]' : 'text-[#3B82F6]'}`}>
-              ↳ {dm.action}
+              ↳ {dm.action ?? dm.tool}
             </div>
           )}
         </div>

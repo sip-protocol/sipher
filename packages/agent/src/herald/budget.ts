@@ -123,3 +123,8 @@ export function canMakeCall(operation: string): boolean {
   const { gate } = getBudgetStatus()
   return !BLOCKED_OPS[gate].has(operation)
 }
+
+/** @internal Test helper — reset module state between runs */
+export function _resetBudgetState(): void {
+  _lastGate = 'normal'
+}

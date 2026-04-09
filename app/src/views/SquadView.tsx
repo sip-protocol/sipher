@@ -28,10 +28,38 @@ interface CoordEntry {
   codeSpan?: string
 }
 
+interface SquadRaw {
+  agents: AgentStatus[] | Record<string, { status?: string }>
+  stats?: TodayStats
+  costs?: Record<string, number>
+  coordination?: CoordEntry[]
+  events?: CoordEntry[]
+  killSwitch?: boolean
+}
+
 interface SquadData {
   agents: AgentStatus[]
   stats: TodayStats
   coordination: CoordEntry[]
+}
+
+// ── Normalize backend → frontend ──────────────────────────────────────────────
+
+function normalizeSquadData(raw: SquadRaw): SquadData {
+  // Backend returns agents as an object map, transform to array
+  const agents: AgentStatus[] = Array.isArray(raw.agents)
+    ? raw.agents
+    : Object.entries(raw.agents ?? {}).map(([id, info]) => ({
+        id: id as AgentName,
+        statusText: info.status ?? 'unknown',
+        cost: null,
+      }))
+
+  return {
+    agents,
+    stats: raw.stats ?? MOCK_DATA.stats,
+    coordination: raw.coordination ?? raw.events ?? [],
+  }
 }
 
 // ── Mock fallback ─────────────────────────────────────────────────────────────
@@ -249,8 +277,8 @@ export default function SquadView({ token }: { token: string | null }) {
       return
     }
     setError(null)
-    apiFetch<SquadData>('/api/squad', { token })
-      .then(setData)
+    apiFetch<SquadRaw>('/api/squad', { token })
+      .then(raw => setData(normalizeSquadData(raw)))
       .catch((err: Error) => {
         setError(err.message)
         setData(MOCK_DATA)

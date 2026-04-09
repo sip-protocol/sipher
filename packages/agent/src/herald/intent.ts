@@ -70,7 +70,6 @@ const SPAM_PATTERNS = [
   /\b(buy\s+now|click\s+here|click\s+now)\b/i,
   /\b(free\s+(crypto|airdrop|nft|tokens))\b/i,
   /\bdm\s+me\s+for\b/i,
-  /http[s]?:\/\/(?!sip-protocol|sipher)[^\s]*/i, // external links not from sip-protocol/sipher
 ]
 
 const QUESTION_PATTERNS = [

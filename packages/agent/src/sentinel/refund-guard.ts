@@ -9,13 +9,15 @@ export function shouldAutoRefund(amount: number, threshold: number): boolean {
 
 // ─── Double-Processing Prevention ──────────────────────────────────────────
 
-// Check if refund is safe — looks for deposit PDA in recent signatures.
-// If found → in-flight TX, skip refund.
+/**
+ * Check if a refund is safe by verifying no recent transactions reference this deposit.
+ * Compares deposit PDA against a set of known in-flight deposit PDAs (not raw signatures).
+ */
 export function isRefundSafe(
   depositPda: string,
-  recentSignatures: string[]
+  inFlightDeposits: string[]
 ): boolean {
-  return !recentSignatures.some(sig => sig.includes(depositPda))
+  return !inFlightDeposits.includes(depositPda)
 }
 
 // ─── Idempotency ───────────────────────────────────────────────────────────
