@@ -35,7 +35,7 @@ export const postTweetTool: Tool = {
       },
     },
     required: ['text'],
-  } as any,
+  } as Tool['parameters'],
 }
 
 /**

@@ -33,7 +33,7 @@ export const sendDMTool: Tool = {
       },
     },
     required: ['user_id', 'text'],
-  } as any,
+  } as Tool['parameters'],
 }
 
 export async function executeSendDM(params: SendDMParams): Promise<SendDMResult> {

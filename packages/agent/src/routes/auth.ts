@@ -13,6 +13,22 @@ const JWT_EXPIRY = '1h'
 // In-memory store: nonce → { wallet, expires }
 const pendingNonces = new Map<string, { wallet: string; expires: number }>()
 
+// Per-IP rate limiter for /verify (prevents ed25519 CPU amplification)
+const verifyAttempts = new Map<string, { count: number; resetAt: number }>()
+const VERIFY_RATE_LIMIT = 10  // per minute
+const VERIFY_WINDOW_MS = 60_000
+
+function checkVerifyRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = verifyAttempts.get(ip)
+  if (!entry || entry.resetAt < now) {
+    verifyAttempts.set(ip, { count: 1, resetAt: now + VERIFY_WINDOW_MS })
+    return true
+  }
+  entry.count++
+  return entry.count <= VERIFY_RATE_LIMIT
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -115,6 +131,12 @@ authRouter.post('/nonce', (req: Request, res: Response) => {
  * The wallet must cryptographically prove ownership by signing the nonce message.
  */
 authRouter.post('/verify', (req: Request, res: Response) => {
+  const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown'
+  if (!checkVerifyRateLimit(ip)) {
+    res.status(429).json({ error: 'too many verify attempts — try again later' })
+    return
+  }
+
   const { wallet, nonce, signature } = req.body as {
     wallet?: string
     nonce?: string
@@ -236,5 +258,12 @@ setInterval(() => {
   const now = Date.now()
   for (const [nonce, data] of pendingNonces) {
     if (data.expires < now) pendingNonces.delete(nonce)
+  }
+}, 5 * 60 * 1000).unref()
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [ip, entry] of verifyAttempts) {
+    if (entry.resetAt < now) verifyAttempts.delete(ip)
   }
 }, 5 * 60 * 1000).unref()

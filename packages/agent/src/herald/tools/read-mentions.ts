@@ -37,7 +37,7 @@ export const readMentionsTool: Tool = {
       },
     },
     required: [],
-  } as any,
+  } as Tool['parameters'],
 }
 
 export async function executeReadMentions(params: ReadMentionsParams = {}): Promise<ReadMentionsResult> {

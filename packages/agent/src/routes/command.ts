@@ -14,6 +14,11 @@ export async function commandHandler(req: Request, res: Response): Promise<void>
     return
   }
 
+  if (message.length > 4000) {
+    res.status(400).json({ error: 'message too long (max 4000 chars)' })
+    return
+  }
+
   try {
     const response = await chat([{ role: 'user', content: message }])
     res.json({ status: 'ok', wallet, response })

@@ -26,7 +26,7 @@ export const likeTweetTool: Tool = {
       },
     },
     required: ['tweet_id'],
-  } as any,
+  } as Tool['parameters'],
 }
 
 export async function executeLikeTweet(params: LikeTweetParams): Promise<LikeTweetResult> {

@@ -40,7 +40,7 @@ export const readUserProfileTool: Tool = {
       },
     },
     required: ['username'],
-  } as any,
+  } as Tool['parameters'],
 }
 
 export async function executeReadUserProfile(params: ReadUserProfileParams): Promise<ReadUserProfileResult> {

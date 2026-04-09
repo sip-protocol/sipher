@@ -42,7 +42,7 @@ export const readDMsTool: Tool = {
       },
     },
     required: [],
-  } as any,
+  } as Tool['parameters'],
 }
 
 export async function executeReadDMs(params: ReadDMsParams = {}): Promise<ReadDMsResult> {

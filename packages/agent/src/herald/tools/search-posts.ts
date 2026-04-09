@@ -42,7 +42,7 @@ export const searchPostsTool: Tool = {
       },
     },
     required: ['query'],
-  } as any,
+  } as Tool['parameters'],
 }
 
 export async function executeSearchPosts(params: SearchPostsParams): Promise<SearchPostsResult> {

@@ -33,7 +33,7 @@ export const schedulePostTool: Tool = {
       },
     },
     required: ['text', 'scheduled_at'],
-  } as any,
+  } as Tool['parameters'],
 }
 
 export async function executeSchedulePost(params: SchedulePostParams): Promise<SchedulePostResult> {

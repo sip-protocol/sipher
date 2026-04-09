@@ -31,7 +31,7 @@ export const replyTweetTool: Tool = {
       },
     },
     required: ['tweet_id', 'text'],
-  } as any,
+  } as Tool['parameters'],
 }
 
 export async function executeReplyTweet(params: ReplyTweetParams): Promise<ReplyTweetResult> {
