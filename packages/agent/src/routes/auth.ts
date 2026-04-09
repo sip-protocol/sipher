@@ -46,6 +46,7 @@ const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvw
 const BASE58_MAP = new Map(BASE58_ALPHABET.split('').map((c, i) => [c, BigInt(i)]))
 
 function decodeBase58(input: string): Uint8Array {
+  if (input.length === 0) throw new Error('empty base58 string')
   let num = 0n
   for (const char of input) {
     const val = BASE58_MAP.get(char)
@@ -122,7 +123,7 @@ authRouter.post('/nonce', (req: Request, res: Response) => {
   const nonce = crypto.randomBytes(32).toString('hex')
   pendingNonces.set(nonce, { wallet, expires: Date.now() + NONCE_TTL })
 
-  res.json({ nonce, message: `Sign this nonce to authenticate: ${nonce}` })
+  res.json({ nonce, message: `sipher.sip-protocol.org wants you to sign in.\n\nNonce: ${nonce}` })
 })
 
 /**
@@ -174,7 +175,7 @@ authRouter.post('/verify', (req: Request, res: Response) => {
     }
 
     // The message the wallet signed (must match what /nonce returns)
-    const message = `Sign this nonce to authenticate: ${nonce}`
+    const message = `sipher.sip-protocol.org wants you to sign in.\n\nNonce: ${nonce}`
     const messageBytes = new TextEncoder().encode(message)
 
     const valid = ed25519.verify(signatureBytes, messageBytes, publicKeyBytes)

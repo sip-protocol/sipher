@@ -1,6 +1,8 @@
 import { type Request, type Response } from 'express'
 import { guardianBus, type GuardianEvent } from '../coordination/event-bus.js'
 
+let sseCounter = 0
+
 /** Map guardian event types to SSE event names for frontend listeners. */
 function sseEventName(type: string): string {
   if (type.startsWith('courier:')) return 'confirm'
@@ -32,7 +34,7 @@ export function streamHandler(req: Request, res: Response): void {
     if (event.wallet && event.wallet !== wallet) return
 
     const sseData = JSON.stringify({
-      id: Date.now().toString(36),
+      id: `${Date.now().toString(36)}-${(sseCounter++).toString(36)}`,
       agent: event.source,
       type: event.type,
       level: event.level,
