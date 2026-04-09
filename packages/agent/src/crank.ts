@@ -92,7 +92,7 @@ export async function crankTick(executor: OpExecutor): Promise<CrankTickResult> 
 }
 
 export function startCrank(executor: OpExecutor): NodeJS.Timeout {
-  return setInterval(async () => {
+  const timer = setInterval(async () => {
     try {
       const result = await crankTick(executor)
       const total = result.executed + result.expired + result.missed + result.failed
@@ -103,6 +103,8 @@ export function startCrank(executor: OpExecutor): NodeJS.Timeout {
       console.error('[crank] tick error:', error)
     }
   }, 60_000)
+  timer.unref()
+  return timer
 }
 
 export function stopCrank(timer: NodeJS.Timeout): void {

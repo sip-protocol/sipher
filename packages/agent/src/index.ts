@@ -55,7 +55,7 @@ setInterval(() => {
   if (purged > 0) console.log(`[session] purged ${purged} stale sessions`)
   const expired = expireStaleLinks()
   if (expired > 0) console.log(`[links] expired ${expired} stale payment links`)
-}, 5 * 60 * 1000)
+}, 5 * 60 * 1000).unref()
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Express server — Sipher Agent API
