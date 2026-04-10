@@ -182,7 +182,8 @@ export async function executeViewingKey(params: ViewingKeyParams): Promise<Viewi
     }
 
     case 'verify': {
-      const connection = createConnection('devnet')
+      const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+      const connection = createConnection(network)
       const tx = await connection.getParsedTransaction(
         params.txSignature!,
         { maxSupportedTransactionVersion: 0 },
