@@ -51,6 +51,17 @@ CREATE TABLE IF NOT EXISTS payment_links (
   created_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS conversations (
+  session_id  TEXT NOT NULL,
+  seq         INTEGER NOT NULL,
+  role        TEXT NOT NULL,
+  content     TEXT NOT NULL,
+  created_at  INTEGER NOT NULL,
+  PRIMARY KEY (session_id, seq),
+  FOREIGN KEY (session_id) REFERENCES sessions(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_session ON conversations(session_id, seq);
 CREATE INDEX IF NOT EXISTS idx_audit_session ON audit_log(session_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_scheduled_next ON scheduled_ops(next_exec, status);
