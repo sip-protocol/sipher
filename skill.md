@@ -23,6 +23,8 @@ All privacy operations use:
 - **Stealth addresses** — unlinkable one-time addresses (ed25519 for Solana/NEAR/Move, secp256k1 for EVM/Cosmos/Bitcoin)
 - **Pedersen commitments** — homomorphic commitments hiding amounts
 - **Viewing keys** — selective disclosure for compliance without revealing spending power
+- **Real Jupiter swaps** — on-chain token swaps routed through stealth addresses
+- **Multi-platform** — AgentCore abstraction enables deployment across REST API, X/Twitter (HERALD adapter), and future platforms
 
 ### Supported Chains (17 total)
 
@@ -880,8 +882,10 @@ GET  /v1/admin/tiers      → List tier limits
 | Component | Technology | Purpose |
 |-----------|------------|---------|
 | API | Express 5 + TypeScript | REST endpoints |
+| Agent Core | AgentCore + platform adapters | Multi-platform abstraction (REST, X/Twitter, Telegram) |
 | Cache | Redis 7 (optional) | Rate limiting, idempotency |
 | Privacy | @sip-protocol/sdk | Stealth, Pedersen, encryption |
+| Swap | Jupiter API (real) | On-chain token swaps with stealth routing |
 | Blockchain | Solana Mainnet | Program `S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at` |
 
 **Graceful Degradation:** All features work without Redis (falls back to in-memory). Redis enables distributed rate limiting across multiple instances.
