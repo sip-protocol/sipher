@@ -22,8 +22,8 @@ export default function ActivityEntry({ agent, title, detail, time, level, actio
   return (
     <div
       className={[
-        'bg-[#141416] border border-[#1E1E22] rounded-lg p-3.5 flex flex-col gap-2',
-        isCritical ? 'border-l-[3px] border-l-[#F59E0B]' : '',
+        'bg-card border border-elevated rounded-lg p-3.5 flex flex-col gap-2',
+        isCritical ? 'border-l-[3px] border-l-yellow' : '',
       ].join(' ')}
     >
       {/* Top row: dot + agent name + time */}
@@ -44,7 +44,7 @@ export default function ActivityEntry({ agent, title, detail, time, level, actio
       </div>
 
       {/* Title */}
-      <p className="text-[14px] text-[#F5F5F5] leading-snug">{title}</p>
+      <p className="text-[14px] text-text leading-snug">{title}</p>
 
       {/* Detail — monospace, for TX hashes, metrics, etc. */}
       {detail && (
@@ -58,7 +58,7 @@ export default function ActivityEntry({ agent, title, detail, time, level, actio
             <button
               key={i}
               onClick={action.onClick}
-              className="border border-[#1E1E22] bg-[#0A0A0B] text-[11px] px-3 py-1.5 rounded-lg font-medium text-[#F5F5F5] hover:bg-[#1E1E22] transition-colors"
+              className="border border-elevated bg-bg text-[11px] px-3 py-1.5 rounded-lg font-medium text-text hover:bg-elevated transition-colors"
             >
               {action.label}
             </button>
