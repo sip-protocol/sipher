@@ -6,7 +6,7 @@
 **Live URL:** https://sipher.sip-protocol.org
 **Tagline:** "Privacy-as-a-Skill for Multi-Chain Agents"
 **Purpose:** REST API + OpenClaw skill enabling any autonomous agent to add transaction privacy via SIP Protocol
-**Stats:** 71 endpoints | 573 tests | 17 chains | 4 client SDKs (TS, Python, Rust, Go) | Eliza plugin
+**Stats:** 58 REST endpoints | 497 REST tests (32 suites) + 23 agent tests | 21 agent tools | 9 HERALD X tools | 17 chains | 4 client SDKs (TS, Python, Rust, Go) | Eliza plugin
 
 ---
 
@@ -48,13 +48,13 @@
 - **Runtime:** Node.js 22 (LTS)
 - **Framework:** Express 5
 - **Language:** TypeScript (strict)
-- **Core:** @sip-protocol/sdk v0.7.4 (stealth addresses, commitments, encryption, multi-chain)
+- **Core:** @sip-protocol/sdk v0.7.4 (stealth addresses, commitments, XChaCha20-Poly1305 encryption, multi-chain)
 - **Solana:** @solana/web3.js v1 (transactions, RPC)
 - **Validation:** Zod v3
 - **Logging:** Pino v9 (structured JSON, audit logs)
 - **Docs:** swagger-ui-express (OpenAPI 3.1)
 - **Cache:** Redis 7 (rate limiting, idempotency) with in-memory fallback
-- **Testing:** Vitest + Supertest (465 tests)
+- **Testing:** Vitest + Supertest (497 REST + 23 agent tests)
 - **Deployment:** Docker + GHCR → VPS (port 5006)
 - **Domain:** sipher.sip-protocol.org
 
@@ -67,7 +67,7 @@
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (localhost:5006)
 pnpm build                      # Build for production
-pnpm test -- --run              # Run tests (573 tests, 36 suites)
+pnpm test -- --run              # Run REST tests (497 tests, 32 suites)
 pnpm typecheck                  # Type check
 pnpm demo                       # Full-flow demo (requires dev server running)
 pnpm openapi:export              # Export static OpenAPI spec to dist/openapi.json
@@ -192,11 +192,8 @@ sipher/
 │   │   ├── viewing-key.ts          # generate, derive, verify-hierarchy, disclose, decrypt
 │   │   ├── privacy.ts              # score (surveillance/privacy analysis)
 │   │   ├── rpc.ts                  # GET /v1/rpc/providers (provider info)
-│   │   ├── range-proof.ts          # STARK range proofs (generate, verify)
 │   │   ├── backends.ts             # Privacy backend registry (list, health, select)
-│   │   ├── arcium.ts               # Arcium MPC (compute, status, decrypt)
-│   │   ├── inco.ts                 # Inco FHE (encrypt, compute, decrypt)
-│   │   ├── private-swap.ts         # Private swap (Jupiter DEX + stealth)
+│   │   ├── private-swap.ts         # Private swap (real Jupiter DEX + stealth)
 │   │   ├── session.ts              # Session CRUD (create, get, update, delete)
 │   │   ├── governance.ts           # Governance voting privacy (encrypt, submit, tally, getTally)
 │   │   ├── compliance.ts           # Compliance (disclose, report, report/:id)
@@ -208,13 +205,8 @@ sipher/
 │   │   ├── rpc-provider.ts         # Provider factory (helius, quicknode, triton, generic)
 │   │   ├── transaction-builder.ts  # Unsigned tx serialization (Solana)
 │   │   ├── chain-transfer-builder.ts # Chain-agnostic transfer dispatch (Solana/EVM/NEAR)
-│   │   ├── stark-provider.ts       # STARK range proof provider (M31 limbs, mock prover)
-│   │   ├── arcium-provider.ts      # Arcium MPC mock provider (state machine, LRU cache)
-│   │   ├── arcium-backend.ts       # Arcium PrivacyBackend implementation (compute type)
-│   │   ├── inco-provider.ts       # Inco FHE mock provider (encryption, computation, noise budget)
-│   │   ├── inco-backend.ts        # Inco PrivacyBackend implementation (compute type)
 │   │   ├── helius-provider.ts      # Helius DAS API client (getAssetsByOwner, fallback)
-│   │   ├── jupiter-provider.ts    # Jupiter DEX mock provider (quotes, swap transactions)
+│   │   ├── jupiter-provider.ts    # Jupiter DEX provider (real lite-api.jup.ag quotes + swaps)
 │   │   ├── private-swap-builder.ts # Private swap orchestrator (stealth + C-SPL + Jupiter)
 │   │   ├── backend-comparison.ts  # Backend comparison service (scoring, caching, recommendations)
 │   │   ├── session-provider.ts     # Session management (LRU cache + Redis, CRUD, ownership)
@@ -223,7 +215,7 @@ sipher/
 │   │   ├── jito-provider.ts       # Jito block engine (real via JITO_BLOCK_ENGINE_URL, mock fallback)
 │   │   ├── stripe-provider.ts     # Mock Stripe provider (subscriptions, invoices, portal, webhooks)
 │   │   ├── usage-provider.ts      # Usage tracking & daily quotas (Redis + LRU fallback)
-│   │   └── backend-registry.ts    # Privacy backend registry singleton (SIPNative + Arcium + Inco)
+│   │   └── backend-registry.ts    # Privacy backend registry singleton (SIPNative)
 │   └── types/
 │       └── api.ts                  # ApiResponse<T>, HealthResponse
 ├── skill.md                        # OpenClaw skill file (GET /skill.md)
