@@ -45,7 +45,7 @@ function chunkToSSE(chunk: ResponseChunk): Record<string, unknown> {
  * Extract the wallet address set by JWT middleware.
  */
 function getWallet(req: Request): string {
-  return (req as Record<string, unknown>).wallet as string
+  return (req as unknown as Record<string, unknown>).wallet as string
 }
 
 /**
