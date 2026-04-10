@@ -7,6 +7,8 @@ import {
   commit,
 } from '@sip-protocol/sdk'
 import { sha256 } from '@noble/hashes/sha256'
+import { xchacha20poly1305 } from '@noble/ciphers/chacha'
+import { randomBytes } from '@noble/ciphers/webcrypto'
 import {
   createConnection,
   buildPrivateSendTx,
@@ -204,22 +206,26 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
     viewingKeyHash = new Uint8Array(32).fill(0)
   }
 
-  // Encrypt amount + blinding factor for recipient to verify commitment.
-  // Layout: [8 bytes amount LE] || [32 bytes blinding] XOR-masked with viewing key hash.
+  // Encrypt amount + blinding factor with XChaCha20-Poly1305 (AEAD).
+  // Key = viewing key hash (32 bytes), nonce = random 24 bytes.
+  // Layout: [24 bytes nonce] || [ciphertext + 16 bytes tag]
+  // Plaintext: [8 bytes amount LE] || [32 bytes blinding]
   let encryptedAmount: Uint8Array
   if (isStealthMetaAddress) {
     const amountLeBytes = bigintToLeBytes(BigInt(amountBase))
     const blindingBytes = hexToBytes(blinding)
-    const payload = new Uint8Array(amountLeBytes.length + blindingBytes.length)
-    payload.set(amountLeBytes, 0)
-    payload.set(blindingBytes, amountLeBytes.length)
-    // Generate 64 bytes of keystream from viewing key hash
-    const mask1 = sha256(viewingKeyHash)
-    const mask2 = sha256(mask1)
-    encryptedAmount = new Uint8Array(payload.length)
-    for (let i = 0; i < payload.length; i++) {
-      encryptedAmount[i] = payload[i] ^ (i < 32 ? mask1[i] : mask2[i - 32])
-    }
+    const plaintext = new Uint8Array(amountLeBytes.length + blindingBytes.length)
+    plaintext.set(amountLeBytes, 0)
+    plaintext.set(blindingBytes, amountLeBytes.length)
+
+    const nonce = randomBytes(24)
+    const cipher = xchacha20poly1305(viewingKeyHash, nonce)
+    const ciphertext = cipher.encrypt(plaintext)
+
+    // Prepend nonce so recipient can decrypt
+    encryptedAmount = new Uint8Array(nonce.length + ciphertext.length)
+    encryptedAmount.set(nonce, 0)
+    encryptedAmount.set(ciphertext, nonce.length)
   } else {
     encryptedAmount = new Uint8Array(0)
   }
