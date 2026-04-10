@@ -53,20 +53,30 @@ interface HeraldData {
 function BudgetBar({ budget }: { budget: BudgetInfo }) {
   const pct = Math.min(budget.percentage ?? (budget.spent / budget.limit) * 100, 100)
   const barColor =
-    pct >= 95 ? 'bg-red-500' :
-    pct >= 80 ? 'bg-[#F59E0B]' :
-    'bg-[#10B981]'
+    pct >= 95 ? 'bg-red' :
+    pct >= 80 ? 'bg-yellow' :
+    'bg-green'
+
+  const gateColor =
+    budget.gate === 'open' ? 'text-green' :
+    budget.gate === 'limited' ? 'text-yellow' :
+    'text-red'
 
   return (
-    <div className="px-4 py-3 border-b border-[#1E1E22] shrink-0">
+    <div className="px-4 py-3 border-b border-border shrink-0">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] text-[#71717A] font-medium uppercase tracking-wider">X API Budget</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-text-muted font-medium uppercase tracking-wider">X API Budget</span>
+          {budget.gate && (
+            <span className={`text-[9px] font-mono uppercase ${gateColor}`}>{budget.gate}</span>
+          )}
+        </div>
         <div className="font-mono text-xs">
-          <span className="text-[#F5F5F5]">${budget.spent.toFixed(2)}</span>
-          <span className="text-[#71717A]"> / ${budget.limit}</span>
+          <span className="text-text">${budget.spent.toFixed(2)}</span>
+          <span className="text-text-muted"> / ${budget.limit}</span>
         </div>
       </div>
-      <div className="w-full h-1 bg-[#141416] rounded-full overflow-hidden">
+      <div className="w-full h-1 bg-card rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${barColor}`}
           style={{ width: `${pct}%` }}
@@ -83,16 +93,16 @@ function SubTabs({ active, onChange }: { active: Tab, onChange: (t: Tab) => void
     { id: 'dms', label: 'DMs' },
   ]
   return (
-    <div className="flex px-4 border-b border-[#1E1E22] shrink-0">
+    <div className="flex px-4 border-b border-border shrink-0">
       {tabs.map(t => (
         <button
           key={t.id}
           onClick={() => onChange(t.id)}
-          className={`px-4 py-3 text-sm relative transition-colors ${active === t.id ? 'text-[#F5F5F5] font-medium' : 'text-[#71717A]'}`}
+          className={`px-4 py-3 text-sm relative transition-colors ${active === t.id ? 'text-text font-medium' : 'text-text-muted'}`}
         >
           {t.label}
           {active === t.id && (
-            <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#3B82F6]" />
+            <div className="absolute bottom-0 left-0 w-full h-[2px] bg-herald" />
           )}
         </button>
       ))}
@@ -103,31 +113,31 @@ function SubTabs({ active, onChange }: { active: Tab, onChange: (t: Tab) => void
 function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
   if (entries.length === 0) {
     return (
-      <div className="text-[#71717A] text-sm text-center py-10">No recent activity.</div>
+      <div className="text-text-muted text-sm text-center py-10">No recent activity.</div>
     )
   }
 
   return (
     <div className="relative pl-4">
-      <div className="absolute left-[3px] top-2 bottom-4 w-px bg-[#1E1E22]" />
+      <div className="absolute left-[3px] top-2 bottom-4 w-px bg-border" />
 
       {entries.map((entry, i) => (
         <div key={entry.id} className={`flex gap-3 relative ${i < entries.length - 1 ? 'mb-6' : ''}`}>
-          <div className="w-2 h-2 rounded-full bg-[#3B82F6] mt-1.5 relative z-10 ring-4 ring-[#0A0A0B] shrink-0" />
+          <div className="w-2 h-2 rounded-full bg-herald mt-1.5 relative z-10 ring-4 ring-bg shrink-0" />
 
           <div className="flex-1 min-w-0">
             {entry.type === 'posted' && (
               <>
                 <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-xs font-medium text-[#F5F5F5]">Posted</span>
-                  <span className="font-mono text-[10px] text-[#71717A]">{timeAgo(entry.timestamp)}</span>
+                  <span className="text-xs font-medium text-text">Posted</span>
+                  <span className="font-mono text-[10px] text-text-muted">{timeAgo(entry.timestamp)}</span>
                 </div>
-                <div className="bg-[#141416] border border-[#1E1E22] rounded-lg p-3 flex flex-col gap-2">
-                  <p className="text-sm text-gray-300">{entry.content}</p>
+                <div className="bg-card border border-border rounded-lg p-3 flex flex-col gap-2">
+                  <p className="text-sm text-text-secondary">{entry.content}</p>
                   {(entry.engagement || entry.tweetUrl) && (
-                    <div className="flex items-center justify-between border-t border-[#1E1E22] pt-2 mt-1">
+                    <div className="flex items-center justify-between border-t border-border pt-2 mt-1">
                       {entry.engagement && (
-                        <div className="flex items-center gap-3 font-mono text-[10px] text-[#71717A]">
+                        <div className="flex items-center gap-3 font-mono text-[10px] text-text-muted">
                           <span>♥ {entry.engagement.likes}</span>
                           <span>⇄ {entry.engagement.retweets}</span>
                           <span>◯ {entry.engagement.replies}</span>
@@ -138,7 +148,7 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
                           href={entry.tweetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[10px] font-mono text-[#71717A] border border-[#1E1E22] px-2 py-1 rounded bg-[#0A0A0B] flex items-center gap-1 hover:text-[#F5F5F5] transition-colors"
+                          className="text-[10px] font-mono text-text-muted border border-border px-2 py-1 rounded bg-bg flex items-center gap-1 hover:text-text transition-colors"
                         >
                           View on X ↗
                         </a>
@@ -152,16 +162,16 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
             {entry.type === 'replied' && (
               <>
                 <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-xs font-medium text-[#F5F5F5]">Replied to</span>
+                  <span className="text-xs font-medium text-text">Replied to</span>
                   {entry.replyTo && (
-                    <span className="font-mono text-[10px] text-[#3B82F6]">@{entry.replyTo}</span>
+                    <span className="font-mono text-[10px] text-herald">@{entry.replyTo}</span>
                   )}
-                  <span className="font-mono text-[10px] text-[#71717A]">{timeAgo(entry.timestamp)}</span>
+                  <span className="font-mono text-[10px] text-text-muted">{timeAgo(entry.timestamp)}</span>
                 </div>
-                <div className="bg-[#141416] border border-[#1E1E22] rounded-lg p-3">
+                <div className="bg-card border border-border rounded-lg p-3">
                   {entry.content && (
-                    <div className="pl-2.5 border-l-2 border-[#1E1E22]">
-                      <p className="text-[13px] text-gray-400 italic">{entry.content}</p>
+                    <div className="pl-2.5 border-l-2 border-border">
+                      <p className="text-[13px] text-text-muted italic">{entry.content}</p>
                     </div>
                   )}
                   {entry.tweetUrl && (
@@ -170,7 +180,7 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
                         href={entry.tweetUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[10px] font-mono text-[#71717A] border border-[#1E1E22] px-2 py-1 rounded bg-[#0A0A0B] flex items-center gap-1 hover:text-[#F5F5F5] transition-colors"
+                        className="text-[10px] font-mono text-text-muted border border-border px-2 py-1 rounded bg-bg flex items-center gap-1 hover:text-text transition-colors"
                       >
                         View on X ↗
                       </a>
@@ -183,12 +193,12 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
             {entry.type === 'liked' && (
               <>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium text-[#F5F5F5]">Liked</span>
-                  <span className="font-mono text-[10px] text-[#71717A]">{timeAgo(entry.timestamp)}</span>
+                  <span className="text-xs font-medium text-text">Liked</span>
+                  <span className="font-mono text-[10px] text-text-muted">{timeAgo(entry.timestamp)}</span>
                 </div>
-                <p className="text-sm text-gray-400">
-                  <span className="text-gray-500">♥</span>{' '}
-                  Liked{entry.replyTo ? <> <span className="font-mono text-xs text-[#F5F5F5]">@{entry.replyTo}</span>'s post</> : ' a post'}
+                <p className="text-sm text-text-muted">
+                  <span className="text-text-dim">♥</span>{' '}
+                  Liked{entry.replyTo ? <> <span className="font-mono text-xs text-text">@{entry.replyTo}</span>'s post</> : ' a post'}
                   {entry.content ? ` about ${entry.content}` : ''}
                 </p>
               </>
@@ -197,16 +207,16 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
             {entry.type === 'dm_handled' && (
               <>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium text-[#F5F5F5]">DM Handled</span>
-                  <span className="font-mono text-[10px] text-[#71717A]">{timeAgo(entry.timestamp)}</span>
+                  <span className="text-xs font-medium text-text">DM Handled</span>
+                  <span className="font-mono text-[10px] text-text-muted">{timeAgo(entry.timestamp)}</span>
                 </div>
-                <div className="bg-[#141416] border border-[#1E1E22] border-dashed rounded-lg p-3">
+                <div className="bg-card border border-border border-dashed rounded-lg p-3">
                   {entry.replyTo && (
-                    <><span className="font-mono text-xs text-[#3B82F6]">@{entry.replyTo}:</span>{' '}</>
+                    <><span className="font-mono text-xs text-herald">@{entry.replyTo}:</span>{' '}</>
                   )}
-                  <span className="text-sm text-gray-400">{entry.content}</span>
+                  <span className="text-sm text-text-muted">{entry.content}</span>
                   {entry.action && (
-                    <div className="flex items-center gap-1.5 text-[11px] text-[#71717A] mt-2">
+                    <div className="flex items-center gap-1.5 text-[11px] text-text-muted mt-2">
                       → {entry.action}
                     </div>
                   )}
@@ -240,16 +250,16 @@ function QueueTab({
 
   if (items.length === 0) {
     return (
-      <div className="text-[#71717A] text-sm text-center py-10">No pending posts.</div>
+      <div className="text-text-muted text-sm text-center py-10">No pending posts.</div>
     )
   }
 
   return (
     <div className="flex flex-col gap-3">
       {items.map(item => (
-        <div key={item.id} className="bg-[#141416] border border-[#1E1E22] rounded-lg p-4 flex flex-col gap-3">
-          <p className="text-sm text-gray-200">{item.content}</p>
-          <div className="flex items-center gap-2 font-mono text-[10px] text-[#71717A]">
+        <div key={item.id} className="bg-card border border-border rounded-lg p-4 flex flex-col gap-3">
+          <p className="text-sm text-text-secondary">{item.content}</p>
+          <div className="flex items-center gap-2 font-mono text-[10px] text-text-muted">
             <span>📅</span>
             <span>{item.scheduled_at ?? '—'}</span>
           </div>
@@ -257,20 +267,20 @@ function QueueTab({
             <button
               onClick={() => handleAction(item.id, 'approve')}
               disabled={pending[item.id]}
-              className="flex-1 text-[11px] border border-emerald-500/50 text-emerald-400 bg-emerald-500/10 py-1.5 rounded-lg font-medium hover:bg-emerald-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 text-[11px] border border-green/40 text-green bg-green/10 py-1.5 rounded-lg font-medium hover:bg-green/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {pending[item.id] ? '...' : 'Approve'}
             </button>
             <button
               disabled={pending[item.id]}
-              className="px-4 text-[11px] border border-[#1E1E22] text-gray-300 bg-[#0A0A0B] py-1.5 rounded-lg hover:bg-[#1E1E22] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 text-[11px] border border-border text-text-secondary bg-bg py-1.5 rounded-lg hover:bg-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Edit
             </button>
             <button
               onClick={() => handleAction(item.id, 'reject')}
               disabled={pending[item.id]}
-              className="px-3 border border-[#1E1E22] text-[#71717A] bg-[#0A0A0B] py-1.5 rounded-lg hover:text-red-400 hover:border-red-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 border border-border text-text-muted bg-bg py-1.5 rounded-lg hover:text-red hover:border-red/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Reject"
             >
               ✕
@@ -285,32 +295,32 @@ function QueueTab({
 function DmsTab({ dms }: { dms: DmEntry[] }) {
   if (dms.length === 0) {
     return (
-      <div className="text-[#71717A] text-sm text-center py-10">No recent DMs.</div>
+      <div className="text-text-muted text-sm text-center py-10">No recent DMs.</div>
     )
   }
 
   return (
-    <div className="bg-[#141416] border border-[#1E1E22] rounded-lg overflow-hidden">
+    <div className="bg-card border border-border rounded-lg overflow-hidden">
       {dms.map((dm, i) => (
         <div
           key={dm.id}
-          className={`flex flex-col p-3 ${i < dms.length - 1 ? 'border-b border-[#1E1E22]/50' : ''}`}
+          className={`flex flex-col p-3 ${i < dms.length - 1 ? 'border-b border-border/50' : ''}`}
         >
           <div className="flex justify-between mb-1">
-            <span className="font-mono text-xs text-[#3B82F6]">@{dm.x_user_id ?? dm.username ?? 'unknown'}</span>
+            <span className="font-mono text-xs text-herald">@{dm.x_user_id ?? dm.username ?? 'unknown'}</span>
             {dm.resolution === 'resolved' ? (
-              <span className="text-[9px] text-green-500 bg-green-900/30 px-1.5 py-0.5 rounded border border-green-900/50">
+              <span className="text-[9px] text-green bg-green/10 px-1.5 py-0.5 rounded border border-green/20">
                 Resolved
               </span>
             ) : (
-              <span className="text-[9px] text-yellow-500 bg-yellow-900/30 px-1.5 py-0.5 rounded border border-yellow-900/50">
+              <span className="text-[9px] text-yellow bg-yellow/10 px-1.5 py-0.5 rounded border border-yellow/20">
                 Actioned
               </span>
             )}
           </div>
-          <p className="text-[13px] text-gray-400 mb-1">{dm.text ?? dm.preview ?? ''}</p>
+          <p className="text-[13px] text-text-muted mb-1">{dm.text ?? dm.preview ?? ''}</p>
           {dm.action && (
-            <div className={`flex items-center gap-1.5 text-[11px] ${dm.resolution === 'resolved' ? 'text-[#71717A]' : 'text-[#3B82F6]'}`}>
+            <div className={`flex items-center gap-1.5 text-[11px] ${dm.resolution === 'resolved' ? 'text-text-muted' : 'text-herald'}`}>
               ↳ {dm.action ?? dm.tool}
             </div>
           )}
@@ -348,7 +358,7 @@ export default function HeraldView({ token }: { token: string | null }) {
 
   if (!token) {
     return (
-      <div className="text-[#71717A] text-sm text-center py-20">
+      <div className="text-text-muted text-sm text-center py-20">
         Connect your wallet to view HERALD activity.
       </div>
     )
@@ -363,13 +373,13 @@ export default function HeraldView({ token }: { token: string | null }) {
 
       <div className="flex-1 overflow-y-auto px-4 py-5">
         {error && (
-          <div className="text-red-400 text-xs font-mono bg-red-900/20 border border-red-900/40 rounded-lg px-3 py-2 mb-4">
+          <div className="text-red text-xs font-mono bg-red/10 border border-red/20 rounded-lg px-3 py-2 mb-4">
             {error}
           </div>
         )}
 
         {!data && !error && (
-          <div className="text-[#71717A] text-sm text-center py-10">Loading...</div>
+          <div className="text-text-muted text-sm text-center py-10">Loading...</div>
         )}
 
         {data && tab === 'activity' && (
