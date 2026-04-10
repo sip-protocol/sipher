@@ -17,8 +17,8 @@ hidden amounts, and compliance viewing keys across 17 chains.**
 
 *Stealth addresses • Pedersen commitments • Viewing key hierarchies • On-chain Anchor program • 4 client SDKs*
 
-[![Tests](https://img.shields.io/badge/tests-573%20passing-brightgreen)]()
-[![Endpoints](https://img.shields.io/badge/endpoints-71-blue)]()
+[![Tests](https://img.shields.io/badge/tests-497%20passing-brightgreen)]()
+[![Endpoints](https://img.shields.io/badge/endpoints-58-blue)]()
 [![Chains](https://img.shields.io/badge/chains-17-purple)]()
 [![SDKs](https://img.shields.io/badge/SDKs-4-orange)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)]()
@@ -55,12 +55,12 @@ https://github.com/user-attachments/assets/a4a87b0c-7168-4677-b8e6-457debb98cb0
 - [What's Real vs. What's Preview](#-whats-real-vs-whats-preview)
 - [Quick Start](#-quick-start)
 - [SDK Depth](#-sdk-depth-sip-protocolsdk-v074)
-- [API Endpoints](#-api-endpoints-70-total)
+- [API Endpoints](#-api-endpoints-58-total)
 - [Multi-Chain Support](#-multi-chain-support-17-chains)
 - [Agent Workflow](#-agent-workflow)
 - [Architecture](#%EF%B8%8F-architecture)
 - [Client SDKs](#-client-sdks)
-- [Test Suite](#-test-suite-554-tests-35-suites)
+- [Test Suite](#-test-suite-497-tests-32-suites)
 - [Tech Stack](#%EF%B8%8F-tech-stack)
 - [Deployment](#-deployment)
 - [Decentralization Roadmap](#%EF%B8%8F-decentralization-roadmap)
@@ -127,7 +127,7 @@ Agent (Claude, LangChain, CrewAI, OpenClaw, etc.)
     ▼  REST API (any language, any framework)
 ┌──────────────────────────────────────────────────────────────────┐
 │                        Sipher API                                │
-│  Express 5 + TypeScript │ 71 endpoints │ Tiered rate limiting    │
+│  Express 5 + TypeScript │ 58 endpoints │ Tiered rate limiting    │
 │                                                                  │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
 │  │  Auth    │ │  Rate    │ │ Idempot- │ │  Audit   │           │
@@ -147,8 +147,7 @@ Agent (Claude, LangChain, CrewAI, OpenClaw, etc.)
 │  • Pedersen      │               │  Config PDA:           │
 │  • XChaCha20     │               │  BVawZk...WZwZ         │
 │  • BIP32 keys    │               │                       │
-│  • Anchor txs    │               │  ZK Verifier:          │
-│  • Range proofs  │               │  Sunspot (roadmap)     │
+│  • Anchor txs    │               │                       │
 │  • 17 chains     │               │                       │
 └──────────────────┘               └───────────────────────┘
 ```
@@ -236,7 +235,6 @@ curl https://sipher.sip-protocol.org/v1/demo | jq '.data.summary'
     "Pedersen commitments (homomorphic)",
     "XChaCha20-Poly1305 (viewing key encryption)",
     "BIP32 hierarchical key derivation",
-    "STARK range proofs (M31 limbs)",
     "Keccak256 nullifier derivation (governance)"
   ]
 }
@@ -313,7 +311,6 @@ Every crypto operation uses audited, production-grade libraries:
 | **SHA-256** | `@noble/hashes` | Key hashing, view tags |
 | **Keccak-256** | `@noble/hashes` | Nullifier derivation (governance) |
 | **BIP32/BIP39** | `@scure/bip32` | Hierarchical viewing key derivation |
-| **STARK Range Proofs** | Custom (M31 field) | Prove value >= threshold without revealing value |
 
 All `@noble/*` and `@scure/*` libraries are by [Paul Miller](https://paulmillr.com/) — independently audited, zero-dependency, used by MetaMask, Ethereum Foundation, and the broader Web3 ecosystem.
 
@@ -328,9 +325,7 @@ All `@noble/*` and `@scure/*` libraries are by [Paul Miller](https://paulmillr.c
 - **Shielded Transfers** — unsigned transaction building for Solana (SOL + SPL tokens)
 - **Chain-Agnostic Private Transfer** — Solana, EVM (5 chains), and NEAR in one endpoint
 - **Privacy Scoring** — 0-100 wallet analysis with factor breakdown and recommendations
-- **STARK Range Proofs** — prove value >= threshold without revealing the value
 - **Governance Voting** — encrypted ballots with homomorphic tally and nullifier-based double-vote prevention
-- **Backend Comparison Engine** — SIPNative, Arcium MPC, Inco FHE with scoring and recommendations
 - **Session Management** — persistent defaults per agent (chain, privacy level, backend)
 - **Daily Quotas + Tiered Rate Limiting** — free (100/hr), pro (10K/hr), enterprise (100K/hr)
 - **4 Auto-Generated Client SDKs** — TypeScript, Python, Rust, Go
@@ -345,7 +340,7 @@ Sipher isn't a human tool with an API bolted on. Every design decision prioritiz
 
 | Pillar | How Sipher Delivers |
 |--------|-------------------|
-| **Discovery** | [`/skill.md`](https://sipher.sip-protocol.org/skill.md) — OpenClaw-compatible skill file. Agents discover, parse, and use all 71 endpoints without human configuration. Self-describing API at `/`, error catalog at `/v1/errors`, full schema at `/v1/openapi.json`. |
+| **Discovery** | [`/skill.md`](https://sipher.sip-protocol.org/skill.md) — OpenClaw-compatible skill file. Agents discover, parse, and use all 58 endpoints without human configuration. Self-describing API at `/`, error catalog at `/v1/errors`, full schema at `/v1/openapi.json`. |
 | **Integration** | Pure REST + JSON. No browser, no OAuth, no cookies. 4 auto-generated SDKs (TypeScript, Python, Rust, Go). API key auth via `X-API-Key` header — the simplest auth pattern for agents. |
 | **Autonomy** | [`privacy-demo-agent.ts`](scripts/privacy-demo-agent.ts) runs 20 steps across 34 endpoints with zero human intervention. Sessions (`X-Session-Id`) maintain state across multi-step workflows. No CAPTCHA, no manual verification. |
 | **Reliability** | 11+ mutation endpoints support `Idempotency-Key` for safe retries. Structured error responses with machine-readable codes and retry guidance. Agents can reason about failures, not parse HTML error pages. |
@@ -404,9 +399,8 @@ Core endpoint latency (localhost, Node.js 22, Apple M-series):
 | `/v1/viewing-key/generate` | 2ms | 4ms | 5ms |
 | `/v1/scan/payments` | 5ms | 9ms | 12ms |
 | `/v1/privacy/score` | 2ms | 4ms | 6ms |
-| `/v1/proofs/range/generate` | 3ms | 6ms | 8ms |
 
-All operations use real cryptographic primitives (Ed25519 ECDH, Pedersen commitments, XChaCha20-Poly1305, STARK proofs). Benchmark your own: `npx tsx scripts/benchmark.ts`
+All operations use real cryptographic primitives (Ed25519 ECDH, Pedersen commitments, XChaCha20-Poly1305). Benchmark your own: `npx tsx scripts/benchmark.ts`
 
 ---
 
