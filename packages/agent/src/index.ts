@@ -1,15 +1,15 @@
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import express, { type Request, type Response } from 'express'
-import { chat, chatStream, TOOLS, executeTool } from './agent.js'
+import { TOOLS, executeTool } from './agent.js'
 import { startCrank, stopCrank } from './crank.js'
 import { getDb, closeDb, expireStaleLinks, getActivity } from './db.js'
-import { resolveSession, activeSessionCount, purgeStale } from './session.js'
+import { activeSessionCount, purgeStale } from './session.js'
 import { payRouter } from './routes/pay.js'
 import { adminRouter } from './routes/admin.js'
 import { authRouter, verifyJwt, requireOwner } from './routes/auth.js'
 import { streamHandler } from './routes/stream.js'
-import { commandHandler } from './routes/command.js'
+import { createWebAdapter } from './adapters/web.js'
 import { confirmRouter } from './routes/confirm.js'
 import { vaultRouter } from './routes/vault-api.js'
 import { squadRouter, isKillSwitchActive } from './routes/squad-api.js'
@@ -49,6 +49,10 @@ const sentinel = new SentinelWorker()
 sentinel.start()
 console.log('  SENTINEL: started (blockchain monitor, no wallets yet)')
 
+// Platform adapter — maps Express routes to AgentCore
+const webAdapter = createWebAdapter()
+console.log('  WebAdapter: initialized (command + chat + stream)')
+
 // Purge stale in-memory conversations every 5 minutes
 setInterval(() => {
   const purged = purgeStale()
@@ -85,7 +89,7 @@ app.post('/api/command', verifyJwt, (req, res, next) => {
     res.status(503).json({ error: 'operations paused — kill switch active' })
     return
   }
-  commandHandler(req, res).catch(next)
+  webAdapter.handleCommand(req, res).catch(next)
 })
 
 // Fund-movement confirmation resolution — JWT required
@@ -120,26 +124,8 @@ app.post('/api/chat', verifyJwt, async (req, res) => {
     res.status(503).json({ error: 'operations paused — kill switch active' })
     return
   }
-
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
-  const { messages } = req.body
-
-  if (!messages || !Array.isArray(messages) || messages.length === 0) {
-    res.status(400).json({
-      error: 'messages is required and must be a non-empty array',
-    })
-    return
-  }
-
-  // Resolve session context from JWT-authenticated wallet
-  const session = resolveSession(wallet)
-  if (session) {
-    console.log(`[session] resolved ${session.id.slice(0, 8)}… for ${wallet.slice(0, 4)}…${wallet.slice(-4)}`)
-  }
-
   try {
-    const response = await chat(messages)
-    res.json(response)
+    await webAdapter.handleChat(req, res)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error'
     console.error('[agent] chat error:', message)
@@ -154,52 +140,7 @@ app.post('/api/chat/stream', verifyJwt, async (req, res) => {
     res.status(503).json({ error: 'operations paused — kill switch active' })
     return
   }
-
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
-  const { messages } = req.body
-
-  if (!messages || !Array.isArray(messages) || messages.length === 0) {
-    res.status(400).json({
-      error: 'messages is required and must be a non-empty array',
-    })
-    return
-  }
-
-  // Resolve session context from JWT-authenticated wallet
-  const session = resolveSession(wallet)
-  if (session) {
-    console.log(`[session] resolved ${session.id.slice(0, 8)}… for ${wallet.slice(0, 4)}…${wallet.slice(-4)}`)
-  }
-
-  // SSE headers — keep the connection open for streaming
-  res.setHeader('Content-Type', 'text/event-stream')
-  res.setHeader('Cache-Control', 'no-cache')
-  res.setHeader('Connection', 'keep-alive')
-  res.setHeader('X-Accel-Buffering', 'no')
-  res.flushHeaders()
-
-  let aborted = false
-  res.on('close', () => { aborted = true })
-
-  try {
-    for await (const event of chatStream(messages)) {
-      // Check if client disconnected
-      if (aborted || res.writableEnded) break
-      res.write(`data: ${JSON.stringify(event)}\n\n`)
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error'
-    console.error('[agent] stream error:', message)
-
-    if (!res.writableEnded) {
-      res.write(`data: ${JSON.stringify({ type: 'error', message })}\n\n`)
-    }
-  } finally {
-    if (!res.writableEnded) {
-      res.write('data: [DONE]\n\n')
-      res.end()
-    }
-  }
+  await webAdapter.handleChatStream(req, res)
 })
 
 // ─── Tool execution endpoint (for direct tool calls from the UI) ────────────
