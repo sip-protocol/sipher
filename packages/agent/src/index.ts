@@ -224,14 +224,22 @@ const server = app.listen(PORT, () => {
   console.log(`  Squad:   http://localhost:${PORT}/api/squad`)
   console.log(`  Herald:  http://localhost:${PORT}/api/herald`)
 
-  // Start HERALD poller only when X API credentials are present
+  // Start HERALD (X agent) only when X API credentials are present
   if (process.env.X_BEARER_TOKEN && process.env.X_CONSUMER_KEY) {
-    import('./herald/poller.js').then(({ createPollerState, startPoller }) => {
+    Promise.all([
+      import('./herald/poller.js'),
+      import('./adapters/x.js'),
+    ]).then(([{ createPollerState, startPoller }, { createXAdapter }]) => {
+      // Start X adapter first (subscribes to events before poller emits them)
+      createXAdapter()
+      console.log('  HERALD:  X adapter started (LLM brain for mentions + DMs)')
+
+      // Then start poller (emits events the adapter handles)
       const heraldState = createPollerState()
       startPoller(heraldState)
       console.log('  HERALD:  poller started (mentions + DMs + scheduled posts)')
     }).catch(err => {
-      console.warn('  HERALD:  poller not started:', (err as Error).message)
+      console.warn('  HERALD:  not started:', (err as Error).message)
     })
   }
 })
