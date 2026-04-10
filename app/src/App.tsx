@@ -1,7 +1,10 @@
 import { useState, useMemo } from 'react'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
-import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets'
+import {
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+} from '@solana/wallet-adapter-wallets'
 import '@solana/wallet-adapter-react-ui/styles.css'
 import './styles/theme.css'
 
@@ -25,7 +28,10 @@ const ENDPOINTS: Record<string, string> = {
 
 export default function App() {
   const endpoint = import.meta.env.VITE_SOLANA_RPC_URL ?? ENDPOINTS[NETWORK]
-  const wallets = useMemo(() => [new PhantomWalletAdapter()], [])
+  const wallets = useMemo(() => [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+  ], [])
   const [activeView, setActiveView] = useState<View>('stream')
   const { token, authenticate, isAuthenticated } = useAuth()
   const { events } = useSSE(token)
