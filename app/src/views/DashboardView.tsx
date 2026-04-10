@@ -1,10 +1,188 @@
-import type { ActivityEvent } from '../hooks/useSSE'
+import { useEffect, useState } from 'react'
+import {
+  Wallet,
+  ShieldCheck,
+  ArrowDown,
+  Lightning,
+} from '@phosphor-icons/react'
+import { apiFetch } from '../api/client'
+import { type ActivityEvent } from '../hooks/useSSE'
+import { useIsAdmin } from '../hooks/useIsAdmin'
+import MetricCard from '../components/MetricCard'
+import ActivityEntry from '../components/ActivityEntry'
+import AgentDot from '../components/AgentDot'
+import { AGENTS, type AgentName } from '../lib/agents'
+import { formatSOL } from '../lib/format'
 
-export default function DashboardView({ events, token }: { events: ActivityEvent[]; token: string | null }) {
+interface VaultData {
+  wallet: string
+  balances: { sol: number; tokens: unknown[]; status: string }
+}
+
+interface HealthData {
+  status: string
+  tools: string[]
+  uptime: number
+  activeSessions: number
+}
+
+interface HeraldBudget {
+  budget: { spent: number; limit: number; percentage: number; gate: string }
+}
+
+export default function DashboardView({
+  events,
+  token,
+}: {
+  events: ActivityEvent[]
+  token: string | null
+}) {
+  const isAdmin = useIsAdmin()
+  const [vault, setVault] = useState<VaultData | null>(null)
+  const [health, setHealth] = useState<HealthData | null>(null)
+  const [heraldBudget, setHeraldBudget] = useState<HeraldBudget | null>(null)
+  const [history, setHistory] = useState<ActivityEvent[]>([])
+
+  useEffect(() => {
+    if (!token) return
+
+    apiFetch<VaultData>('/api/vault', { token }).then(setVault).catch(() => {})
+    apiFetch<HealthData>('/api/health', { token }).then(setHealth).catch(() => {})
+    apiFetch<{ activity: any[] }>('/api/activity', { token })
+      .then((data) => {
+        setHistory(
+          (data.activity ?? []).map((a: any) => ({
+            id: a.id,
+            agent: a.agent,
+            type: a.type,
+            level: a.level,
+            data: typeof a.detail === 'string' ? (() => { try { return JSON.parse(a.detail) } catch { return { detail: a.detail } } })() : a.detail ?? {},
+            timestamp: a.created_at,
+          }))
+        )
+      })
+      .catch(() => {})
+
+    if (isAdmin) {
+      apiFetch<HeraldBudget>('/api/herald', { token }).then(setHeraldBudget).catch(() => {})
+    }
+  }, [token, isAdmin])
+
+  const solBalance = vault?.balances?.sol
+  const depositCount = history.filter((e) => e.type?.includes('deposit')).length
+  const allEvents = [...events, ...history].slice(0, 30)
+
+  // Privacy score placeholder — computed by SIPHER agent tool, not a REST endpoint
+  const privacyScore = '—'
+  const scoreColor = undefined
+
+  const budgetSpent = heraldBudget?.budget?.spent
+  const budgetLimit = heraldBudget?.budget?.limit
+
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-lg font-semibold text-text">Dashboard</h1>
-      <p className="text-text-muted text-sm">Dashboard view coming in Task 6...</p>
+      {/* Metric cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <MetricCard
+          label="SOL Balance"
+          value={solBalance != null ? formatSOL(solBalance) : '—'}
+          sub="SOL"
+          icon={<Wallet size={16} />}
+        />
+        <MetricCard
+          label="Privacy Score"
+          value={privacyScore}
+          sub="/100"
+          icon={<ShieldCheck size={16} />}
+          color={scoreColor}
+        />
+        <MetricCard
+          label="Deposits"
+          value={depositCount.toString()}
+          sub="total"
+          icon={<ArrowDown size={16} />}
+        />
+        {isAdmin && (
+          <MetricCard
+            label="Budget"
+            value={budgetSpent != null ? `$${budgetSpent.toFixed(0)}` : '—'}
+            sub={budgetLimit != null ? `/ $${budgetLimit}` : ''}
+            icon={<Lightning size={16} />}
+          />
+        )}
+      </div>
+
+      {/* Two columns: Activity + Agent Status */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Activity Stream */}
+        <div className={isAdmin ? 'lg:col-span-2' : 'lg:col-span-3'}>
+          <h3 className="text-[10px] font-semibold text-text-muted tracking-widest uppercase mb-3 px-1">
+            Activity Stream
+          </h3>
+          {allEvents.length === 0 ? (
+            <div className="bg-card border border-border rounded-lg p-6 text-center">
+              <p className="text-text-muted text-sm">No activity yet.</p>
+              <p className="text-text-dim text-xs mt-1">
+                Connect your wallet to start monitoring.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {allEvents.map((event) => (
+                <ActivityEntry
+                  key={event.id}
+                  agent={event.agent as AgentName}
+                  title={
+                    (event.data?.title as string) ??
+                    (event.data?.message as string) ??
+                    event.type
+                  }
+                  detail={event.data?.detail as string}
+                  time={event.timestamp}
+                  level={event.level}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Guardian Squad (admin only) */}
+        {isAdmin && (
+          <div>
+            <h3 className="text-[10px] font-semibold text-text-muted tracking-widest uppercase mb-3 px-1">
+              Guardian Squad
+            </h3>
+            <div className="flex flex-col gap-2">
+              {(Object.keys(AGENTS) as AgentName[]).map((id) => {
+                const agent = AGENTS[id]
+                return (
+                  <div
+                    key={id}
+                    className="bg-card border border-border rounded-lg p-3 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <AgentDot agent={id} size={6} />
+                      <span
+                        className="text-[11px] font-semibold uppercase tracking-wide"
+                        style={{ color: agent.color }}
+                      >
+                        {agent.name}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-green font-mono">online</span>
+                  </div>
+                )
+              })}
+            </div>
+            {health && (
+              <p className="text-text-dim text-[10px] font-mono mt-2 px-1">
+                Uptime: {Math.floor(health.uptime / 3600)}h {Math.floor((health.uptime % 3600) / 60)}m
+                · {health.tools.length} tools · {health.activeSessions} sessions
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
