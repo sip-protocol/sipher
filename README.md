@@ -421,13 +421,13 @@ Judges reward transparency. Here's exactly what's production-grade and what's in
 | HeliusProvider | ✅ **Production** | DAS API `getAssetsByOwner` at `/v1/scan/assets` |
 | Payment scanning | ✅ **Production** | Stealth payment detection via viewing keys |
 | Governance voting | ✅ **Production** | Encrypted ballots, nullifiers, homomorphic tally |
-| Backend comparison | ✅ **Production** | Weighted scoring across 3 backends |
 | Session management | ✅ **Production** | CRUD with ownership, TTL, defaults merge |
 | Billing + quotas | ✅ **Production** | Daily quotas, subscriptions, invoices |
-| Arcium MPC | 🧪 **Preview** | Production interface, mock computation backend |
-| Inco FHE | 🧪 **Preview** | Production interface, mock encryption backend |
-| Private swap | 🧪 **Preview** | Jupiter DEX integration stubbed |
-| STARK range proofs | 🧪 **Preview** | Hash-based placeholder (real Stwo/Murkl WASM roadmapped) |
+| Private swap | ✅ **Production** | Real Jupiter API integration |
+| Platform abstraction | ✅ **Production** | AgentCore + MsgContext, web/X platform adapters |
+| HERALD (X adapter) | ✅ **Production** | Autonomous X mention/DM responses via LLM brain |
+| SQLite persistence | ✅ **Production** | Conversation history, sessions, audit log |
+| Solflare wallet | ✅ **Production** | Solflare wallet adapter support |
 | Jito gas abstraction | ✅ **Production** | Real Jito Block Engine JSON-RPC (dual-mode: real when configured, mock fallback) |
 
 ---
@@ -443,7 +443,7 @@ pnpm install
 # Start dev server
 pnpm dev
 
-# Run tests (573 tests, 36 suites)
+# Run tests (497 tests, 32 suites)
 pnpm test -- --run
 
 # Type check
@@ -505,7 +505,7 @@ Sipher is powered by the full SIP Protocol SDK — not a thin wrapper:
 
 ---
 
-## 🔌 API Endpoints (71 total)
+## 🔌 API Endpoints (58 total)
 
 **Base URL:** `https://sipher.sip-protocol.org` | **Auth:** `X-API-Key` header | **Docs:** [`/docs`](https://sipher.sip-protocol.org/docs)
 
@@ -519,12 +519,9 @@ All responses follow: `{ success: boolean, data?: T, error?: { code, message, de
 | **Scan** | 3 | `/v1/scan/payments`, `/payments/batch`, `/assets` | Payment detection + Helius DAS asset queries |
 | **Commitment** | 5 | `/v1/commitment/create`, `/verify`, `/add`, `/subtract`, `/create/batch` | Pedersen commitments (homomorphic math) |
 | **Viewing Key** | 5 | `/v1/viewing-key/generate`, `/derive`, `/verify-hierarchy`, `/disclose`, `/decrypt` | Hierarchical compliance keys + encryption |
-| **Proofs** | 8 | `/v1/proofs/range/*`, `/funding/*`, `/validity/*`, `/fulfillment/*` | STARK range proofs + ZK proof types |
 | **Backends** | 4 | `/v1/backends`, `/:id/health`, `/select`, `/compare` | Privacy backend registry + comparison engine |
 | **C-SPL** | 3 | `/v1/cspl/wrap`, `/unwrap`, `/transfer` | Confidential SPL token operations |
-| **Arcium** | 3 | `/v1/arcium/compute`, `/compute/:id/status`, `/decrypt` | MPC computation (preview) |
-| **Inco** | 3 | `/v1/inco/encrypt`, `/compute`, `/decrypt` | FHE encryption (preview) |
-| **Swap** | 1 | `/v1/swap/private` | Jupiter DEX private swap (preview) |
+| **Swap** | 1 | `/v1/swap/private` | Jupiter DEX private swap (real API) |
 | **Sessions** | 4 | `/v1/sessions` CRUD | Agent session defaults (pro+) |
 | **Governance** | 4 | `/v1/governance/ballot/encrypt`, `/submit`, `/tally`, `/tally/:id` | Encrypted voting + homomorphic tally |
 | **Compliance** | 3 | `/v1/compliance/disclose`, `/report`, `/report/:id` | Selective disclosure + audit reports (enterprise) |
@@ -602,12 +599,12 @@ Each step uses real cryptographic operations: ECDH key agreement, Pedersen commi
 │  │  4 endpoints │ │  5 endpoints │ │  5 endpoints │ │  3 endpoints │   │
 │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘   │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐   │
-│  │    Proofs    │ │  Governance  │ │  Compliance  │ │   Sessions   │   │
-│  │  8 endpoints │ │  4 endpoints │ │  3 endpoints │ │  4 endpoints │   │
+│  │  Governance  │ │  Compliance  │ │   Sessions   │ │   Billing    │   │
+│  │  4 endpoints │ │  3 endpoints │ │  4 endpoints │ │  6 endpoints │   │
 │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘   │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐   │
-│  │   Backends   │ │  Arcium MPC  │ │   Inco FHE   │ │   Billing    │   │
-│  │  4 endpoints │ │  3 endpoints │ │  3 endpoints │ │  6 endpoints │   │
+│  │  AgentCore   │ │  Web Adapter │ │  X Adapter   │ │   Backends   │   │
+│  │  (brain)     │ │  (REST/chat) │ │  (HERALD)    │ │  4 endpoints │   │
 │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘   │
 │                                                                          │
 └────────────────────────────┬─────────────────────────────────────────────┘
@@ -615,18 +612,18 @@ Each step uses real cryptographic operations: ECDH key agreement, Pedersen commi
               ┌──────────────┼──────────────┐
               ▼              ▼              ▼
      ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-     │    Redis     │ │ @sip-protocol│ │    Solana     │
-     │   (cache,    │ │   /sdk       │ │   Mainnet     │
-     │  rate limit, │ │   v0.7.4     │ │               │
-     │  idempotency)│ │              │ │  Program:     │
-     │              │ │  • Stealth   │ │  S1PMFs...9at │
-     │  Optional —  │ │  • Pedersen  │ │               │
-     │  falls back  │ │  • XChaCha20 │ │  Config PDA:  │
-     │  to in-memory│ │  • BIP32     │ │  BVawZk...wZ  │
-     └──────────────┘ │  • Anchor    │ │               │
-                      │  • 17 chains │ │               │
-                      │  • 17 chains │ │  Helius DAS   │
-                      └──────────────┘ └──────────────┘
+     │  SQLite +    │ │ @sip-protocol│ │    Solana     │
+     │  Redis       │ │   /sdk       │ │   Mainnet     │
+     │              │ │   v0.7.4     │ │               │
+     │  SQLite:     │ │              │ │  Program:     │
+     │  sessions,   │ │  • Stealth   │ │  S1PMFs...9at │
+     │  audit,      │ │  • Pedersen  │ │               │
+     │  convos      │ │  • XChaCha20 │ │  Config PDA:  │
+     │              │ │  • BIP32     │ │  BVawZk...wZ  │
+     │  Redis:      │ │  • Anchor    │ │               │
+     │  cache,      │ │  • 17 chains │ │  Helius DAS   │
+     │  rate limit  │ │              │ │               │
+     └──────────────┘ └──────────────┘ └──────────────┘
 ```
 
 ### Middleware Stack (execution order)
@@ -676,7 +673,7 @@ CI workflow auto-regenerates SDKs on spec changes (`.github/workflows/generate-s
 
 ---
 
-## 🧪 Test Suite (573 tests, 36 suites)
+## 🧪 Test Suite (497 tests, 32 suites)
 
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
@@ -698,19 +695,15 @@ CI workflow auto-regenerates SDKs on spec changes (`.github/workflows/generate-s
 | `privacy-score.test.ts` | 10 | Scoring, factors, validation |
 | `rpc-provider.test.ts` | 14 | Factory, providers, masking, endpoint |
 | `private-transfer.test.ts` | 25 | Solana/EVM/NEAR, validation, idempotency |
-| `range-proof.test.ts` | 18 | Generate, verify, M31 math, edge cases |
 | `backends.test.ts` | 17 | List, health, select, edge cases |
-| `arcium.test.ts` | 18 | Compute, status, decrypt, idempotency |
-| `inco.test.ts` | 20 | Encrypt, compute, decrypt, E2E |
-| `private-swap.test.ts` | 20 | Happy path, validation, idempotency |
-| `backend-comparison.test.ts` | 23 | Scoring, prioritize, cache, edge cases |
+| `private-swap.test.ts` | 20 | Real Jupiter API, validation, idempotency |
 | `session.test.ts` | 28 | CRUD, middleware merge, tier gating |
 | `governance.test.ts` | 24 | Encrypt, submit, tally, double-vote, E2E |
 | `compliance.test.ts` | 23 | Disclose, report, tier gating, auditor verify |
 | `jito.test.ts` | 25 | Relay, bundle status, tier gating, state machine, real mode |
 | `billing.test.ts` | 31 | Usage, quotas, metering, subscriptions, webhooks |
 | `demo.test.ts` | 12 | Live demo (25 steps, all crypto, no auth) |
-| *+ 6 more* | 67 | C-SPL, proofs, admin, OpenAPI |
+| *+ 6 more* | 67 | C-SPL, agent, admin, OpenAPI |
 
 ```bash
 pnpm test -- --run
@@ -730,7 +723,9 @@ pnpm test -- --run
 | **Crypto** | @noble/curves, @noble/hashes, @noble/ciphers, @scure/bip32 |
 | **Validation** | Zod v3 |
 | **Logging** | Pino v9 (structured JSON) |
+| **Database** | SQLite (better-sqlite3) — sessions, audit, conversations |
 | **Cache** | Redis 7 (optional, in-memory fallback) |
+| **AI** | Anthropic SDK via OpenRouter (HERALD agent brain) |
 | **Testing** | Vitest + Supertest |
 | **Docs** | OpenAPI 3.1 + Swagger UI |
 | **Deploy** | Docker + GHCR + GitHub Actions |
@@ -784,7 +779,7 @@ Sipher is infrastructure, not just an API. Here's the path from convenience laye
 
 **Phase 2 expands the existing mainnet program** ([`S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at`](https://solscan.io/account/S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at)) with CPI-able instructions — any Solana program can add privacy natively, without HTTP calls.
 
-**Why start centralized?** Iteration speed. A REST API lets us battle-test the crypto, refine the agent UX, and ship 71 endpoints in 10 days. The on-chain migration preserves the same primitives (stealth addresses, Pedersen commitments, viewing keys) while removing the trust assumption.
+**Why start centralized?** Iteration speed. A REST API lets us battle-test the crypto, refine the agent UX, and ship 58 endpoints in 10 days. The on-chain migration preserves the same primitives (stealth addresses, Pedersen commitments, viewing keys) while removing the trust assumption.
 
 ---
 

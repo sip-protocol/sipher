@@ -35,6 +35,40 @@
 
 ---
 
+## ARCHITECTURE
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  Inbound Message                                                      │
+│  (HTTP POST /api/chat, X mention, DM, ...)                            │
+└──────────────────┬───────────────────────────────────────────────────┘
+                   ▼
+         ┌─────────────────┐
+         │   MsgContext     │  ← Platform-agnostic message envelope
+         │  (user, text,    │     (wallet, conversationId, replyFn)
+         │   metadata)      │
+         └────────┬────────┘
+                  ▼
+         ┌─────────────────┐
+         │   AgentCore      │  ← Configurable: identity, system prompt, tools
+         │  (LLM reasoning) │     Same loop for all personas
+         └────────┬────────┘
+                  ▼
+    ┌─────────────┴─────────────┐
+    ▼                           ▼
+┌──────────────┐      ┌──────────────┐
+│ Web Adapter  │      │  X Adapter   │
+│ (SIPHER)     │      │  (HERALD)    │
+│ Express /api │      │  Poller →    │
+│ /chat,       │      │  mentions,   │
+│ /chat/stream │      │  DMs         │
+└──────────────┘      └──────────────┘
+```
+
+**AgentCore** is the shared LLM reasoning engine. Each adapter wires a persona (SIPHER for web, HERALD for X) with platform-specific I/O. HERALD subscribes to the X poller and routes events through AgentCore with its own identity and X-specific tools (9 tools: post, reply, like, read-mentions, read-user, search-posts, read-dms, send-dm, schedule-post).
+
+---
+
 ## CONTEXT
 
 **Origin:** Colosseum Agent Hackathon (Feb 2-13, 2026) — $100K USDC prize pool
@@ -158,7 +192,8 @@ Two engagement systems available:
 ```
 sipher/
 ├── src/
-│   ├── server.ts                   # Express app + middleware stack + Swagger UI
+│   ├── app.ts                      # Express app + middleware stack + Swagger UI
+│   ├── server.ts                   # HTTP server bootstrap
 │   ├── config.ts                   # envalid env validation
 │   ├── logger.ts                   # pino structured logger
 │   ├── shutdown.ts                 # Graceful shutdown + readiness passthrough
@@ -199,6 +234,8 @@ sipher/
 │   │   ├── compliance.ts           # Compliance (disclose, report, report/:id)
 │   │   ├── jito.ts                 # Jito bundle relay (real Block Engine or mock, relay, bundle/:id)
 │   │   ├── billing.ts              # Billing & usage (usage, subscription, invoices, portal, webhook)
+│   │   ├── admin.ts                # Admin dashboard routes
+│   │   ├── cspl.ts                 # C-SPL (confidential SPL token) operations
 │   │   └── index.ts                # Route aggregator
 │   ├── services/
 │   │   ├── solana.ts               # Connection manager + RPC latency measurement
@@ -252,37 +289,58 @@ sipher/
 │   ├── devnet-shielded-transfer.ts # Real on-chain devnet transfer (7 steps, sign+submit)
 │   ├── eliza-plugin-demo.ts       # Eliza plugin demo (5 actions, no runtime needed)
 │   └── demo-flow.ts                # Quick-start E2E demo (21 endpoints)
-├── tests/                          # 573 tests across 36 suites
-│   ├── health.test.ts              # 11 tests (health + ready + root + skill + 404 + reqId)
-│   ├── stealth.test.ts             # 10 tests
-│   ├── commitment.test.ts          # 16 tests (create, verify, add, subtract)
-│   ├── transfer-shield.test.ts     # 12 tests
-│   ├── transfer-claim.test.ts      # 8 tests
-│   ├── scan.test.ts                # 12 tests
-│   ├── scan-assets.test.ts         # 12 tests (Helius DAS, fallback, validation)
-│   ├── viewing-key.test.ts         # 10 tests (generate, disclose, decrypt)
-│   ├── middleware.test.ts          # 5 tests
-│   ├── error-codes.test.ts         # 10 tests (enum, catalog, error-handler integration)
-│   ├── openapi.test.ts             # 6 tests (spec validity, paths, auth, tags)
-│   ├── audit-log.test.ts           # 8 tests (redaction, integration)
-│   ├── idempotency.test.ts         # 8 tests (cache, replay, validation)
-│   ├── batch.test.ts               # 15 tests (stealth, commitment, scan batch ops)
-│   ├── privacy-score.test.ts       # 10 tests (scoring, factors, validation)
-│   ├── viewing-key-hierarchy.test.ts # 11 tests (derive, verify, multi-level)
-│   ├── rpc-provider.test.ts        # 14 tests (factory, providers, masking, endpoint)
-│   ├── private-transfer.test.ts   # 25 tests (Solana/EVM/NEAR, unsupported, validation, idempotency)
-│   ├── range-proof.test.ts        # 18 tests (generate, verify, edge cases, idempotency, M31 math)
-│   ├── backends.test.ts           # 17 tests (list, health, select, edge cases)
-│   ├── arcium.test.ts             # 18 tests (compute, status, decrypt, idempotency, backend)
-│   ├── inco.test.ts               # 20 tests (encrypt, compute, decrypt, idempotency, backend, E2E)
-│   ├── private-swap.test.ts       # 20 tests (happy path, swap details, validation, idempotency, beta, E2E)
-│   ├── backend-comparison.test.ts # 23 tests (basic, scoring, prioritize, validation, cache, edge cases)
-│   ├── session.test.ts            # 28 tests (CRUD, middleware merge, tier gating, ownership)
-│   ├── governance.test.ts         # 24 tests (encrypt, submit, tally, double-vote, ballot limit, E2E flow)
-│   ├── compliance.test.ts         # 23 tests (disclose, report, get, tier gating, auditor verification)
-│   ├── jito.test.ts               # 25 tests (relay, bundle status, tier gating, idempotency, state machine, real mode)
-│   ├── billing.test.ts            # 31 tests (usage tracking, quotas, metering, subscriptions, invoices, webhooks)
-│   └── demo.test.ts               # 12 tests (live demo, 25 crypto steps, no auth)
+├── packages/
+│   └── agent/                      # @sipher/agent — Platform-abstracted agent brain
+│       ├── src/
+│       │   ├── agent.ts            # Agent loop (Anthropic SDK via OpenRouter)
+│       │   ├── db.ts               # SQLite persistence (better-sqlite3)
+│       │   ├── session.ts          # Conversation session manager
+│       │   ├── crank.ts            # Scheduled ops engine (60s interval)
+│       │   ├── core/
+│       │   │   ├── agent-core.ts   # AgentCore — configurable identity/tools
+│       │   │   └── types.ts        # MsgContext interface
+│       │   ├── adapters/
+│       │   │   ├── web.ts          # Web adapter (SIPHER identity → Express routes)
+│       │   │   └── x.ts           # X adapter (HERALD identity → poller events)
+│       │   ├── herald/
+│       │   │   ├── herald.ts       # HERALD LLM brain (X persona)
+│       │   │   ├── poller.ts       # X mention/DM poller
+│       │   │   ├── x-client.ts     # X API v2 client
+│       │   │   ├── budget.ts       # Daily action budget
+│       │   │   ├── approval.ts     # Human-in-the-loop approval
+│       │   │   ├── intent.ts       # Intent classification
+│       │   │   └── tools/          # 9 X tools (post, reply, like, read-mentions, ...)
+│       │   ├── tools/              # 21 agent tools (deposit, send, swap, scan, ...)
+│       │   └── routes/             # Agent-specific Express routes
+│       └── tests/                  # 23+ agent tests
+├── tests/                          # 497 REST tests across 32 suites
+│   ├── health.test.ts
+│   ├── stealth.test.ts
+│   ├── commitment.test.ts
+│   ├── transfer-shield.test.ts
+│   ├── transfer-claim.test.ts
+│   ├── scan.test.ts
+│   ├── scan-assets.test.ts
+│   ├── viewing-key.test.ts
+│   ├── middleware.test.ts
+│   ├── error-codes.test.ts
+│   ├── openapi.test.ts
+│   ├── audit-log.test.ts
+│   ├── idempotency.test.ts
+│   ├── batch.test.ts
+│   ├── privacy-score.test.ts
+│   ├── viewing-key-hierarchy.test.ts
+│   ├── rpc-provider.test.ts
+│   ├── private-transfer.test.ts
+│   ├── backends.test.ts
+│   ├── private-swap.test.ts
+│   ├── backend-comparison.test.ts
+│   ├── session.test.ts
+│   ├── governance.test.ts
+│   ├── compliance.test.ts
+│   ├── jito.test.ts
+│   ├── billing.test.ts
+│   └── demo.test.ts
 ├── Dockerfile                      # Multi-stage Alpine
 ├── docker-compose.yml              # name: sipher, port 5006
 ├── .github/workflows/deploy.yml    # GHCR → VPS
@@ -299,7 +357,7 @@ sipher/
 
 ---
 
-## API ENDPOINTS (71 endpoints)
+## API ENDPOINTS (58 endpoints)
 
 All return `ApiResponse<T>`: `{ success, data?, error? }`
 
@@ -333,21 +391,13 @@ All return `ApiResponse<T>`: `{ success, data?, error? }`
 | POST | `/v1/viewing-key/verify-hierarchy` | Verify parent-child key relationship | Yes | — |
 | POST | `/v1/viewing-key/disclose` | Encrypt tx data for auditor | Yes | ✓ |
 | POST | `/v1/viewing-key/decrypt` | Decrypt tx data with viewing key | Yes | — |
-| POST | `/v1/proofs/range/generate` | Generate STARK range proof (value >= threshold) | Yes | ✓ |
-| POST | `/v1/proofs/range/verify` | Verify STARK range proof | Yes | — |
 | GET | `/v1/backends` | List privacy backends with capabilities and health | Yes | — |
 | GET | `/v1/backends/:id/health` | Per-backend health check with metrics | Yes | — |
 | POST | `/v1/backends/select` | Set preferred backend per API key | Yes | — |
 | POST | `/v1/backends/compare` | Compare backends for operation (cost, latency, privacy, recommendations) | Yes | — |
 | POST | `/v1/privacy/score` | Wallet privacy/surveillance score (0-100) | Yes | — |
 | GET | `/v1/rpc/providers` | Active RPC provider info + supported list | No | — |
-| POST | `/v1/arcium/compute` | Submit MPC computation to Arcium cluster | Yes | ✓ |
-| GET | `/v1/arcium/compute/:id/status` | Poll computation status (state machine) | Yes | — |
-| POST | `/v1/arcium/decrypt` | Decrypt completed computation with viewing key | Yes | — |
-| POST | `/v1/inco/encrypt` | Encrypt value with FHE (FHEW/TFHE) | Yes | — |
-| POST | `/v1/inco/compute` | Compute on encrypted ciphertexts (homomorphic) | Yes | ✓ |
-| POST | `/v1/inco/decrypt` | Decrypt FHE computation result | Yes | — |
-| POST | `/v1/swap/private` | Privacy-preserving token swap via Jupiter DEX (beta) | Yes | ✓ |
+| POST | `/v1/swap/private` | Privacy-preserving token swap via real Jupiter DEX | Yes | ✓ |
 | POST | `/v1/compliance/disclose` | Selective disclosure with scoped viewing key (enterprise) | Yes | ✓ |
 | POST | `/v1/compliance/report` | Generate encrypted audit report for time range (enterprise) | Yes | ✓ |
 | GET | `/v1/compliance/report/:id` | Retrieve generated compliance report (enterprise) | Yes | — |
@@ -411,12 +461,6 @@ All error codes are centralized in `src/errors/codes.ts` (ErrorCode enum). Full 
 | **404** | NOT_FOUND |
 | **429** | RATE_LIMITED |
 | **500** | INTERNAL_SERVER_ERROR, STEALTH_GENERATION_FAILED, COMMITMENT_FAILED, TRANSFER_BUILD_FAILED, TRANSFER_CLAIM_FAILED, SCAN_FAILED, VIEWING_KEY_FAILED, ENCRYPTION_FAILED, DECRYPTION_FAILED |
-| **500** | ARCIUM_COMPUTATION_FAILED |
-| **404** | ARCIUM_COMPUTATION_NOT_FOUND |
-| **400** | ARCIUM_DECRYPT_FAILED |
-| **500** | INCO_ENCRYPTION_FAILED |
-| **404** | INCO_COMPUTATION_NOT_FOUND |
-| **400** | INCO_DECRYPT_FAILED |
 | **500** | SWAP_QUOTE_FAILED, PRIVATE_SWAP_FAILED |
 | **400** | SWAP_UNSUPPORTED_TOKEN |
 | **403** | TIER_ACCESS_DENIED |
@@ -468,7 +512,7 @@ ssh sip@176.222.53.185 "docker logs sipher --tail 50"
 ## AI GUIDELINES
 
 ### DO:
-- Run `pnpm test -- --run` after code changes (573 tests must pass)
+- Run `pnpm test -- --run` after code changes (497 REST tests must pass)
 - Run `pnpm typecheck` before committing
 - Use @sip-protocol/sdk for all crypto operations (never roll your own)
 - Keep API responses consistent: `{ success, data?, error? }`
@@ -515,12 +559,12 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 | 5 | Backend Aggregation | 5 | ✅ Complete |
 | 6 | Enterprise | 6 | ✅ Complete |
 
-**Progress:** 38/38 issues complete | 573 tests | 71 endpoints | 17 chains | All phases complete | Live demo at /v1/demo
+**Progress:** 38/38 issues complete | 497 REST tests + 23 agent tests | 58 endpoints | 17 chains | All phases complete | Live demo at /v1/demo
 
 **Quick check:** `gh issue list -R sip-protocol/sipher --state open`
 
 ---
 
-**Last Updated:** 2026-03-11
-**Status:** Phase 6 Complete | 71 Endpoints | 573 Tests | 17 Chains | 4 SDKs | Eliza Plugin | Devnet Proof | Real Jito Integration | Hackathon Completed
+**Last Updated:** 2026-04-10
+**Status:** Phase 1 Complete | 58 REST Endpoints | 497 REST + 23 Agent Tests | 21 Agent Tools | 9 HERALD X Tools | 17 Chains | Platform Abstraction (AgentCore + Web/X Adapters) | Real Jupiter API | SQLite Persistence | Devnet Proof
 **Devnet Proof:** [Solscan](https://solscan.io/tx/4FmLGsLkC5DYJojpQeSQoGMArsJonTEnx729gnFCeYEjFsr8Z46VrDzKQXLhFrpM9Uj6ezBtCQckU28odzvjvV4a?cluster=devnet) — real 0.01 SOL shielded transfer via stealth address
