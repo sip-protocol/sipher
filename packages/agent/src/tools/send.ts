@@ -7,8 +7,8 @@ import {
   commit,
 } from '@sip-protocol/sdk'
 import { sha256 } from '@noble/hashes/sha256'
-import { xchacha20poly1305 } from '@noble/ciphers/chacha'
-import { randomBytes } from '@noble/ciphers/webcrypto'
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
+import { randomBytes as cryptoRandomBytes } from 'node:crypto'
 import {
   createConnection,
   buildPrivateSendTx,
@@ -218,7 +218,7 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
     plaintext.set(amountLeBytes, 0)
     plaintext.set(blindingBytes, amountLeBytes.length)
 
-    const nonce = randomBytes(24)
+    const nonce = new Uint8Array(cryptoRandomBytes(24))
     const cipher = xchacha20poly1305(viewingKeyHash, nonce)
     const ciphertext = cipher.encrypt(plaintext)
 

@@ -33,6 +33,9 @@ services:
       - X_ACCESS_TOKEN=${X_ACCESS_TOKEN:-}
       - X_ACCESS_SECRET=${X_ACCESS_SECRET:-}
       - HERALD_MONTHLY_BUDGET=${HERALD_MONTHLY_BUDGET:-150}
+      - JUPITER_API_URL=${JUPITER_API_URL:-https://lite-api.jup.ag}
+      - JITO_BLOCK_ENGINE_URL=${JITO_BLOCK_ENGINE_URL:-}
+      - SIPHER_BASE_URL=${SIPHER_BASE_URL:-https://sipher.sip-protocol.org}
     volumes:
       - sipher-data:/app/data
     depends_on:
