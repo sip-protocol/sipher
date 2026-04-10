@@ -182,12 +182,9 @@ export async function buildSwapTransaction(params: SwapTransactionParams): Promi
 
 // ─── Utility ────────────────────────────────────────────────────────────────
 
+/** Token label lookup (informational — Jupiter supports all SPL tokens). */
 export function getSupportedTokens(): typeof SUPPORTED_TOKENS {
   return SUPPORTED_TOKENS
-}
-
-export function isTokenSupported(_mint: string): boolean {
-  return true
 }
 
 export function resetJupiterProvider(): void {
