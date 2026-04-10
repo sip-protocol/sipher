@@ -1,3 +1,13 @@
+import type Anthropic from '@anthropic-ai/sdk'
+
+/** Configuration for an agent identity (tools, prompt, model) */
+export interface AgentConfig {
+  systemPrompt?: string
+  tools?: Anthropic.Tool[]
+  toolExecutor?: (name: string, input: Record<string, unknown>) => Promise<unknown>
+  model?: string
+}
+
 /** Platform a message originated from */
 export type Platform = 'web' | 'telegram' | 'x'
 

@@ -155,6 +155,12 @@ export interface AgentOptions {
   model?: string
   maxTokens?: number
   apiKey?: string
+  /** System prompt override (defaults to SIPHER's SYSTEM_PROMPT) */
+  systemPrompt?: string
+  /** Tool definitions override (defaults to SIPHER's TOOLS) */
+  tools?: Anthropic.Tool[]
+  /** Custom tool executor (defaults to SIPHER's executeTool) */
+  toolExecutor?: (name: string, input: Record<string, unknown>) => Promise<unknown>
 }
 
 // ─── SSE event types emitted by chatStream ──────────────────────────────────
@@ -222,8 +228,8 @@ export async function chat(
     const response = await client.messages.create({
       model,
       max_tokens: maxTokens,
-      system: SYSTEM_PROMPT,
-      tools: TOOLS,
+      system: options.systemPrompt ?? SYSTEM_PROMPT,
+      tools: options.tools ?? TOOLS,
       messages: conversationMessages,
     })
 
@@ -244,9 +250,11 @@ export async function chat(
     // Execute tools and collect results
     const toolResults: Anthropic.ToolResultBlockParam[] = []
 
+    const execute = options.toolExecutor ?? executeTool
+
     for (const block of toolUseBlocks) {
       try {
-        const result = await executeTool(block.name, block.input)
+        const result = await execute(block.name, block.input)
         toolResults.push({
           type: 'tool_result',
           tool_use_id: block.id,
@@ -295,8 +303,8 @@ export async function* chatStream(
     const stream = client.messages.stream({
       model,
       max_tokens: maxTokens,
-      system: SYSTEM_PROMPT,
-      tools: TOOLS,
+      system: options.systemPrompt ?? SYSTEM_PROMPT,
+      tools: options.tools ?? TOOLS,
       messages: conversationMessages,
     })
 
@@ -329,11 +337,13 @@ export async function* chatStream(
 
     const toolResults: Anthropic.ToolResultBlockParam[] = []
 
+    const execute = options.toolExecutor ?? executeTool
+
     for (const block of toolUseBlocks) {
       yield { type: 'tool_use', name: block.name, id: block.id }
 
       try {
-        const result = await executeTool(block.name, block.input)
+        const result = await execute(block.name, block.input)
         toolResults.push({
           type: 'tool_result',
           tool_use_id: block.id,
