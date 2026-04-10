@@ -61,6 +61,8 @@ COPY --from=builder /app/app/dist ./app/dist
 # Copy runtime files needed by the old REST API
 COPY --from=builder /app/skill.md ./
 
+RUN mkdir -p /app/data
+
 ENV NODE_ENV=production
 ENV PORT=5006
 

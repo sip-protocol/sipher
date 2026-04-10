@@ -33,6 +33,8 @@ services:
       - X_ACCESS_TOKEN=${X_ACCESS_TOKEN:-}
       - X_ACCESS_SECRET=${X_ACCESS_SECRET:-}
       - HERALD_MONTHLY_BUDGET=${HERALD_MONTHLY_BUDGET:-150}
+    volumes:
+      - sipher-data:/app/data
     depends_on:
       redis:
         condition: service_healthy
@@ -59,3 +61,4 @@ services:
 
 volumes:
   redis-data:
+  sipher-data:
