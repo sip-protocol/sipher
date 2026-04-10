@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function ActivityEntry({ agent, title, detail, time, level, actions }: Props) {
-  const agentConfig = AGENTS[agent] ?? { name: agent.toUpperCase(), color: '#71717A' }
+  const agentConfig = AGENTS[agent] ?? { name: agent.toUpperCase(), color: 'var(--color-text-muted)' }
   const isCritical = level === 'critical'
 
   return (
@@ -40,7 +40,7 @@ export default function ActivityEntry({ agent, title, detail, time, level, actio
             {agentConfig.name}
           </span>
         </div>
-        <span className="text-[#71717A] text-[11px]">{timeAgo(time)}</span>
+        <span className="text-text-muted text-[11px]">{timeAgo(time)}</span>
       </div>
 
       {/* Title */}
@@ -48,7 +48,7 @@ export default function ActivityEntry({ agent, title, detail, time, level, actio
 
       {/* Detail — monospace, for TX hashes, metrics, etc. */}
       {detail && (
-        <p className="text-[12px] text-[#71717A] font-mono break-all">{detail}</p>
+        <p className="text-[12px] text-text-muted font-mono break-all">{detail}</p>
       )}
 
       {/* Actions */}

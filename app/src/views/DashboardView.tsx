@@ -30,6 +30,24 @@ interface HeraldBudget {
   budget: { spent: number; limit: number; percentage: number; gate: string }
 }
 
+interface ActivityRecord {
+  id: string
+  agent: string
+  type: string
+  level: string
+  title: string
+  detail?: string | null
+  created_at: string
+}
+
+function parseDetail(detail: unknown): Record<string, unknown> {
+  if (typeof detail === 'string') {
+    try { return JSON.parse(detail) }
+    catch { return { detail } }
+  }
+  return (detail as Record<string, unknown>) ?? {}
+}
+
 export default function DashboardView({
   events,
   token,
@@ -48,15 +66,15 @@ export default function DashboardView({
 
     apiFetch<VaultData>('/api/vault', { token }).then(setVault).catch(() => {})
     apiFetch<HealthData>('/api/health', { token }).then(setHealth).catch(() => {})
-    apiFetch<{ activity: any[] }>('/api/activity', { token })
+    apiFetch<{ activity: ActivityRecord[] }>('/api/activity', { token })
       .then((data) => {
         setHistory(
-          (data.activity ?? []).map((a: any) => ({
+          (data.activity ?? []).map((a: ActivityRecord) => ({
             id: a.id,
             agent: a.agent,
             type: a.type,
             level: a.level,
-            data: typeof a.detail === 'string' ? (() => { try { return JSON.parse(a.detail) } catch { return { detail: a.detail } } })() : a.detail ?? {},
+            data: parseDetail(a.detail),
             timestamp: a.created_at,
           }))
         )

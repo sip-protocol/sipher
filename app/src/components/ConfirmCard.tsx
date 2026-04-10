@@ -12,7 +12,7 @@ export default function ConfirmCard({ action, amount, onConfirm, onCancel, timeo
       <div className="flex gap-2">
         <button
           onClick={onConfirm}
-          className="flex-1 border border-[#10B981]/50 text-[#10B981] py-2 rounded-lg text-[12px] font-medium hover:bg-[#10B981]/10"
+          className="flex-1 border border-sipher/50 text-sipher py-2 rounded-lg text-[12px] font-medium hover:bg-sipher/10"
         >
           Confirm & Sign
         </button>
