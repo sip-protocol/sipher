@@ -6,7 +6,7 @@
 **Live URL:** https://sipher.sip-protocol.org
 **Tagline:** "Privacy-as-a-Skill for Multi-Chain Agents"
 **Purpose:** REST API + OpenClaw skill enabling any autonomous agent to add transaction privacy via SIP Protocol
-**Stats:** 58 REST endpoints | 497 REST tests (32 suites) + 23 agent tests | 21 agent tools | 9 HERALD X tools | 17 chains | 4 client SDKs (TS, Python, Rust, Go) | Eliza plugin
+**Stats:** 58 REST endpoints | 497 tests (32 suites) | 21 agent tools | 9 HERALD X tools | 17 chains | Command Center UI (2,079 lines, 24 files) | 4 client SDKs (TS, Python, Rust, Go) | Eliza plugin
 
 ---
 
@@ -69,6 +69,44 @@
 
 ---
 
+## COMMAND CENTER UI (app/)
+
+Privacy command center frontend — adaptive dashboard with persistent chat sidebar, role-based admin views, and dark professional design system.
+
+**Stats:** 2,079 lines | 24 files | 4 views | Zustand state | SSE streaming chat
+
+**Layout:**
+- **Desktop (≥1024px):** Top header with tabs + main content + 300px persistent chat sidebar
+- **Tablet (768-1023px):** Top header with tabs (incl. Chat tab) + main content
+- **Mobile (<768px):** Bottom nav (Home, Vault, Chat, More) + full-screen views
+
+**Views:**
+| View | Access | Purpose |
+|------|--------|---------|
+| Dashboard | All | Metric cards (SOL, privacy score, deposits, budget), activity stream, agent panel |
+| Vault | All | Real on-chain balances (SOL + SPL), quick actions, transaction history |
+| Herald | Admin | X agent: budget bar, approval queue, DM log, activity timeline |
+| Squad | Admin | Agent grid, stats, coordination log, kill switch toggle |
+| Chat | All | SIPHER agent chat with SSE streaming (persistent sidebar on desktop) |
+
+**Role-based access:** Admin tabs (Herald, Squad) gated by `isAdmin` in `POST /api/auth/verify` response (checks `AUTHORIZED_WALLETS` env var).
+
+**Key files:**
+- `app/src/stores/app.ts` — Zustand store (navigation, auth, chat)
+- `app/src/components/ChatSidebar.tsx` — SSE streaming chat (192 lines)
+- `app/src/components/Header.tsx` — Desktop/tablet top nav with agent dots
+- `app/src/components/BottomNav.tsx` — Mobile bottom nav with More sheet
+- `app/src/views/DashboardView.tsx` — Home dashboard (206 lines)
+
+**Dev commands:**
+```bash
+cd app && pnpm dev        # Dev server (localhost:5173, proxies /api to :3000)
+cd app && pnpm build      # Build for production
+cd app && npx tsc --noEmit # Type check
+```
+
+---
+
 ## CONTEXT
 
 **Origin:** Colosseum Agent Hackathon (Feb 2-13, 2026) — $100K USDC prize pool
@@ -91,6 +129,7 @@
 - **Testing:** Vitest + Supertest (497 REST + 23 agent tests)
 - **Deployment:** Docker + GHCR → VPS (port 5006)
 - **Domain:** sipher.sip-protocol.org
+- **Frontend:** React 19, Vite 6, Tailwind CSS 4, Zustand 5, Phosphor Icons React
 
 ---
 
@@ -191,6 +230,19 @@ Two engagement systems available:
 
 ```
 sipher/
+├── app/                            # Command Center UI (React 19 + Vite + Tailwind 4)
+│   ├── src/
+│   │   ├── api/                    # API client (auth, SSE, fetch wrapper)
+│   │   ├── components/             # UI components (Header, BottomNav, ChatSidebar, MetricCard, ...)
+│   │   ├── hooks/                  # React hooks (useAuth, useSSE, useIsAdmin, useTransactionSigner)
+│   │   ├── lib/                    # Utilities (agents config, format helpers)
+│   │   ├── stores/                 # Zustand store (navigation, auth, chat state)
+│   │   ├── styles/                 # theme.css (Tailwind @theme tokens)
+│   │   ├── views/                  # DashboardView, VaultView, HeraldView, SquadView
+│   │   └── App.tsx                 # Adaptive layout shell (Solana wallet providers)
+│   ├── index.html
+│   ├── package.json
+│   └── vite.config.ts
 ├── src/
 │   ├── app.ts                      # Express app + middleware stack + Swagger UI
 │   ├── server.ts                   # HTTP server bootstrap
@@ -566,5 +618,5 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 ---
 
 **Last Updated:** 2026-04-10
-**Status:** Phase 1 Complete | 58 REST Endpoints | 497 REST + 23 Agent Tests | 21 Agent Tools | 9 HERALD X Tools | 17 Chains | Platform Abstraction (AgentCore + Web/X Adapters) | Real Jupiter API | SQLite Persistence | Devnet Proof
+**Status:** Phase 1 Complete | 58 REST Endpoints | 497 Tests | 21 Agent Tools | 9 HERALD X Tools | 17 Chains | Command Center UI (2,079 lines) | Platform Abstraction (AgentCore + Web/X Adapters) | Real Jupiter API | SQLite Persistence | Devnet Proof
 **Devnet Proof:** [Solscan](https://solscan.io/tx/4FmLGsLkC5DYJojpQeSQoGMArsJonTEnx729gnFCeYEjFsr8Z46VrDzKQXLhFrpM9Uj6ezBtCQckU28odzvjvV4a?cluster=devnet) — real 0.01 SOL shielded transfer via stealth address
