@@ -136,11 +136,6 @@ describe('Metering middleware', () => {
     expect(classifyPath('/v1/commitment/create')).toBe('commitment')
   })
 
-  it('classifies compute paths (arcium/inco)', () => {
-    expect(classifyPath('/v1/arcium/compute')).toBe('compute')
-    expect(classifyPath('/v1/inco/encrypt')).toBe('compute')
-  })
-
   it('skips public/non-metered paths', () => {
     expect(classifyPath('/v1/health')).toBeNull()
     expect(classifyPath('/v1/ready')).toBeNull()

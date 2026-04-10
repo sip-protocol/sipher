@@ -152,16 +152,6 @@ app.get('/', (_req, res) => {
         unwrap: 'POST /v1/cspl/unwrap',
         transfer: 'POST /v1/cspl/transfer',
       },
-      arcium: {
-        compute: 'POST /v1/arcium/compute',
-        status: 'GET /v1/arcium/compute/:id/status',
-        decrypt: 'POST /v1/arcium/decrypt',
-      },
-      inco: {
-        encrypt: 'POST /v1/inco/encrypt',
-        compute: 'POST /v1/inco/compute',
-        decrypt: 'POST /v1/inco/decrypt',
-      },
       swap: {
         private: 'POST /v1/swap/private',
       },

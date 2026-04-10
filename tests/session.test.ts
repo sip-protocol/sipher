@@ -83,7 +83,7 @@ describe('POST /v1/sessions', () => {
       chain: 'ethereum',
       privacyLevel: 'maximum',
       rpcProvider: 'helius',
-      backend: 'arcium',
+      backend: 'sip-native',
       defaultViewingKey: '0xabcd1234',
     }
     const res = await createTestSession(allDefaults)

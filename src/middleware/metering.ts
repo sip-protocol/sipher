@@ -14,8 +14,6 @@ const PATH_CATEGORIES: [string, OperationCategory][] = [
   ['/v1/viewing-key/', 'viewing_key'],
   ['/v1/proofs/', 'proof'],
   ['/v1/privacy/', 'privacy'],
-  ['/v1/arcium/', 'compute'],
-  ['/v1/inco/', 'compute'],
   ['/v1/swap/', 'swap'],
   ['/v1/governance/', 'governance'],
   ['/v1/compliance/', 'compliance'],

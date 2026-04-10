@@ -13,8 +13,6 @@ import proofsRouter from './proofs.js'
 import rangeProofRouter from './range-proof.js'
 import csplRouter from './cspl.js'
 import privateTransferRouter from './private-transfer.js'
-import arciumRouter from './arcium.js'
-import incoRouter from './inco.js'
 import privateSwapRouter from './private-swap.js'
 import sessionRouter from './session.js'
 import complianceRouter from './compliance.js'
@@ -41,8 +39,6 @@ router.use(backendsRouter)
 router.use(proofsRouter)
 router.use(rangeProofRouter)
 router.use(csplRouter)
-router.use(arciumRouter)
-router.use(incoRouter)
 router.use(privateSwapRouter)
 router.use(sessionRouter)
 router.use(complianceRouter)
