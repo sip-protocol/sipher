@@ -92,8 +92,8 @@ export async function executeHistory(params: HistoryParams): Promise<HistoryTool
     }
   }
 
-  // Query on-chain events
-  const connection = createConnection('devnet')
+  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const connection = createConnection(network)
   const { events, hasMore } = await getVaultHistory(
     connection,
     params.wallet,

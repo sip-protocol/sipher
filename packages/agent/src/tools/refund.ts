@@ -93,7 +93,8 @@ export async function executeRefund(params: RefundParams): Promise<RefundToolRes
   }
 
   const depositorTokenAccount = await getAssociatedTokenAddress(tokenMint, depositor)
-  const connection = createConnection('devnet')
+  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const connection = createConnection(network)
 
   const result = await buildRefundTx(
     connection,

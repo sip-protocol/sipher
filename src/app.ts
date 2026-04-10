@@ -85,7 +85,6 @@ app.get('/', (_req, res) => {
       'Pedersen commitments (homomorphic)',
       'XChaCha20-Poly1305 encryption',
       'BIP32 hierarchical key derivation',
-      'STARK range proofs (M31 limbs)',
       'Noir/Groth16 ZK verification (SunspotVerifier)',
     ],
     sdk: '@sip-protocol/sdk v0.7.4',
@@ -137,30 +136,10 @@ app.get('/', (_req, res) => {
         select: 'POST /v1/backends/select',
         compare: 'POST /v1/backends/compare',
       },
-      proofs: {
-        fundingGenerate: 'POST /v1/proofs/funding/generate',
-        fundingVerify: 'POST /v1/proofs/funding/verify',
-        validityGenerate: 'POST /v1/proofs/validity/generate',
-        validityVerify: 'POST /v1/proofs/validity/verify',
-        fulfillmentGenerate: 'POST /v1/proofs/fulfillment/generate',
-        fulfillmentVerify: 'POST /v1/proofs/fulfillment/verify',
-        rangeGenerate: 'POST /v1/proofs/range/generate',
-        rangeVerify: 'POST /v1/proofs/range/verify',
-      },
       cspl: {
         wrap: 'POST /v1/cspl/wrap',
         unwrap: 'POST /v1/cspl/unwrap',
         transfer: 'POST /v1/cspl/transfer',
-      },
-      arcium: {
-        compute: 'POST /v1/arcium/compute',
-        status: 'GET /v1/arcium/compute/:id/status',
-        decrypt: 'POST /v1/arcium/decrypt',
-      },
-      inco: {
-        encrypt: 'POST /v1/inco/encrypt',
-        compute: 'POST /v1/inco/compute',
-        decrypt: 'POST /v1/inco/decrypt',
       },
       swap: {
         private: 'POST /v1/swap/private',

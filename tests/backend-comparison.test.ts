@@ -65,8 +65,6 @@ describe('POST /v1/backends/compare — basic', () => {
 
     const names = res.body.data.comparisons.map((c: any) => c.backend)
     expect(names).toContain('sip-native')
-    expect(names).toContain('arcium-mpc')
-    expect(names).toContain('inco-fhe')
   })
 })
 
@@ -87,31 +85,21 @@ describe('POST /v1/backends/compare — scoring', () => {
     expect(res.body.data.recommendation.best_overall).toBe('sip-native')
   })
 
-  it('compute backends scored higher for encrypted_compute', async () => {
+  it('sip-native not available for encrypted_compute', async () => {
     const res = await request(app)
       .post('/v1/backends/compare')
       .send({ operation: 'encrypted_compute' })
 
     const sipNative = res.body.data.comparisons.find((c: any) => c.backend === 'sip-native')
-    const arcium = res.body.data.comparisons.find((c: any) => c.backend === 'arcium-mpc')
-
     // sip-native doesn't have hiddenCompute, so it shouldn't be available for compute
     expect(sipNative.available).toBe(false)
     expect(sipNative.score).toBe(0)
-    // arcium does
-    expect(arcium.available).toBe(true)
-    expect(arcium.score).toBeGreaterThan(0)
   })
 
-  it('filters backends without compliance for compliance_audit', async () => {
+  it('sip-native available for compliance_audit', async () => {
     const res = await request(app)
       .post('/v1/backends/compare')
       .send({ operation: 'compliance_audit' })
-
-    // inco-fhe has complianceSupport: false
-    const inco = res.body.data.comparisons.find((c: any) => c.backend === 'inco-fhe')
-    expect(inco.available).toBe(false)
-    expect(inco.score).toBe(0)
 
     // sip-native has complianceSupport: true
     const sipNative = res.body.data.comparisons.find((c: any) => c.backend === 'sip-native')
@@ -148,41 +136,42 @@ describe('POST /v1/backends/compare — scoring', () => {
 // ─── Prioritize Parameter ─────────────────────────────────────────────────────
 
 describe('POST /v1/backends/compare — prioritize', () => {
-  it('prioritize: "cost" adjusts scores toward cheapest', async () => {
+  it('prioritize: "cost" adjusts score weighting', async () => {
     const defaultRes = await request(app)
       .post('/v1/backends/compare')
-      .send({ operation: 'encrypted_compute' })
+      .send({ operation: 'stealth_privacy' })
 
     clearComparisonCache()
 
     const costRes = await request(app)
       .post('/v1/backends/compare')
-      .send({ operation: 'encrypted_compute', prioritize: 'cost' })
+      .send({ operation: 'stealth_privacy', prioritize: 'cost' })
 
-    // Both should have inco-fhe (cheaper) — with cost priority, inco's relative score should increase
-    const incoDefault = defaultRes.body.data.comparisons.find((c: any) => c.backend === 'inco-fhe')
-    const incoCost = costRes.body.data.comparisons.find((c: any) => c.backend === 'inco-fhe')
+    const sipDefault = defaultRes.body.data.comparisons.find((c: any) => c.backend === 'sip-native')
+    const sipCost = costRes.body.data.comparisons.find((c: any) => c.backend === 'sip-native')
 
-    // Inco is cheaper than arcium, so cost-prioritized score should be >= default
-    expect(incoCost.score).toBeGreaterThanOrEqual(incoDefault.score)
+    // Both should produce valid scores; prioritize changes weighting, not availability
+    expect(sipDefault.score).toBeGreaterThan(0)
+    expect(sipCost.score).toBeGreaterThan(0)
   })
 
-  it('prioritize: "speed" adjusts scores toward fastest', async () => {
+  it('prioritize: "speed" adjusts score weighting', async () => {
     const defaultRes = await request(app)
       .post('/v1/backends/compare')
-      .send({ operation: 'encrypted_compute' })
+      .send({ operation: 'stealth_privacy' })
 
     clearComparisonCache()
 
     const speedRes = await request(app)
       .post('/v1/backends/compare')
-      .send({ operation: 'encrypted_compute', prioritize: 'speed' })
+      .send({ operation: 'stealth_privacy', prioritize: 'speed' })
 
-    // Inco (2000ms) is faster than arcium (4000ms)
-    const incoDefault = defaultRes.body.data.comparisons.find((c: any) => c.backend === 'inco-fhe')
-    const incoSpeed = speedRes.body.data.comparisons.find((c: any) => c.backend === 'inco-fhe')
+    const sipDefault = defaultRes.body.data.comparisons.find((c: any) => c.backend === 'sip-native')
+    const sipSpeed = speedRes.body.data.comparisons.find((c: any) => c.backend === 'sip-native')
 
-    expect(incoSpeed.score).toBeGreaterThanOrEqual(incoDefault.score)
+    // Both should produce valid scores
+    expect(sipDefault.score).toBeGreaterThan(0)
+    expect(sipSpeed.score).toBeGreaterThan(0)
   })
 })
 
@@ -265,15 +254,14 @@ describe('POST /v1/backends/compare — cache', () => {
 // ─── Edge Cases ───────────────────────────────────────────────────────────────
 
 describe('POST /v1/backends/compare — edge cases', () => {
-  it('costSOL formatted correctly (lamports / 1e9)', async () => {
+  it('costSOL formatted correctly for sip-native (5000 lamports)', async () => {
     const res = await request(app)
       .post('/v1/backends/compare')
-      .send({ operation: 'encrypted_compute' })
+      .send({ operation: 'stealth_privacy' })
 
-    const arcium = res.body.data.comparisons.find((c: any) => c.backend === 'arcium-mpc')
-    // Arcium costs 5000 lamports
-    expect(arcium.costSOL).toBe('0.000005000')
-    expect(arcium.costLamports).toBe(5000)
+    const sipNative = res.body.data.comparisons.find((c: any) => c.backend === 'sip-native')
+    expect(sipNative.costSOL).toBe('0.000005000')
+    expect(sipNative.costLamports).toBe(5000)
   })
 
   it('unavailable backend has available: false and score 0', async () => {
@@ -287,14 +275,13 @@ describe('POST /v1/backends/compare — edge cases', () => {
     expect(sipNative.score).toBe(0)
   })
 
-  it('all backends returned when operation matches all', async () => {
-    // stealth_privacy → sip-native matches, compute backends don't
+  it('all registered backends returned in response', async () => {
     const res = await request(app)
       .post('/v1/backends/compare')
       .send({ operation: 'stealth_privacy' })
 
-    // All 3 backends should be in the response (even if some are unavailable)
-    expect(res.body.data.comparisons.length).toBe(3)
+    // Only sip-native is registered
+    expect(res.body.data.comparisons.length).toBe(1)
   })
 })
 

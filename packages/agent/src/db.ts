@@ -137,6 +137,17 @@ CREATE TABLE IF NOT EXISTS agent_events (
   created_at  TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS conversations (
+  session_id  TEXT NOT NULL,
+  seq         INTEGER NOT NULL,
+  role        TEXT NOT NULL,
+  content     TEXT NOT NULL,
+  created_at  INTEGER NOT NULL,
+  PRIMARY KEY (session_id, seq),
+  FOREIGN KEY (session_id) REFERENCES sessions(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_session ON conversations(session_id, seq);
 CREATE INDEX IF NOT EXISTS idx_activity_wallet_created ON activity_stream(wallet, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_activity_level ON activity_stream(level);
 CREATE INDEX IF NOT EXISTS idx_herald_queue_status ON herald_queue(status, scheduled_at);
@@ -252,6 +263,93 @@ export function getSessionByWallet(wallet: string): Session | null {
 
   if (!row) return null
   return { ...row, preferences: JSON.parse(row.preferences) }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Conversations (persisted to SQLite)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ConversationRow {
+  session_id: string
+  seq: number
+  role: string
+  content: string
+  created_at: number
+}
+
+/** Load all conversation messages for a session, ordered by seq. */
+export function loadConversation(sessionId: string): ConversationRow[] {
+  const conn = getDb()
+  return conn
+    .prepare('SELECT * FROM conversations WHERE session_id = ? ORDER BY seq ASC')
+    .all(sessionId) as ConversationRow[]
+}
+
+/** Append messages to a session's conversation. Returns the new seq values. */
+export function appendConversationRows(
+  sessionId: string,
+  messages: { role: string; content: unknown }[],
+  maxMessages = 100,
+): void {
+  const conn = getDb()
+  const now = Date.now()
+
+  // Get current max seq
+  const maxRow = conn
+    .prepare('SELECT COALESCE(MAX(seq), 0) AS max_seq FROM conversations WHERE session_id = ?')
+    .get(sessionId) as { max_seq: number }
+  let seq = maxRow.max_seq
+
+  const insert = conn.prepare(
+    'INSERT INTO conversations (session_id, seq, role, content, created_at) VALUES (?, ?, ?, ?, ?)',
+  )
+
+  const tx = conn.transaction(() => {
+    for (const msg of messages) {
+      seq++
+      const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+      insert.run(sessionId, seq, msg.role, content, now)
+    }
+
+    // Trim to maxMessages — keep latest
+    const total = (conn
+      .prepare('SELECT COUNT(*) AS cnt FROM conversations WHERE session_id = ?')
+      .get(sessionId) as { cnt: number }).cnt
+
+    if (total > maxMessages) {
+      const cutoff = total - maxMessages
+      conn.prepare(
+        `DELETE FROM conversations WHERE session_id = ? AND seq IN (
+          SELECT seq FROM conversations WHERE session_id = ? ORDER BY seq ASC LIMIT ?
+        )`,
+      ).run(sessionId, sessionId, cutoff)
+    }
+  })
+
+  tx()
+}
+
+/** Delete all conversation messages for a session. */
+export function clearConversationRows(sessionId: string): void {
+  const conn = getDb()
+  conn.prepare('DELETE FROM conversations WHERE session_id = ?').run(sessionId)
+}
+
+/** Delete conversations idle longer than the given timeout (ms). Returns purged count. */
+export function purgeStaleConversations(timeoutMs: number): number {
+  const conn = getDb()
+  const cutoff = Date.now() - timeoutMs
+  const result = conn.prepare(
+    'DELETE FROM conversations WHERE session_id IN (SELECT DISTINCT session_id FROM conversations GROUP BY session_id HAVING MAX(created_at) < ?)',
+  ).run(cutoff)
+  return result.changes
+}
+
+/** Count distinct sessions with active conversations. */
+export function activeConversationCount(): number {
+  const conn = getDb()
+  const row = conn.prepare('SELECT COUNT(DISTINCT session_id) AS cnt FROM conversations').get() as { cnt: number }
+  return row.cnt
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

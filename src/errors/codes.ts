@@ -46,24 +46,6 @@ export enum ErrorCode {
   // 500 — Privacy scoring
   PRIVACY_SCORE_FAILED = 'PRIVACY_SCORE_FAILED',
 
-  // 500 — Arcium MPC
-  ARCIUM_COMPUTATION_FAILED = 'ARCIUM_COMPUTATION_FAILED',
-
-  // 404 — Arcium MPC
-  ARCIUM_COMPUTATION_NOT_FOUND = 'ARCIUM_COMPUTATION_NOT_FOUND',
-
-  // 400 — Arcium MPC
-  ARCIUM_DECRYPT_FAILED = 'ARCIUM_DECRYPT_FAILED',
-
-  // 500 — Inco FHE
-  INCO_ENCRYPTION_FAILED = 'INCO_ENCRYPTION_FAILED',
-
-  // 404 — Inco FHE
-  INCO_COMPUTATION_NOT_FOUND = 'INCO_COMPUTATION_NOT_FOUND',
-
-  // 400 — Inco FHE
-  INCO_DECRYPT_FAILED = 'INCO_DECRYPT_FAILED',
-
   // 500 — Private Swap
   SWAP_QUOTE_FAILED = 'SWAP_QUOTE_FAILED',
   PRIVATE_SWAP_FAILED = 'PRIVATE_SWAP_FAILED',
@@ -304,54 +286,6 @@ export const ERROR_CATALOG: ErrorCatalogEntry[] = [
     httpStatus: 500,
     description: 'Privacy score analysis failed. The Solana RPC may be temporarily unavailable.',
     retryable: true,
-  },
-
-  // 500 — Arcium MPC
-  {
-    code: ErrorCode.ARCIUM_COMPUTATION_FAILED,
-    httpStatus: 500,
-    description: 'Arcium MPC computation failed. The cluster may be temporarily unavailable.',
-    retryable: true,
-  },
-
-  // 404 — Arcium MPC
-  {
-    code: ErrorCode.ARCIUM_COMPUTATION_NOT_FOUND,
-    httpStatus: 404,
-    description: 'Arcium computation not found. The computation ID may be expired or invalid.',
-    retryable: false,
-  },
-
-  // 400 — Arcium MPC
-  {
-    code: ErrorCode.ARCIUM_DECRYPT_FAILED,
-    httpStatus: 400,
-    description: 'Arcium decryption failed. The computation may not be completed or the viewing key is invalid.',
-    retryable: false,
-  },
-
-  // 500 — Inco FHE
-  {
-    code: ErrorCode.INCO_ENCRYPTION_FAILED,
-    httpStatus: 500,
-    description: 'Inco FHE encryption failed. The FHE provider may be temporarily unavailable.',
-    retryable: true,
-  },
-
-  // 404 — Inco FHE
-  {
-    code: ErrorCode.INCO_COMPUTATION_NOT_FOUND,
-    httpStatus: 404,
-    description: 'Inco computation not found. The computation ID may be expired or invalid.',
-    retryable: false,
-  },
-
-  // 400 — Inco FHE
-  {
-    code: ErrorCode.INCO_DECRYPT_FAILED,
-    httpStatus: 400,
-    description: 'Inco decryption failed. The computation ID may be invalid.',
-    retryable: false,
   },
 
   // 500 — Private Swap

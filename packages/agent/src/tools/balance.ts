@@ -75,8 +75,8 @@ export async function executeBalance(params: BalanceParams): Promise<BalanceTool
     throw new Error(`Invalid wallet address: ${params.wallet}`)
   }
 
-  // Read-only — call SDK directly against devnet
-  const connection = createConnection('devnet')
+  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const connection = createConnection(network)
   const vaultBalance = await getVaultBalance(connection, depositor, tokenMint)
 
   const total = fromBaseUnits(vaultBalance.balance, decimals)

@@ -42,7 +42,8 @@ export const statusTool: Anthropic.Tool = {
 }
 
 export async function executeStatus(): Promise<StatusToolResult> {
-  const connection = createConnection('devnet')
+  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const connection = createConnection(network)
   const config = await getVaultConfig(connection)
 
   if (!config) {

@@ -9,12 +9,16 @@ import {
   getOrCreateSession,
 } from '../db.js'
 
+type HexPrefixed = `0x${string}`
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Payment link tool — one-time stealth receive URLs
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PaymentLinkParams {
   wallet: string
+  spendingKey: string
+  viewingKey: string
   amount?: number
   token?: string
   memo?: string
@@ -51,7 +55,15 @@ export const paymentLinkTool: Anthropic.Tool = {
     properties: {
       wallet: {
         type: 'string',
-        description: 'Your wallet address (base58). Used to derive the stealth address keypair.',
+        description: 'Your wallet address (base58).',
+      },
+      spendingKey: {
+        type: 'string',
+        description: 'Your stealth spending public key (0x-prefixed hex). Used to derive the one-time stealth address.',
+      },
+      viewingKey: {
+        type: 'string',
+        description: 'Your stealth viewing public key (0x-prefixed hex). Used to derive the one-time stealth address.',
       },
       amount: {
         type: 'number',
@@ -70,7 +82,7 @@ export const paymentLinkTool: Anthropic.Tool = {
         description: 'Link expiry in minutes (default: 60, max: 10080 = 7 days)',
       },
     },
-    required: ['wallet'],
+    required: ['wallet', 'spendingKey', 'viewingKey'],
   },
 }
 
@@ -81,6 +93,14 @@ export async function executePaymentLink(
     throw new Error('Wallet address is required to create a payment link')
   }
 
+  if (!params.spendingKey || !params.spendingKey.startsWith('0x')) {
+    throw new Error('Spending public key is required (0x-prefixed hex)')
+  }
+
+  if (!params.viewingKey || !params.viewingKey.startsWith('0x')) {
+    throw new Error('Viewing public key is required (0x-prefixed hex)')
+  }
+
   if (params.amount !== undefined && params.amount !== null && params.amount < 0) {
     throw new Error('Payment amount cannot be negative')
   }
@@ -89,13 +109,12 @@ export async function executePaymentLink(
   const expiresIn = Math.min(Math.max(params.expiresInMinutes ?? 60, 1), 10080)
   const expiresAt = Date.now() + expiresIn * 60 * 1000
 
-  // Phase 1: ephemeral stealth address from random keys. The recipient claims
-  // via the payment page flow, not by deriving the stealth private key.
-  // Phase 2 will use the wallet's actual spending/viewing keypair.
-  const dummyKey = '0x' + randomBytes(32).toString('hex') as `0x${string}`
+  // Derive a one-time stealth address from the recipient's real meta-address keys.
+  // The recipient can scan for this payment using their viewing key and claim
+  // using their spending key — no dummy keys, no unclaimed funds.
   const stealth = generateEd25519StealthAddress({
-    spendingKey: dummyKey,
-    viewingKey: dummyKey,
+    spendingKey: params.spendingKey as HexPrefixed,
+    viewingKey: params.viewingKey as HexPrefixed,
     chain: 'solana' as const,
   })
 

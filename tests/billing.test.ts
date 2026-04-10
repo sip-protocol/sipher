@@ -136,11 +136,6 @@ describe('Metering middleware', () => {
     expect(classifyPath('/v1/commitment/create')).toBe('commitment')
   })
 
-  it('classifies compute paths (arcium/inco)', () => {
-    expect(classifyPath('/v1/arcium/compute')).toBe('compute')
-    expect(classifyPath('/v1/inco/encrypt')).toBe('compute')
-  })
-
   it('skips public/non-metered paths', () => {
     expect(classifyPath('/v1/health')).toBeNull()
     expect(classifyPath('/v1/ready')).toBeNull()
@@ -154,7 +149,6 @@ describe('Metering middleware', () => {
     expect(classifyPath('/v1/transfer/shield')).toBe('transfer')
     expect(classifyPath('/v1/scan/payments')).toBe('scan')
     expect(classifyPath('/v1/viewing-key/generate')).toBe('viewing_key')
-    expect(classifyPath('/v1/proofs/range/generate')).toBe('proof')
     expect(classifyPath('/v1/privacy/score')).toBe('privacy')
     expect(classifyPath('/v1/swap/private')).toBe('swap')
     expect(classifyPath('/v1/governance/ballot/encrypt')).toBe('governance')

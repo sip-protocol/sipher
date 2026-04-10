@@ -54,7 +54,7 @@ export async function executePrivacyScore(
   }
 
   const limit = Math.min(Math.max(params.limit ?? 50, 1), 200)
-  const network = (process.env.SOLANA_NETWORK ?? 'devnet') as 'devnet' | 'mainnet-beta'
+  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
   const connection = createConnection(network)
 
   let walletPubkey: PublicKey

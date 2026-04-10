@@ -4,10 +4,9 @@ import { validateRequest } from '../middleware/validation.js'
 import { idempotency } from '../middleware/idempotency.js'
 import { betaEndpoint, getBetaWarning } from '../middleware/beta.js'
 import { buildPrivateSwap } from '../services/private-swap-builder.js'
-import { isTokenSupported, getSupportedTokens } from '../services/jupiter-provider.js'
-import { ErrorCode, getErrorEntry } from '../errors/codes.js'
+import { ErrorCode } from '../errors/codes.js'
 
-const swapBeta = betaEndpoint('Private Swap uses a mock Jupiter provider. Real Jupiter integration coming soon.')
+const swapBeta = betaEndpoint('Private Swap routes swap output to a stealth address for unlinkable receipt.')
 
 const router = Router()
 
@@ -52,33 +51,6 @@ router.post(
           error: {
             code: ErrorCode.SWAP_UNSUPPORTED_TOKEN,
             message: 'Input and output mints must be different',
-          },
-        })
-        return
-      }
-
-      // Pre-flight: token support check
-      const supported = getSupportedTokens()
-      if (!isTokenSupported(inputMint)) {
-        const entry = getErrorEntry(ErrorCode.SWAP_UNSUPPORTED_TOKEN)
-        res.status(entry?.httpStatus ?? 400).json({
-          success: false,
-          error: {
-            code: ErrorCode.SWAP_UNSUPPORTED_TOKEN,
-            message: `Unsupported input token: ${inputMint}`,
-            supportedTokens: Object.keys(supported),
-          },
-        })
-        return
-      }
-      if (!isTokenSupported(outputMint)) {
-        const entry = getErrorEntry(ErrorCode.SWAP_UNSUPPORTED_TOKEN)
-        res.status(entry?.httpStatus ?? 400).json({
-          success: false,
-          error: {
-            code: ErrorCode.SWAP_UNSUPPORTED_TOKEN,
-            message: `Unsupported output token: ${outputMint}`,
-            supportedTokens: Object.keys(supported),
           },
         })
         return

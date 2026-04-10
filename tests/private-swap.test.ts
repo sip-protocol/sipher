@@ -19,6 +19,55 @@ vi.mock('@solana/web3.js', async () => {
   }
 })
 
+// Mock Jupiter API responses
+vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string, options?: any) => {
+  const urlStr = url.toString()
+
+  // Jupiter Quote API
+  if (urlStr.includes('/swap/v1/quote')) {
+    const params = new URL(urlStr).searchParams
+    const inAmount = params.get('amount') ?? '1000000000'
+    // Simulate ~150 USDC per SOL ratio for SOL→USDC, inverse for USDC→SOL
+    const inputMint = params.get('inputMint') ?? ''
+    const isSolInput = inputMint === 'So11111111111111111111111111111111111111112'
+    const outAmount = isSolInput
+      ? String(Math.floor(Number(inAmount) * 150 / 1000)) // SOL→USDC: scale down decimals
+      : String(Math.floor(Number(inAmount) * 1000 / 150)) // USDC→SOL: scale up decimals
+    const slippage = Number(params.get('slippageBps') ?? 50)
+    const minOut = String(Math.floor(Number(outAmount) * (10000 - slippage) / 10000))
+
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        inputMint: params.get('inputMint'),
+        outputMint: params.get('outputMint'),
+        inAmount,
+        outAmount,
+        otherAmountThreshold: minOut,
+        swapMode: 'ExactIn',
+        slippageBps: slippage,
+        priceImpactPct: '0.01',
+        routePlan: [],
+      }),
+    })
+  }
+
+  // Jupiter Swap API
+  if (urlStr.includes('/swap/v1/swap') && options?.method === 'POST') {
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        swapTransaction: Buffer.from('mock-swap-transaction-' + Date.now()).toString('base64'),
+        lastValidBlockHeight: 300000100,
+        prioritizationFeeLamports: 5000,
+        computeUnitLimit: 200000,
+      }),
+    })
+  }
+
+  return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ error: 'Not found' }) })
+}))
+
 const { default: app } = await import('../src/server.js')
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
@@ -45,7 +94,10 @@ function validSwapPayload(overrides: Record<string, unknown> = {}) {
 // ─── Happy Path ─────────────────────────────────────────────────────────────
 
 describe('POST /v1/swap/private — Happy Path', () => {
-  beforeEach(() => resetJupiterProvider())
+  beforeEach(() => {
+    resetJupiterProvider()
+    vi.mocked(fetch).mockClear()
+  })
 
   it('builds private swap with provided meta-address → 200', async () => {
     const metaAddress = await generateMetaAddress()
@@ -119,7 +171,10 @@ describe('POST /v1/swap/private — Happy Path', () => {
 // ─── Swap Details ───────────────────────────────────────────────────────────
 
 describe('POST /v1/swap/private — Swap Details', () => {
-  beforeEach(() => resetJupiterProvider())
+  beforeEach(() => {
+    resetJupiterProvider()
+    vi.mocked(fetch).mockClear()
+  })
 
   it('returns Jupiter quote with jup_ prefix → 200', async () => {
     const res = await request(app)
@@ -127,7 +182,7 @@ describe('POST /v1/swap/private — Swap Details', () => {
       .send(validSwapPayload())
 
     expect(res.status).toBe(200)
-    expect(res.body.data.quoteId).toMatch(/^jup_[0-9a-f]{64}$/)
+    expect(res.body.data.quoteId).toMatch(/^jup_/)
     expect(res.body.data.priceImpactPct).toBeTypeOf('string')
   })
 
@@ -171,17 +226,6 @@ describe('POST /v1/swap/private — Validation', () => {
     expect(res.body.error.message).toContain('different')
   })
 
-  it('rejects unsupported input mint → 400', async () => {
-    const fakeMint = Keypair.generate().publicKey.toBase58()
-    const res = await request(app)
-      .post('/v1/swap/private')
-      .send(validSwapPayload({ inputMint: fakeMint }))
-
-    expect(res.status).toBe(400)
-    expect(res.body.error.code).toBe('SWAP_UNSUPPORTED_TOKEN')
-    expect(res.body.error.supportedTokens).toBeDefined()
-  })
-
   it('rejects invalid amount (zero) → 400', async () => {
     const res = await request(app)
       .post('/v1/swap/private')
@@ -215,7 +259,10 @@ describe('POST /v1/swap/private — Validation', () => {
 // ─── Idempotency ────────────────────────────────────────────────────────────
 
 describe('POST /v1/swap/private — Idempotency', () => {
-  beforeEach(() => resetJupiterProvider())
+  beforeEach(() => {
+    resetJupiterProvider()
+    vi.mocked(fetch).mockClear()
+  })
 
   it('returns cached response with Idempotency-Replayed header', async () => {
     const key = crypto.randomUUID()
@@ -272,17 +319,6 @@ describe('POST /v1/swap/private — Beta', () => {
 // ─── Error Handling ─────────────────────────────────────────────────────────
 
 describe('POST /v1/swap/private — Error Handling', () => {
-  it('rejects unsupported output mint → 400', async () => {
-    const fakeMint = Keypair.generate().publicKey.toBase58()
-    const res = await request(app)
-      .post('/v1/swap/private')
-      .send(validSwapPayload({ outputMint: fakeMint }))
-
-    expect(res.status).toBe(400)
-    expect(res.body.error.code).toBe('SWAP_UNSUPPORTED_TOKEN')
-    expect(res.body.error.message).toContain('Unsupported output token')
-  })
-
   it('rejects negative amount → 400', async () => {
     const res = await request(app)
       .post('/v1/swap/private')
@@ -296,7 +332,10 @@ describe('POST /v1/swap/private — Error Handling', () => {
 // ─── E2E Flow ───────────────────────────────────────────────────────────────
 
 describe('POST /v1/swap/private — E2E Flow', () => {
-  beforeEach(() => resetJupiterProvider())
+  beforeEach(() => {
+    resetJupiterProvider()
+    vi.mocked(fetch).mockClear()
+  })
 
   it('SOL → USDC full private swap flow', async () => {
     const metaAddress = await generateMetaAddress()

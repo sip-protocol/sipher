@@ -24,10 +24,6 @@ import {
 import type { StealthMetaAddress, HexString, ChainId } from '@sip-protocol/types'
 import type { TransactionData } from '@sip-protocol/sdk'
 import {
-  generateRangeProof,
-  verifyRangeProof,
-} from '../services/stark-provider.js'
-import {
   encryptBallot,
   submitBallot,
   tallyVotes,
@@ -314,42 +310,10 @@ async function runDemo(): Promise<unknown> {
   endpointsExercised++
   cryptoOps += 3
 
-  // ── Step 11: Range Proof Generation + Verification
-  const rangeCommit = commit(1000n)
-  const s11 = await timedAsync(async () => {
-    const proof = await generateRangeProof({
-      value: 1000n,
-      threshold: 500n,
-      blindingFactor: rangeCommit.blinding as string,
-      commitment: rangeCommit.commitment as string,
-    })
-    const verified = await verifyRangeProof({
-      proof: proof.proof.proof,
-      publicInputs: proof.proof.publicInputs,
-    })
-    return { proof, verified }
-  })
-  steps.push({
-    step: 11,
-    name: 'STARK Range Proof (value >= threshold)',
-    category: 'proofs',
-    durationMs: s11.durationMs,
-    passed: s11.result.verified === true,
-    crypto: 'STARK range proof with M31 limb decomposition',
-    result: {
-      proofType: s11.result.proof.proof.type,
-      verified: s11.result.verified,
-      threshold: '500',
-      note: 'Proves hidden value >= 500 without revealing it',
-    },
-  })
-  endpointsExercised += 2
-  cryptoOps += 2
-
-  // ── Step 12: Viewing Key Generation
+  // ── Step 11: Viewing Key Generation
   const s12 = timed(() => generateViewingKey('m/0'))
   steps.push({
-    step: 12,
+    step: 11,
     name: 'Generate Viewing Key',
     category: 'viewing-key',
     durationMs: s12.durationMs,
@@ -363,10 +327,10 @@ async function runDemo(): Promise<unknown> {
   endpointsExercised++
   cryptoOps++
 
-  // ── Step 13: Child Viewing Key (BIP32-style)
+  // ── Step 12: Child Viewing Key (BIP32-style)
   const s13 = timed(() => deriveViewingKey(s12.result, 'audit'))
   steps.push({
-    step: 13,
+    step: 12,
     name: 'Derive Child Viewing Key (BIP32)',
     category: 'viewing-key',
     durationMs: s13.durationMs,
@@ -381,13 +345,13 @@ async function runDemo(): Promise<unknown> {
   endpointsExercised++
   cryptoOps++
 
-  // ── Step 14: Verify Hierarchy
+  // ── Step 13: Verify Hierarchy
   const expectedChild = deriveViewingKey(s12.result, 'audit')
   const s14 = timed(() => ({
     valid: expectedChild.key === s13.result.key && expectedChild.hash === s13.result.hash,
   }))
   steps.push({
-    step: 14,
+    step: 13,
     name: 'Verify Key Hierarchy (parent → child)',
     category: 'viewing-key',
     durationMs: s14.durationMs,
@@ -402,7 +366,7 @@ async function runDemo(): Promise<unknown> {
   endpointsExercised++
   cryptoOps++
 
-  // ── Step 15: Selective Disclosure (encrypt for auditor)
+  // ── Step 14: Selective Disclosure (encrypt for auditor)
   const txData: TransactionData = {
     sender: 'AgentAlice9xKz...',
     recipient: s3.result.stealthAddress.address.slice(0, 20) + '...',
@@ -411,7 +375,7 @@ async function runDemo(): Promise<unknown> {
   }
   const s15 = timed(() => encryptForViewing(txData, s12.result))
   steps.push({
-    step: 15,
+    step: 14,
     name: 'Selective Disclosure (encrypt for auditor)',
     category: 'viewing-key',
     durationMs: s15.durationMs,
@@ -426,10 +390,10 @@ async function runDemo(): Promise<unknown> {
   endpointsExercised++
   cryptoOps++
 
-  // ── Step 16: Decrypt with Viewing Key
+  // ── Step 15: Decrypt with Viewing Key
   const s16 = timed(() => decryptWithViewing(s15.result, s12.result))
   steps.push({
-    step: 16,
+    step: 15,
     name: 'Decrypt with Viewing Key',
     category: 'viewing-key',
     durationMs: s16.durationMs,
@@ -444,7 +408,7 @@ async function runDemo(): Promise<unknown> {
   endpointsExercised++
   cryptoOps++
 
-  // ── Step 17: Privacy Score (simulated — no RPC required)
+  // ── Step 16: Privacy Score (simulated — no RPC required)
   const s17 = timed(() => ({
     address: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
     score: 35,
@@ -462,7 +426,7 @@ async function runDemo(): Promise<unknown> {
     ],
   }))
   steps.push({
-    step: 17,
+    step: 16,
     name: 'Privacy Score Analysis',
     category: 'privacy',
     durationMs: s17.durationMs,
@@ -477,7 +441,7 @@ async function runDemo(): Promise<unknown> {
   })
   endpointsExercised++
 
-  // ── Step 18: Governance Ballot Encryption
+  // ── Step 17: Governance Ballot Encryption
   const voterSecret = '0x' + 'ab'.repeat(32)
   const s18 = timed(() =>
     encryptBallot({
@@ -487,7 +451,7 @@ async function runDemo(): Promise<unknown> {
     })
   )
   steps.push({
-    step: 18,
+    step: 17,
     name: 'Encrypt Governance Ballot',
     category: 'governance',
     durationMs: s18.durationMs,
@@ -502,7 +466,7 @@ async function runDemo(): Promise<unknown> {
   endpointsExercised++
   cryptoOps += 2
 
-  // ── Step 19: Submit Ballot + Tally
+  // ── Step 18: Submit Ballot + Tally
   const s19 = timed(() => {
     submitBallot({
       proposalId: 'demo-proposal-001',
@@ -530,7 +494,7 @@ async function runDemo(): Promise<unknown> {
     return tallyVotes({ proposalId: 'demo-proposal-001' })
   })
   steps.push({
-    step: 19,
+    step: 18,
     name: 'Submit Ballots + Homomorphic Tally',
     category: 'governance',
     durationMs: s19.durationMs,
@@ -547,7 +511,7 @@ async function runDemo(): Promise<unknown> {
   endpointsExercised += 3
   cryptoOps += 3
 
-  // ── Step 20: Backend Listing + Comparison
+  // ── Step 19: Backend Listing + Comparison
   const registry = getBackendRegistry()
   const s20 = await timedAsync(async () => {
     const backendNames = registry.getNames()
@@ -559,11 +523,11 @@ async function runDemo(): Promise<unknown> {
     return { backendNames, comparison }
   })
   steps.push({
-    step: 20,
+    step: 19,
     name: 'Backend Listing + Comparison',
     category: 'backends',
     durationMs: s20.durationMs,
-    passed: s20.result.backendNames.length >= 2 && !!s20.result.comparison.recommendation,
+    passed: s20.result.backendNames.length >= 1 && !!s20.result.comparison.recommendation,
     crypto: 'Multi-backend scoring engine',
     result: {
       backendsAvailable: s20.result.backendNames,
@@ -573,39 +537,7 @@ async function runDemo(): Promise<unknown> {
   })
   endpointsExercised += 2
 
-  // ── Step 21: Funding Proof (Range Proof with different params)
-  const fundingCommit = commit(10_000_000_000n) // 10 SOL
-  const s21 = await timedAsync(async () => {
-    const proof = await generateRangeProof({
-      value: 10_000_000_000n,
-      threshold: 1_000_000_000n, // Must have >= 1 SOL
-      blindingFactor: fundingCommit.blinding as string,
-      commitment: fundingCommit.commitment as string,
-    })
-    const verified = await verifyRangeProof({
-      proof: proof.proof.proof,
-      publicInputs: proof.proof.publicInputs,
-    })
-    return { proof, verified }
-  })
-  steps.push({
-    step: 21,
-    name: 'Funding Proof (10 SOL >= 1 SOL threshold)',
-    category: 'proofs',
-    durationMs: s21.durationMs,
-    passed: s21.result.verified === true,
-    crypto: 'STARK range proof — proves sufficient funds without revealing balance',
-    result: {
-      proofType: 'range',
-      verified: s21.result.verified,
-      threshold: '1 SOL',
-      note: 'Proves agent has >= 1 SOL without revealing 10 SOL balance',
-    },
-  })
-  endpointsExercised += 2
-  cryptoOps += 2
-
-  // ── Step 22: Multi-Chain Stealth (NEAR + Cosmos)
+  // ── Step 20: Multi-Chain Stealth (NEAR + Cosmos)
   const s22 = timed(() => {
     const nearMeta = generateStealthMetaAddress('near' as ChainId)
     const cosmosMeta = generateStealthMetaAddress('cosmos' as ChainId)
@@ -622,7 +554,7 @@ async function runDemo(): Promise<unknown> {
     return { nearStealth, cosmosStealth }
   })
   steps.push({
-    step: 22,
+    step: 20,
     name: 'Multi-Chain Stealth (NEAR + Cosmos)',
     category: 'stealth',
     durationMs: s22.durationMs,
@@ -642,7 +574,7 @@ async function runDemo(): Promise<unknown> {
   endpointsExercised += 2
   cryptoOps += 4
 
-  // ── Step 23: Session CRUD
+  // ── Step 21: Session CRUD
   const s23 = await timedAsync(async () => {
     const session = await createSession('demo-key', {
       chain: 'solana',
@@ -654,7 +586,7 @@ async function runDemo(): Promise<unknown> {
     return { created: session, retrieved, deleted: true }
   })
   steps.push({
-    step: 23,
+    step: 21,
     name: 'Session CRUD (create → get → delete)',
     category: 'sessions',
     durationMs: s23.durationMs,
@@ -668,7 +600,7 @@ async function runDemo(): Promise<unknown> {
   })
   endpointsExercised += 3
 
-  // ── Step 24: Deep Viewing Key Hierarchy (3 levels)
+  // ── Step 22: Deep Viewing Key Hierarchy (3 levels)
   const rootVk = generateViewingKey('m/44/501/0')
   const orgVk = deriveViewingKey(rootVk, 'org')
   const yearVk = deriveViewingKey(orgVk, '2026')
@@ -683,7 +615,7 @@ async function runDemo(): Promise<unknown> {
     }
   })
   steps.push({
-    step: 24,
+    step: 22,
     name: 'Deep Key Hierarchy (3 levels)',
     category: 'viewing-key',
     durationMs: s24.durationMs,
@@ -697,14 +629,14 @@ async function runDemo(): Promise<unknown> {
   endpointsExercised += 2
   cryptoOps += 3
 
-  // ── Step 25: Error Catalog + RPC Info
+  // ── Step 23: Error Catalog + RPC Info
   const s25 = timed(() => ({
     errorCodes: 40,
     categories: ['validation', 'auth', 'not_found', 'rate_limit', 'server', 'tier', 'governance', 'billing'],
     retryGuidance: true,
   }))
   steps.push({
-    step: 25,
+    step: 23,
     name: 'Error Catalog + RPC Provider Info',
     category: 'meta',
     durationMs: s25.durationMs,
@@ -750,7 +682,6 @@ async function runDemo(): Promise<unknown> {
           'Pedersen commitments (homomorphic)',
           'XChaCha20-Poly1305 (viewing key encryption)',
           'BIP32 hierarchical key derivation',
-          'STARK range proofs (M31 limbs)',
           'Keccak256 nullifier derivation (governance)',
         ],
         sdkVersion: '@sip-protocol/sdk v0.7.4',

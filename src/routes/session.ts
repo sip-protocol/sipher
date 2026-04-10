@@ -24,7 +24,7 @@ const VALID_CHAINS = [
 
 const VALID_PRIVACY_LEVELS = ['standard', 'shielded', 'maximum']
 const VALID_RPC_PROVIDERS = ['helius', 'quicknode', 'triton', 'generic']
-const VALID_BACKENDS = ['sip-native', 'arcium', 'inco']
+const VALID_BACKENDS = ['sip-native']
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 

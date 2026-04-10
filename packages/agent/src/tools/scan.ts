@@ -99,7 +99,8 @@ export async function executeScan(params: ScanParams): Promise<ScanToolResult> {
     throw new Error(`Spending key must be 32 bytes (64 hex chars), got ${spendingPrivateKey.length} bytes`)
   }
 
-  const connection = createConnection('devnet')
+  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const connection = createConnection(network)
 
   const result = await scanForPayments({
     connection,
