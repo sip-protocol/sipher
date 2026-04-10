@@ -19,7 +19,7 @@ export function toAnthropicTools(piTools: Tool[]): Anthropic.Tool[] {
   return piTools.map((tool) => ({
     name: tool.name,
     description: tool.description,
-    input_schema: tool.parameters as Anthropic.Tool['input_schema'],
+    input_schema: tool.parameters as unknown as Anthropic.Tool['input_schema'],
   }))
 }
 
