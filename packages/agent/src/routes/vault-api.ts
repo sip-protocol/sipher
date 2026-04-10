@@ -13,6 +13,13 @@ const MINT_LABELS: Record<string, string> = {
   [USDT_MINT.toBase58()]: 'USDT',
 }
 
+// Known decimals for common mints (avoids extra RPC call)
+const KNOWN_DECIMALS: Record<string, number> = {
+  [WSOL_MINT.toBase58()]: 9,
+  [USDC_MINT.toBase58()]: 6,
+  [USDT_MINT.toBase58()]: 6,
+}
+
 interface TokenBalance {
   mint: string
   symbol: string
@@ -32,6 +39,7 @@ vaultRouter.get('/', async (req: Request, res: Response) => {
   const connection = createConnection(network)
 
   let solBalance = 0
+  let balanceStatus: 'ok' | 'unavailable' = 'ok'
   const tokens: TokenBalance[] = []
 
   try {
@@ -46,18 +54,43 @@ vaultRouter.get('/', async (req: Request, res: Response) => {
       programId: TOKEN_PROGRAM_ID,
     })
 
+    // Collect unknown mints to batch-fetch decimals
+    const unknownMints: PublicKey[] = []
+    const tokenEntries: { mint: PublicKey; mintStr: string; rawAmount: bigint }[] = []
+
     for (const { account } of tokenAccounts.value) {
-      // SPL token account data layout: mint(32) + owner(32) + amount(8) + ...
       const data = account.data
       const mint = new PublicKey(data.subarray(0, 32))
       const mintStr = mint.toBase58()
       const rawAmount = data.readBigUInt64LE(64)
 
-      // Skip zero-balance accounts and wrapped SOL (shown as native SOL above)
       if (rawAmount === 0n || mint.equals(WSOL_MINT)) continue
 
+      tokenEntries.push({ mint, mintStr, rawAmount })
+      if (!(mintStr in KNOWN_DECIMALS)) {
+        unknownMints.push(mint)
+      }
+    }
+
+    // Batch-fetch decimals for unknown mints (SPL mint layout: decimals at offset 44)
+    const fetchedDecimals: Record<string, number> = {}
+    if (unknownMints.length > 0) {
+      try {
+        const mintAccounts = await connection.getMultipleAccountsInfo(unknownMints)
+        for (let i = 0; i < unknownMints.length; i++) {
+          const info = mintAccounts[i]
+          if (info?.data && info.data.length >= 45) {
+            fetchedDecimals[unknownMints[i].toBase58()] = info.data[44]
+          }
+        }
+      } catch {
+        // Non-fatal — fall back to 9 for unknown mints
+      }
+    }
+
+    for (const { mintStr, rawAmount } of tokenEntries) {
       const symbol = MINT_LABELS[mintStr] ?? mintStr.slice(0, 8) + '...'
-      const decimals = mint.equals(USDC_MINT) || mint.equals(USDT_MINT) ? 6 : 9
+      const decimals = KNOWN_DECIMALS[mintStr] ?? fetchedDecimals[mintStr] ?? 9
       const uiAmount = Number(rawAmount) / 10 ** decimals
 
       tokens.push({
@@ -69,7 +102,7 @@ vaultRouter.get('/', async (req: Request, res: Response) => {
       })
     }
   } catch (err) {
-    // RPC failures should not block the entire response — return what we have
+    balanceStatus = 'unavailable'
     console.warn('[vault] balance fetch failed:', err instanceof Error ? err.message : err)
   }
 
@@ -81,6 +114,7 @@ vaultRouter.get('/', async (req: Request, res: Response) => {
     balances: {
       sol: solBalance,
       tokens,
+      status: balanceStatus,
     },
     activity,
   })
