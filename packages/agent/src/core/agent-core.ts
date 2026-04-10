@@ -1,4 +1,4 @@
-import type { MsgContext, ResponseChunk, AgentResponse } from './types.js'
+import type { MsgContext, ResponseChunk, AgentResponse, AgentConfig } from './types.js'
 import { chat, chatStream } from '../agent.js'
 import {
   resolveSession,
@@ -15,6 +15,12 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class AgentCore {
+  private config: AgentConfig
+
+  constructor(config: AgentConfig = {}) {
+    this.config = config
+  }
+
   /**
    * Process a message synchronously (non-streaming).
    *
@@ -31,7 +37,12 @@ export class AgentCore {
       { role: 'user' as const, content: ctx.message },
     ]
 
-    const response = await chat(messages)
+    const response = await chat(messages, {
+      systemPrompt: this.config.systemPrompt,
+      tools: this.config.tools,
+      toolExecutor: this.config.toolExecutor,
+      model: this.config.model,
+    })
 
     // Extract text from text blocks
     const textBlocks = response.content.filter(
@@ -72,7 +83,12 @@ export class AgentCore {
 
     let fullText = ''
 
-    for await (const event of chatStream(messages)) {
+    for await (const event of chatStream(messages, {
+      systemPrompt: this.config.systemPrompt,
+      tools: this.config.tools,
+      toolExecutor: this.config.toolExecutor,
+      model: this.config.model,
+    })) {
       switch (event.type) {
         case 'content_block_delta':
           yield { type: 'text', text: event.text }
