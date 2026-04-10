@@ -504,227 +504,9 @@ Supported tokens: `C-wSOL`, `C-USDC`, `C-USDT`. All C-SPL endpoints support `Ide
 
 ---
 
-### STARK Range Proofs (Preview — mock prover)
+### Private Swap
 
-Prove that a hidden value in a Pedersen commitment meets a threshold — without revealing the value. Uses M31 limb decomposition (Mersenne prime 2^31-1). Currently uses a mock STARK prover; real Murkl WASM integration coming soon.
-
-#### Generate Range Proof
-
-```
-POST /v1/proofs/range/generate
-Content-Type: application/json
-
-{
-  "value": "1000000000",
-  "threshold": "500000000",
-  "blindingFactor": "0x...",
-  "commitment": "0x..."
-}
-```
-
-**Parameters:**
-- `value` — The secret value to prove (not revealed in the proof)
-- `threshold` — Minimum value (public, included in proof)
-- `blindingFactor` — 32-byte hex blinding factor for commitment
-- `commitment` — Optional existing Pedersen commitment. If omitted, auto-created from value + blindingFactor.
-
-Returns: `proof` (type, proof hex, publicInputs), `commitment`, `metadata` (prover, decomposition, limbCount, security).
-
-Supports `Idempotency-Key` header.
-
-#### Verify Range Proof
-
-```
-POST /v1/proofs/range/verify
-Content-Type: application/json
-
-{
-  "type": "range",
-  "proof": "0x...",
-  "publicInputs": ["0x...", "0x..."]
-}
-```
-
-Returns: `{ valid: boolean }`
-
----
-
-### Privacy Backends
-
-List, inspect, and select privacy backends. Each backend implements a different privacy strategy (stealth addresses, FHE, MPC).
-
-#### List All Backends
-
-```
-GET /v1/backends
-```
-
-Returns: `backends[]` (name, type, chains, enabled, priority, capabilities, health), `total`, `totalEnabled`.
-
-#### Check Backend Health
-
-```
-GET /v1/backends/:id/health
-```
-
-Probes a specific backend. Returns: `available`, `estimatedCost`, `estimatedTime`, `health` (circuit breaker state), `metrics` (request counts, latency), `capabilities`.
-
-#### Select Preferred Backend
-
-```
-POST /v1/backends/select
-Content-Type: application/json
-
-{ "backend": "sip-native" }
-```
-
-Sets the preferred privacy backend for your API key. Requires a tiered API key (Free/Pro/Enterprise). Returns: `keyId`, `preferredBackend`.
-
-#### Compare Backends
-
-```
-POST /v1/backends/compare
-Content-Type: application/json
-
-{
-  "operation": "stealth_privacy",
-  "chain": "solana",
-  "prioritize": "cost"
-}
-```
-
-**Parameters:**
-- `operation` — `stealth_privacy`, `encrypted_compute`, or `compliance_audit`
-- `chain` — Target blockchain (default: `solana`)
-- `amount` — Optional transaction amount in smallest units
-- `prioritize` — Optional: `cost`, `speed`, or `privacy` (adjusts scoring weights to 60%)
-
-Returns: `comparisons[]` (backend, type, available, costLamports, costSOL, latencyMs, latencyCategory, privacyLevel, capabilities, score 0-100, recommended), `recommendation` (best_overall, best_value, fastest, most_private, reasoning).
-
-Scoring: cost 40%, latency 30%, privacy 30% (default). Use `prioritize` to shift weights.
-
----
-
-### Arcium MPC Compute (Preview — mock backend)
-
-Submit encrypted computations to the Arcium MPC cluster. Status progresses: submitted → encrypting → processing → finalizing → completed.
-
-#### Submit Computation
-
-```
-POST /v1/arcium/compute
-Content-Type: application/json
-
-{
-  "circuitId": "private_transfer",
-  "encryptedInputs": ["0xdeadbeef", "0xcafebabe"],
-  "chain": "solana",
-  "cipher": "aes256"
-}
-```
-
-**Parameters:**
-- `circuitId` — Circuit: `private_transfer` (2 inputs), `check_balance` (1 input), `validate_swap` (3 inputs)
-- `encryptedInputs` — Hex-encoded encrypted inputs (1-10)
-- `chain` — Target chain (default: `solana`)
-- `cipher` — Encryption cipher: `aes128`, `aes192`, `aes256`, `rescue` (default: `aes256`)
-
-Returns: `computationId` (arc_...), `status`, `estimatedCompletion`, `supportedCircuits`.
-
-Supports `Idempotency-Key` header.
-
-#### Poll Status
-
-```
-GET /v1/arcium/compute/:id/status
-```
-
-Returns: `computationId`, `status`, `progress` (0-100), `output` (only when completed), `proof` (only when completed).
-
-#### Decrypt Result
-
-```
-POST /v1/arcium/decrypt
-Content-Type: application/json
-
-{
-  "computationId": "arc_...",
-  "viewingKey": {
-    "key": "0x...",
-    "path": "m/44/501/0",
-    "hash": "0x..."
-  }
-}
-```
-
-Returns: `decryptedOutput`, `verificationHash`, `circuitId`.
-
----
-
-### Inco FHE Compute (Preview — mock backend)
-
-Encrypt values, compute on ciphertexts homomorphically, and decrypt results using Fully Homomorphic Encryption. FHE operations complete synchronously (no status polling needed). Tracks noise budget consumption per operation.
-
-#### Encrypt Value
-
-```
-POST /v1/inco/encrypt
-Content-Type: application/json
-
-{
-  "plaintext": 42,
-  "scheme": "tfhe",
-  "label": "my-value"
-}
-```
-
-**Parameters:**
-- `plaintext` — Value to encrypt (number or string)
-- `scheme` — FHE scheme: `fhew` (fast boolean ops) or `tfhe` (general-purpose)
-- `label` — Optional label
-
-Returns: `encryptionId` (inc_...), `ciphertext`, `scheme`, `noiseBudget` (100), `supportedSchemes`.
-
-#### Compute on Ciphertexts
-
-```
-POST /v1/inco/compute
-Content-Type: application/json
-
-{
-  "operation": "add",
-  "ciphertexts": ["0x...", "0x..."],
-  "scheme": "tfhe"
-}
-```
-
-**Parameters:**
-- `operation` — `add` (2 ops, noise: 5), `mul` (2 ops, noise: 15), `not` (1 op, noise: 3), `compare_eq` (2 ops, noise: 8), `compare_lt` (2 ops, noise: 8)
-- `ciphertexts` — Hex-encoded ciphertexts (1-3)
-- `scheme` — FHE scheme (default: `tfhe`)
-
-Returns: `computationId` (inc_...), `operation`, `resultCiphertext`, `noiseBudgetRemaining`, `status: "completed"`.
-
-Supports `Idempotency-Key` header.
-
-#### Decrypt Result
-
-```
-POST /v1/inco/decrypt
-Content-Type: application/json
-
-{
-  "computationId": "inc_..."
-}
-```
-
-Returns: `decryptedOutput`, `verificationHash`, `operation`.
-
----
-
-### Private Swap (Preview — mock backend)
-
-Privacy-preserving token swap via Jupiter DEX. Orchestrates stealth address generation, optional C-SPL wrapping, and Jupiter swap into a single call. Output routed to a stealth address with Pedersen commitment.
+Privacy-preserving token swap via real Jupiter API. Orchestrates stealth address generation, optional C-SPL wrapping, and Jupiter swap into a single call. Output routed to a stealth address with Pedersen commitment.
 
 ```
 POST /v1/swap/private
@@ -832,7 +614,7 @@ Returns: cached tally result (same shape as tally response). Tallies expire afte
 
 ---
 
-### Jito Gas Abstraction (Preview — mock backend)
+### Jito Gas Abstraction
 
 Submit transactions via Jito bundles for MEV protection. Requires pro or enterprise tier.
 
@@ -995,7 +777,7 @@ Content-Type: application/json
 - `defaults.chain` — Default chain for stealth operations (17 chains supported)
 - `defaults.privacyLevel` — `standard`, `shielded`, or `maximum`
 - `defaults.rpcProvider` — `helius`, `quicknode`, `triton`, or `generic`
-- `defaults.backend` — `sip-native`, `arcium`, or `inco`
+- `defaults.backend` — `sip-native`
 - `defaults.defaultViewingKey` — 0x-prefixed hex viewing key
 - `ttlSeconds` — Session TTL (min: 60, default: 3600, max: 86400)
 
@@ -1115,7 +897,7 @@ GET /v1/demo   → JSON with 25 steps, 35+ endpoints exercised, real crypto
 GET /demo      → Markdown-formatted summary (agent-readable)
 ```
 
-Returns stealth address generation (multi-chain), Pedersen commitments (homomorphic math), viewing key hierarchy (BIP32), STARK range proofs, governance voting, and more — all running live.
+Returns stealth address generation (multi-chain), Pedersen commitments (homomorphic math), viewing key hierarchy (BIP32), governance voting, and more — all running live.
 
 ---
 
@@ -1137,7 +919,6 @@ Returns stealth address generation (multi-chain), Pedersen commitments (homomorp
 | Module | Description | Status |
 |--------|-------------|--------|
 | anchor-transfer | On-chain shielded transfers via Anchor program | Production |
-| sunspot-verifier | Noir → Groth16 ZK proof verification (3 proof types) | Roadmap |
 | privacy-adapter | Unified orchestrator (transfer, scan, claim) | Production |
 | stealth-scanner | Real-time + historical payment detection | Production |
 | providers/helius | Helius DAS API (asset queries, metadata) | Production |
@@ -1156,7 +937,6 @@ Returns stealth address generation (multi-chain), Pedersen commitments (homomorp
 | XChaCha20-Poly1305 | @noble/ciphers | Viewing key encryption/decryption |
 | SHA-256 / Keccak256 | @noble/hashes | Key hashing, view tags, nullifiers |
 | BIP32/BIP39 | @scure/bip32 | Hierarchical key derivation |
-| STARK range proofs | Custom (M31 field) | Prove value >= threshold without revealing value |
 
 ---
 
