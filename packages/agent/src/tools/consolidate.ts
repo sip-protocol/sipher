@@ -60,7 +60,7 @@ export async function executeConsolidate(
     throw new Error('Spending key is required for claiming')
   }
 
-  const network = (process.env.SOLANA_NETWORK ?? 'devnet') as 'devnet' | 'mainnet-beta'
+  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
   const connection = createConnection(network)
 
   // Parse hex keys → Uint8Array (strip optional 0x prefix)

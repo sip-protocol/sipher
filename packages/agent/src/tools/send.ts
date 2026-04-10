@@ -98,7 +98,8 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
   }
 
   const token = params.token.toUpperCase()
-  const connection = createConnection('devnet')
+  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const connection = createConnection(network)
 
   // Fetch live fee_bps from on-chain config
   const config = await getVaultConfig(connection)
@@ -145,6 +146,7 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
   let amountCommitment: Uint8Array
   let ephemeralPubkey: Uint8Array
   let viewingKeyHash: Uint8Array
+  let blinding = ''
 
   const isStealthMetaAddress = params.recipient.startsWith('sip:solana:')
 
@@ -174,10 +176,9 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
     stealthPubkey = new PublicKey(solanaAddress)
 
     // Real Pedersen commitment: C = amount*G + blinding*H
-    const { commitment, blinding } = commit(BigInt(amountBase))
-    // TODO: encrypt blinding factor into encryptedAmount for recipient to verify commitment
-    void blinding
-    amountCommitment = hexToBytes(commitment)
+    const commitResult = commit(BigInt(amountBase))
+    blinding = commitResult.blinding
+    amountCommitment = hexToBytes(commitResult.commitment)
 
     // Ephemeral pubkey: 32-byte ed25519 -> pad to 33 bytes with 0x00 prefix
     // On-chain program stores but doesn't validate the curve — opaque bytes for the scanner
@@ -203,7 +204,25 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
     viewingKeyHash = new Uint8Array(32).fill(0)
   }
 
-  const encryptedAmount = new Uint8Array(0)
+  // Encrypt amount + blinding factor for recipient to verify commitment.
+  // Layout: [8 bytes amount LE] || [32 bytes blinding] XOR-masked with viewing key hash.
+  let encryptedAmount: Uint8Array
+  if (isStealthMetaAddress) {
+    const amountLeBytes = bigintToLeBytes(BigInt(amountBase))
+    const blindingBytes = hexToBytes(blinding)
+    const payload = new Uint8Array(amountLeBytes.length + blindingBytes.length)
+    payload.set(amountLeBytes, 0)
+    payload.set(blindingBytes, amountLeBytes.length)
+    // Generate 64 bytes of keystream from viewing key hash
+    const mask1 = sha256(viewingKeyHash)
+    const mask2 = sha256(mask1)
+    encryptedAmount = new Uint8Array(payload.length)
+    for (let i = 0; i < payload.length; i++) {
+      encryptedAmount[i] = payload[i] ^ (i < 32 ? mask1[i] : mask2[i - 32])
+    }
+  } else {
+    encryptedAmount = new Uint8Array(0)
+  }
   const proof = new Uint8Array(0)
 
   // Derive the stealth recipient's associated token account
@@ -256,4 +275,15 @@ function hexToBytes(hex: string): Uint8Array {
     bytes[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16)
   }
   return bytes
+}
+
+/** Convert a bigint to little-endian byte array */
+function bigintToLeBytes(value: bigint, size = 8): Uint8Array {
+  const buf = new Uint8Array(size)
+  let v = value
+  for (let i = 0; i < size; i++) {
+    buf[i] = Number(v & 0xffn)
+    v >>= 8n
+  }
+  return buf
 }
