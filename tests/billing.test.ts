@@ -149,7 +149,6 @@ describe('Metering middleware', () => {
     expect(classifyPath('/v1/transfer/shield')).toBe('transfer')
     expect(classifyPath('/v1/scan/payments')).toBe('scan')
     expect(classifyPath('/v1/viewing-key/generate')).toBe('viewing_key')
-    expect(classifyPath('/v1/proofs/range/generate')).toBe('proof')
     expect(classifyPath('/v1/privacy/score')).toBe('privacy')
     expect(classifyPath('/v1/swap/private')).toBe('swap')
     expect(classifyPath('/v1/governance/ballot/encrypt')).toBe('governance')

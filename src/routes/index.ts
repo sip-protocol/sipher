@@ -9,8 +9,6 @@ import errorsRouter from './errors.js'
 import privacyRouter from './privacy.js'
 import rpcRouter from './rpc.js'
 import backendsRouter from './backends.js'
-import proofsRouter from './proofs.js'
-import rangeProofRouter from './range-proof.js'
 import csplRouter from './cspl.js'
 import privateTransferRouter from './private-transfer.js'
 import privateSwapRouter from './private-swap.js'
@@ -36,8 +34,6 @@ router.use(errorsRouter)
 router.use(privacyRouter)
 router.use(rpcRouter)
 router.use(backendsRouter)
-router.use(proofsRouter)
-router.use(rangeProofRouter)
 router.use(csplRouter)
 router.use(privateSwapRouter)
 router.use(sessionRouter)

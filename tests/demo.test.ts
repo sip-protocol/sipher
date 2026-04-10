@@ -23,10 +23,10 @@ describe('Demo endpoint', () => {
     expect(res.body.data.title).toBe('Sipher Live Privacy Demo')
   }, 15000)
 
-  it('GET /v1/demo returns all 25 steps', async () => {
+  it('GET /v1/demo returns all 23 steps', async () => {
     const res = await request(app).get('/v1/demo')
-    expect(res.body.data.steps).toHaveLength(25)
-    expect(res.body.data.summary.stepsCompleted).toBe(25)
+    expect(res.body.data.steps).toHaveLength(23)
+    expect(res.body.data.summary.stepsCompleted).toBe(23)
   }, 15000)
 
   it('GET /v1/demo all steps pass', async () => {
