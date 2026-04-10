@@ -85,7 +85,7 @@ export async function buildPrivateSwap(req: PrivateSwapRequest): Promise<Private
   const outputStealthAddress = ed25519PublicKeyToSolanaAddress(stealthResult.stealthAddress.address)
 
   // Step 2: Get Jupiter quote
-  const quote = getQuote({
+  const quote = await getQuote({
     inputMint,
     outputMint,
     amount: inputAmount,
@@ -131,7 +131,7 @@ export async function buildPrivateSwap(req: PrivateSwapRequest): Promise<Private
   }
 
   // Step 6: Build Jupiter swap tx routed to stealth address
-  const swapTx = buildSwapTransaction({
+  const swapTx = await buildSwapTransaction({
     quoteId: quote.quoteId,
     userPublicKey: sender,
     destinationAddress: outputStealthAddress,

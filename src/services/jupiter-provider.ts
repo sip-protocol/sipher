@@ -4,7 +4,7 @@ import { LRUCache } from 'lru-cache'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const DOMAIN_TAG = new TextEncoder().encode('SIPHER-JUPITER-DEX')
+const JUPITER_BASE_URL = process.env.JUPITER_API_URL ?? 'https://lite-api.jup.ag'
 
 export const SUPPORTED_TOKENS: Record<string, { symbol: string; name: string; decimals: number }> = {
   So11111111111111111111111111111111111111112: { symbol: 'SOL', name: 'Wrapped SOL', decimals: 9 },
@@ -50,111 +50,133 @@ export interface SwapTransactionResult {
 
 // ─── Cache ──────────────────────────────────────────────────────────────────
 
-const quoteCache = new LRUCache<string, QuoteEntry>({
+interface CachedQuote {
+  entry: QuoteEntry
+  rawResponse: Record<string, unknown> // Full Jupiter API response for swap building
+}
+
+const quoteCache = new LRUCache<string, CachedQuote>({
   max: 1000,
   ttl: 30 * 1000, // 30s — quotes expire fast
 })
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function hashWithTag(label: string, data: string): Uint8Array {
-  const payload = new TextEncoder().encode(label + data)
-  const input = new Uint8Array(DOMAIN_TAG.length + payload.length)
-  input.set(DOMAIN_TAG)
-  input.set(payload, DOMAIN_TAG.length)
-  return keccak_256(input)
+function generateQuoteId(inputMint: string, outputMint: string, amount: string): string {
+  const payload = new TextEncoder().encode(inputMint + outputMint + amount + Date.now().toString())
+  const hash = keccak_256(payload)
+  return 'jup_' + bytesToHex(hash)
 }
 
 // ─── Get Quote ──────────────────────────────────────────────────────────────
 
-export function getQuote(params: QuoteParams): QuoteEntry {
+export async function getQuote(params: QuoteParams): Promise<QuoteEntry> {
   const { inputMint, outputMint, amount, slippageBps = 50 } = params
 
-  // Validate tokens
-  if (!SUPPORTED_TOKENS[inputMint]) {
-    const err = new Error(`Unsupported input token: ${inputMint}. Supported: ${Object.keys(SUPPORTED_TOKENS).join(', ')}`)
-    err.name = 'JupiterQuoteError'
-    throw err
-  }
-  if (!SUPPORTED_TOKENS[outputMint]) {
-    const err = new Error(`Unsupported output token: ${outputMint}. Supported: ${Object.keys(SUPPORTED_TOKENS).join(', ')}`)
-    err.name = 'JupiterQuoteError'
-    throw err
-  }
   if (inputMint === outputMint) {
     const err = new Error('Input and output mints must be different')
     err.name = 'JupiterQuoteError'
     throw err
   }
 
-  // Deterministic quote ID
+  const url = new URL(`${JUPITER_BASE_URL}/swap/v1/quote`)
+  url.searchParams.set('inputMint', inputMint)
+  url.searchParams.set('outputMint', outputMint)
+  url.searchParams.set('amount', amount)
+  url.searchParams.set('slippageBps', String(slippageBps))
+
+  let response: Response
+  try {
+    response = await fetch(url.toString())
+  } catch (fetchErr) {
+    const err = new Error(`Jupiter API request failed: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`)
+    err.name = 'JupiterQuoteError'
+    throw err
+  }
+
+  if (!response.ok) {
+    let detail = ''
+    try {
+      const body = await response.json() as Record<string, unknown>
+      detail = typeof body.error === 'string' ? body.error : JSON.stringify(body)
+    } catch {
+      detail = `HTTP ${response.status}`
+    }
+    const err = new Error(`Jupiter quote failed: ${detail}`)
+    err.name = 'JupiterQuoteError'
+    throw err
+  }
+
+  const data = await response.json() as Record<string, unknown>
+
+  const quoteId = generateQuoteId(inputMint, outputMint, amount)
   const now = Date.now()
-  const quoteId = 'jup_' + bytesToHex(hashWithTag('QUOTE', inputMint + outputMint + amount + now.toString()))
-
-  // Deterministic output amount via hash-seeded ratio
-  const ratioHash = hashWithTag('RATIO', inputMint + outputMint + amount)
-  // Use first 4 bytes as a ratio factor: 0.90 – 1.10 range
-  const ratioSeed = (ratioHash[0]! << 8 | ratioHash[1]!) / 65535
-  const ratioMultiplier = 0.90 + ratioSeed * 0.20 // 0.90 to 1.10
-
-  // Adjust for decimal differences
-  const inDecimals = SUPPORTED_TOKENS[inputMint]!.decimals
-  const outDecimals = SUPPORTED_TOKENS[outputMint]!.decimals
-  const decimalAdjustment = 10 ** (outDecimals - inDecimals)
-
-  const inAmountBig = BigInt(amount)
-  const rawOutAmount = Number(inAmountBig) * ratioMultiplier * decimalAdjustment
-  const outAmount = BigInt(Math.max(1, Math.floor(rawOutAmount)))
-
-  // Price impact from hash
-  const impactSeed = (ratioHash[2]! & 0xFF) / 255
-  const priceImpactPct = (impactSeed * 0.5).toFixed(4) // 0-0.5% impact
-
-  // Slippage-adjusted minimum
-  const outAmountMin = outAmount - (outAmount * BigInt(slippageBps) / 10000n)
 
   const entry: QuoteEntry = {
     quoteId,
-    inputMint,
-    outputMint,
-    inAmount: amount,
-    outAmount: outAmount.toString(),
-    outAmountMin: outAmountMin.toString(),
-    priceImpactPct,
-    slippageBps,
+    inputMint: String(data.inputMint),
+    outputMint: String(data.outputMint),
+    inAmount: String(data.inAmount),
+    outAmount: String(data.outAmount),
+    outAmountMin: String(data.otherAmountThreshold),
+    priceImpactPct: String(data.priceImpactPct ?? '0'),
+    slippageBps: Number(data.slippageBps ?? slippageBps),
     expiresAt: now + 30_000,
   }
 
-  quoteCache.set(quoteId, entry)
+  quoteCache.set(quoteId, { entry, rawResponse: data })
   return entry
 }
 
 // ─── Build Swap Transaction ─────────────────────────────────────────────────
 
-export function buildSwapTransaction(params: SwapTransactionParams): SwapTransactionResult {
+export async function buildSwapTransaction(params: SwapTransactionParams): Promise<SwapTransactionResult> {
   const { quoteId, userPublicKey, destinationAddress } = params
 
-  const quote = quoteCache.get(quoteId)
-  if (!quote) {
+  const cached = quoteCache.get(quoteId)
+  if (!cached) {
     const err = new Error(`Quote not found or expired: ${quoteId}`)
     err.name = 'JupiterSwapError'
     throw err
   }
 
-  // Deterministic base64 transaction
-  const txHash = hashWithTag('SWAP-TX', quoteId + userPublicKey + destinationAddress)
-  const swapTransaction = Buffer.from(txHash).toString('base64')
+  let response: Response
+  try {
+    response = await fetch(`${JUPITER_BASE_URL}/swap/v1/swap`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        quoteResponse: cached.rawResponse,
+        userPublicKey,
+        destinationTokenAccount: destinationAddress,
+      }),
+    })
+  } catch (fetchErr) {
+    const err = new Error(`Jupiter swap API request failed: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`)
+    err.name = 'JupiterSwapError'
+    throw err
+  }
 
-  // Deterministic compute unit price and priority fee
-  const feeHash = hashWithTag('FEE', quoteId)
-  const computeUnitPrice = 1000 + (feeHash[0]! << 8 | feeHash[1]!) % 9000 // 1000-10000
-  const priorityFee = 5000 + (feeHash[2]! << 8 | feeHash[3]!) % 45000      // 5000-50000
+  if (!response.ok) {
+    let detail = ''
+    try {
+      const body = await response.json() as Record<string, unknown>
+      detail = typeof body.error === 'string' ? body.error : JSON.stringify(body)
+    } catch {
+      detail = `HTTP ${response.status}`
+    }
+    const err = new Error(`Jupiter swap transaction failed: ${detail}`)
+    err.name = 'JupiterSwapError'
+    throw err
+  }
+
+  const data = await response.json() as Record<string, unknown>
 
   return {
-    swapTransaction,
+    swapTransaction: String(data.swapTransaction),
     quoteId,
-    computeUnitPrice,
-    priorityFee,
+    computeUnitPrice: 0, // Jupiter handles compute unit pricing
+    priorityFee: Number(data.prioritizationFeeLamports ?? 0),
   }
 }
 
@@ -164,8 +186,8 @@ export function getSupportedTokens(): typeof SUPPORTED_TOKENS {
   return SUPPORTED_TOKENS
 }
 
-export function isTokenSupported(mint: string): boolean {
-  return mint in SUPPORTED_TOKENS
+export function isTokenSupported(_mint: string): boolean {
+  return true
 }
 
 export function resetJupiterProvider(): void {
