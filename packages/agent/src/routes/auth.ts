@@ -193,8 +193,11 @@ authRouter.post('/verify', (req: Request, res: Response) => {
   // One-time use — consume before responding
   pendingNonces.delete(nonce)
 
+  const allowed = (process.env.AUTHORIZED_WALLETS ?? '').split(',').map((w) => w.trim()).filter(Boolean)
+  const isAdmin = allowed.length > 0 && allowed.includes(wallet)
+
   const token = jwt.sign({ wallet }, getSecret(), { expiresIn: JWT_EXPIRY, algorithm: 'HS256' })
-  res.json({ token, expiresIn: JWT_EXPIRY })
+  res.json({ token, expiresIn: JWT_EXPIRY, isAdmin })
 })
 
 // ─── SSE Ticket Exchange ─────────────────────────────────────────────────────
