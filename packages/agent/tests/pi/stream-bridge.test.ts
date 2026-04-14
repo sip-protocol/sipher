@@ -124,6 +124,7 @@ describe('streamPiAgent', () => {
       prompt: async () => {
         throw new Error('network down')
       },
+      abort: () => {},
       state: { messages: [] },
     } as unknown as Agent
 
@@ -133,5 +134,63 @@ describe('streamPiAgent', () => {
     }
 
     expect(collected).toEqual([{ type: 'error', message: 'network down' }])
+  })
+
+  it('calls agent.abort() when the consumer breaks out of the generator early', async () => {
+    const subscribers: Array<(event: AgentEvent) => void> = []
+    let aborted = false
+    let promptResolve: () => void = () => {}
+
+    const fakeAgent = {
+      subscribe: (cb: (event: AgentEvent) => void) => {
+        subscribers.push(cb)
+        return () => {
+          const idx = subscribers.indexOf(cb)
+          if (idx >= 0) subscribers.splice(idx, 1)
+        }
+      },
+      prompt: async () => {
+        // Hangs until promptResolve() is called (by abort())
+        await new Promise<void>((resolve) => {
+          promptResolve = resolve
+        })
+      },
+      abort: () => {
+        aborted = true
+        // Resolve the pending prompt so runPromise settles and finally can complete
+        promptResolve()
+      },
+      state: { messages: [] },
+    } as unknown as Agent
+
+    const gen = streamPiAgent(fakeAgent, 'hi')
+
+    // Kick off first gen.next() to start the generator body, which installs
+    // subscribers and then suspends at `await new Promise` waiting for events.
+    // We don't await it yet — we need to let the generator start first.
+    const firstEventPromise = gen.next()
+
+    // Allow the generator to start, subscribe, and reach the inner await
+    await new Promise((r) => setImmediate(r))
+
+    // Now subscribers are installed. Emit one text delta to wake the generator.
+    subscribers.forEach((cb) =>
+      cb({
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_delta', delta: 'x' },
+      } as unknown as AgentEvent),
+    )
+
+    // gen.next() should now resolve with the emitted event
+    const first = await firstEventPromise
+    expect(first.value).toMatchObject({ type: 'content_block_delta', text: 'x' })
+
+    // The generator looped back and is now suspended at the inner `await new Promise`.
+    // gen.return() injects a Return completion into that await, running finally.
+    // finally: guardUnsub() + unsubscribe() + agent.abort() → promptResolve() → await runPromise resolves
+    await gen.return(undefined)
+
+    // abort() must have been called in the generator's finally block
+    expect(aborted).toBe(true)
   })
 })

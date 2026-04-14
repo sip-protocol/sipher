@@ -173,6 +173,16 @@ export async function* streamPiAgent(
   } finally {
     guardUnsub()
     unsubscribe()
+    // Abort the Pi run before awaiting settlement. If the consumer broke out of
+    // the generator early (e.g. SSE client disconnect), this signals Pi to stop
+    // the active LLM request and tool loop so we don't burn tokens or broadcast
+    // on-chain transactions for an abandoned session. If the run already finished
+    // normally, abort() is a no-op.
+    try {
+      agent.abort()
+    } catch {
+      // abort() may throw if called outside an active run — safe to ignore
+    }
     await runPromise
   }
 }
