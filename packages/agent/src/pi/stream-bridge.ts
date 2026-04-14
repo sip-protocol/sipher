@@ -1,36 +1,41 @@
 import type { Agent, AgentEvent, AgentMessage } from '@mariozechner/pi-agent-core'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Stream Bridge — Pi AgentEvent → ResponseChunk async generator
+// Stream Bridge — Pi AgentEvent → SSEEvent async generator
 // ─────────────────────────────────────────────────────────────────────────────
 // Pi SDK uses an event-subscriber model (agent.subscribe((event) => ...)).
-// Sipher's adapters (web.ts, x.ts) consume async generators of ResponseChunks.
-// This module bridges those two models:
-//   - mapPiEventToChunks: pure, synchronous, easily tested in isolation
+// agent.ts's existing chatStream yields SSEEvent objects consumed by AgentCore.
+// This module bridges those two models so Task 6 can be a drop-in replacement:
+//   - mapPiEventToSSE: pure, synchronous, easily tested in isolation
 //   - streamPiAgent: wraps a Pi Agent run as an async generator using a
 //     queue + Promise pattern to convert push events into pull iteration
 
 /**
- * Stream chunk format consumed by web/x adapters.
- * Mirrors the legacy Anthropic-based agent.ts output exactly.
+ * SSE event types yielded by the stream bridge.
+ * Mirrors the existing SSEEvent shape from agent.ts so AgentCore.streamMessage
+ * consumes Pi-backed output identically to the legacy Anthropic loop.
  */
-export interface ResponseChunk {
-  type: 'text' | 'tool_use' | 'tool_result' | 'message_complete' | 'error'
-  text?: string
-  toolName?: string
-  toolId?: string
-  success?: boolean
-}
+export interface SSEContentDelta { type: 'content_block_delta'; text: string }
+export interface SSEToolUse { type: 'tool_use'; name: string; id: string }
+export interface SSEToolResult { type: 'tool_result'; name: string; id: string; success: boolean }
+export interface SSEMessageComplete { type: 'message_complete'; content: string }
+export interface SSEError { type: 'error'; message: string }
+
+export type SSEEvent =
+  | SSEContentDelta
+  | SSEToolUse
+  | SSEToolResult
+  | SSEMessageComplete
+  | SSEError
 
 // Internal view of an AssistantMessage for content extraction at agent_end.
-// We only need role and content — don't import the full type to avoid coupling.
 interface MessageLike {
   role: string
   content?: Array<{ type: string; text?: string }>
 }
 
 /**
- * Map a single Pi AgentEvent to zero or more ResponseChunks.
+ * Map a single Pi AgentEvent to zero or more SSEEvents.
  *
  * Pure function — no IO, no side effects. Every supported event type has
  * explicit handling; unrecognised events return [].
@@ -40,7 +45,7 @@ interface MessageLike {
  * `result.isError`. We check the top-level field first (real SDK path) and
  * fall back to `result.isError` (test fixture path) for full compatibility.
  */
-export function mapPiEventToChunks(event: AgentEvent): ResponseChunk[] {
+export function mapPiEventToSSE(event: AgentEvent): SSEEvent[] {
   // ── Text streaming ────────────────────────────────────────────────────────
   if (event.type === 'message_update') {
     const e = event as {
@@ -48,7 +53,7 @@ export function mapPiEventToChunks(event: AgentEvent): ResponseChunk[] {
       assistantMessageEvent: { type: string; delta?: string }
     }
     if (e.assistantMessageEvent?.type === 'text_delta' && e.assistantMessageEvent.delta) {
-      return [{ type: 'text', text: e.assistantMessageEvent.delta }]
+      return [{ type: 'content_block_delta', text: e.assistantMessageEvent.delta }]
     }
     return []
   }
@@ -56,7 +61,7 @@ export function mapPiEventToChunks(event: AgentEvent): ResponseChunk[] {
   // ── Tool lifecycle ────────────────────────────────────────────────────────
   if (event.type === 'tool_execution_start') {
     const e = event as { type: 'tool_execution_start'; toolCallId: string; toolName: string }
-    return [{ type: 'tool_use', toolName: e.toolName, toolId: e.toolCallId }]
+    return [{ type: 'tool_use', name: e.toolName, id: e.toolCallId }]
   }
 
   if (event.type === 'tool_execution_end') {
@@ -67,35 +72,30 @@ export function mapPiEventToChunks(event: AgentEvent): ResponseChunk[] {
       isError?: boolean
       result?: { isError?: boolean }
     }
-    // Real Pi SDK: isError is a top-level boolean on the event.
-    // Test fixtures: isError is nested inside result.isError (cast via as unknown).
     const failed =
       typeof e.isError === 'boolean' ? e.isError : (e.result?.isError ?? false)
-    return [{ type: 'tool_result', toolName: e.toolName, toolId: e.toolCallId, success: !failed }]
+    return [{ type: 'tool_result', name: e.toolName, id: e.toolCallId, success: !failed }]
   }
 
-  // ── Agent finished — emit final assistant text ────────────────────────────
+  // ── Agent finished — emit final assistant text as message_complete ────────
   if (event.type === 'agent_end') {
     const e = event as { type: 'agent_end'; messages: AgentMessage[] }
-    // Find the last assistant message in the transcript.
-    // Cast to MessageLike after the find — no type predicate needed since
-    // AgentMessage is a union that may not include MessageLike directly.
     const lastAssistant = [...e.messages]
       .reverse()
       .find((m) => (m as MessageLike).role === 'assistant') as MessageLike | undefined
-    const text =
+    const content =
       lastAssistant?.content
         ?.filter((c) => c.type === 'text')
         .map((c) => c.text ?? '')
         .join('') ?? ''
-    return [{ type: 'message_complete', text }]
+    return [{ type: 'message_complete', content }]
   }
 
   return []
 }
 
 /**
- * Wrap a Pi Agent run as an async generator of ResponseChunks.
+ * Wrap a Pi Agent run as an async generator of SSEEvents.
  *
  * The agent must have its tools, model, and system prompt configured before
  * calling this. Any prior conversation history must already be present in
@@ -111,11 +111,11 @@ export function mapPiEventToChunks(event: AgentEvent): ResponseChunk[] {
 export async function* streamPiAgent(
   agent: Agent,
   userMessage: string,
-): AsyncGenerator<ResponseChunk, void, unknown> {
-  const queue: ResponseChunk[] = []
+): AsyncGenerator<SSEEvent, void, unknown> {
+  const queue: SSEEvent[] = []
   let resolveNext: (() => void) | null = null
   let done = false
-  let errorChunk: ResponseChunk | null = null
+  let errorEvent: SSEError | null = null
 
   const wake = (): void => {
     if (resolveNext) {
@@ -125,14 +125,17 @@ export async function* streamPiAgent(
   }
 
   const unsubscribe = agent.subscribe((event) => {
+    // Guard against post-completion events
+    if (done) return
+
     try {
-      const chunks = mapPiEventToChunks(event)
-      for (const chunk of chunks) queue.push(chunk)
+      const events = mapPiEventToSSE(event)
+      for (const evt of events) queue.push(evt)
       if (event.type === 'agent_end') done = true
     } catch (err) {
-      errorChunk = {
+      errorEvent = {
         type: 'error',
-        text: err instanceof Error ? err.message : 'Unknown event handler error',
+        message: err instanceof Error ? err.message : 'Unknown event handler error',
       }
       done = true
     }
@@ -140,38 +143,32 @@ export async function* streamPiAgent(
   })
 
   // Kick off the run without awaiting — events drive the generator.
-  // Errors here (network failures, model errors) are caught and emitted as an
-  // error chunk rather than propagating as unhandled rejections.
+  // Errors here become an error event rather than unhandled rejections.
   const runPromise = agent.prompt(userMessage).catch((err: unknown) => {
-    errorChunk = {
+    errorEvent = {
       type: 'error',
-      text: err instanceof Error ? err.message : 'Agent run failed',
+      message: err instanceof Error ? err.message : 'Agent run failed',
     }
     done = true
+    // The loop's `!done` guard catches the missed-wake case if resolveNext is null.
     wake()
   })
 
   try {
     while (!done || queue.length > 0) {
-      // Drain the queue before waiting
       while (queue.length > 0) {
-        const chunk = queue.shift()
-        if (chunk) yield chunk
+        const evt = queue.shift()
+        if (evt) yield evt
       }
-      // Block until the next event wakes us, or until done
       if (!done) {
         await new Promise<void>((resolve) => {
           resolveNext = resolve
         })
       }
     }
-
-    // Emit any error that occurred during the run
-    if (errorChunk) yield errorChunk
+    if (errorEvent) yield errorEvent
   } finally {
     unsubscribe()
-    // Ensure the underlying run promise settles before the generator returns.
-    // This prevents teardown races where the agent is still mid-execution.
     await runPromise
   }
 }
