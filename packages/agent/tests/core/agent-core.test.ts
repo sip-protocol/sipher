@@ -110,6 +110,58 @@ describe('AgentCore.streamMessage', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// historyToPi — multi-turn TextContent shape
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('AgentCore multi-turn history — TextContent shape', () => {
+  it('passes assistant history as TextContent blocks, not plain strings', async () => {
+    const chatMock = vi.mocked(chat)
+    // First turn returns a known text so we can assert on the second turn's history
+    chatMock.mockResolvedValueOnce({ text: 'first response', toolsUsed: [] })
+    chatMock.mockResolvedValueOnce({ text: 'second response', toolsUsed: [] })
+
+    const core = new AgentCore()
+    const ctx: MsgContext = { platform: 'web', userId: WALLET, message: 'turn one' }
+
+    // First turn — no prior history, seeds the DB with (user, assistant) pair
+    await core.processMessage(ctx)
+
+    // Second turn — history should be loaded and converted by historyToPi
+    const ctx2: MsgContext = { platform: 'web', userId: WALLET, message: 'turn two' }
+    await core.processMessage(ctx2)
+
+    // chat() must have been called twice
+    expect(chatMock).toHaveBeenCalledTimes(2)
+
+    const secondCallOpts = chatMock.mock.calls[1][1]
+    const history = secondCallOpts?.history ?? []
+
+    // Should contain two entries: user + assistant
+    expect(history.length).toBeGreaterThanOrEqual(2)
+
+    // The assistant entry must carry content as a TextContent array
+    const assistantEntry = history.find(
+      (m: { role: string }) => m.role === 'assistant',
+    ) as { role: string; content: unknown } | undefined
+
+    expect(assistantEntry).toBeDefined()
+    // Critical assertion: content must be an array, NOT a string
+    expect(Array.isArray(assistantEntry?.content)).toBe(true)
+    expect(assistantEntry?.content).toMatchObject([
+      { type: 'text', text: 'first response' },
+    ])
+
+    // User entry may remain a plain string (Pi UserMessage accepts string content)
+    const userEntry = history.find(
+      (m: { role: string }) => m.role === 'user',
+    ) as { role: string; content: unknown } | undefined
+    expect(userEntry).toBeDefined()
+    expect(typeof userEntry?.content).toBe('string')
+    expect(userEntry?.content).toBe('turn one')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Session resolution
 // ─────────────────────────────────────────────────────────────────────────────
 

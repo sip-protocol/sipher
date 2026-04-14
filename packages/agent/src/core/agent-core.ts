@@ -8,6 +8,55 @@ import {
 import { toAnthropicTools } from '../pi/tool-adapter.js'
 import type { AnthropicTool } from '../pi/tool-adapter.js'
 import type { Tool as PiTool } from '@mariozechner/pi-ai'
+import type { AgentMessage } from '@mariozechner/pi-agent-core'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// History conversion
+//
+// Pi's AssistantMessage.content is (TextContent | ThinkingContent | ToolCall)[],
+// never a plain string. If we pass `content: someString` Pi's openai-completions
+// provider calls `.filter()` on it and crashes with:
+//   TypeError: msg.content.filter is not a function
+//
+// historyToPi wraps assistant content as a TextContent block and populates the
+// required AssistantMessage metadata fields with safe sentinel values. User
+// messages are left as strings (Pi accepts string | TextContent[] for UserMessage).
+// ─────────────────────────────────────────────────────────────────────────────
+
+function historyToPi(
+  history: Array<{ role: string; content: unknown }>,
+): AgentMessage[] {
+  return history.map((m) => {
+    if (m.role === 'assistant') {
+      return {
+        role: 'assistant',
+        content: [{ type: 'text', text: String(m.content) }],
+        // Required AssistantMessage fields — filled with minimal valid sentinels.
+        // These are historical replay entries; actual values were emitted live and
+        // are not persisted. Providers that inspect these fields for routing will
+        // see safe no-op values.
+        api: 'openai-completions',
+        provider: 'openrouter',
+        model: '',
+        usage: {
+          input: 0,
+          output: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+          totalTokens: 0,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+        },
+        stopReason: 'stop',
+        timestamp: 0,
+      } as unknown as AgentMessage
+    }
+    return {
+      role: 'user',
+      content: String(m.content),
+      timestamp: 0,
+    } as unknown as AgentMessage
+  })
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool format auto-detection
@@ -57,20 +106,16 @@ export class AgentCore {
     const session = resolveSession(ctx.userId)
     const history = getConversation(session.id)
 
-    // Convert sipher ConversationMessage[] to Pi UserMessage/AssistantMessage format.
-    // UserMessage requires a timestamp; we use 0 as a sentinel for synthetic history.
-    const piHistory = history.map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content as string,
-      timestamp: 0,
-    }))
+    // Convert sipher ConversationMessage[] to Pi AgentMessage format.
+    // See historyToPi above — assistant content must be a TextContent array, not a string.
+    const piHistory = historyToPi(history)
 
     const { text, toolsUsed } = await chat(ctx.message, {
       systemPrompt: this.config.systemPrompt,
       tools: this.normalizedTools,
       toolExecutor: this.config.toolExecutor,
       model: this.config.model,
-      history: piHistory as never,
+      history: piHistory,
       sessionId: session.id,
     })
 
@@ -95,11 +140,8 @@ export class AgentCore {
     const history = getConversation(session.id)
 
     // Convert sipher ConversationMessage[] to Pi AgentMessage format.
-    const piHistory = history.map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content as string,
-      timestamp: 0,
-    }))
+    // See historyToPi above — assistant content must be a TextContent array, not a string.
+    const piHistory = historyToPi(history)
 
     let fullText = ''
 
@@ -108,7 +150,7 @@ export class AgentCore {
       tools: this.normalizedTools,
       toolExecutor: this.config.toolExecutor,
       model: this.config.model,
-      history: piHistory as never,
+      history: piHistory,
       sessionId: session.id,
     })) {
       switch (event.type) {
