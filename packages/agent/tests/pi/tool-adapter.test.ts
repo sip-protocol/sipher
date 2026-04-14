@@ -157,3 +157,38 @@ describe('toAnthropicTools (batch)', () => {
     expect(anthropicTools[0].name).toBe('postTweet')
   })
 })
+
+describe('round-trip safety', () => {
+  it('Anthropic → Pi → Anthropic preserves name, description, and schema fields', () => {
+    const original = sampleAnthropicTool
+    const roundTripped = toAnthropicTool(toPiTool(original))
+    expect(roundTripped.name).toBe(original.name)
+    expect(roundTripped.description).toBe(original.description ?? '')
+    expect(roundTripped.input_schema).toMatchObject({
+      type: 'object',
+      properties: original.input_schema.properties,
+      required: original.input_schema.required,
+    })
+  })
+
+  it('Pi → Anthropic → Pi preserves name, description, and schema fields', () => {
+    const original = samplePiTool
+    const roundTripped = toPiTool(toAnthropicTool(original))
+    expect(roundTripped.name).toBe(original.name)
+    expect(roundTripped.description).toBe(original.description ?? '')
+    expect(roundTripped.parameters).toMatchObject({
+      type: 'object',
+      properties: (original.parameters as { properties: Record<string, unknown> }).properties,
+    })
+  })
+
+  it('toAnthropicTool defaults missing properties to empty object', () => {
+    const piToolNoProps: Tool = {
+      name: 'minimal',
+      description: 'no props',
+      parameters: { type: 'object' } as never,
+    }
+    const result = toAnthropicTool(piToolNoProps)
+    expect(result.input_schema.properties).toEqual({})
+  })
+})

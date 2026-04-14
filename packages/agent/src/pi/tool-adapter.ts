@@ -36,6 +36,10 @@ export function adaptTools(tools: AnthropicTool[]): Tool[] {
 /**
  * Convert an Anthropic SDK Tool to Pi AI Tool format.
  * Both use JSON Schema for parameters — this is a field rename only.
+ *
+ * Note: Normalizes to a plain {type, properties, required} shape.
+ * SIPHER tools use flat object schemas only — no $defs, anyOf, or additionalProperties.
+ * If a future tool needs a richer schema, extend this accordingly.
  */
 export function toPiTool(anthropicTool: Anthropic.Tool): Tool {
   const schema = anthropicTool.input_schema as {
@@ -50,6 +54,9 @@ export function toPiTool(anthropicTool: Anthropic.Tool): Tool {
       type: 'object',
       properties: schema.properties ?? {},
       required: schema.required ?? [],
+      // `as never`: Pi's Tool<TParameters> requires a TypeBox-branded TSchema.
+      // Plain JSON Schema objects can't satisfy that brand at compile time.
+      // Runtime behavior is identical — both serialize to JSON Schema.
     } as never,
   }
 }
@@ -74,7 +81,7 @@ export function toAnthropicTool(piTool: Tool): Anthropic.Tool {
     description: piTool.description ?? '',
     input_schema: {
       type: 'object',
-      properties: params.properties,
+      properties: params.properties ?? {},
       required: params.required ?? [],
     },
   }
