@@ -5,6 +5,30 @@ import {
   getConversation,
   appendConversation,
 } from '../session.js'
+import { toAnthropicTools } from '../pi/tool-adapter.js'
+import type Anthropic from '@anthropic-ai/sdk'
+import type { Tool as PiTool } from '@mariozechner/pi-ai'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool format auto-detection
+//
+// AgentConfig.tools accepts either Anthropic.Tool[] (input_schema) or Pi
+// Tool[] (parameters). We detect by sampling the first element and convert
+// Pi tools to Anthropic format here — chat() and chatStream() both call
+// createPiAgent which expects Anthropic.Tool[].
+// ─────────────────────────────────────────────────────────────────────────────
+
+function normalizeTools(
+  tools: Anthropic.Tool[] | PiTool[] | undefined
+): Anthropic.Tool[] | undefined {
+  if (!tools || tools.length === 0) return tools as Anthropic.Tool[] | undefined
+  // Detect by presence of `parameters` key (Pi) vs `input_schema` (Anthropic)
+  const first = tools[0] as { parameters?: unknown; input_schema?: unknown }
+  if (first.parameters !== undefined && first.input_schema === undefined) {
+    return toAnthropicTools(tools as PiTool[])
+  }
+  return tools as Anthropic.Tool[]
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AgentCore — platform-agnostic message processing
@@ -16,9 +40,11 @@ import {
 
 export class AgentCore {
   private config: AgentConfig
+  private normalizedTools: Anthropic.Tool[] | undefined
 
   constructor(config: AgentConfig = {}) {
     this.config = config
+    this.normalizedTools = normalizeTools(config.tools)
   }
 
   /**
@@ -41,7 +67,7 @@ export class AgentCore {
 
     const { text, toolsUsed } = await chat(ctx.message, {
       systemPrompt: this.config.systemPrompt,
-      tools: this.config.tools,
+      tools: this.normalizedTools,
       toolExecutor: this.config.toolExecutor,
       model: this.config.model,
       history: piHistory as never,
@@ -79,7 +105,7 @@ export class AgentCore {
 
     for await (const event of chatStream(ctx.message, {
       systemPrompt: this.config.systemPrompt,
-      tools: this.config.tools,
+      tools: this.normalizedTools,
       toolExecutor: this.config.toolExecutor,
       model: this.config.model,
       history: piHistory as never,
