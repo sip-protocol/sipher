@@ -24,37 +24,29 @@ export class AgentCore {
   /**
    * Process a message synchronously (non-streaming).
    *
-   * Resolves the user's session, loads conversation history, calls the LLM,
-   * extracts text + tool usage, persists the conversation turn, and returns.
+   * Resolves the user's session, loads conversation history, calls the Pi
+   * agent loop, and persists the conversation turn before returning.
    */
   async processMessage(ctx: MsgContext): Promise<AgentResponse> {
     const session = resolveSession(ctx.userId)
     const history = getConversation(session.id)
 
-    // Build messages: existing history + the new user message
-    const messages = [
-      ...history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content as string })),
-      { role: 'user' as const, content: ctx.message },
-    ]
+    // Convert sipher ConversationMessage[] to Pi UserMessage/AssistantMessage format.
+    // UserMessage requires a timestamp; we use 0 as a sentinel for synthetic history.
+    const piHistory = history.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content as string,
+      timestamp: 0,
+    }))
 
-    const response = await chat(messages, {
+    const { text, toolsUsed } = await chat(ctx.message, {
       systemPrompt: this.config.systemPrompt,
       tools: this.config.tools,
       toolExecutor: this.config.toolExecutor,
       model: this.config.model,
+      history: piHistory as never,
+      sessionId: session.id,
     })
-
-    // Extract text from text blocks
-    const textBlocks = response.content.filter(
-      (b: { type: string }) => b.type === 'text'
-    ) as { type: 'text'; text: string }[]
-    const text = textBlocks.map((b) => b.text).join('')
-
-    // Extract tool names from tool_use blocks
-    const toolUseBlocks = response.content.filter(
-      (b: { type: string }) => b.type === 'tool_use'
-    ) as { type: 'tool_use'; name: string }[]
-    const toolsUsed = toolUseBlocks.map((b) => b.name)
 
     // Persist the conversation turn
     appendConversation(session.id, [
@@ -69,28 +61,33 @@ export class AgentCore {
    * Process a message with streaming.
    *
    * Same session/history resolution, but yields ResponseChunk objects as
-   * SSE events arrive from the LLM. Persists the conversation after the
+   * SSE events arrive from the Pi agent. Persists the conversation after the
    * stream completes, then yields a final 'done' chunk.
    */
   async *streamMessage(ctx: MsgContext): AsyncGenerator<ResponseChunk> {
     const session = resolveSession(ctx.userId)
     const history = getConversation(session.id)
 
-    const messages = [
-      ...history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content as string })),
-      { role: 'user' as const, content: ctx.message },
-    ]
+    // Convert sipher ConversationMessage[] to Pi AgentMessage format.
+    const piHistory = history.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content as string,
+      timestamp: 0,
+    }))
 
     let fullText = ''
 
-    for await (const event of chatStream(messages, {
+    for await (const event of chatStream(ctx.message, {
       systemPrompt: this.config.systemPrompt,
       tools: this.config.tools,
       toolExecutor: this.config.toolExecutor,
       model: this.config.model,
+      history: piHistory as never,
+      sessionId: session.id,
     })) {
       switch (event.type) {
         case 'content_block_delta':
+          fullText += event.text
           yield { type: 'text', text: event.text }
           break
 

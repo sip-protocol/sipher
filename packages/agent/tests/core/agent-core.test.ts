@@ -6,10 +6,7 @@ import type { MsgContext, ResponseChunk } from '../../src/core/types.js'
 // ─────────────────────────────────────────────────────────────────────────────
 
 vi.mock('../../src/agent.js', () => ({
-  chat: vi.fn().mockResolvedValue({
-    content: [{ type: 'text', text: 'Mock response' }],
-    stop_reason: 'end_turn',
-  }),
+  chat: vi.fn().mockResolvedValue({ text: 'Mock response', toolsUsed: [] }),
   chatStream: vi.fn().mockImplementation(async function* () {
     yield { type: 'content_block_delta', text: 'Mock ' }
     yield { type: 'content_block_delta', text: 'streamed' }
@@ -61,16 +58,12 @@ describe('AgentCore.processMessage', () => {
     expect(result.toolsUsed).toEqual([])
   })
 
-  it('extracts tool names from tool_use blocks', async () => {
+  it('propagates toolsUsed from chat return value', async () => {
     const chatMock = vi.mocked(chat)
     chatMock.mockResolvedValueOnce({
-      content: [
-        { type: 'tool_use', id: 'tool_1', name: 'balance', input: {} },
-        { type: 'tool_use', id: 'tool_2', name: 'scan', input: {} },
-        { type: 'text', text: 'Your balance is 5 SOL' },
-      ],
-      stop_reason: 'end_turn',
-    } as never)
+      text: 'Your balance is 5 SOL',
+      toolsUsed: ['balance', 'scan'],
+    })
 
     const core = new AgentCore()
     const ctx: MsgContext = {
