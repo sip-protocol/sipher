@@ -76,6 +76,12 @@ export function createPiAgent(opts: CreatePiAgentOptions): Agent {
     const provider = opts.model.slice(0, colon)
     const modelId = opts.model.slice(colon + 1)
     model = getModel(provider as never, modelId as never)
+    if (!model) {
+      throw new Error(
+        `Model not found in pi-ai registry: '${opts.model}'. ` +
+          `Note: pi-ai uses dot notation (e.g. anthropic/claude-sonnet-4.6, not -4-6).`,
+      )
+    }
   } else {
     model = getSipherModel()
   }

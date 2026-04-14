@@ -93,7 +93,7 @@ describe('Pi SDK Migration — Integration', () => {
       systemPrompt: HERALD_SYSTEM_PROMPT,
       tools: HERALD_TOOLS,
       toolExecutor: async () => ({}),
-      model: 'openrouter:anthropic/claude-sonnet-4-6',
+      model: 'openrouter:anthropic/claude-sonnet-4.6',
     })
     expect(core).toBeDefined()
     expect(core).toBeInstanceOf(AgentCore)
@@ -106,7 +106,7 @@ describe('Pi SDK Migration — Integration', () => {
       systemPrompt: SYSTEM_PROMPT,
       tools: TOOLS,
       toolExecutor: async () => ({}),
-      model: 'openrouter:anthropic/claude-sonnet-4-6',
+      model: 'openrouter:anthropic/claude-sonnet-4.6',
     })
     expect(core).toBeDefined()
     expect(core).toBeInstanceOf(AgentCore)
