@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { createScheduledOp, getOrCreateSession, getScheduledOpsBySession } from '../db.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ export interface SweepToolResult {
   }
 }
 
-export const sweepTool: Anthropic.Tool = {
+export const sweepTool: AnthropicTool = {
   name: 'sweep',
   description:
     'Auto-shield incoming wallet funds. ' +

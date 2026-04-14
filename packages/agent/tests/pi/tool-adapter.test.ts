@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { adaptTool, adaptTools, toPiTool, toPiTools, toAnthropicTool, toAnthropicTools } from '../../src/pi/tool-adapter.js'
 import { depositTool } from '../../src/tools/deposit.js'
 import { balanceTool } from '../../src/tools/balance.js'
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../../src/pi/tool-adapter.js'
 import type { Tool } from '@mariozechner/pi-ai'
 
-const sampleAnthropicTool: Anthropic.Tool = {
+const sampleAnthropicTool: AnthropicTool = {
   name: 'deposit',
   description: 'Deposit funds into the vault',
   input_schema: {
@@ -118,7 +118,7 @@ describe('toPiTool', () => {
   })
 
   it('handles tools without required fields', () => {
-    const tool: Anthropic.Tool = {
+    const tool: AnthropicTool = {
       name: 'noop',
       description: 'Does nothing',
       input_schema: { type: 'object', properties: {} },

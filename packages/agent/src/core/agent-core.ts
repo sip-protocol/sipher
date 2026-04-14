@@ -6,7 +6,7 @@ import {
   appendConversation,
 } from '../session.js'
 import { toAnthropicTools } from '../pi/tool-adapter.js'
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import type { Tool as PiTool } from '@mariozechner/pi-ai'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,15 +19,15 @@ import type { Tool as PiTool } from '@mariozechner/pi-ai'
 // ─────────────────────────────────────────────────────────────────────────────
 
 function normalizeTools(
-  tools: Anthropic.Tool[] | PiTool[] | undefined
-): Anthropic.Tool[] | undefined {
-  if (!tools || tools.length === 0) return tools as Anthropic.Tool[] | undefined
+  tools: AnthropicTool[] | PiTool[] | undefined
+): AnthropicTool[] | undefined {
+  if (!tools || tools.length === 0) return tools as AnthropicTool[] | undefined
   // Detect by presence of `parameters` key (Pi) vs `input_schema` (Anthropic)
   const first = tools[0] as { parameters?: unknown; input_schema?: unknown }
   if (first.parameters !== undefined && first.input_schema === undefined) {
     return toAnthropicTools(tools as PiTool[])
   }
-  return tools as Anthropic.Tool[]
+  return tools as AnthropicTool[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ function normalizeTools(
 
 export class AgentCore {
   private config: AgentConfig
-  private normalizedTools: Anthropic.Tool[] | undefined
+  private normalizedTools: AnthropicTool[] | undefined
 
   constructor(config: AgentConfig = {}) {
     this.config = config

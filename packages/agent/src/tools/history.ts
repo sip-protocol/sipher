@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { PublicKey } from '@solana/web3.js'
 import {
   createConnection,
@@ -40,7 +40,7 @@ export interface HistoryToolResult {
   message: string
 }
 
-export const historyTool: Anthropic.Tool = {
+export const historyTool: AnthropicTool = {
   name: 'history',
   description:
     'Retrieve transaction history for a wallet\'s vault activity. ' +

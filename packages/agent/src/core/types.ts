@@ -1,11 +1,11 @@
-import type Anthropic from '@anthropic-ai/sdk'
 import type { Tool as PiTool } from '@mariozechner/pi-ai'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 
 /** Configuration for an agent identity (tools, prompt, model) */
 export interface AgentConfig {
   systemPrompt?: string
   /** Tools in either Anthropic format (input_schema) or Pi format (parameters). Auto-detected. */
-  tools?: Anthropic.Tool[] | PiTool[]
+  tools?: AnthropicTool[] | PiTool[]
   toolExecutor?: (name: string, input: Record<string, unknown>) => Promise<unknown>
   model?: string
 }

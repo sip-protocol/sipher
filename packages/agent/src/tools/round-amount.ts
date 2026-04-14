@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 
 const DENOMINATIONS = [10000, 5000, 1000, 500, 100, 50, 10]
 
@@ -17,7 +17,7 @@ export interface RoundAmountToolResult {
   token: string
 }
 
-export const roundAmountTool: Anthropic.Tool = {
+export const roundAmountTool: AnthropicTool = {
   name: 'roundAmount',
   description:
     'Round a payment amount down to a common denomination to reduce amount correlation. ' +

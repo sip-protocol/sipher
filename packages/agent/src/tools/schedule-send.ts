@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { createScheduledOp, getOrCreateSession } from '../db.js'
 
 export interface ScheduleSendParams {
@@ -29,7 +29,7 @@ function randomInRange(min: number, max: number): number {
   return min + Math.random() * (max - min)
 }
 
-export const scheduleSendTool: Anthropic.Tool = {
+export const scheduleSendTool: AnthropicTool = {
   name: 'scheduleSend',
   description:
     'Schedule a private send for later execution. ' +

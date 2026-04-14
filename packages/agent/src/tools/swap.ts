@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { PublicKey } from '@solana/web3.js'
 import { getAssociatedTokenAddress } from '@solana/spl-token'
 import {
@@ -55,7 +55,7 @@ export interface SwapToolResult {
   }
 }
 
-export const swapTool: Anthropic.Tool = {
+export const swapTool: AnthropicTool = {
   name: 'swap',
   description:
     'Execute a private swap: tokens are swapped via Jupiter and optionally routed to a stealth address. ' +

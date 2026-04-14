@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { PublicKey } from '@solana/web3.js'
 import { getAssociatedTokenAddress } from '@solana/spl-token'
 import {
@@ -39,7 +39,7 @@ export interface DepositToolResult {
   }
 }
 
-export const depositTool: Anthropic.Tool = {
+export const depositTool: AnthropicTool = {
   name: 'deposit',
   description:
     'Deposit tokens into the Sipher privacy vault. ' +

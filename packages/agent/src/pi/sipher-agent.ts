@@ -1,7 +1,7 @@
 import { Agent, type AgentMessage } from '@mariozechner/pi-agent-core'
 import { getModel, type Model } from '@mariozechner/pi-ai'
 import type { AgentTool } from '@mariozechner/pi-agent-core'
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from './tool-adapter.js'
 import { toPiTools } from './tool-adapter.js'
 import { getSipherModel } from './provider.js'
 
@@ -24,7 +24,7 @@ export type ToolExecutor = (name: string, input: Record<string, unknown>) => Pro
 
 export interface CreatePiAgentOptions {
   systemPrompt: string
-  tools: Anthropic.Tool[]
+  tools: AnthropicTool[]
   toolExecutor: ToolExecutor
   /** Override model in 'provider:modelId' format (e.g. 'openrouter:anthropic/claude-haiku-4.5'). */
   model?: string

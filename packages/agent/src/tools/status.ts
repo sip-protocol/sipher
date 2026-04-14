@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import {
   createConnection,
   getVaultConfig,
@@ -29,7 +29,7 @@ export interface StatusToolResult {
   }
 }
 
-export const statusTool: Anthropic.Tool = {
+export const statusTool: AnthropicTool = {
   name: 'status',
   description:
     'Check the Sipher vault status — paused state, fee, refund timeout, deposit stats. ' +

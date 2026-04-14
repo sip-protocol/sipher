@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { createScheduledOp, getOrCreateSession } from '../db.js'
 import { createConnection, scanForPayments } from '@sipher/sdk'
 
@@ -29,7 +29,7 @@ export interface ConsolidateToolResult {
   paymentsFound: number
 }
 
-export const consolidateTool: Anthropic.Tool = {
+export const consolidateTool: AnthropicTool = {
   name: 'consolidate',
   description:
     'Merge multiple unclaimed stealth balances with staggered claim timing. ' +

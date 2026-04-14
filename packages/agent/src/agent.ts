@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from './pi/tool-adapter.js'
 import {
   depositTool,
   executeDeposit,
@@ -80,7 +80,7 @@ Rules:
 // Tool registry
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const TOOLS: Anthropic.Tool[] = [
+export const TOOLS: AnthropicTool[] = [
   depositTool,
   sendTool,
   refundTool,
@@ -153,7 +153,7 @@ export interface ChatOptions {
   /** Override system prompt */
   systemPrompt?: string
   /** Override tool registry */
-  tools?: Anthropic.Tool[]
+  tools?: AnthropicTool[]
   /** Override tool executor (defaults to executeTool) */
   toolExecutor?: (name: string, input: Record<string, unknown>) => Promise<unknown>
   /** Override model in 'provider:modelId' format (defaults to getSipherModel()) */

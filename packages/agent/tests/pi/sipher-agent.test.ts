@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createPiAgent } from '../../src/pi/sipher-agent.js'
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../../src/pi/tool-adapter.js'
 import type { AgentTool } from '@mariozechner/pi-agent-core'
 
-const sampleTools: Anthropic.Tool[] = [
+const sampleTools: AnthropicTool[] = [
   {
     name: 'echo',
     description: 'Echo input',
