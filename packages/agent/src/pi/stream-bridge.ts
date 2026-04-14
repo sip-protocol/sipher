@@ -1,4 +1,5 @@
 import type { Agent, AgentEvent, AgentMessage } from '@mariozechner/pi-agent-core'
+import { attachToolGuard } from './tool-guard.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Stream Bridge — Pi AgentEvent → SSEEvent async generator
@@ -124,6 +125,8 @@ export async function* streamPiAgent(
     }
   }
 
+  const guardUnsub = attachToolGuard(agent)
+
   const unsubscribe = agent.subscribe((event) => {
     // Guard against post-completion events
     if (done) return
@@ -168,6 +171,7 @@ export async function* streamPiAgent(
     }
     if (errorEvent) yield errorEvent
   } finally {
+    guardUnsub()
     unsubscribe()
     await runPromise
   }

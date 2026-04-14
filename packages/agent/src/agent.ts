@@ -46,6 +46,7 @@ import {
 import type { AgentMessage } from '@mariozechner/pi-agent-core'
 import { createPiAgent } from './pi/sipher-agent.js'
 import { streamPiAgent } from './pi/stream-bridge.js'
+import { attachToolGuard } from './pi/tool-guard.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // System prompt — Sipher's identity and behavior rules
@@ -229,7 +230,12 @@ export async function chat(
     }
   })
 
-  await agent.prompt(userMessage)
+  const guardUnsub = attachToolGuard(agent)
+  try {
+    await agent.prompt(userMessage)
+  } finally {
+    guardUnsub()
+  }
 
   // Extract final assistant text from agent.state.messages
   const messages = agent.state.messages
