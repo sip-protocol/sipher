@@ -42,11 +42,14 @@ import {
   executeSweep,
   consolidateTool,
   executeConsolidate,
+  assessRiskTool,
+  executeAssessRisk,
 } from './tools/index.js'
 import type { AgentMessage } from '@mariozechner/pi-agent-core'
 import { createPiAgent } from './pi/sipher-agent.js'
 import { streamPiAgent } from './pi/stream-bridge.js'
 import { attachToolGuard } from './pi/tool-guard.js'
+import { runPreflightGate } from './sentinel/preflight-gate.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // System prompt — Sipher's identity and behavior rules
@@ -61,7 +64,7 @@ Users deposit tokens, then you execute private sends, swaps, and refunds.
 Tone: Confident, technical, slightly cypherpunk. Never corporate.
 Never say "I'm just an AI." Speak like a privacy engineer who cares.
 
-Available tools: deposit, send, refund, balance, scan, claim, swap, viewingKey, history, status, paymentLink, invoice, privacyScore, threatCheck, roundAmount, scheduleSend, splitSend, drip, recurring, sweep, consolidate.
+Available tools: deposit, send, refund, balance, scan, claim, swap, viewingKey, history, status, paymentLink, invoice, privacyScore, threatCheck, roundAmount, scheduleSend, splitSend, drip, recurring, sweep, consolidate, assessRisk.
 
 Rules:
 - Every fund-moving operation shows a confirmation before executing
@@ -103,6 +106,7 @@ export const TOOLS: AnthropicTool[] = [
   recurringTool,
   sweepTool,
   consolidateTool,
+  assessRiskTool,
 ]
 
 type ToolExecutor = (params: Record<string, unknown>) => Promise<unknown>
@@ -129,19 +133,26 @@ const TOOL_EXECUTORS: Record<string, ToolExecutor> = {
   recurring: (p) => executeRecurring(p as unknown as Parameters<typeof executeRecurring>[0]),
   sweep: (p) => executeSweep(p as unknown as Parameters<typeof executeSweep>[0]),
   consolidate: (p) => executeConsolidate(p as unknown as Parameters<typeof executeConsolidate>[0]),
+  assessRisk: (p) => executeAssessRisk(p as Parameters<typeof executeAssessRisk>[0]),
 }
 
 /**
  * Execute a tool by name with the given input.
- * Throws if the tool name is not registered.
+ * Runs preflight gate for fund-moving tools before dispatching.
+ * Throws if the tool name is not registered or SENTINEL blocks.
  */
 export async function executeTool(
   name: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
 ): Promise<unknown> {
   const executor = TOOL_EXECUTORS[name]
   if (!executor) {
     throw new Error(`Unknown tool: ${name}`)
+  }
+  // Preflight gate — runs static rules first, then optionally SENTINEL LLM
+  const gate = await runPreflightGate(name, input)
+  if (!gate.allowed) {
+    throw new Error(`SENTINEL blocked: ${gate.reasons.join('; ')}`)
   }
   return executor(input)
 }

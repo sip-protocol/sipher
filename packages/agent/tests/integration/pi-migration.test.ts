@@ -19,10 +19,10 @@ describe('Pi SDK Migration — Integration', () => {
     expect(typeof mod.executeTool).toBe('function')
     expect(typeof mod.SYSTEM_PROMPT).toBe('string')
     expect(Array.isArray(mod.TOOLS)).toBe(true)
-    expect(mod.TOOLS.length).toBe(21)
+    expect(mod.TOOLS.length).toBe(22)
   })
 
-  it('TOOLS contains all 21 expected tool names', async () => {
+  it('TOOLS contains all 22 expected tool names', async () => {
     const { TOOLS } = await import('../../src/agent.js')
     const names = TOOLS.map((t) => t.name).sort()
     expect(names).toContain('deposit')
@@ -46,6 +46,7 @@ describe('Pi SDK Migration — Integration', () => {
     expect(names).toContain('recurring')
     expect(names).toContain('sweep')
     expect(names).toContain('consolidate')
+    expect(names).toContain('assessRisk')
   })
 
   it('every TOOL is in valid AnthropicTool format', async () => {
