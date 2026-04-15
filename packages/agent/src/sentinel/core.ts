@@ -25,7 +25,7 @@ const MAX_TOOLS_PER_RUN = 10
 
 export class SentinelCore {
   async assessRisk(ctx: PreflightContext): Promise<RiskReport> {
-    return this.run('preflight', ctx, ctx.wallet ?? null)
+    return this.run('preflight', ctx as unknown as Record<string, unknown>, ctx.wallet ?? null)
   }
 
   async analyze(event: GuardianEvent): Promise<RiskReport> {
@@ -39,7 +39,7 @@ export class SentinelCore {
   }
 
   async query(ctx: PreflightContext): Promise<RiskReport> {
-    return this.run('query', ctx, ctx.wallet ?? null)
+    return this.run('query', ctx as unknown as Record<string, unknown>, ctx.wallet ?? null)
   }
 
   private async run(

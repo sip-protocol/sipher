@@ -133,7 +133,7 @@ const TOOL_EXECUTORS: Record<string, ToolExecutor> = {
   recurring: (p) => executeRecurring(p as unknown as Parameters<typeof executeRecurring>[0]),
   sweep: (p) => executeSweep(p as unknown as Parameters<typeof executeSweep>[0]),
   consolidate: (p) => executeConsolidate(p as unknown as Parameters<typeof executeConsolidate>[0]),
-  assessRisk: (p) => executeAssessRisk(p as Parameters<typeof executeAssessRisk>[0]),
+  assessRisk: (p) => executeAssessRisk(p as unknown as Parameters<typeof executeAssessRisk>[0]),
 }
 
 /**

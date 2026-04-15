@@ -18,13 +18,13 @@ export const SENTINEL_READ_TOOLS: AnthropicTool[] = [
 ]
 
 export const SENTINEL_READ_EXECUTORS: Record<string, (p: Record<string, unknown>) => Promise<unknown>> = {
-  checkReputation: (p) => executeCheckReputation(p as { address: string }),
-  getRecentActivity: (p) => executeGetRecentActivity(p as Parameters<typeof executeGetRecentActivity>[0]),
-  getOnChainSignatures: (p) => executeGetOnChainSignatures(p as Parameters<typeof executeGetOnChainSignatures>[0]),
-  getDepositStatus: (p) => executeGetDepositStatus(p as { pda: string }),
-  getVaultBalance: (p) => executeGetVaultBalance(p as { wallet: string }),
-  getPendingClaims: (p) => executeGetPendingClaims(p as { wallet?: string }),
-  getRiskHistory: (p) => executeGetRiskHistory(p as Parameters<typeof executeGetRiskHistory>[0]),
+  checkReputation: (p) => executeCheckReputation(p as unknown as { address: string }),
+  getRecentActivity: (p) => executeGetRecentActivity(p as unknown as Parameters<typeof executeGetRecentActivity>[0]),
+  getOnChainSignatures: (p) => executeGetOnChainSignatures(p as unknown as Parameters<typeof executeGetOnChainSignatures>[0]),
+  getDepositStatus: (p) => executeGetDepositStatus(p as unknown as { pda: string }),
+  getVaultBalance: (p) => executeGetVaultBalance(p as unknown as { wallet: string }),
+  getPendingClaims: (p) => executeGetPendingClaims(p as unknown as { wallet?: string }),
+  getRiskHistory: (p) => executeGetRiskHistory(p as unknown as Parameters<typeof executeGetRiskHistory>[0]),
 }
 
 export {
@@ -56,13 +56,13 @@ export const SENTINEL_ACTION_TOOLS: AnthropicTool[] = [
 ]
 
 export const SENTINEL_ACTION_EXECUTORS: Record<string, (p: Record<string, unknown>) => Promise<unknown>> = {
-  executeRefund: (p) => executeSentinelRefund(p as Parameters<typeof executeSentinelRefund>[0]),
-  addToBlacklist: (p) => executeAddToBlacklist(p as Parameters<typeof executeAddToBlacklist>[0]),
-  removeFromBlacklist: (p) => executeRemoveFromBlacklist(p as Parameters<typeof executeRemoveFromBlacklist>[0]),
-  alertUser: (p) => executeAlertUser(p as Parameters<typeof executeAlertUser>[0]),
-  scheduleCancellableAction: (p) => executeScheduleCancellable(p as Parameters<typeof executeScheduleCancellable>[0]),
-  cancelPendingAction: (p) => executeCancelPending(p as Parameters<typeof executeCancelPending>[0]),
-  vetoSipherAction: (p) => executeVetoSipher(p as Parameters<typeof executeVetoSipher>[0]),
+  executeRefund: (p) => executeSentinelRefund(p as unknown as Parameters<typeof executeSentinelRefund>[0]),
+  addToBlacklist: (p) => executeAddToBlacklist(p as unknown as Parameters<typeof executeAddToBlacklist>[0]),
+  removeFromBlacklist: (p) => executeRemoveFromBlacklist(p as unknown as Parameters<typeof executeRemoveFromBlacklist>[0]),
+  alertUser: (p) => executeAlertUser(p as unknown as Parameters<typeof executeAlertUser>[0]),
+  scheduleCancellableAction: (p) => executeScheduleCancellable(p as unknown as Parameters<typeof executeScheduleCancellable>[0]),
+  cancelPendingAction: (p) => executeCancelPending(p as unknown as Parameters<typeof executeCancelPending>[0]),
+  vetoSipherAction: (p) => executeVetoSipher(p as unknown as Parameters<typeof executeVetoSipher>[0]),
 }
 
 export const SENTINEL_ALL_TOOLS: AnthropicTool[] = [...SENTINEL_READ_TOOLS, ...SENTINEL_ACTION_TOOLS]

@@ -29,7 +29,7 @@ sentinelRouter.post('/assess', async (req: Request, res: Response) => {
 })
 
 sentinelRouter.get('/blacklist', (req: Request, res: Response) => {
-  const limit = Number(req.query.limit ?? '50')
+  const limit = Number(String(req.query.limit ?? '50'))
   res.json({ entries: listBlacklist({ limit }) })
 })
 
@@ -49,28 +49,34 @@ sentinelRouter.post('/blacklist', (req: Request, res: Response) => {
 })
 
 sentinelRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string | undefined
+  const w = (req as unknown as Record<string, unknown>).wallet
+  const wallet = (typeof w === 'string' ? w : undefined)
   const reason = (req.body?.reason as string) ?? 'manual removal'
-  softRemoveBlacklist(req.params.id, wallet ? `admin:${wallet}` : 'admin', reason)
+  const by = typeof wallet === 'string' ? `admin:${wallet}` : 'admin'
+  const id = (typeof req.params.id === 'string' ? req.params.id : String(req.params.id))
+  softRemoveBlacklist(id, by, reason)
   res.json({ success: true })
 })
 
 sentinelRouter.get('/pending', (req: Request, res: Response) => {
-  const wallet = req.query.wallet as string | undefined
-  const status = req.query.status as string | undefined
+  const wallet = (typeof req.query.wallet === 'string' ? req.query.wallet : undefined)
+  const status = (typeof req.query.status === 'string' ? req.query.status : undefined)
   res.json({ actions: listPendingActions({ wallet, status }) })
 })
 
 sentinelRouter.post('/pending/:id/cancel', (req: Request, res: Response) => {
   const reason = (req.body?.reason as string) ?? 'manual cancel'
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string | undefined
-  const ok = cancelCircuitBreakerAction(req.params.id, wallet ? `user:${wallet}` : 'admin', reason)
+  const w = (req as unknown as Record<string, unknown>).wallet
+  const wallet = (typeof w === 'string' ? w : undefined)
+  const by = typeof wallet === 'string' ? `user:${wallet}` : 'admin'
+  const id = (typeof req.params.id === 'string' ? req.params.id : String(req.params.id))
+  const ok = cancelCircuitBreakerAction(id, by, reason)
   res.json({ success: ok })
 })
 
 sentinelRouter.get('/decisions', (req: Request, res: Response) => {
-  const limit = Number(req.query.limit ?? '50')
-  const source = req.query.source as string | undefined
+  const limit = Number(String(req.query.limit ?? '50'))
+  const source = (typeof req.query.source === 'string' ? req.query.source : undefined)
   res.json({ decisions: listDecisions({ limit, source }) })
 })
 
