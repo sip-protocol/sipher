@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { createScheduledOp, getOrCreateSession } from '../db.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ function randomSplit(total: number, n: number): number[] {
   return parts
 }
 
-export const splitSendTool: Anthropic.Tool = {
+export const splitSendTool: AnthropicTool = {
   name: 'splitSend',
   description:
     'Split a payment into N random chunks sent at staggered times. ' +

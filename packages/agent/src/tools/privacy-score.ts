@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { PublicKey } from '@solana/web3.js'
 import { createConnection } from '@sipher/sdk'
 import { classifyAddress } from '../data/known-addresses.js'
@@ -24,7 +24,7 @@ export interface PrivacyScoreToolResult {
   }
 }
 
-export const privacyScoreTool: Anthropic.Tool = {
+export const privacyScoreTool: AnthropicTool = {
   name: 'privacyScore',
   description:
     'Analyze a wallet\'s on-chain privacy exposure (0-100 score). ' +

@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { createScheduledOp, getOrCreateSession } from '../db.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ export interface RecurringToolResult {
   }
 }
 
-export const recurringTool: Anthropic.Tool = {
+export const recurringTool: AnthropicTool = {
   name: 'recurring',
   description:
     'Set up recurring private payments on an interval. ' +

@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Claim tool — Claim a received stealth payment
@@ -31,7 +31,7 @@ export interface ClaimToolResult {
   }
 }
 
-export const claimTool: Anthropic.Tool = {
+export const claimTool: AnthropicTool = {
   name: 'claim',
   description:
     'Claim a received stealth payment found by the scan tool. ' +

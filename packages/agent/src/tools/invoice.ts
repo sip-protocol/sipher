@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { randomBytes } from 'node:crypto'
 import {
   generateEd25519StealthAddress,
@@ -37,7 +37,7 @@ function shortId(): string {
   return randomBytes(8).toString('base64url')
 }
 
-export const invoiceTool: Anthropic.Tool = {
+export const invoiceTool: AnthropicTool = {
   name: 'invoice',
   description:
     'Create a structured payment invoice with description, due date, and reference number. ' +

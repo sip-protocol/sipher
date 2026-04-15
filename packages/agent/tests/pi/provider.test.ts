@@ -53,4 +53,12 @@ describe('Pi AI provider', () => {
     expect(sipherModel).toHaveProperty('contextWindow')
     expect(sipherModel).toHaveProperty('maxTokens')
   })
+
+  it('throws a clear error when SIPHER_MODEL uses hyphen notation unknown to pi-ai', () => {
+    // pi-ai's OpenRouter registry uses dot notation ('claude-sonnet-4.6').
+    // A hyphen variant ('4-6') is not registered and getModel() returns undefined.
+    // getSipherModel() must throw before creating the agent, not silently pass undefined.
+    process.env.SIPHER_MODEL = 'anthropic/claude-sonnet-4-6'
+    expect(() => getSipherModel()).toThrow(/not found in pi-ai registry.*dot notation/i)
+  })
 })

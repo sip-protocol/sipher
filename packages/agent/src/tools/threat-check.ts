@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import {
   classifyAddress,
   isOfacSanctioned,
@@ -19,7 +19,7 @@ export interface ThreatCheckToolResult {
   message: string
 }
 
-export const threatCheckTool: Anthropic.Tool = {
+export const threatCheckTool: AnthropicTool = {
   name: 'threatCheck',
   description:
     'Check a recipient address for known risks before sending. ' +

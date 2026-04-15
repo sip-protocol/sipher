@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { PublicKey } from '@solana/web3.js'
 import {
   createConnection,
@@ -33,7 +33,7 @@ export interface BalanceToolResult {
   message: string
 }
 
-export const balanceTool: Anthropic.Tool = {
+export const balanceTool: AnthropicTool = {
   name: 'balance',
   description:
     'Check the vault balance for a wallet address and token. ' +

@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { PublicKey } from '@solana/web3.js'
 import { getAssociatedTokenAddress } from '@solana/spl-token'
 import {
@@ -34,7 +34,7 @@ export interface RefundToolResult {
   }
 }
 
-export const refundTool: Anthropic.Tool = {
+export const refundTool: AnthropicTool = {
   name: 'refund',
   description:
     'Refund available (unlocked) balance from the vault back to the depositor wallet. ' +

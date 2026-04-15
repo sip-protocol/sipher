@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import {
   createConnection,
   scanForPayments,
@@ -32,7 +32,7 @@ interface ScanPaymentSummary {
   timestamp: number
 }
 
-export const scanTool: Anthropic.Tool = {
+export const scanTool: AnthropicTool = {
   name: 'scan',
   description:
     'Scan the vault program for incoming stealth payments addressed to you. ' +

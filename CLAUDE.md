@@ -122,6 +122,8 @@ cd app && npx tsc --noEmit # Type check
 - **Language:** TypeScript (strict)
 - **Core:** @sip-protocol/sdk v0.7.4 (stealth addresses, commitments, XChaCha20-Poly1305 encryption, multi-chain)
 - **Solana:** @solana/web3.js v1 (transactions, RPC)
+- **Agent SDK:** @mariozechner/pi-agent-core + @mariozechner/pi-ai (replaces @anthropic-ai/sdk)
+- **LLM:** Pi SDK routing through OpenRouter (default `anthropic/claude-sonnet-4.6`). Provider config in `packages/agent/src/pi/provider.ts`
 - **Validation:** Zod v3
 - **Logging:** Pino v9 (structured JSON, audit logs)
 - **Docs:** swagger-ui-express (OpenAPI 3.1)
@@ -344,7 +346,8 @@ sipher/
 ├── packages/
 │   └── agent/                      # @sipher/agent — Platform-abstracted agent brain
 │       ├── src/
-│       │   ├── agent.ts            # Agent loop (Anthropic SDK via OpenRouter)
+│       │   ├── agent.ts            # Agent loop (Pi SDK via OpenRouter)
+│       │   ├── pi/                  # Pi SDK integration: tool-adapter, provider, sipher-agent, stream-bridge
 │       │   ├── db.ts               # SQLite persistence (better-sqlite3)
 │       │   ├── session.ts          # Conversation session manager
 │       │   ├── crank.ts            # Scheduled ops engine (60s interval)

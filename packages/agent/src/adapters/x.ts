@@ -1,5 +1,3 @@
-import type { Tool } from '@mariozechner/pi-ai'
-import type Anthropic from '@anthropic-ai/sdk'
 import type { GuardianEvent } from '../coordination/event-bus.js'
 import { AgentCore } from '../core/agent-core.js'
 import { HERALD_SYSTEM_PROMPT, HERALD_TOOLS, HERALD_TOOL_EXECUTORS } from '../herald/herald.js'
@@ -9,19 +7,8 @@ import { guardianBus } from '../coordination/event-bus.js'
 // ─────────────────────────────────────────────────────────────────────────────
 // X Adapter — subscribes to herald:mention / herald:dm events on guardianBus
 // and routes them through AgentCore for LLM-powered responses.
+// HERALD_TOOLS are Pi-format — AgentCore.normalizeTools() handles conversion.
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Convert Pi SDK Tool[] to Anthropic Tool[] format.
- * Pi SDK uses `parameters`, Anthropic expects `input_schema`.
- */
-export function toAnthropicTools(piTools: Tool[]): Anthropic.Tool[] {
-  return piTools.map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    input_schema: tool.parameters as unknown as Anthropic.Tool['input_schema'],
-  }))
-}
 
 /**
  * Build a tool executor that dispatches to HERALD_TOOL_EXECUTORS by name.
@@ -45,9 +32,9 @@ function heraldToolExecutor(name: string, input: Record<string, unknown>): Promi
 export function createXAdapter() {
   const core = new AgentCore({
     systemPrompt: HERALD_SYSTEM_PROMPT,
-    tools: toAnthropicTools(HERALD_TOOLS),
+    tools: HERALD_TOOLS,  // Pi tools — AgentCore auto-detects and normalizes to Anthropic format
     toolExecutor: heraldToolExecutor,
-    model: process.env.HERALD_MODEL ?? 'anthropic/claude-sonnet-4-6',
+    model: process.env.HERALD_MODEL ?? 'openrouter:anthropic/claude-sonnet-4.6',
   })
 
   // ───────────────────────────────────────────────────────────────────────

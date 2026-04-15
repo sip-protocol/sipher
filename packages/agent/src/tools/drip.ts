@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { createScheduledOp, getOrCreateSession } from '../db.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ export interface DripToolResult {
   days: number
 }
 
-export const dripTool: Anthropic.Tool = {
+export const dripTool: AnthropicTool = {
   name: 'drip',
   description:
     'DCA-style private distribution — send an amount over N days with randomized amounts and timing jitter. ' +

@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from './pi/tool-adapter.js'
 import {
   depositTool,
   executeDeposit,
@@ -43,6 +43,10 @@ import {
   consolidateTool,
   executeConsolidate,
 } from './tools/index.js'
+import type { AgentMessage } from '@mariozechner/pi-agent-core'
+import { createPiAgent } from './pi/sipher-agent.js'
+import { streamPiAgent } from './pi/stream-bridge.js'
+import { attachToolGuard } from './pi/tool-guard.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // System prompt — Sipher's identity and behavior rules
@@ -77,7 +81,7 @@ Rules:
 // Tool registry
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const TOOLS: Anthropic.Tool[] = [
+export const TOOLS: AnthropicTool[] = [
   depositTool,
   sendTool,
   refundTool,
@@ -143,24 +147,22 @@ export async function executeTool(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Agent conversation loop
+// Agent conversation loop — Pi SDK backed
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DEFAULT_MODEL = process.env.SIPHER_MODEL || 'anthropic/claude-sonnet-4-6'
-const DEFAULT_MAX_TOKENS = 1024
-// Anthropic SDK appends /v1/messages, so base URL must NOT include /v1
-const OPENROUTER_BASE_URL = 'https://openrouter.ai/api'
-
-export interface AgentOptions {
-  model?: string
-  maxTokens?: number
-  apiKey?: string
-  /** System prompt override (defaults to SIPHER's SYSTEM_PROMPT) */
+export interface ChatOptions {
+  /** Override system prompt */
   systemPrompt?: string
-  /** Tool definitions override (defaults to SIPHER's TOOLS) */
-  tools?: Anthropic.Tool[]
-  /** Custom tool executor (defaults to SIPHER's executeTool) */
+  /** Override tool registry */
+  tools?: AnthropicTool[]
+  /** Override tool executor (defaults to executeTool) */
   toolExecutor?: (name: string, input: Record<string, unknown>) => Promise<unknown>
+  /** Override model in 'provider:modelId' format (defaults to getSipherModel()) */
+  model?: string
+  /** Prior conversation history in Pi AgentMessage format */
+  history?: AgentMessage[]
+  /** Optional session id for cache routing */
+  sessionId?: string
 }
 
 // ─── SSE event types emitted by chatStream ──────────────────────────────────
@@ -201,173 +203,76 @@ export type SSEEvent =
   | SSEError
 
 /**
- * Run a single chat turn with tool execution loop.
+ * Run the SIPHER agent loop to completion via Pi SDK.
  *
- * If Claude responds with tool_use blocks, we execute each tool and
- * feed the results back until Claude produces a final text response
- * (stop_reason === 'end_turn').
- *
- * Returns the final Message (with all content blocks).
+ * Returns final assistant text and the list of tool names invoked during
+ * this turn. Pi handles the agentic tool loop internally — no manual
+ * while-loop required.
  */
 export async function chat(
-  messages: Anthropic.MessageParam[],
-  options: AgentOptions = {}
-): Promise<Anthropic.Message> {
-  const client = new Anthropic({
-    baseURL: OPENROUTER_BASE_URL,
-    apiKey: options.apiKey || process.env.SIPHER_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY,
+  userMessage: string,
+  opts: ChatOptions = {},
+): Promise<{ text: string; toolsUsed: string[] }> {
+  const agent = createPiAgent({
+    systemPrompt: opts.systemPrompt ?? SYSTEM_PROMPT,
+    tools: opts.tools ?? TOOLS,
+    toolExecutor: opts.toolExecutor ?? executeTool,
+    model: opts.model,
+    history: opts.history,
+    sessionId: opts.sessionId,
   })
-  const model = options.model ?? DEFAULT_MODEL
-  const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS
 
-  // Mutable copy — we append tool results as we loop
-  const conversationMessages = [...messages]
-
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const response = await client.messages.create({
-      model,
-      max_tokens: maxTokens,
-      system: options.systemPrompt ?? SYSTEM_PROMPT,
-      tools: options.tools ?? TOOLS,
-      messages: conversationMessages,
-    })
-
-    // If no tool use, we're done
-    if (response.stop_reason !== 'tool_use') {
-      return response
+  const toolsUsed: string[] = []
+  agent.subscribe((event) => {
+    if (event.type === 'tool_execution_start') {
+      const e = event as { type: 'tool_execution_start'; toolName: string }
+      toolsUsed.push(e.toolName)
     }
+  })
 
-    // Execute each tool_use block
-    const toolUseBlocks = response.content.filter(
-      (b: Anthropic.ContentBlock): b is Anthropic.ContentBlock & { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } =>
-        b.type === 'tool_use'
-    )
-
-    // Add assistant's response (with tool_use blocks) to conversation
-    conversationMessages.push({ role: 'assistant', content: response.content })
-
-    // Execute tools and collect results
-    const toolResults: Anthropic.ToolResultBlockParam[] = []
-
-    const execute = options.toolExecutor ?? executeTool
-
-    for (const block of toolUseBlocks) {
-      try {
-        const result = await execute(block.name, block.input)
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: JSON.stringify(result),
-        })
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: JSON.stringify({ error: message }),
-          is_error: true,
-        })
-      }
-    }
-
-    // Feed tool results back
-    conversationMessages.push({ role: 'user', content: toolResults })
+  const guardUnsub = attachToolGuard(agent)
+  try {
+    await agent.prompt(userMessage)
+  } finally {
+    guardUnsub()
   }
+
+  // Extract final assistant text from agent.state.messages
+  const messages = agent.state.messages
+  const finalAssistant = [...messages]
+    .reverse()
+    .find((m) => (m as { role: string }).role === 'assistant') as
+    | { role: string; content?: Array<{ type: string; text?: string }> }
+    | undefined
+
+  const text =
+    finalAssistant?.content
+      ?.filter((c) => c.type === 'text')
+      .map((c) => c.text ?? '')
+      .join('') ?? ''
+
+  return { text, toolsUsed }
 }
 
 /**
- * Streaming version of chat() — yields SSE-compatible events as tokens arrive.
+ * Streaming version — yields SSE-compatible events as the Pi agent runs.
  *
- * Handles the agentic tool loop: when Claude responds with tool_use, we execute
- * the tools, yield status events, and continue streaming until stop_reason is
- * 'end_turn'.
+ * Pi SDK drives the agentic tool loop internally. The stream-bridge converts
+ * Pi's push-based event model to a pull-based async generator of SSEEvents
+ * compatible with AgentCore's SSEEvent vocabulary.
  */
 export async function* chatStream(
-  messages: Anthropic.MessageParam[],
-  options: AgentOptions = {}
+  userMessage: string,
+  opts: ChatOptions = {},
 ): AsyncGenerator<SSEEvent> {
-  const client = new Anthropic({
-    baseURL: OPENROUTER_BASE_URL,
-    apiKey: options.apiKey || process.env.SIPHER_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY,
+  const agent = createPiAgent({
+    systemPrompt: opts.systemPrompt ?? SYSTEM_PROMPT,
+    tools: opts.tools ?? TOOLS,
+    toolExecutor: opts.toolExecutor ?? executeTool,
+    model: opts.model,
+    history: opts.history,
+    sessionId: opts.sessionId,
   })
-  const model = options.model ?? DEFAULT_MODEL
-  const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS
 
-  const conversationMessages = [...messages]
-  let fullText = ''
-
-  const MAX_TOOL_ROUNDS = 10
-  let round = 0
-  while (round++ < MAX_TOOL_ROUNDS) {
-    const stream = client.messages.stream({
-      model,
-      max_tokens: maxTokens,
-      system: options.systemPrompt ?? SYSTEM_PROMPT,
-      tools: options.tools ?? TOOLS,
-      messages: conversationMessages,
-    })
-
-    // Consume the stream's async iterator — each item is a MessageStreamEvent
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta') {
-        const delta = event.delta as { type: string; text?: string }
-        if (delta.type === 'text_delta' && delta.text) {
-          fullText += delta.text
-          yield { type: 'content_block_delta', text: delta.text }
-        }
-      }
-    }
-
-    // Stream consumed — get the final message to check stop_reason + tool_use blocks
-    const finalMsg = await stream.finalMessage()
-
-    if (finalMsg.stop_reason !== 'tool_use') {
-      yield { type: 'message_complete', content: fullText }
-      return
-    }
-
-    // Tool loop — extract tool_use blocks, execute, and continue
-    const toolUseBlocks = finalMsg.content.filter(
-      (b: Anthropic.ContentBlock): b is Anthropic.ContentBlock & { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } =>
-        b.type === 'tool_use'
-    )
-
-    conversationMessages.push({ role: 'assistant', content: finalMsg.content })
-
-    const toolResults: Anthropic.ToolResultBlockParam[] = []
-
-    const execute = options.toolExecutor ?? executeTool
-
-    for (const block of toolUseBlocks) {
-      yield { type: 'tool_use', name: block.name, id: block.id }
-
-      try {
-        const result = await execute(block.name, block.input)
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: JSON.stringify(result),
-        })
-        yield { type: 'tool_result', name: block.name, id: block.id, success: true }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: JSON.stringify({ error: message }),
-          is_error: true,
-        })
-        yield { type: 'tool_result', name: block.name, id: block.id, success: false }
-      }
-    }
-
-    conversationMessages.push({ role: 'user', content: toolResults })
-
-    // Reset fullText for next streaming round — tool responses may produce new text
-    fullText = ''
-  }
-
-  // Exited loop without yielding message_complete — guard triggered
-  yield { type: 'error' as const, message: 'Tool loop exceeded maximum iterations' }
+  yield* streamPiAgent(agent, userMessage)
 }

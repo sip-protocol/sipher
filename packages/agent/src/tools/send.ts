@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { PublicKey } from '@solana/web3.js'
 import { getAssociatedTokenAddress } from '@solana/spl-token'
 import {
@@ -51,7 +51,7 @@ export interface SendToolResult {
   }
 }
 
-export const sendTool: Anthropic.Tool = {
+export const sendTool: AnthropicTool = {
   name: 'send',
   description:
     'Send a private payment from the vault to a recipient. ' +

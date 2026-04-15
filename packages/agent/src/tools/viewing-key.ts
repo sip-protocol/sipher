@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { generateViewingKey, deriveViewingKey } from '@sip-protocol/sdk'
 import { sha256 } from '@noble/hashes/sha256'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
@@ -42,7 +42,7 @@ export interface ViewingKeyToolResult {
   }
 }
 
-export const viewingKeyTool: Anthropic.Tool = {
+export const viewingKeyTool: AnthropicTool = {
   name: 'viewingKey',
   description:
     'Manage viewing keys for selective disclosure and compliance. ' +

@@ -1,7 +1,34 @@
 import { describe, it, expect } from 'vitest'
-import { adaptTool, adaptTools } from '../../src/pi/tool-adapter.js'
+import { adaptTool, adaptTools, toPiTool, toPiTools, toAnthropicTool, toAnthropicTools } from '../../src/pi/tool-adapter.js'
 import { depositTool } from '../../src/tools/deposit.js'
 import { balanceTool } from '../../src/tools/balance.js'
+import type { AnthropicTool } from '../../src/pi/tool-adapter.js'
+import type { Tool } from '@mariozechner/pi-ai'
+
+const sampleAnthropicTool: AnthropicTool = {
+  name: 'deposit',
+  description: 'Deposit funds into the vault',
+  input_schema: {
+    type: 'object',
+    properties: {
+      amount: { type: 'number', description: 'Amount in SOL' },
+      token: { type: 'string', description: 'Token mint or symbol' },
+    },
+    required: ['amount', 'token'],
+  },
+}
+
+const samplePiTool: Tool = {
+  name: 'postTweet',
+  description: 'Queue a post',
+  parameters: {
+    type: 'object',
+    properties: {
+      text: { type: 'string', description: 'Tweet text' },
+    },
+    required: ['text'],
+  } as never,
+}
 
 describe('adaptTool', () => {
   it('converts Anthropic tool schema to Pi Tool', () => {
@@ -68,5 +95,100 @@ describe('adaptTools', () => {
     const piTools = adaptTools([])
 
     expect(piTools).toEqual([])
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// New symmetrical API: toPiTool / toPiTools / toAnthropicTool / toAnthropicTools
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('toPiTool', () => {
+  it('converts Anthropic tool to Pi format', () => {
+    const piTool = toPiTool(sampleAnthropicTool)
+    expect(piTool.name).toBe('deposit')
+    expect(piTool.description).toBe('Deposit funds into the vault')
+    expect(piTool.parameters).toMatchObject({
+      type: 'object',
+      properties: {
+        amount: { type: 'number', description: 'Amount in SOL' },
+        token: { type: 'string', description: 'Token mint or symbol' },
+      },
+      required: ['amount', 'token'],
+    })
+  })
+
+  it('handles tools without required fields', () => {
+    const tool: AnthropicTool = {
+      name: 'noop',
+      description: 'Does nothing',
+      input_schema: { type: 'object', properties: {} },
+    }
+    const piTool = toPiTool(tool)
+    expect(piTool.parameters).toMatchObject({ type: 'object', properties: {}, required: [] })
+  })
+})
+
+describe('toPiTools (batch)', () => {
+  it('converts an array of tools', () => {
+    const piTools = toPiTools([sampleAnthropicTool, sampleAnthropicTool])
+    expect(piTools).toHaveLength(2)
+    expect(piTools[0].name).toBe('deposit')
+  })
+})
+
+describe('toAnthropicTool', () => {
+  it('converts Pi tool to Anthropic format', () => {
+    const anthropicTool = toAnthropicTool(samplePiTool)
+    expect(anthropicTool.name).toBe('postTweet')
+    expect(anthropicTool.input_schema).toMatchObject({
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'Tweet text' },
+      },
+      required: ['text'],
+    })
+  })
+})
+
+describe('toAnthropicTools (batch)', () => {
+  it('converts an array of Pi tools', () => {
+    const anthropicTools = toAnthropicTools([samplePiTool])
+    expect(anthropicTools).toHaveLength(1)
+    expect(anthropicTools[0].name).toBe('postTweet')
+  })
+})
+
+describe('round-trip safety', () => {
+  it('Anthropic → Pi → Anthropic preserves name, description, and schema fields', () => {
+    const original = sampleAnthropicTool
+    const roundTripped = toAnthropicTool(toPiTool(original))
+    expect(roundTripped.name).toBe(original.name)
+    expect(roundTripped.description).toBe(original.description ?? '')
+    expect(roundTripped.input_schema).toMatchObject({
+      type: 'object',
+      properties: original.input_schema.properties,
+      required: original.input_schema.required,
+    })
+  })
+
+  it('Pi → Anthropic → Pi preserves name, description, and schema fields', () => {
+    const original = samplePiTool
+    const roundTripped = toPiTool(toAnthropicTool(original))
+    expect(roundTripped.name).toBe(original.name)
+    expect(roundTripped.description).toBe(original.description ?? '')
+    expect(roundTripped.parameters).toMatchObject({
+      type: 'object',
+      properties: (original.parameters as { properties: Record<string, unknown> }).properties,
+    })
+  })
+
+  it('toAnthropicTool defaults missing properties to empty object', () => {
+    const piToolNoProps: Tool = {
+      name: 'minimal',
+      description: 'no props',
+      parameters: { type: 'object' } as never,
+    }
+    const result = toAnthropicTool(piToolNoProps)
+    expect(result.input_schema.properties).toEqual({})
   })
 })
