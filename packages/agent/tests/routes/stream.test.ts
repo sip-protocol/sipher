@@ -1,322 +1,187 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { Express, Request, Response } from 'express'
-import request from 'supertest'
-import express from 'express'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import type { Request, Response } from 'express'
 import { streamHandler } from '../../src/routes/stream.js'
-import { EventBus, type GuardianEvent } from '../../src/coordination/event-bus.js'
+import { guardianBus } from '../../src/coordination/event-bus.js'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// streamHandler — SSE subscriber to guardianBus.
+// Tested at the handler boundary: call with a mock (req, res), emit through
+// guardianBus, observe what res.write received. Avoids real HTTP so the tests
+// are deterministic (no SSE-connection timing).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const WALLET = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+const OTHER_WALLET = 'OtherWallet111111111111111111111111111111111'
+
+interface Recorded {
+  headers: Record<string, string>
+  writes: string[]
+  ended: boolean
+}
+
+function mockReqRes(wallet: string): { req: Request; res: Response; recorded: Recorded } {
+  const recorded: Recorded = { headers: {}, writes: [], ended: false }
+
+  const req = { } as unknown as Request
+  ;(req as unknown as Record<string, unknown>).wallet = wallet
+
+  const listeners: Record<string, Array<() => void>> = {}
+  const res = {
+    setHeader(name: string, value: string | number) {
+      recorded.headers[name.toLowerCase()] = String(value)
+    },
+    flushHeaders() {},
+    write(chunk: string) {
+      recorded.writes.push(chunk)
+      return true
+    },
+    get writableEnded() {
+      return recorded.ended
+    },
+    end() {
+      recorded.ended = true
+    },
+    on(event: string, cb: () => void) {
+      listeners[event] = listeners[event] ?? []
+      listeners[event].push(cb)
+      return res as unknown as Response
+    },
+  } as unknown as Response
+
+  ;(res as unknown as { __fire: (event: string) => void }).__fire = (event: string) => {
+    for (const cb of listeners[event] ?? []) cb()
+  }
+
+  return { req, res, recorded }
+}
+
+/** Parse a chunk like "event: activity\ndata: {json}\n\n" into { event, data } */
+function parseSse(chunk: string): { event: string; data: unknown } {
+  const lines = chunk.trim().split('\n')
+  const event = lines.find((l) => l.startsWith('event: '))?.slice(7) ?? ''
+  const data = lines.find((l) => l.startsWith('data: '))?.slice(6) ?? ''
+  return { event, data: JSON.parse(data) }
+}
 
 describe('streamHandler', () => {
-  let app: Express
-  let bus: EventBus
+  let fire: (event: string) => void
 
   beforeEach(() => {
-    app = express()
-
-    // Create a local bus for testing (isolated from global guardianBus)
-    bus = new EventBus()
-
-    // Middleware to attach wallet to request
-    app.use((req, res, next) => {
-      ;(req as unknown as Record<string, unknown>).wallet = 'FGSk8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
-      next()
-    })
-
-    // Override streamHandler to use test bus
-    app.get('/stream', (req: Request, res: Response) => {
-      res.setHeader('Content-Type', 'text/event-stream')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('Connection', 'keep-alive')
-      res.setHeader('X-Accel-Buffering', 'no')
-      res.flushHeaders()
-
-      const wallet = (req as unknown as Record<string, unknown>).wallet as string
-      const keepalive = setInterval(() => {
-        if (!res.writableEnded) res.write(': keepalive\n\n')
-      }, 30_000)
-
-      const handler = (event: GuardianEvent) => {
-        if (res.writableEnded) return
-        if (event.level === 'routine') return
-        if (event.wallet && event.wallet !== wallet) return
-
-        const sseData = JSON.stringify({
-          id: Date.now().toString(36),
-          agent: event.source,
-          type: event.type,
-          level: event.level,
-          data: event.data,
-          timestamp: event.timestamp,
-        })
-        res.write(`event: activity\ndata: ${sseData}\n\n`)
-      }
-
-      bus.onAny(handler)
-
-      res.on('close', () => {
-        clearInterval(keepalive)
-        bus.offAny(handler)
-      })
-    })
+    guardianBus.removeAllListeners()
   })
 
   afterEach(() => {
-    bus.removeAllListeners()
+    guardianBus.removeAllListeners()
+    if (fire) fire('close')
   })
 
-  it('sets SSE headers correctly', async () => {
-    const response = request(app).get('/stream').timeout(500)
+  it('sets SSE headers correctly', () => {
+    const { req, res, recorded } = mockReqRes(WALLET)
+    fire = (res as unknown as { __fire: (e: string) => void }).__fire
+    streamHandler(req, res)
 
-    const result = await new Promise<{ status: number; headers: Record<string, unknown> }>((resolve, reject) => {
-      const req = request(app).get('/stream')
-
-      req.on('response', (res) => {
-        resolve({
-          status: res.status,
-          headers: res.headers,
-        })
-        req.abort()
-      })
-      req.on('error', reject)
-
-      setTimeout(() => {
-        req.abort()
-      }, 100)
-    })
-
-    expect(result.headers['content-type']).toBe('text/event-stream')
-    expect(result.headers['cache-control']).toBe('no-cache')
-    expect(result.headers['connection']).toBe('keep-alive')
-    expect(result.headers['x-accel-buffering']).toBe('no')
+    expect(recorded.headers['content-type']).toBe('text/event-stream')
+    expect(recorded.headers['cache-control']).toBe('no-cache')
+    expect(recorded.headers['connection']).toBe('keep-alive')
+    expect(recorded.headers['x-accel-buffering']).toBe('no')
   })
 
-  it('streams events from bus', async () => {
-    const events: string[] = []
+  it('streams events from bus', () => {
+    const { req, res, recorded } = mockReqRes(WALLET)
+    fire = (res as unknown as { __fire: (e: string) => void }).__fire
+    streamHandler(req, res)
 
-    const testPromise = new Promise<void>((resolve) => {
-      const req = request(app).get('/stream')
-
-      let data = ''
-      req.on('data', (chunk) => {
-        data += chunk.toString()
-        // Parse SSE format: event: type\ndata: json\n\n
-        const messages = data.split('\n\n').filter((m) => m.trim())
-        for (const msg of messages) {
-          const lines = msg.trim().split('\n')
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const json = line.slice(6)
-              events.push(json)
-            }
-          }
-        }
-
-        // Stop after receiving one event
-        if (events.length >= 1) {
-          req.abort()
-          resolve()
-        }
-      })
-
-      req.on('error', () => {
-        resolve()
-      })
-
-      // Emit event after stream is open
-      setTimeout(() => {
-        bus.emit({
-          source: 'sipher',
-          type: 'sipher:action',
-          level: 'important',
-          data: { tool: 'deposit', amount: 2 },
-          wallet: 'FGSk8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr',
-          timestamp: new Date().toISOString(),
-        })
-      }, 50)
+    guardianBus.emit({
+      source: 'sipher',
+      type: 'sipher:action',
+      level: 'important',
+      data: { tool: 'deposit', amount: 2 },
+      wallet: WALLET,
+      timestamp: new Date().toISOString(),
     })
 
-    await testPromise
-    expect(events.length).toBeGreaterThan(0)
-
-    const parsed = JSON.parse(events[0])
-    expect(parsed).toHaveProperty('id')
-    expect(parsed).toHaveProperty('agent')
-    expect(parsed).toHaveProperty('type')
-    expect(parsed).toHaveProperty('level')
-    expect(parsed).toHaveProperty('data')
-    expect(parsed).toHaveProperty('timestamp')
-    expect(parsed.agent).toBe('sipher')
-    expect(parsed.type).toBe('sipher:action')
-    expect(parsed.level).toBe('important')
+    expect(recorded.writes).toHaveLength(1)
+    const parsed = parseSse(recorded.writes[0])
+    expect(parsed.event).toBe('activity')
+    const payload = parsed.data as Record<string, unknown>
+    expect(payload.agent).toBe('sipher')
+    expect(payload.type).toBe('sipher:action')
+    expect(payload.level).toBe('important')
+    expect(payload.id).toBeDefined()
+    expect(payload.timestamp).toBeDefined()
   })
 
-  it('filters out routine level events', async () => {
-    const events: string[] = []
+  it('filters out routine level events', () => {
+    const { req, res, recorded } = mockReqRes(WALLET)
+    fire = (res as unknown as { __fire: (e: string) => void }).__fire
+    streamHandler(req, res)
 
-    const testPromise = new Promise<void>((resolve) => {
-      const req = request(app).get('/stream')
-
-      let data = ''
-      req.on('data', (chunk) => {
-        data += chunk.toString()
-        const messages = data.split('\n\n').filter((m) => m.trim())
-        for (const msg of messages) {
-          const lines = msg.trim().split('\n')
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const json = line.slice(6)
-              events.push(json)
-            }
-          }
-        }
-
-        if (events.length >= 1) {
-          req.abort()
-          resolve()
-        }
-      })
-
-      req.on('error', () => {
-        resolve()
-      })
-
-      // Emit routine event (should be filtered)
-      setTimeout(() => {
-        bus.emit({
-          source: 'sipher',
-          type: 'sipher:routine',
-          level: 'routine',
-          data: { status: 'ok' },
-          wallet: 'FGSk8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr',
-          timestamp: new Date().toISOString(),
-        })
-
-        // Then emit important event (should pass through)
-        setTimeout(() => {
-          bus.emit({
-            source: 'sentinel',
-            type: 'sentinel:threat',
-            level: 'critical',
-            data: { threat: 'suspicious_activity' },
-            wallet: 'FGSk8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr',
-            timestamp: new Date().toISOString(),
-          })
-        }, 20)
-      }, 50)
+    guardianBus.emit({
+      source: 'sipher',
+      type: 'sipher:routine',
+      level: 'routine',
+      data: { status: 'ok' },
+      wallet: WALLET,
+      timestamp: new Date().toISOString(),
+    })
+    guardianBus.emit({
+      source: 'sentinel',
+      type: 'sentinel:threat',
+      level: 'critical',
+      data: { threat: 'suspicious_activity' },
+      wallet: WALLET,
+      timestamp: new Date().toISOString(),
     })
 
-    await testPromise
-    expect(events.length).toBe(1)
-    const parsed = JSON.parse(events[0])
-    expect(parsed.level).not.toBe('routine')
+    expect(recorded.writes).toHaveLength(1)
+    const parsed = parseSse(recorded.writes[0])
+    expect((parsed.data as Record<string, unknown>).level).toBe('critical')
   })
 
-  it('filters out events for other wallets', async () => {
-    const events: string[] = []
+  it('filters out events for other wallets', () => {
+    const { req, res, recorded } = mockReqRes(WALLET)
+    fire = (res as unknown as { __fire: (e: string) => void }).__fire
+    streamHandler(req, res)
 
-    const testPromise = new Promise<void>((resolve) => {
-      const req = request(app).get('/stream')
-
-      let data = ''
-      req.on('data', (chunk) => {
-        data += chunk.toString()
-        const messages = data.split('\n\n').filter((m) => m.trim())
-        for (const msg of messages) {
-          const lines = msg.trim().split('\n')
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const json = line.slice(6)
-              events.push(json)
-            }
-          }
-        }
-
-        if (events.length >= 1) {
-          req.abort()
-          resolve()
-        }
-      })
-
-      req.on('error', () => {
-        resolve()
-      })
-
-      // Emit event for different wallet (should be filtered)
-      setTimeout(() => {
-        bus.emit({
-          source: 'sipher',
-          type: 'sipher:action',
-          level: 'important',
-          data: { tool: 'swap' },
-          wallet: 'DifferentWalletAddress',
-          timestamp: new Date().toISOString(),
-        })
-
-        // Then emit event for correct wallet (should pass)
-        setTimeout(() => {
-          bus.emit({
-            source: 'sipher',
-            type: 'sipher:action',
-            level: 'important',
-            data: { tool: 'deposit' },
-            wallet: 'FGSk8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr',
-            timestamp: new Date().toISOString(),
-          })
-        }, 20)
-      }, 50)
+    guardianBus.emit({
+      source: 'sipher',
+      type: 'sipher:action',
+      level: 'important',
+      data: { tool: 'swap' },
+      wallet: OTHER_WALLET,
+      timestamp: new Date().toISOString(),
+    })
+    guardianBus.emit({
+      source: 'sipher',
+      type: 'sipher:action',
+      level: 'important',
+      data: { tool: 'deposit' },
+      wallet: WALLET,
+      timestamp: new Date().toISOString(),
     })
 
-    await testPromise
-    expect(events.length).toBe(1)
-    const parsed = JSON.parse(events[0])
-    expect(parsed.data.tool).toBe('deposit')
+    expect(recorded.writes).toHaveLength(1)
+    const parsed = parseSse(recorded.writes[0])
+    expect((parsed.data as { data: { tool: string } }).data.tool).toBe('deposit')
   })
 
-  it('allows events with null wallet (broadcasts)', async () => {
-    const events: string[] = []
+  it('allows events with null wallet (broadcasts)', () => {
+    const { req, res, recorded } = mockReqRes(WALLET)
+    fire = (res as unknown as { __fire: (e: string) => void }).__fire
+    streamHandler(req, res)
 
-    const testPromise = new Promise<void>((resolve) => {
-      const req = request(app).get('/stream')
-
-      let data = ''
-      req.on('data', (chunk) => {
-        data += chunk.toString()
-        const messages = data.split('\n\n').filter((m) => m.trim())
-        for (const msg of messages) {
-          const lines = msg.trim().split('\n')
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const json = line.slice(6)
-              events.push(json)
-            }
-          }
-        }
-
-        if (events.length >= 1) {
-          req.abort()
-          resolve()
-        }
-      })
-
-      req.on('error', () => {
-        resolve()
-      })
-
-      // Emit broadcast event with null wallet (should pass)
-      setTimeout(() => {
-        bus.emit({
-          source: 'courier',
-          type: 'courier:broadcast',
-          level: 'important',
-          data: { msg: 'system_update' },
-          wallet: null,
-          timestamp: new Date().toISOString(),
-        })
-      }, 50)
+    guardianBus.emit({
+      source: 'courier',
+      type: 'courier:broadcast',
+      level: 'important',
+      data: { msg: 'system_update' },
+      wallet: null,
+      timestamp: new Date().toISOString(),
     })
 
-    await testPromise
-    expect(events.length).toBe(1)
-    const parsed = JSON.parse(events[0])
-    expect(parsed.data.msg).toBe('system_update')
+    expect(recorded.writes).toHaveLength(1)
+    const parsed = parseSse(recorded.writes[0])
+    expect((parsed.data as { data: { msg: string } }).data.msg).toBe('system_update')
+    expect(parsed.event).toBe('confirm') // courier:* maps to 'confirm'
   })
 })
