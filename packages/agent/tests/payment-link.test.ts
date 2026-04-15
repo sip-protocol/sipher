@@ -33,10 +33,16 @@ describe('paymentLink tool definition', () => {
   })
 })
 
+const TEST_WALLET = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+const TEST_SPENDING_KEY = '0x' + '02' + 'aa'.repeat(32)
+const TEST_VIEWING_KEY = '0x' + '03' + 'bb'.repeat(32)
+
 describe('executePaymentLink', () => {
   it('creates a payment link with amount and token', async () => {
     const result = await executePaymentLink({
-      wallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr',
+      wallet: TEST_WALLET,
+      spendingKey: TEST_SPENDING_KEY,
+      viewingKey: TEST_VIEWING_KEY,
       amount: 5.0,
       token: 'SOL',
       memo: 'Coffee',
@@ -55,7 +61,9 @@ describe('executePaymentLink', () => {
 
   it('creates a link without amount (open amount)', async () => {
     const result = await executePaymentLink({
-      wallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr',
+      wallet: TEST_WALLET,
+      spendingKey: TEST_SPENDING_KEY,
+      viewingKey: TEST_VIEWING_KEY,
     })
     expect(result.status).toBe('success')
     expect(result.link.amount).toBeNull()
@@ -64,7 +72,9 @@ describe('executePaymentLink', () => {
 
   it('uses custom expiry', async () => {
     const result = await executePaymentLink({
-      wallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr',
+      wallet: TEST_WALLET,
+      spendingKey: TEST_SPENDING_KEY,
+      viewingKey: TEST_VIEWING_KEY,
       expiresInMinutes: 120,
     })
     const expectedExpiry = Date.now() + 120 * 60 * 1000
@@ -74,7 +84,9 @@ describe('executePaymentLink', () => {
 
   it('defaults to 60 minute expiry', async () => {
     const result = await executePaymentLink({
-      wallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr',
+      wallet: TEST_WALLET,
+      spendingKey: TEST_SPENDING_KEY,
+      viewingKey: TEST_VIEWING_KEY,
     })
     const expectedExpiry = Date.now() + 60 * 60 * 1000
     expect(result.link.expiresAt).toBeGreaterThan(expectedExpiry - 5000)
@@ -87,14 +99,21 @@ describe('executePaymentLink', () => {
 
   it('throws when amount is negative', async () => {
     await expect(
-      executePaymentLink({ wallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr', amount: -1 }),
+      executePaymentLink({
+        wallet: TEST_WALLET,
+        spendingKey: TEST_SPENDING_KEY,
+        viewingKey: TEST_VIEWING_KEY,
+        amount: -1,
+      }),
     ).rejects.toThrow(/amount/i)
   })
 
   it('stores the link in the database', async () => {
     const { getPaymentLink } = await import('../src/db.js')
     const result = await executePaymentLink({
-      wallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr',
+      wallet: TEST_WALLET,
+      spendingKey: TEST_SPENDING_KEY,
+      viewingKey: TEST_VIEWING_KEY,
       amount: 10,
       token: 'USDC',
     })
@@ -107,8 +126,16 @@ describe('executePaymentLink', () => {
   })
 
   it('generates unique IDs for each link', async () => {
-    const r1 = await executePaymentLink({ wallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr' })
-    const r2 = await executePaymentLink({ wallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr' })
+    const r1 = await executePaymentLink({
+      wallet: TEST_WALLET,
+      spendingKey: TEST_SPENDING_KEY,
+      viewingKey: TEST_VIEWING_KEY,
+    })
+    const r2 = await executePaymentLink({
+      wallet: TEST_WALLET,
+      spendingKey: TEST_SPENDING_KEY,
+      viewingKey: TEST_VIEWING_KEY,
+    })
     expect(r1.link.id).not.toBe(r2.link.id)
   })
 })
