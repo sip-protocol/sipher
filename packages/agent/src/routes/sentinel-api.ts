@@ -7,9 +7,10 @@ import { cancelCircuitBreakerAction } from '../sentinel/circuit-breaker.js'
 import { getSentinelAssessor } from '../sentinel/preflight-gate.js'
 import { getSentinelConfig } from '../sentinel/config.js'
 
-export const sentinelRouter: Router = Router()
+// ─── Public endpoints (verifyJwt only) ──────────────────────────────────────
+export const sentinelPublicRouter: Router = Router()
 
-sentinelRouter.post('/assess', async (req: Request, res: Response) => {
+sentinelPublicRouter.post('/assess', async (req: Request, res: Response) => {
   const { action, wallet, recipient, amount, token, metadata } = req.body ?? {}
   if (typeof action !== 'string' || typeof wallet !== 'string') {
     res.status(400).json({ error: 'action and wallet are required strings' })
@@ -28,12 +29,33 @@ sentinelRouter.post('/assess', async (req: Request, res: Response) => {
   }
 })
 
-sentinelRouter.get('/blacklist', (req: Request, res: Response) => {
+sentinelPublicRouter.get('/blacklist', (req: Request, res: Response) => {
   const limit = Number(String(req.query.limit ?? '50'))
   res.json({ entries: listBlacklist({ limit }) })
 })
 
-sentinelRouter.post('/blacklist', (req: Request, res: Response) => {
+sentinelPublicRouter.get('/pending', (req: Request, res: Response) => {
+  const wallet = (typeof req.query.wallet === 'string' ? req.query.wallet : undefined)
+  const status = (typeof req.query.status === 'string' ? req.query.status : undefined)
+  res.json({ actions: listPendingActions({ wallet, status }) })
+})
+
+sentinelPublicRouter.get('/status', (_req: Request, res: Response) => {
+  const config = getSentinelConfig()
+  res.json({
+    mode: config.mode,
+    preflightScope: config.preflightScope,
+    model: config.model,
+    dailyBudgetUsd: config.dailyBudgetUsd,
+    dailyCostUsd: dailyDecisionCostUsd(),
+    blockOnError: config.blockOnError,
+  })
+})
+
+// ─── Admin endpoints (verifyJwt + requireOwner) ─────────────────────────────
+export const sentinelAdminRouter: Router = Router()
+
+sentinelAdminRouter.post('/blacklist', (req: Request, res: Response) => {
   const { address, reason, severity, expiresAt, sourceEventId } = req.body ?? {}
   if (!address || !reason || !severity) {
     res.status(400).json({ error: 'address, reason, severity required' })
@@ -48,7 +70,7 @@ sentinelRouter.post('/blacklist', (req: Request, res: Response) => {
   res.json({ success: true, entryId: id })
 })
 
-sentinelRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
+sentinelAdminRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
   const w = (req as unknown as Record<string, unknown>).wallet
   const wallet = (typeof w === 'string' ? w : undefined)
   const reason = (req.body?.reason as string) ?? 'manual removal'
@@ -58,13 +80,7 @@ sentinelRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
   res.json({ success: true })
 })
 
-sentinelRouter.get('/pending', (req: Request, res: Response) => {
-  const wallet = (typeof req.query.wallet === 'string' ? req.query.wallet : undefined)
-  const status = (typeof req.query.status === 'string' ? req.query.status : undefined)
-  res.json({ actions: listPendingActions({ wallet, status }) })
-})
-
-sentinelRouter.post('/pending/:id/cancel', (req: Request, res: Response) => {
+sentinelAdminRouter.post('/pending/:id/cancel', (req: Request, res: Response) => {
   const reason = (req.body?.reason as string) ?? 'manual cancel'
   const w = (req as unknown as Record<string, unknown>).wallet
   const wallet = (typeof w === 'string' ? w : undefined)
@@ -74,20 +90,13 @@ sentinelRouter.post('/pending/:id/cancel', (req: Request, res: Response) => {
   res.json({ success: ok })
 })
 
-sentinelRouter.get('/decisions', (req: Request, res: Response) => {
+sentinelAdminRouter.get('/decisions', (req: Request, res: Response) => {
   const limit = Number(String(req.query.limit ?? '50'))
   const source = (typeof req.query.source === 'string' ? req.query.source : undefined)
   res.json({ decisions: listDecisions({ limit, source }) })
 })
 
-sentinelRouter.get('/status', (_req: Request, res: Response) => {
-  const config = getSentinelConfig()
-  res.json({
-    mode: config.mode,
-    preflightScope: config.preflightScope,
-    model: config.model,
-    dailyBudgetUsd: config.dailyBudgetUsd,
-    dailyCostUsd: dailyDecisionCostUsd(),
-    blockOnError: config.blockOnError,
-  })
-})
+// ─── Combined router (backwards compatibility) ──────────────────────────────
+export const sentinelRouter: Router = Router()
+sentinelRouter.use(sentinelPublicRouter)
+sentinelRouter.use(sentinelAdminRouter)

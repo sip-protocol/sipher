@@ -23,7 +23,7 @@ import { SentinelAdapter } from './sentinel/adapter.js'
 import { restorePendingActions, registerActionExecutor } from './sentinel/circuit-breaker.js'
 import { setSentinelAssessor } from './sentinel/preflight-gate.js'
 import { performVaultRefund } from './sentinel/vault-refund.js'
-import { sentinelRouter } from './routes/sentinel-api.js'
+import { sentinelPublicRouter, sentinelAdminRouter } from './routes/sentinel-api.js'
 import { getSentinelConfig } from './sentinel/config.js'
 import {
   getAllPendingActionsWithStatus,
@@ -150,8 +150,9 @@ app.use('/api/squad', verifyJwt, requireOwner, squadRouter)
 // HERALD approval queue + budget dashboard — JWT + owner required
 app.use('/api/herald', verifyJwt, requireOwner, heraldRouter)
 
-// SENTINEL decision log + status + query — JWT required
-app.use('/api/sentinel', verifyJwt, sentinelRouter)
+// SENTINEL decision log + status + query — JWT required (public) or JWT + owner (admin)
+app.use('/api/sentinel', verifyJwt, sentinelPublicRouter)
+app.use('/api/sentinel', verifyJwt, requireOwner, sentinelAdminRouter)
 
 // Activity stream (per-wallet history from DB) — JWT required
 app.get('/api/activity', verifyJwt, (req: Request, res: Response) => {

@@ -16,15 +16,16 @@ describe('sentinel REST endpoints', () => {
     await freshDb()
     const { setSentinelAssessor } = await import('../../src/sentinel/preflight-gate.js')
     setSentinelAssessor(assess as never)
-    const { sentinelRouter } = await import('../../src/routes/sentinel-api.js')
+    const { sentinelPublicRouter, sentinelAdminRouter } = await import('../../src/routes/sentinel-api.js')
     const app = express()
     app.use(express.json())
-    // Simulate verifyJwt by attaching wallet to req
+    // Simulate verifyJwt + requireOwner by attaching wallet to req (all tests run as admin)
     app.use((req, _res, next) => {
       ;(req as unknown as Record<string, unknown>).wallet = 'w1'
       next()
     })
-    app.use('/api/sentinel', sentinelRouter)
+    app.use('/api/sentinel', sentinelPublicRouter)
+    app.use('/api/sentinel', sentinelAdminRouter)
     return app
   }
 
@@ -117,5 +118,12 @@ describe('sentinel REST endpoints', () => {
     const res = await request(app).get('/api/sentinel/status')
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({ mode: expect.any(String), dailyBudgetUsd: expect.any(Number) })
+  })
+
+  it('admin and public routers are separately exported', async () => {
+    const mod = await import('../../src/routes/sentinel-api.js')
+    expect(mod.sentinelPublicRouter).toBeDefined()
+    expect(mod.sentinelAdminRouter).toBeDefined()
+    expect(mod.sentinelRouter).toBeDefined() // backwards-compat
   })
 })
