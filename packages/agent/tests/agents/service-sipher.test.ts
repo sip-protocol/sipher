@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SERVICE_TOOLS, SERVICE_SYSTEM_PROMPT, SERVICE_TOOL_NAMES } from '../../packages/agent/src/agents/service-sipher.js'
+import { SERVICE_TOOLS, SERVICE_SYSTEM_PROMPT, SERVICE_TOOL_NAMES } from '../../src/agents/service-sipher.js'
 
 describe('Service SIPHER', () => {
   it('exports SERVICE_TOOLS with read-only tools only', () => {

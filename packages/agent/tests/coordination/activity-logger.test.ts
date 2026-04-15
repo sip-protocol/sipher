@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { EventBus, type GuardianEvent } from '../../packages/agent/src/coordination/event-bus.js'
-import { attachLogger } from '../../packages/agent/src/coordination/activity-logger.js'
-import { getActivity, getAgentEvents, getDb, closeDb } from '../../packages/agent/src/db.js'
+import { EventBus, type GuardianEvent } from '../../src/coordination/event-bus.js'
+import { attachLogger } from '../../src/coordination/activity-logger.js'
+import { getActivity, getAgentEvents, getDb, closeDb } from '../../src/db.js'
 
 beforeEach(() => {
   process.env.DB_PATH = ':memory:'

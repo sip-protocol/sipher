@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { getDb, closeDb } from '../../packages/agent/src/db.js'
+import { getDb, closeDb } from '../../src/db.js'
 import {
   getPendingPosts,
   getReadyToPublish,
@@ -7,7 +7,7 @@ import {
   rejectPost,
   markPublished,
   editQueuedPost,
-} from '../../packages/agent/src/herald/approval.js'
+} from '../../src/herald/approval.js'
 
 describe('Herald Post Approval Queue', () => {
   beforeEach(() => {
