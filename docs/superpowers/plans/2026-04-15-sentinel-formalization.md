@@ -1504,15 +1504,16 @@ export function runPreflightRules(
 
   // Rule 4 — known repeat recipient below skip amount → allow
   if (wallet && recipient && amount > 0 && amount < config.preflightSkipAmount) {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const row = getDb().prepare(`
       SELECT id FROM activity_stream
       WHERE agent = 'sipher'
         AND type = 'action'
         AND wallet = ?
         AND json_extract(detail, '$.recipient') = ?
-        AND created_at > datetime('now', '-30 day')
+        AND created_at > ?
       LIMIT 1
-    `).get(wallet, recipient) as { id?: string } | undefined
+    `).get(wallet, recipient, thirtyDaysAgo) as { id?: string } | undefined
     if (row) {
       return {
         needsLLM: false,
