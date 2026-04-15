@@ -1362,14 +1362,21 @@ export function cancelPendingAction(id: string, cancelledBy: string, reason: str
   getDb().prepare(`
     UPDATE sentinel_pending_actions
     SET status = 'cancelled', cancelled_at = ?, cancelled_by = ?, cancel_reason = ?
-    WHERE id = ? AND status = 'pending'
+    WHERE id = ? AND status IN ('pending', 'executing')
   `).run(new Date().toISOString(), cancelledBy, reason, id)
 }
 
-export function markPendingActionExecuting(id: string): void {
-  getDb().prepare(`
+/**
+ * Atomically transition a pending action to 'executing'.
+ * Returns true if the row was still pending at transition time (row updated),
+ * false if another execution already claimed it (concurrent-fire race) or
+ * the row was cancelled in flight.
+ */
+export function markPendingActionExecuting(id: string): boolean {
+  const result = getDb().prepare(`
     UPDATE sentinel_pending_actions SET status = 'executing' WHERE id = ? AND status = 'pending'
   `).run(id)
+  return result.changes > 0
 }
 
 export function markPendingActionExecuted(id: string, result: Record<string, unknown>): void {
@@ -1380,6 +1387,17 @@ export function markPendingActionExecuted(id: string, result: Record<string, unk
   `).run(new Date().toISOString(), JSON.stringify(result), id)
 }
 
+/**
+ * Count wallet's non-cancelled refund actions in last hour.
+ *
+ * Semantics: SCHEDULING-time gate. Counts pending + executing + executed
+ * together (everything non-cancelled). Use when deciding whether to enqueue
+ * a new action — prevents over-scheduling.
+ *
+ * For EXECUTION-time gating ("should this fire now?"), see the inline query
+ * in circuit-breaker.ts executePendingAction which counts executed only —
+ * queued promises don't consume the budget until they actually run.
+ */
 export function countFundActionsInLastHour(wallet: string): number {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   const row = getDb().prepare(`

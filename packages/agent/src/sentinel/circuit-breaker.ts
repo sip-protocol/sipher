@@ -102,9 +102,12 @@ export async function executePendingAction(id: string): Promise<void> {
     return
   }
 
-  // Gate 2 — rate limit: count only already-executed refunds in the last hour
-  // (pending rows represent scheduled actions that haven't fired yet and must
-  //  not consume the hourly budget before they actually execute)
+  // Gate 2 — rate limit (execution-time semantics)
+  // Count only executed rows, not pending/executing. A pending action hasn't
+  // consumed any budget yet; counting it would reject the very action whose
+  // execution we're gating. The paired scheduling-time gate (preflight /
+  // isFundActionWithinRateLimit) counts pending+executed to prevent
+  // over-queuing.
   const config = getSentinelConfig()
   const oneHourAgo = new Date(Date.now() - 60 * 60_000).toISOString()
   const { count: executedCount } = getDb()
@@ -139,7 +142,12 @@ export async function executePendingAction(id: string): Promise<void> {
     return
   }
 
-  markPendingActionExecuting(id)
+  if (!markPendingActionExecuting(id)) {
+    // Another execution won the race, or the row was cancelled between
+    // the gate checks and this transition. Silently bail — the other
+    // execution will complete the row.
+    return
+  }
   let result: Record<string, unknown>
   try {
     result = await executor(row.payload)

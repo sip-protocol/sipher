@@ -156,4 +156,28 @@ describe('circuit breaker', () => {
 
     cb.clearAllTimers()
   })
+
+  it('restorePendingActions: cancels orphaned executing rows as server-restart-stale', async () => {
+    await freshDb()
+    const cb = await import('../../src/sentinel/circuit-breaker.js')
+    const { insertPendingAction, markPendingActionExecuting, getPendingAction, getDb } = await import('../../src/db.js')
+    cb.registerActionExecutor('refund', async () => ({ success: true }))
+
+    const orphanedId = insertPendingAction({
+      actionType: 'refund', payload: {}, reasoning: 'r', wallet: 'w1', delayMs: 0,
+    })
+    // Simulate a crash mid-execution: row was marked executing but never finalized
+    markPendingActionExecuting(orphanedId)
+    // Make it stale (> 5 minutes) so restorePendingActions cancels it
+    getDb().prepare(`UPDATE sentinel_pending_actions SET execute_at = ? WHERE id = ?`)
+      .run(new Date(Date.now() - 10 * 60_000).toISOString(), orphanedId)
+
+    await cb.restorePendingActions()
+
+    const row = getPendingAction(orphanedId)!
+    expect(row.status).toBe('cancelled')
+    expect(row.cancelledBy).toBe('server-restart-stale')
+    expect(row.cancelReason).toContain('orphaned')
+    cb.clearAllTimers()
+  })
 })
