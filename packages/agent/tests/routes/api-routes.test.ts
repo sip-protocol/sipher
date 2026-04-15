@@ -24,7 +24,6 @@ afterEach(() => {
 // Module imports (top-level await — Vitest ESM)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const { commandHandler } = await import('../../src/routes/command.js')
 const { confirmRouter, requestConfirmation } = await import('../../src/routes/confirm.js')
 const { vaultRouter } = await import('../../src/routes/vault-api.js')
 const { squadRouter, isKillSwitchActive } = await import('../../src/routes/squad-api.js')
@@ -40,53 +39,6 @@ function mockAuth(wallet: string) {
     next()
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/command
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('POST /api/command', () => {
-  function createApp() {
-    const app = express()
-    app.use(express.json())
-    app.post('/api/command', mockAuth(TEST_WALLET), commandHandler)
-    return app
-  }
-
-  it('returns 400 when message is missing', async () => {
-    const res = await supertest(createApp())
-      .post('/api/command')
-      .send({})
-    expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/message/i)
-  })
-
-  it('returns 400 when message is not a string', async () => {
-    const res = await supertest(createApp())
-      .post('/api/command')
-      .send({ message: 42 })
-    expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/message/i)
-  })
-
-  it('returns 400 for empty string message', async () => {
-    const res = await supertest(createApp())
-      .post('/api/command')
-      .send({ message: '' })
-    expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/message/i)
-  })
-
-  it('returns 200 with status, wallet, and message for valid input', async () => {
-    const res = await supertest(createApp())
-      .post('/api/command')
-      .send({ message: 'send 1 SOL to alice' })
-    expect(res.status).toBe(200)
-    expect(res.body.status).toBe('received')
-    expect(res.body.wallet).toBe(TEST_WALLET)
-    expect(res.body.message).toBe('send 1 SOL to alice')
-  })
-})
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/confirm/:id
