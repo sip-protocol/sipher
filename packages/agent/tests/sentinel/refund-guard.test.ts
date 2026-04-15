@@ -21,22 +21,31 @@ describe('refund-guard', () => {
   })
 
   describe('isRefundSafe', () => {
-    it('returns true when deposit PDA is not in recent signatures', () => {
+    it('returns true when deposit PDA is not in the in-flight set', () => {
       const result = isRefundSafe('pda123', [
-        'sig_abc456',
-        'sig_def789',
-        'sig_ghi012',
+        'pda_abc456',
+        'pda_def789',
+        'pda_ghi012',
       ])
       expect(result).toBe(true)
     })
 
-    it('returns false when deposit PDA appears in recent signatures', () => {
+    it('returns false when deposit PDA is present in the in-flight set', () => {
       const result = isRefundSafe('pda123', [
-        'sig_abc456',
-        'sig_pda123_includes_it',
-        'sig_ghi012',
+        'pda_abc456',
+        'pda123',
+        'pda_ghi012',
       ])
       expect(result).toBe(false)
+    })
+
+    it('requires an exact match, not a substring', () => {
+      const result = isRefundSafe('pda123', [
+        'pda_abc456',
+        'pda123_something',
+        'prefix_pda123',
+      ])
+      expect(result).toBe(true)
     })
   })
 
