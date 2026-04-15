@@ -44,15 +44,16 @@ function signMessage(message: string, privateKey: Uint8Array): string {
   return encodeBase58(sig)
 }
 
+const { authRouter, verifyJwt, _resetAuthStateForTests } = await import('../../src/routes/auth.js')
+
 beforeEach(() => {
   process.env.JWT_SECRET = JWT_SECRET
+  _resetAuthStateForTests()
 })
 
 afterEach(() => {
   delete process.env.JWT_SECRET
 })
-
-const { authRouter, verifyJwt } = await import('../../src/routes/auth.js')
 
 function createApp() {
   const app = express()

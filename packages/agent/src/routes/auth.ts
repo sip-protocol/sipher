@@ -343,3 +343,10 @@ setInterval(() => {
     if (data.expires < now) sseTickets.delete(ticket)
   }
 }, 30_000).unref()
+
+/** Clear in-memory auth state (nonces, rate-limit counters, SSE tickets). Tests only. */
+export function _resetAuthStateForTests(): void {
+  pendingNonces.clear()
+  verifyAttempts.clear()
+  sseTickets.clear()
+}
