@@ -1090,3 +1090,459 @@ export function updateExecutionLink(id: string, updates: Record<string, unknown>
   const result = conn.prepare(`UPDATE execution_links SET ${sets} WHERE id = ?`).run(...values)
   if (result.changes === 0) throw new Error(`Execution link not found: ${id}`)
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SENTINEL — blacklist
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface InsertBlacklistParams {
+  address: string
+  reason: string
+  severity: 'warn' | 'block' | 'critical'
+  addedBy: string
+  expiresAt?: string
+  sourceEventId?: string
+}
+
+export interface BlacklistEntry {
+  id: string
+  address: string
+  reason: string
+  severity: 'warn' | 'block' | 'critical'
+  addedBy: string
+  addedAt: string
+  expiresAt: string | null
+  removedAt: string | null
+  removedBy: string | null
+  removedReason: string | null
+  sourceEventId: string | null
+}
+
+export function insertBlacklist(params: InsertBlacklistParams): string {
+  const id = ulid()
+  getDb().prepare(`
+    INSERT INTO sentinel_blacklist
+      (id, address, reason, severity, added_by, added_at, expires_at, source_event_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    params.address,
+    params.reason,
+    params.severity,
+    params.addedBy,
+    new Date().toISOString(),
+    params.expiresAt ?? null,
+    params.sourceEventId ?? null,
+  )
+  return id
+}
+
+export function getActiveBlacklistEntry(address: string): BlacklistEntry | null {
+  const row = getDb().prepare(`
+    SELECT * FROM sentinel_blacklist
+    WHERE address = ?
+      AND removed_at IS NULL
+      AND (expires_at IS NULL OR expires_at > ?)
+    ORDER BY added_at DESC
+    LIMIT 1
+  `).get(address, new Date().toISOString()) as Record<string, unknown> | undefined
+  return row ? rowToBlacklist(row) : null
+}
+
+export function softRemoveBlacklist(id: string, removedBy: string, reason: string): void {
+  getDb().prepare(`
+    UPDATE sentinel_blacklist
+    SET removed_at = ?, removed_by = ?, removed_reason = ?
+    WHERE id = ? AND removed_at IS NULL
+  `).run(new Date().toISOString(), removedBy, reason, id)
+}
+
+export function listBlacklist(opts: { limit?: number; cursor?: string } = {}): BlacklistEntry[] {
+  const limit = opts.limit ?? 50
+  const now = new Date().toISOString()
+  const rows = getDb().prepare(`
+    SELECT * FROM sentinel_blacklist
+    WHERE removed_at IS NULL
+      AND (expires_at IS NULL OR expires_at > ?)
+    ORDER BY added_at DESC
+    LIMIT ?
+  `).all(now, limit) as Record<string, unknown>[]
+  return rows.map(rowToBlacklist)
+}
+
+export function countBlacklistAddedByInLastHour(addedBy: string): number {
+  const row = getDb().prepare(`
+    SELECT COUNT(*) AS count FROM sentinel_blacklist
+    WHERE added_by = ? AND added_at > datetime('now', '-1 hour')
+  `).get(addedBy) as { count: number }
+  return row.count
+}
+
+function rowToBlacklist(r: Record<string, unknown>): BlacklistEntry {
+  return {
+    id: r.id as string,
+    address: r.address as string,
+    reason: r.reason as string,
+    severity: r.severity as 'warn' | 'block' | 'critical',
+    addedBy: r.added_by as string,
+    addedAt: r.added_at as string,
+    expiresAt: (r.expires_at as string | null) ?? null,
+    removedAt: (r.removed_at as string | null) ?? null,
+    removedBy: (r.removed_by as string | null) ?? null,
+    removedReason: (r.removed_reason as string | null) ?? null,
+    sourceEventId: (r.source_event_id as string | null) ?? null,
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SENTINEL — risk history
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface InsertRiskHistoryParams {
+  address: string
+  risk: 'low' | 'medium' | 'high'
+  score: number
+  reasons: string[]
+  recommendation: 'allow' | 'warn' | 'block'
+  decisionId?: string
+  contextAction?: string
+  wallet?: string
+}
+
+export interface RiskHistoryRow {
+  id: string
+  address: string
+  contextAction: string | null
+  wallet: string | null
+  risk: 'low' | 'medium' | 'high'
+  score: number
+  reasons: string[]
+  recommendation: 'allow' | 'warn' | 'block'
+  decisionId: string | null
+  createdAt: string
+}
+
+export function insertRiskHistory(params: InsertRiskHistoryParams): string {
+  const id = ulid()
+  getDb().prepare(`
+    INSERT INTO sentinel_risk_history
+      (id, address, context_action, wallet, risk, score, reasons, recommendation, decision_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    params.address,
+    params.contextAction ?? null,
+    params.wallet ?? null,
+    params.risk,
+    params.score,
+    JSON.stringify(params.reasons),
+    params.recommendation,
+    params.decisionId ?? null,
+    new Date().toISOString(),
+  )
+  return id
+}
+
+export function getRiskHistory(address: string, limit = 20): RiskHistoryRow[] {
+  const rows = getDb().prepare(`
+    SELECT * FROM sentinel_risk_history
+    WHERE address = ?
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(address, limit) as Record<string, unknown>[]
+  return rows.map((r) => ({
+    id: r.id as string,
+    address: r.address as string,
+    contextAction: (r.context_action as string | null) ?? null,
+    wallet: (r.wallet as string | null) ?? null,
+    risk: r.risk as 'low' | 'medium' | 'high',
+    score: r.score as number,
+    reasons: JSON.parse(r.reasons as string) as string[],
+    recommendation: r.recommendation as 'allow' | 'warn' | 'block',
+    decisionId: (r.decision_id as string | null) ?? null,
+    createdAt: r.created_at as string,
+  }))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SENTINEL — pending actions (circuit breaker)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface InsertPendingActionParams {
+  actionType: 'refund' | 'blacklist' | 'alert' | string
+  payload: Record<string, unknown>
+  reasoning: string
+  wallet: string
+  delayMs: number
+  decisionId?: string
+}
+
+export interface PendingActionRow {
+  id: string
+  actionType: string
+  payload: Record<string, unknown>
+  reasoning: string
+  wallet: string
+  scheduledAt: string
+  executeAt: string
+  status: 'pending' | 'executing' | 'executed' | 'cancelled'
+  executedAt: string | null
+  cancelledAt: string | null
+  cancelledBy: string | null
+  cancelReason: string | null
+  result: Record<string, unknown> | null
+  decisionId: string | null
+}
+
+export function insertPendingAction(params: InsertPendingActionParams): string {
+  const id = ulid()
+  const now = new Date()
+  const scheduledAt = now.toISOString()
+  const executeAt = new Date(now.getTime() + params.delayMs).toISOString()
+  getDb().prepare(`
+    INSERT INTO sentinel_pending_actions
+      (id, action_type, payload, reasoning, wallet, scheduled_at, execute_at, status, decision_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+  `).run(
+    id,
+    params.actionType,
+    JSON.stringify(params.payload),
+    params.reasoning,
+    params.wallet,
+    scheduledAt,
+    executeAt,
+    params.decisionId ?? null,
+  )
+  return id
+}
+
+export function getPendingAction(id: string): PendingActionRow | null {
+  const row = getDb().prepare(`SELECT * FROM sentinel_pending_actions WHERE id = ?`).get(id) as
+    | Record<string, unknown> | undefined
+  return row ? rowToPending(row) : null
+}
+
+export function getDuePendingActions(): PendingActionRow[] {
+  const now = new Date().toISOString()
+  const rows = getDb().prepare(`
+    SELECT * FROM sentinel_pending_actions
+    WHERE status = 'pending' AND execute_at <= ?
+    ORDER BY execute_at ASC
+  `).all(now) as Record<string, unknown>[]
+  return rows.map(rowToPending)
+}
+
+export function getAllPendingActionsWithStatus(status: 'pending' | 'executing'): PendingActionRow[] {
+  const rows = getDb().prepare(`
+    SELECT * FROM sentinel_pending_actions WHERE status = ? ORDER BY execute_at ASC
+  `).all(status) as Record<string, unknown>[]
+  return rows.map(rowToPending)
+}
+
+export function listPendingActions(opts: { wallet?: string; status?: string; limit?: number } = {}): PendingActionRow[] {
+  const limit = opts.limit ?? 50
+  let sql = `SELECT * FROM sentinel_pending_actions WHERE 1=1`
+  const bind: unknown[] = []
+  if (opts.wallet) {
+    sql += ` AND wallet = ?`
+    bind.push(opts.wallet)
+  }
+  if (opts.status) {
+    sql += ` AND status = ?`
+    bind.push(opts.status)
+  }
+  sql += ` ORDER BY scheduled_at DESC LIMIT ?`
+  bind.push(limit)
+  const rows = getDb().prepare(sql).all(...bind) as Record<string, unknown>[]
+  return rows.map(rowToPending)
+}
+
+export function cancelPendingAction(id: string, cancelledBy: string, reason: string): void {
+  getDb().prepare(`
+    UPDATE sentinel_pending_actions
+    SET status = 'cancelled', cancelled_at = ?, cancelled_by = ?, cancel_reason = ?
+    WHERE id = ? AND status = 'pending'
+  `).run(new Date().toISOString(), cancelledBy, reason, id)
+}
+
+export function markPendingActionExecuting(id: string): void {
+  getDb().prepare(`
+    UPDATE sentinel_pending_actions SET status = 'executing' WHERE id = ? AND status = 'pending'
+  `).run(id)
+}
+
+export function markPendingActionExecuted(id: string, result: Record<string, unknown>): void {
+  getDb().prepare(`
+    UPDATE sentinel_pending_actions
+    SET status = 'executed', executed_at = ?, result = ?
+    WHERE id = ?
+  `).run(new Date().toISOString(), JSON.stringify(result), id)
+}
+
+export function countFundActionsInLastHour(wallet: string): number {
+  const row = getDb().prepare(`
+    SELECT COUNT(*) AS count FROM sentinel_pending_actions
+    WHERE wallet = ? AND action_type = 'refund'
+      AND scheduled_at > datetime('now', '-1 hour')
+      AND status != 'cancelled'
+  `).get(wallet) as { count: number }
+  return row.count
+}
+
+function rowToPending(r: Record<string, unknown>): PendingActionRow {
+  return {
+    id: r.id as string,
+    actionType: r.action_type as string,
+    payload: JSON.parse(r.payload as string) as Record<string, unknown>,
+    reasoning: r.reasoning as string,
+    wallet: r.wallet as string,
+    scheduledAt: r.scheduled_at as string,
+    executeAt: r.execute_at as string,
+    status: r.status as PendingActionRow['status'],
+    executedAt: (r.executed_at as string | null) ?? null,
+    cancelledAt: (r.cancelled_at as string | null) ?? null,
+    cancelledBy: (r.cancelled_by as string | null) ?? null,
+    cancelReason: (r.cancel_reason as string | null) ?? null,
+    result: r.result ? (JSON.parse(r.result as string) as Record<string, unknown>) : null,
+    decisionId: (r.decision_id as string | null) ?? null,
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SENTINEL — decisions (audit trail)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface DecisionToolCall {
+  name: string
+  args: Record<string, unknown>
+  result: unknown
+}
+
+export interface DecisionRow {
+  id: string
+  invocationSource: 'reactive' | 'preflight' | 'query'
+  triggerEventId: string | null
+  triggerContext: Record<string, unknown>
+  model: string
+  durationMs: number
+  toolCalls: DecisionToolCall[]
+  reasoning: string | null
+  verdict: 'allow' | 'warn' | 'block' | 'action-taken' | 'error' | 'pending'
+  verdictDetail: Record<string, unknown> | null
+  inputTokens: number | null
+  outputTokens: number | null
+  costUsd: number | null
+  createdAt: string
+}
+
+export interface InsertDecisionDraftParams {
+  invocationSource: 'reactive' | 'preflight' | 'query'
+  triggerEventId?: string
+  triggerContext: Record<string, unknown>
+  model: string
+}
+
+export function insertDecisionDraft(params: InsertDecisionDraftParams): string {
+  const id = ulid()
+  getDb().prepare(`
+    INSERT INTO sentinel_decisions
+      (id, invocation_source, trigger_event_id, trigger_context, model, duration_ms,
+       tool_calls, verdict, created_at)
+    VALUES (?, ?, ?, ?, ?, 0, '[]', 'pending', ?)
+  `).run(
+    id,
+    params.invocationSource,
+    params.triggerEventId ?? null,
+    JSON.stringify(params.triggerContext),
+    params.model,
+    new Date().toISOString(),
+  )
+  return id
+}
+
+export function appendDecisionToolCall(id: string, call: DecisionToolCall): void {
+  const db = getDb()
+  const current = db.prepare(`SELECT tool_calls FROM sentinel_decisions WHERE id = ?`).get(id) as
+    | { tool_calls: string } | undefined
+  if (!current) throw new Error(`decision ${id} not found`)
+  const arr = JSON.parse(current.tool_calls) as DecisionToolCall[]
+  arr.push(call)
+  db.prepare(`UPDATE sentinel_decisions SET tool_calls = ? WHERE id = ?`)
+    .run(JSON.stringify(arr), id)
+}
+
+export interface FinalizeDecisionParams {
+  verdict: 'allow' | 'warn' | 'block' | 'action-taken' | 'error'
+  verdictDetail: Record<string, unknown>
+  reasoning: string
+  durationMs: number
+  inputTokens: number
+  outputTokens: number
+  costUsd: number
+}
+
+export function finalizeDecision(id: string, params: FinalizeDecisionParams): void {
+  const result = getDb().prepare(`
+    UPDATE sentinel_decisions
+    SET verdict = ?, verdict_detail = ?, reasoning = ?, duration_ms = ?,
+        input_tokens = ?, output_tokens = ?, cost_usd = ?
+    WHERE id = ?
+  `).run(
+    params.verdict,
+    JSON.stringify(params.verdictDetail),
+    params.reasoning,
+    params.durationMs,
+    params.inputTokens,
+    params.outputTokens,
+    params.costUsd,
+    id,
+  )
+  if (result.changes === 0) throw new Error(`finalizeDecision: ${id} not updated`)
+}
+
+export function getDecision(id: string): DecisionRow | null {
+  const row = getDb().prepare(`SELECT * FROM sentinel_decisions WHERE id = ?`).get(id) as
+    | Record<string, unknown> | undefined
+  return row ? rowToDecision(row) : null
+}
+
+export function listDecisions(opts: { limit?: number; source?: string } = {}): DecisionRow[] {
+  const limit = opts.limit ?? 50
+  let sql = `SELECT * FROM sentinel_decisions`
+  const bind: unknown[] = []
+  if (opts.source) {
+    sql += ` WHERE invocation_source = ?`
+    bind.push(opts.source)
+  }
+  sql += ` ORDER BY created_at DESC LIMIT ?`
+  bind.push(limit)
+  const rows = getDb().prepare(sql).all(...bind) as Record<string, unknown>[]
+  return rows.map(rowToDecision)
+}
+
+export function dailyDecisionCostUsd(): number {
+  const row = getDb().prepare(`
+    SELECT COALESCE(SUM(cost_usd), 0) AS total FROM sentinel_decisions
+    WHERE created_at > datetime('now', '-1 day')
+  `).get() as { total: number }
+  return row.total
+}
+
+function rowToDecision(r: Record<string, unknown>): DecisionRow {
+  return {
+    id: r.id as string,
+    invocationSource: r.invocation_source as DecisionRow['invocationSource'],
+    triggerEventId: (r.trigger_event_id as string | null) ?? null,
+    triggerContext: JSON.parse((r.trigger_context as string | null) ?? '{}') as Record<string, unknown>,
+    model: r.model as string,
+    durationMs: r.duration_ms as number,
+    toolCalls: JSON.parse(r.tool_calls as string) as DecisionToolCall[],
+    reasoning: (r.reasoning as string | null) ?? null,
+    verdict: r.verdict as DecisionRow['verdict'],
+    verdictDetail: r.verdict_detail ? JSON.parse(r.verdict_detail as string) : null,
+    inputTokens: (r.input_tokens as number | null) ?? null,
+    outputTokens: (r.output_tokens as number | null) ?? null,
+    costUsd: (r.cost_usd as number | null) ?? null,
+    createdAt: r.created_at as string,
+  }
+}
