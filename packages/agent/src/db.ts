@@ -155,6 +155,77 @@ CREATE INDEX IF NOT EXISTS idx_herald_dms_user ON herald_dms(x_user_id, created_
 CREATE INDEX IF NOT EXISTS idx_exec_links_status ON execution_links(status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_cost_log_agent_date ON cost_log(agent, created_at);
 CREATE INDEX IF NOT EXISTS idx_agent_events_created ON agent_events(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS sentinel_blacklist (
+  id              TEXT PRIMARY KEY,
+  address         TEXT NOT NULL,
+  reason          TEXT NOT NULL,
+  severity        TEXT NOT NULL,
+  added_by        TEXT NOT NULL,
+  added_at        TEXT NOT NULL,
+  expires_at      TEXT,
+  removed_at      TEXT,
+  removed_by      TEXT,
+  removed_reason  TEXT,
+  source_event_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_blacklist_active
+  ON sentinel_blacklist(address) WHERE removed_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS sentinel_risk_history (
+  id              TEXT PRIMARY KEY,
+  address         TEXT NOT NULL,
+  context_action  TEXT,
+  wallet          TEXT,
+  risk            TEXT NOT NULL,
+  score           INTEGER NOT NULL,
+  reasons         TEXT NOT NULL,
+  recommendation  TEXT NOT NULL,
+  decision_id     TEXT,
+  created_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_risk_history
+  ON sentinel_risk_history(address, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS sentinel_pending_actions (
+  id             TEXT PRIMARY KEY,
+  action_type    TEXT NOT NULL,
+  payload        TEXT NOT NULL,
+  reasoning      TEXT NOT NULL,
+  wallet         TEXT,
+  scheduled_at   TEXT NOT NULL,
+  execute_at     TEXT NOT NULL,
+  status         TEXT NOT NULL,
+  executed_at    TEXT,
+  cancelled_at   TEXT,
+  cancelled_by   TEXT,
+  cancel_reason  TEXT,
+  result         TEXT,
+  decision_id    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pending_due
+  ON sentinel_pending_actions(execute_at) WHERE status = 'pending';
+
+CREATE TABLE IF NOT EXISTS sentinel_decisions (
+  id                TEXT PRIMARY KEY,
+  invocation_source TEXT NOT NULL,
+  trigger_event_id  TEXT,
+  trigger_context   TEXT,
+  model             TEXT NOT NULL,
+  duration_ms       INTEGER NOT NULL,
+  tool_calls        TEXT NOT NULL,
+  reasoning         TEXT,
+  verdict           TEXT NOT NULL,
+  verdict_detail    TEXT,
+  input_tokens      INTEGER,
+  output_tokens     INTEGER,
+  cost_usd          REAL,
+  created_at        TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_decisions_trigger
+  ON sentinel_decisions(trigger_event_id);
+CREATE INDEX IF NOT EXISTS idx_decisions_source
+  ON sentinel_decisions(invocation_source, created_at DESC);
 `
 
 // ─────────────────────────────────────────────────────────────────────────────
