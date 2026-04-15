@@ -1171,10 +1171,11 @@ export function listBlacklist(opts: { limit?: number; cursor?: string } = {}): B
 }
 
 export function countBlacklistAddedByInLastHour(addedBy: string): number {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   const row = getDb().prepare(`
     SELECT COUNT(*) AS count FROM sentinel_blacklist
-    WHERE added_by = ? AND added_at > datetime('now', '-1 hour')
-  `).get(addedBy) as { count: number }
+    WHERE added_by = ? AND added_at > ?
+  `).get(addedBy, oneHourAgo) as { count: number }
   return row.count
 }
 
@@ -1380,12 +1381,13 @@ export function markPendingActionExecuted(id: string, result: Record<string, unk
 }
 
 export function countFundActionsInLastHour(wallet: string): number {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   const row = getDb().prepare(`
     SELECT COUNT(*) AS count FROM sentinel_pending_actions
     WHERE wallet = ? AND action_type = 'refund'
-      AND scheduled_at > datetime('now', '-1 hour')
+      AND scheduled_at > ?
       AND status != 'cancelled'
-  `).get(wallet) as { count: number }
+  `).get(wallet, oneHourAgo) as { count: number }
   return row.count
 }
 
@@ -1521,10 +1523,11 @@ export function listDecisions(opts: { limit?: number; source?: string } = {}): D
 }
 
 export function dailyDecisionCostUsd(): number {
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const row = getDb().prepare(`
     SELECT COALESCE(SUM(cost_usd), 0) AS total FROM sentinel_decisions
-    WHERE created_at > datetime('now', '-1 day')
-  `).get() as { total: number }
+    WHERE created_at > ?
+  `).get(oneDayAgo) as { total: number }
   return row.total
 }
 
