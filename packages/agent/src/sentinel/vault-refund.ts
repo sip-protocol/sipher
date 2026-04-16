@@ -29,8 +29,6 @@ export async function performVaultRefund(
   pda: string,
   amount: number,
 ): Promise<{ success: boolean; txId?: string; error?: string }> {
-  void amount // amount is informational — on-chain refunds all available balance
-
   const keypairPath = process.env.SENTINEL_AUTHORITY_KEYPAIR
   if (!keypairPath) {
     throw new Error('SENTINEL_AUTHORITY_KEYPAIR env not set — cannot sign authority refund')
@@ -45,13 +43,29 @@ export async function performVaultRefund(
     depositRecord.tokenMint, depositRecord.depositor,
   )
 
-  const { transaction } = await buildAuthorityRefundTx(
+  const { transaction, refundAmount } = await buildAuthorityRefundTx(
     connection,
     authority.publicKey,
     depositRecord.depositor,
     depositRecord.tokenMint,
     depositorTokenAccount,
   )
+
+  // Safety check: verify on-chain balance matches what SENTINEL intended.
+  // Convert SOL amount to lamports (1e9) for comparison with refundAmount (bigint, lamports).
+  // Allow 1% tolerance for SOL precision drift.
+  const expectedLamports = BigInt(Math.floor(amount * 1_000_000_000))
+  const actualLamports = refundAmount
+  const tolerance = expectedLamports / 100n // 1%
+  const diff = actualLamports > expectedLamports
+    ? actualLamports - expectedLamports
+    : expectedLamports - actualLamports
+  if (diff > tolerance) {
+    throw new Error(
+      `Refund amount mismatch: SENTINEL expected ${amount} SOL (${expectedLamports} lamports), ` +
+      `on-chain available is ${actualLamports} lamports. Aborting to prevent stale-decision execution.`
+    )
+  }
 
   transaction.sign(authority)
 
