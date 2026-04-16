@@ -208,4 +208,54 @@ describe('ActivityLogger', () => {
     expect(activity).toHaveLength(0)
     expect(events).toHaveLength(1)
   })
+
+  it('formats sentinel:alert title', () => {
+    const bus = new EventBus()
+    attachLogger(bus)
+    bus.emit({
+      source: 'sentinel', type: 'sentinel:alert', level: 'important',
+      data: { title: 'Suspicious activity', severity: 'warn' }, timestamp: new Date().toISOString(),
+    })
+    const rows = getActivity(null)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].title).toContain('Suspicious activity')
+  })
+
+  it('formats sentinel:action-taken title', () => {
+    const bus = new EventBus()
+    attachLogger(bus)
+    bus.emit({
+      source: 'sentinel', type: 'sentinel:action-taken', level: 'important',
+      data: { actionType: 'refund', result: { success: true } }, timestamp: new Date().toISOString(),
+    })
+    const rows = getActivity(null)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].title.toLowerCase()).toContain('refund')
+  })
+
+  it('formats sentinel:pending-action + sentinel:action-cancelled + sentinel:veto + sentinel:risk-report', () => {
+    const bus = new EventBus()
+    attachLogger(bus)
+    const ts = new Date().toISOString()
+    bus.emit({
+      source: 'sentinel', type: 'sentinel:pending-action', level: 'important',
+      data: { actionType: 'refund', delayMs: 30000 }, timestamp: ts,
+    })
+    bus.emit({
+      source: 'sentinel', type: 'sentinel:action-cancelled', level: 'important',
+      data: { actionType: 'refund', cancelledBy: 'user:w1' }, timestamp: ts,
+    })
+    bus.emit({
+      source: 'sentinel', type: 'sentinel:veto', level: 'critical',
+      data: { reason: 'blacklisted' }, timestamp: ts,
+    })
+    bus.emit({
+      source: 'sentinel', type: 'sentinel:risk-report', level: 'important',
+      data: { risk: 'high', recommendation: 'block' }, timestamp: ts,
+    })
+    const rows = getActivity(null)
+    expect(rows).toHaveLength(4)
+    const types = rows.map((r) => r.type)
+    expect(types).toEqual(expect.arrayContaining(['pending-action', 'action-cancelled', 'veto', 'risk-report']))
+  })
 })

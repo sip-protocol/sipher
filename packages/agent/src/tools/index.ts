@@ -60,3 +60,5 @@ export type { SweepParams, SweepToolResult } from './sweep.js'
 
 export { consolidateTool, executeConsolidate } from './consolidate.js'
 export type { ConsolidateParams, ConsolidateToolResult } from './consolidate.js'
+
+export { assessRiskTool, executeAssessRisk } from './assess-risk.js'

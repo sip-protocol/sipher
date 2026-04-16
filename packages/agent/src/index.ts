@@ -18,6 +18,17 @@ import { guardianBus } from './coordination/event-bus.js'
 import { attachLogger } from './coordination/activity-logger.js'
 import { AgentPool } from './agents/pool.js'
 import { SentinelWorker } from './sentinel/sentinel.js'
+import { SentinelCore } from './sentinel/core.js'
+import { SentinelAdapter } from './sentinel/adapter.js'
+import { restorePendingActions, registerActionExecutor } from './sentinel/circuit-breaker.js'
+import { setSentinelAssessor } from './sentinel/preflight-gate.js'
+import { performVaultRefund, assertVaultRefundWired } from './sentinel/vault-refund.js'
+import { sentinelPublicRouter, sentinelAdminRouter } from './routes/sentinel-api.js'
+import { getSentinelConfig } from './sentinel/config.js'
+import {
+  getAllPendingActionsWithStatus,
+  cancelPendingAction as dbCancelPendingAction,
+} from './db.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Database & session initialization
@@ -48,6 +59,42 @@ console.log('  Crank:   60s interval (scheduled ops)')
 const sentinel = new SentinelWorker()
 sentinel.start()
 console.log('  SENTINEL: started (blockchain monitor, no wallets yet)')
+
+// ─── SentinelCore (LLM brain) + SentinelAdapter (bus subscriber) ─────────────
+const sentinelConfig = getSentinelConfig()
+
+// Mode degradation on startup (spec §9.6): if starting in non-yolo, cancel pending refunds.
+if (sentinelConfig.mode === 'advisory' || sentinelConfig.mode === 'off') {
+  const pending = getAllPendingActionsWithStatus('pending')
+  for (const row of pending) {
+    if (sentinelConfig.mode === 'off' || row.actionType === 'refund') {
+      dbCancelPendingAction(row.id, 'mode-change', `startup mode=${sentinelConfig.mode}`)
+      guardianBus.emit({
+        source: 'sentinel',
+        type: 'sentinel:mode-changed',
+        level: 'important',
+        data: { actionId: row.id, newMode: sentinelConfig.mode, actionType: row.actionType },
+        wallet: row.wallet,
+        timestamp: new Date().toISOString(),
+      })
+    }
+  }
+}
+
+const sentinelCore = new SentinelCore()
+const sentinelAdapter = new SentinelAdapter(guardianBus, sentinelCore)
+if (sentinelConfig.mode !== 'off') {
+  sentinelAdapter.start()
+}
+setSentinelAssessor((ctx) => sentinelCore.assessRisk(ctx))
+registerActionExecutor('refund', async (payload) => {
+  const pda = payload.pda as string
+  const amount = payload.amount as number
+  return performVaultRefund(pda, amount)
+})
+await restorePendingActions()
+assertVaultRefundWired()
+console.log(`  SENTINEL Core:  started (mode=${sentinelConfig.mode}, adapter + circuit-breaker recovery)`)
 
 // Platform adapter — maps Express routes to AgentCore
 const webAdapter = createWebAdapter()
@@ -103,6 +150,10 @@ app.use('/api/squad', verifyJwt, requireOwner, squadRouter)
 
 // HERALD approval queue + budget dashboard — JWT + owner required
 app.use('/api/herald', verifyJwt, requireOwner, heraldRouter)
+
+// SENTINEL decision log + status + query — JWT required (public) or JWT + owner (admin)
+app.use('/api/sentinel', verifyJwt, sentinelPublicRouter)
+app.use('/api/sentinel', verifyJwt, requireOwner, sentinelAdminRouter)
 
 // Activity stream (per-wallet history from DB) — JWT required
 app.get('/api/activity', verifyJwt, (req: Request, res: Response) => {
@@ -251,6 +302,7 @@ function shutdown(signal: string) {
 
   // Stop accepting new connections
   sentinel.stop()
+  sentinelAdapter.stop()
   stopCrank(crankTimer)
 
   server.close(() => {
