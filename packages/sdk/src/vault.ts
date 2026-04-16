@@ -392,3 +392,88 @@ export async function buildRefundTx(
     depositorTokenAddress: depositorTokenAccount,
   }
 }
+
+/**
+ * Fetch and deserialize a DepositRecord from chain.
+ * Used by SENTINEL's performVaultRefund to derive depositor + mint from a PDA.
+ */
+export async function fetchDepositRecord(
+  connection: Connection,
+  depositRecordPDA: PublicKey,
+): Promise<DepositRecord> {
+  const info = await connection.getAccountInfo(depositRecordPDA)
+  if (!info) {
+    throw new Error(`DepositRecord not found at ${depositRecordPDA.toBase58()}`)
+  }
+  return deserializeDepositRecord(Buffer.from(info.data))
+}
+
+/**
+ * Build an authority-signed refund transaction (sipher_vault.authority_refund).
+ *
+ * Unlike buildRefundTx (depositor signs), this is signed by the vault authority.
+ * Used by SENTINEL for autonomous refunds of expired deposits after the
+ * refund_timeout cooldown. Timeout is still enforced on-chain.
+ *
+ * Accounts (order matters — matches AuthorityRefund context in lib.rs):
+ *   0. config           (ro)   — VaultConfig PDA
+ *   1. deposit_record   (mut)  — DepositRecord PDA
+ *   2. vault_token      (mut)  — Vault token PDA
+ *   3. depositor_token  (mut)  — Depositor's token account
+ *   4. depositor        (ro)   — NOT signer, validated by has_one on deposit_record
+ *   5. authority        (mut, signer)
+ *   6. token_program    (ro)
+ */
+export async function buildAuthorityRefundTx(
+  connection: Connection,
+  authority: PublicKey,
+  depositor: PublicKey,
+  tokenMint: PublicKey,
+  depositorTokenAccount: PublicKey,
+  programId: PublicKey = SIPHER_VAULT_PROGRAM_ID
+): Promise<RefundResult> {
+  const [configPDA] = deriveVaultConfigPDA(programId)
+  const [depositRecordPDA] = deriveDepositRecordPDA(depositor, tokenMint, programId)
+  const [vaultTokenPDA] = deriveVaultTokenPDA(tokenMint, programId)
+
+  // Pre-fetch balance to compute refund amount
+  const recordInfo = await connection.getAccountInfo(depositRecordPDA)
+  if (!recordInfo) {
+    throw new Error('No deposit record found — nothing to refund')
+  }
+  const record = deserializeDepositRecord(Buffer.from(recordInfo.data))
+  const refundAmount = record.balance - record.lockedAmount
+  if (refundAmount <= 0n) {
+    throw new Error('No available balance to refund (all funds locked or zero)')
+  }
+
+  // Encode: discriminator(8) only — authority_refund has no params
+  const data = anchorDiscriminator('authority_refund')
+
+  const ix = new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: configPDA, isSigner: false, isWritable: false },           // config
+      { pubkey: depositRecordPDA, isSigner: false, isWritable: true },     // deposit_record
+      { pubkey: vaultTokenPDA, isSigner: false, isWritable: true },        // vault_token
+      { pubkey: depositorTokenAccount, isSigner: false, isWritable: true }, // depositor_token
+      { pubkey: depositor, isSigner: false, isWritable: false },           // depositor (NOT signer)
+      { pubkey: authority, isSigner: true, isWritable: true },             // authority (signer)
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },    // token_program
+    ],
+    data,
+  })
+
+  const tx = new Transaction()
+  tx.add(ix)
+  tx.feePayer = authority
+
+  const { blockhash } = await connection.getLatestBlockhash()
+  tx.recentBlockhash = blockhash
+
+  return {
+    transaction: tx,
+    refundAmount,
+    depositorTokenAddress: depositorTokenAccount,
+  }
+}
