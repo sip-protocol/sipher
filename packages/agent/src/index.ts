@@ -22,7 +22,7 @@ import { SentinelCore } from './sentinel/core.js'
 import { SentinelAdapter } from './sentinel/adapter.js'
 import { restorePendingActions, registerActionExecutor } from './sentinel/circuit-breaker.js'
 import { setSentinelAssessor } from './sentinel/preflight-gate.js'
-import { performVaultRefund } from './sentinel/vault-refund.js'
+import { performVaultRefund, assertVaultRefundWired } from './sentinel/vault-refund.js'
 import { sentinelPublicRouter, sentinelAdminRouter } from './routes/sentinel-api.js'
 import { getSentinelConfig } from './sentinel/config.js'
 import {
@@ -93,6 +93,7 @@ registerActionExecutor('refund', async (payload) => {
   return performVaultRefund(pda, amount)
 })
 await restorePendingActions()
+assertVaultRefundWired()
 console.log(`  SENTINEL Core:  started (mode=${sentinelConfig.mode}, adapter + circuit-breaker recovery)`)
 
 // Platform adapter — maps Express routes to AgentCore
