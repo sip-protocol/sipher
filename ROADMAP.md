@@ -116,6 +116,26 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 
 ---
 
+## Phase 7: SENTINEL Security Layer (Apr 2026) ✅
+
+> Autonomous threat detection and risk governance for fund-moving actions.
+
+| ID | Title | Size | Status |
+|----|-------|------|--------|
+| S7-01 | SentinelCore — Pi SDK LLM risk analyst (β static + γ LLM hybrid) | XL | ✅ |
+| S7-02 | SentinelAdapter — guardianBus subscriber with mode gates + loop prevention | L | ✅ |
+| S7-03 | Preflight risk-assessment gate in executeTool | L | ✅ |
+| S7-04 | Circuit breaker for fund-moving actions above threshold (startup recovery) | M | ✅ |
+| S7-05 | 14 SENTINEL tools (7 read + 7 action) with adversarial-data fencing | XL | ✅ |
+| S7-06 | 8 REST endpoints (public + admin split, requireOwner) | M | ✅ |
+| S7-07 | 4 SQLite tables (blacklist, risk_history, pending_actions, decisions) | M | ✅ |
+| S7-08 | SENTINEL_MODE=yolo|advisory|off operator rollout | S | ✅ |
+| S7-09 | assessRisk tool added to SIPHER (22 total SIPHER tools) | S | ✅ |
+
+**Outcome:** Autonomous security layer — LLM risk analyst screens all fund-moving actions, operator-driven rollout, full audit trail. (9/9 complete ✅)
+
+---
+
 ## Summary
 
 | Phase | Theme | Issues | Timeline | Status |
@@ -126,9 +146,10 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 | 4 | Multi-Chain | 6 | Apr-Jun | ✅ Complete |
 | 5 | Backend Aggregation | 5 | Jun-Aug | ✅ Complete |
 | 6 | Enterprise | 6 | Aug-Dec | ✅ Complete |
+| 7 | SENTINEL Security | 9 | Apr 2026 | ✅ Complete |
 
-**Progress: 38/38 issues complete** | **539 tests** | **103 endpoints** | **17 chains**
+**Progress: 38/38 issues complete** | **497 REST + 905 agent tests** | **66 endpoints** | **17 chains**
 
 ---
 
-**Last Updated:** 2026-02-06
+**Last Updated:** 2026-04-16

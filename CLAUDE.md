@@ -6,7 +6,7 @@
 **Live URL:** https://sipher.sip-protocol.org
 **Tagline:** "Privacy-as-a-Skill for Multi-Chain Agents"
 **Purpose:** REST API + OpenClaw skill enabling any autonomous agent to add transaction privacy via SIP Protocol
-**Stats:** 58 REST endpoints | 497 tests (32 suites) | 21 agent tools | 9 HERALD X tools | 17 chains | Command Center UI (2,079 lines, 24 files) | 4 client SDKs (TS, Python, Rust, Go) | Eliza plugin
+**Stats:** 66 REST endpoints | 905 agent + 497 REST tests | 22 SIPHER tools | 14 SENTINEL tools | 9 HERALD X tools | 17 chains | Command Center UI (2,079 lines, 24 files) | 4 client SDKs (TS, Python, Rust, Go) | Eliza plugin
 
 ---
 
@@ -49,16 +49,16 @@
          │   metadata)      │
          └────────┬────────┘
                   ▼
-         ┌─────────────────┐
-         │   AgentCore      │  ← Configurable: identity, system prompt, tools
-         │  (LLM reasoning) │     Same loop for all personas
-         └────────┬────────┘
-                  ▼
-    ┌─────────────┴─────────────┐
-    ▼                           ▼
-┌──────────────┐      ┌──────────────┐
-│ Web Adapter  │      │  X Adapter   │
-│ (SIPHER)     │      │  (HERALD)    │
+         ┌─────────────────┐       ┌─────────────────┐
+         │   AgentCore      │  ←── │  SentinelAdapter │  ← guardianBus subscriber
+         │  (LLM reasoning) │      │  (preflight gate)│    (SENTINEL_MODE env)
+         └────────┬────────┘       └────────┬────────┘
+                  ▼                          │
+    ┌─────────────┴─────────────┐            ▼
+    ▼                           ▼   ┌─────────────────┐
+┌──────────────┐      ┌──────────────┐   │  SentinelCore   │  ← Pi SDK LLM analyst
+│ Web Adapter  │      │  X Adapter   │   │  (risk engine)  │    circuit breaker
+│ (SIPHER)     │      │  (HERALD)    │   └─────────────────┘
 │ Express /api │      │  Poller →    │
 │ /chat,       │      │  mentions,   │
 │ /chat/stream │      │  DMs         │
@@ -66,6 +66,8 @@
 ```
 
 **AgentCore** is the shared LLM reasoning engine. Each adapter wires a persona (SIPHER for web, HERALD for X) with platform-specific I/O. HERALD subscribes to the X poller and routes events through AgentCore with its own identity and X-specific tools (9 tools: post, reply, like, read-mentions, read-user, search-posts, read-dms, send-dm, schedule-post).
+
+**SentinelCore** is the LLM-backed security analyst (Pi SDK). **SentinelAdapter** subscribes to the guardianBus and applies preflight risk assessment (β static rules + γ LLM hybrid) before any fund-moving tool executes. Circuit breaker fires above threshold. Operator-driven rollout via `SENTINEL_MODE=yolo|advisory|off`.
 
 ---
 
@@ -128,7 +130,7 @@ cd app && npx tsc --noEmit # Type check
 - **Logging:** Pino v9 (structured JSON, audit logs)
 - **Docs:** swagger-ui-express (OpenAPI 3.1)
 - **Cache:** Redis 7 (rate limiting, idempotency) with in-memory fallback
-- **Testing:** Vitest + Supertest (497 REST + 23 agent tests)
+- **Testing:** Vitest + Supertest (497 REST + 905 agent tests)
 - **Deployment:** Docker + GHCR → VPS (port 5006)
 - **Domain:** sipher.sip-protocol.org
 - **Frontend:** React 19, Vite 6, Tailwind CSS 4, Zustand 5, Phosphor Icons React
@@ -142,7 +144,7 @@ cd app && npx tsc --noEmit # Type check
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (localhost:5006)
 pnpm build                      # Build for production
-pnpm test -- --run              # Run REST tests (497 tests, 32 suites)
+pnpm test -- --run              # Run REST tests (497 tests, 32 suites) + agent tests (905 tests, 69 suites)
 pnpm typecheck                  # Type check
 pnpm demo                       # Full-flow demo (requires dev server running)
 pnpm openapi:export              # Export static OpenAPI spec to dist/openapi.json
@@ -365,9 +367,14 @@ sipher/
 │       │   │   ├── approval.ts     # Human-in-the-loop approval
 │       │   │   ├── intent.ts       # Intent classification
 │       │   │   └── tools/          # 9 X tools (post, reply, like, read-mentions, ...)
-│       │   ├── tools/              # 21 agent tools (deposit, send, swap, scan, ...)
-│       │   └── routes/             # Agent-specific Express routes
-│       └── tests/                  # 23+ agent tests
+│       │   ├── sentinel/           # SENTINEL security layer
+│       │   │   ├── sentinel-core.ts    # SentinelCore — Pi SDK LLM risk analyst
+│       │   │   ├── sentinel-adapter.ts # SentinelAdapter — guardianBus subscriber + preflight gate
+│       │   │   ├── db.ts               # 4 SQLite tables (blacklist, risk_history, pending, decisions)
+│       │   │   └── tools/              # 14 SENTINEL tools (7 read + 7 action)
+│       │   ├── tools/              # 22 SIPHER agent tools (deposit, send, swap, scan, assessRisk, ...)
+│       │   └── routes/             # Agent-specific Express routes (incl. /sentinel/*)
+│       └── tests/                  # 905 agent tests (69 suites)
 ├── tests/                          # 497 REST tests across 32 suites
 │   ├── health.test.ts
 │   ├── stealth.test.ts
@@ -412,7 +419,7 @@ sipher/
 
 ---
 
-## API ENDPOINTS (58 endpoints)
+## API ENDPOINTS (66 endpoints)
 
 All return `ApiResponse<T>`: `{ success, data?, error? }`
 
@@ -472,6 +479,14 @@ All return `ApiResponse<T>`: `{ success, data?, error? }`
 | GET | `/v1/billing/invoices` | List invoices (paginated) | Yes | — |
 | POST | `/v1/billing/portal` | Generate Stripe customer portal URL (pro+) | Yes | — |
 | POST | `/v1/billing/webhook` | Stripe webhook receiver | No* | — |
+| POST | `/v1/sentinel/assess` | Risk assessment for a proposed action | Yes | — |
+| GET | `/v1/sentinel/blacklist` | List blacklisted addresses | Yes | — |
+| POST | `/v1/sentinel/blacklist` | Add address to blacklist (admin) | Yes | — |
+| DELETE | `/v1/sentinel/blacklist/:address` | Remove address from blacklist (admin) | Yes | — |
+| GET | `/v1/sentinel/pending` | List pending cancellable actions | Yes | — |
+| POST | `/v1/sentinel/pending/:id/cancel` | Cancel a pending action | Yes | — |
+| GET | `/v1/sentinel/decisions` | Recent SENTINEL risk decisions | Yes | — |
+| GET | `/v1/sentinel/status` | SENTINEL mode + health status | Yes | — |
 
 ### Idempotency
 
@@ -567,7 +582,7 @@ ssh sip@176.222.53.185 "docker logs sipher --tail 50"
 ## AI GUIDELINES
 
 ### DO:
-- Run `pnpm test -- --run` after code changes (497 REST tests must pass)
+- Run `pnpm test -- --run` after code changes (497 REST tests + 905 agent tests must pass)
 - Run `pnpm typecheck` before committing
 - Use @sip-protocol/sdk for all crypto operations (never roll your own)
 - Keep API responses consistent: `{ success, data?, error? }`
@@ -614,12 +629,12 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 | 5 | Backend Aggregation | 5 | ✅ Complete |
 | 6 | Enterprise | 6 | ✅ Complete |
 
-**Progress:** 38/38 issues complete | 497 REST tests + 23 agent tests | 58 endpoints | 17 chains | All phases complete | Live demo at /v1/demo
+**Progress:** 38/38 issues complete | 497 REST tests + 905 agent tests | 66 endpoints | 17 chains | All phases complete | Live demo at /v1/demo
 
 **Quick check:** `gh issue list -R sip-protocol/sipher --state open`
 
 ---
 
-**Last Updated:** 2026-04-10
-**Status:** Phase 1 Complete | 58 REST Endpoints | 497 Tests | 21 Agent Tools | 9 HERALD X Tools | 17 Chains | Command Center UI (2,079 lines) | Platform Abstraction (AgentCore + Web/X Adapters) | Real Jupiter API | SQLite Persistence | Devnet Proof
+**Last Updated:** 2026-04-16
+**Status:** SENTINEL Formalization Complete | 66 REST Endpoints | 497 REST + 905 Agent Tests | 22 SIPHER Tools | 14 SENTINEL Tools | 9 HERALD X Tools | 17 Chains | Command Center UI (2,079 lines) | Platform Abstraction (AgentCore + Web/X Adapters + SentinelCore/Adapter) | Real Jupiter API | SQLite Persistence | Devnet Proof
 **Devnet Proof:** [Solscan](https://solscan.io/tx/4FmLGsLkC5DYJojpQeSQoGMArsJonTEnx729gnFCeYEjFsr8Z46VrDzKQXLhFrpM9Uj6ezBtCQckU28odzvjvV4a?cluster=devnet) — real 0.01 SOL shielded transfer via stealth address

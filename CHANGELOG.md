@@ -2,6 +2,19 @@
 
 All notable changes to Sipher are documented here.
 
+## Phase 7: SENTINEL Formalization (Apr 16, 2026)
+
+- Added SentinelCore — LLM-backed security analyst agent (Pi SDK)
+- Added SentinelAdapter — reactive guardianBus subscriber with mode gates + loop prevention
+- Added preflight risk-assessment gate in executeTool (β static rules + γ LLM hybrid)
+- Added circuit breaker for fund-moving actions above threshold (with startup recovery)
+- Added 14 SENTINEL tools (7 read + 7 action) with adversarial-data fencing
+- Added 8 REST endpoints for SENTINEL (public + admin split with requireOwner)
+- Added 4 SQLite tables (blacklist, risk_history, pending_actions, decisions)
+- Added SENTINEL_MODE=yolo|advisory|off — operator-driven rollout via env var
+- Added assessRisk tool to SIPHER (22 total SIPHER tools)
+- Tests: 793 → 905 agent tests (+112), 497 REST unchanged
+
 ## [1.0.0] - 2026-02-06
 
 Production release with 77 endpoints, 540 tests, 17 chains, and 4 client SDKs.

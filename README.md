@@ -17,8 +17,8 @@ hidden amounts, and compliance viewing keys across 17 chains.**
 
 *Stealth addresses • Pedersen commitments • Viewing key hierarchies • On-chain Anchor program • 4 client SDKs*
 
-[![Tests](https://img.shields.io/badge/tests-497%20passing-brightgreen)]()
-[![Endpoints](https://img.shields.io/badge/endpoints-58-blue)]()
+[![Tests](https://img.shields.io/badge/tests-1402%20passing-brightgreen)]()
+[![Endpoints](https://img.shields.io/badge/endpoints-66-blue)]()
 [![Chains](https://img.shields.io/badge/chains-17-purple)]()
 [![SDKs](https://img.shields.io/badge/SDKs-4-orange)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)]()
@@ -127,7 +127,7 @@ Agent (Claude, LangChain, CrewAI, OpenClaw, etc.)
     ▼  REST API (any language, any framework)
 ┌──────────────────────────────────────────────────────────────────┐
 │                        Sipher API                                │
-│  Express 5 + TypeScript │ 58 endpoints │ Tiered rate limiting    │
+│  Express 5 + TypeScript │ 66 endpoints │ Tiered rate limiting    │
 │                                                                  │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
 │  │  Auth    │ │  Rate    │ │ Idempot- │ │  Audit   │           │
@@ -328,6 +328,7 @@ All `@noble/*` and `@scure/*` libraries are by [Paul Miller](https://paulmillr.c
 - **Governance Voting** — encrypted ballots with homomorphic tally and nullifier-based double-vote prevention
 - **Session Management** — persistent defaults per agent (chain, privacy level, backend)
 - **Daily Quotas + Tiered Rate Limiting** — free (100/hr), pro (10K/hr), enterprise (100K/hr)
+- **SENTINEL Security Layer** — LLM-backed risk analyst (Pi SDK), preflight gate, circuit breaker, blacklist, 14 tools
 - **4 Auto-Generated Client SDKs** — TypeScript, Python, Rust, Go
 - **OpenClaw Skill File** — `GET /skill.md` for agent discovery
 - **Live Demo** — `GET /v1/demo` runs 25 real crypto operations, no auth required
@@ -340,7 +341,7 @@ Sipher isn't a human tool with an API bolted on. Every design decision prioritiz
 
 | Pillar | How Sipher Delivers |
 |--------|-------------------|
-| **Discovery** | [`/skill.md`](https://sipher.sip-protocol.org/skill.md) — OpenClaw-compatible skill file. Agents discover, parse, and use all 58 endpoints without human configuration. Self-describing API at `/`, error catalog at `/v1/errors`, full schema at `/v1/openapi.json`. |
+| **Discovery** | [`/skill.md`](https://sipher.sip-protocol.org/skill.md) — OpenClaw-compatible skill file. Agents discover, parse, and use all 66 endpoints without human configuration. Self-describing API at `/`, error catalog at `/v1/errors`, full schema at `/v1/openapi.json`. |
 | **Integration** | Pure REST + JSON. No browser, no OAuth, no cookies. 4 auto-generated SDKs (TypeScript, Python, Rust, Go). API key auth via `X-API-Key` header — the simplest auth pattern for agents. |
 | **Autonomy** | [`privacy-demo-agent.ts`](scripts/privacy-demo-agent.ts) runs 20 steps across 34 endpoints with zero human intervention. Sessions (`X-Session-Id`) maintain state across multi-step workflows. No CAPTCHA, no manual verification. |
 | **Reliability** | 11+ mutation endpoints support `Idempotency-Key` for safe retries. Structured error responses with machine-readable codes and retry guidance. Agents can reason about failures, not parse HTML error pages. |
@@ -443,7 +444,7 @@ pnpm install
 # Start dev server
 pnpm dev
 
-# Run tests (497 tests, 32 suites)
+# Run tests (497 REST + 905 agent tests)
 pnpm test -- --run
 
 # Type check
@@ -505,7 +506,7 @@ Sipher is powered by the full SIP Protocol SDK — not a thin wrapper:
 
 ---
 
-## 🔌 API Endpoints (58 total)
+## 🔌 API Endpoints (66 total)
 
 **Base URL:** `https://sipher.sip-protocol.org` | **Auth:** `X-API-Key` header | **Docs:** [`/docs`](https://sipher.sip-protocol.org/docs)
 
@@ -530,6 +531,7 @@ All responses follow: `{ success: boolean, data?: T, error?: { code, message, de
 | **Admin** | 5 | `/v1/admin/keys` CRUD, `/tiers` | API key management |
 | **RPC** | 1 | `/v1/rpc/providers` | Provider configuration |
 | **Privacy** | 1 | `/v1/privacy/score` | Wallet privacy analysis (0-100) |
+| **SENTINEL** | 8 | `/v1/sentinel/assess`, `/blacklist`, `/pending`, `/decisions`, `/status` | Risk assessment + threat detection (public + admin) |
 
 Full interactive reference: [`/docs`](https://sipher.sip-protocol.org/docs) | OpenClaw skill: [`/skill.md`](https://sipher.sip-protocol.org/skill.md)
 
@@ -673,7 +675,7 @@ CI workflow auto-regenerates SDKs on spec changes (`.github/workflows/generate-s
 
 ---
 
-## 🧪 Test Suite (497 tests, 32 suites)
+## 🧪 Test Suite (497 REST + 905 agent tests)
 
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
@@ -703,7 +705,7 @@ CI workflow auto-regenerates SDKs on spec changes (`.github/workflows/generate-s
 | `jito.test.ts` | 25 | Relay, bundle status, tier gating, state machine, real mode |
 | `billing.test.ts` | 31 | Usage, quotas, metering, subscriptions, webhooks |
 | `demo.test.ts` | 12 | Live demo (25 steps, all crypto, no auth) |
-| *+ 6 more* | 67 | C-SPL, agent, admin, OpenAPI |
+| *+ 6 more* | 67 | C-SPL, agent, admin, OpenAPI | *(+ 905 agent tests across 69 suites incl. SENTINEL)* |
 
 ```bash
 pnpm test -- --run
@@ -725,7 +727,7 @@ pnpm test -- --run
 | **Logging** | Pino v9 (structured JSON) |
 | **Database** | SQLite (better-sqlite3) — sessions, audit, conversations |
 | **Cache** | Redis 7 (optional, in-memory fallback) |
-| **AI** | Anthropic SDK via OpenRouter (HERALD agent brain) |
+| **AI** | Pi SDK (@mariozechner/pi-agent-core + pi-ai) via OpenRouter (AgentCore + SentinelCore) |
 | **Testing** | Vitest + Supertest |
 | **Docs** | OpenAPI 3.1 + Swagger UI |
 | **Deploy** | Docker + GHCR + GitHub Actions |
