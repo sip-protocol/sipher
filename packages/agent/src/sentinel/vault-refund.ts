@@ -1,43 +1,81 @@
+import { Connection, PublicKey, Keypair } from '@solana/web3.js'
+import { getAssociatedTokenAddress } from '@solana/spl-token'
+import { readFileSync } from 'node:fs'
+import {
+  buildAuthorityRefundTx,
+  fetchDepositRecord,
+  createConnection,
+} from '@sipher/sdk'
+
 /**
- * Authority-signed refund via sipher_vault program.
+ * Load a Solana keypair from a JSON file (standard CLI format: [u8; 64]).
+ */
+function loadKeypairFromFile(filepath: string): Keypair {
+  const raw = JSON.parse(readFileSync(filepath, 'utf-8')) as number[]
+  return Keypair.fromSecretKey(Uint8Array.from(raw))
+}
+
+/**
+ * Authority-signed refund via sipher_vault.authority_refund instruction.
  *
- * v1 scope: stub that throws unless overridden by a real SDK integration in
- * subsequent work. Unit tests mock this module. Production wiring will load
- * a keypair from env and submit a sipher_vault.refund ix signed by the
- * authority. Keeping it isolated here lets the plan and tests land without
- * blocking on SDK plumbing.
+ * Loads the authority keypair from SENTINEL_AUTHORITY_KEYPAIR env,
+ * fetches the deposit record on-chain to derive depositor + mint,
+ * builds the TX via @sipher/sdk, signs with authority, and sends.
+ *
+ * Timeout is enforced on-chain — this will fail if the deposit's
+ * refund_timeout (24h default) hasn't elapsed since last_deposit_at.
  */
 export async function performVaultRefund(
   pda: string,
   amount: number,
 ): Promise<{ success: boolean; txId?: string; error?: string }> {
-  void pda
-  void amount
-  throw new Error('performVaultRefund not wired — configure authority keypair + SDK integration')
+  void amount // amount is informational — on-chain refunds all available balance
+
+  const keypairPath = process.env.SENTINEL_AUTHORITY_KEYPAIR
+  if (!keypairPath) {
+    throw new Error('SENTINEL_AUTHORITY_KEYPAIR env not set — cannot sign authority refund')
+  }
+  const authority = loadKeypairFromFile(keypairPath)
+  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const connection = createConnection(network)
+
+  // Fetch deposit record to get depositor + tokenMint
+  const depositRecord = await fetchDepositRecord(connection, new PublicKey(pda))
+  const depositorTokenAccount = await getAssociatedTokenAddress(
+    depositRecord.tokenMint, depositRecord.depositor,
+  )
+
+  const { transaction } = await buildAuthorityRefundTx(
+    connection,
+    authority.publicKey,
+    depositRecord.depositor,
+    depositRecord.tokenMint,
+    depositorTokenAccount,
+  )
+
+  transaction.sign(authority)
+
+  const txId = await connection.sendRawTransaction(transaction.serialize(), {
+    skipPreflight: true,
+    maxRetries: 3,
+  })
+  await connection.confirmTransaction(txId, 'confirmed')
+
+  return { success: true, txId }
 }
 
 /**
- * Emit a loud startup warning when the vault refund stub is active in a
- * production context where it would actually be invoked (spec §9.4 guard).
- *
- * Conditions for warning:
- *   - NODE_ENV === 'production'
- *   - SENTINEL_MODE is not 'off' (refunds can fire)
- *   - SENTINEL_VAULT_REFUND_WIRED !== 'true' (integration not yet shipped)
- *
- * Set SENTINEL_VAULT_REFUND_WIRED=true once the SDK integration replaces this
- * stub, or run with SENTINEL_MODE=off to suppress during staging.
+ * Startup check: warn if authority keypair is missing in production.
  */
 export function assertVaultRefundWired(): void {
-  const isProduction = process.env.NODE_ENV === 'production'
-  const sentinelMode = process.env.SENTINEL_MODE ?? 'advisory'
-  const wired = process.env.SENTINEL_VAULT_REFUND_WIRED === 'true'
-
-  if (isProduction && sentinelMode !== 'off' && !wired) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.SENTINEL_MODE !== 'off' &&
+    !process.env.SENTINEL_AUTHORITY_KEYPAIR
+  ) {
     console.warn(
-      '[SENTINEL] performVaultRefund is a stub; refunds will throw at runtime.\n' +
-      'Set SENTINEL_VAULT_REFUND_WIRED=true once the SDK integration ships,\n' +
-      'or run with SENTINEL_MODE=off until then.',
+      '[SENTINEL] SENTINEL_AUTHORITY_KEYPAIR env not set. Authority refunds will throw at runtime. ' +
+      'Set it to the path of the vault authority keypair JSON, or run with SENTINEL_MODE=off.',
     )
   }
 }

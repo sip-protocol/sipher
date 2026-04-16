@@ -60,6 +60,8 @@ export {
   getVaultBalance,
   buildDepositTx,
   buildRefundTx,
+  fetchDepositRecord,
+  buildAuthorityRefundTx,
 } from './vault.js'
 
 // Privacy operations
