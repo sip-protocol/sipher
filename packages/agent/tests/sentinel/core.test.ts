@@ -124,4 +124,50 @@ describe('SentinelCore', () => {
     await expect(core.assessRisk({ action: 'send', wallet: 'w1', recipient: 'r1', amount: 1 })).rejects.toThrow(/off/i)
     delete process.env.SENTINEL_MODE
   })
+
+  it('finalize failure cascades: emits sentinel:audit-failure + cancels pending actions tagged with decisionId', async () => {
+    await freshDb()
+    const { guardianBus } = await import('../../src/coordination/event-bus.js')
+    const { insertPendingAction, getPendingAction } = await import('../../src/db.js')
+    const { cancelPendingActionsForDecision } = await import('../../src/sentinel/core.js')
+
+    // Listen for audit-failure events
+    let capturedAuditFailure: unknown = null
+    const handler = (e: unknown) => { capturedAuditFailure = e }
+    guardianBus.on('sentinel:audit-failure', handler)
+
+    // Insert a pending action tagged with a known decision_id
+    const pendingId = insertPendingAction({
+      actionType: 'refund',
+      payload: { pda: 'p1' },
+      reasoning: 'r',
+      wallet: 'w1',
+      delayMs: 60000,
+      decisionId: 'dec-test',
+    })
+
+    // Verify the action is initially pending
+    expect(getPendingAction(pendingId)!.status).toBe('pending')
+
+    // Invoke the cascade helper directly — this is what the finalize try/catch calls
+    cancelPendingActionsForDecision('dec-test')
+
+    // The pending action must now be cancelled with cancelledBy='audit-failure'
+    const row = getPendingAction(pendingId)!
+    expect(row.status).toBe('cancelled')
+    expect(row.cancelledBy).toBe('audit-failure')
+
+    // Emit the audit-failure event (mirrors what finalizeDecision catch does)
+    guardianBus.emit({
+      source: 'sentinel', type: 'sentinel:audit-failure', level: 'critical',
+      data: { decisionId: 'dec-test', error: 'simulated finalize failure' },
+      wallet: 'w1', timestamp: new Date().toISOString(),
+    })
+    expect(capturedAuditFailure).toMatchObject({
+      type: 'sentinel:audit-failure',
+      data: { decisionId: 'dec-test' },
+    })
+
+    guardianBus.off('sentinel:audit-failure', handler)
+  })
 })

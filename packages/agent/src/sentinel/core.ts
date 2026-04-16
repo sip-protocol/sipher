@@ -9,12 +9,29 @@ import {
   finalizeDecision,
   insertRiskHistory,
   dailyDecisionCostUsd,
+  getDb,
 } from '../db.js'
 import { isKillSwitchActive } from '../routes/squad-api.js'
 import { getSentinelConfig } from './config.js'
 import { SENTINEL_ALL_TOOLS, SENTINEL_ALL_EXECUTORS } from './tools/index.js'
 import { SENTINEL_SYSTEM_PROMPT, buildUserMessage, type PreflightContext } from './prompts.js'
 import { validateRiskReport, type RiskReport } from './risk-report.js'
+
+/**
+ * Cancel all pending actions belonging to a decision that failed to finalize.
+ * Called from the audit-failure cascade (spec §9.4).
+ */
+export function cancelPendingActionsForDecision(decisionId: string): void {
+  const now = new Date().toISOString()
+  getDb()
+    .prepare(
+      `UPDATE sentinel_pending_actions
+       SET status = 'cancelled', cancelled_at = ?, cancelled_by = 'audit-failure',
+           cancel_reason = 'finalize failed — audit-failure cascade'
+       WHERE decision_id = ? AND status = 'pending'`,
+    )
+    .run(now, decisionId)
+}
 
 const ACTION_TOOL_NAMES = new Set([
   'executeRefund', 'addToBlacklist', 'removeFromBlacklist', 'alertUser',
@@ -104,7 +121,17 @@ export class SentinelCore {
       } catch (e) {
         result = { error: e instanceof Error ? e.message : String(e) }
       }
-      appendDecisionToolCall(decisionId, { name, args: input, result })
+      try {
+        appendDecisionToolCall(decisionId, { name, args: input, result })
+      } catch (appendErr) {
+        const msg = appendErr instanceof Error ? appendErr.message : String(appendErr)
+        guardianBus.emit({
+          source: 'sentinel', type: 'sentinel:audit-failure', level: 'critical',
+          data: { decisionId, error: msg },
+          wallet: null, timestamp: new Date().toISOString(),
+        })
+        return { error: `audit-failure: ${msg}` }
+      }
       return result
     }
 
@@ -200,13 +227,31 @@ export class SentinelCore {
       })
     }
 
-    finalizeDecision(decisionId, {
-      verdict: parsed.recommendation === 'block' ? 'block' : parsed.recommendation === 'warn' ? 'warn' : 'allow',
-      verdictDetail: { ...parsed },
-      reasoning: finalText,
-      durationMs: Date.now() - started,
-      inputTokens, outputTokens, costUsd,
-    })
+    try {
+      finalizeDecision(decisionId, {
+        verdict: parsed.recommendation === 'block' ? 'block' : parsed.recommendation === 'warn' ? 'warn' : 'allow',
+        verdictDetail: { ...parsed },
+        reasoning: finalText,
+        durationMs: Date.now() - started,
+        inputTokens, outputTokens, costUsd,
+      })
+    } catch (finalizeErr) {
+      const msg = finalizeErr instanceof Error ? finalizeErr.message : String(finalizeErr)
+      guardianBus.emit({
+        source: 'sentinel', type: 'sentinel:audit-failure', level: 'critical',
+        data: { decisionId, error: msg },
+        wallet, timestamp: new Date().toISOString(),
+      })
+      cancelPendingActionsForDecision(decisionId)
+      // Return conservative block — the decision is now in an unknown state
+      return {
+        risk: 'high', score: 100,
+        reasons: [`SENTINEL finalize failed: ${msg}`],
+        recommendation: 'block',
+        blockers: ['audit-failure'],
+        decisionId, durationMs: Date.now() - started,
+      }
+    }
 
     return report
   }
