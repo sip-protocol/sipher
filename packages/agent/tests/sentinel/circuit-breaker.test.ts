@@ -157,6 +157,30 @@ describe('circuit breaker', () => {
     cb.clearAllTimers()
   })
 
+  it('executePendingAction: cancels duplicate-PDA refund as pda-in-flight', async () => {
+    await freshDb()
+    const cb = await import('../../src/sentinel/circuit-breaker.js')
+    const { insertPendingAction, getPendingAction, markPendingActionExecuting } = await import('../../src/db.js')
+    cb.registerActionExecutor('refund', async () => ({ success: true }))
+
+    // Simulate a concurrent in-flight refund for PDA 'p1'
+    const inFlightId = insertPendingAction({
+      actionType: 'refund', payload: { pda: 'p1' }, reasoning: 'r', wallet: 'w1', delayMs: 0,
+    })
+    markPendingActionExecuting(inFlightId)
+
+    // Schedule a second refund for the same PDA
+    const dupId = cb.scheduleCancellableAction({
+      actionType: 'refund', payload: { pda: 'p1' }, reasoning: 'r', wallet: 'w1', delayMs: 0,
+    })
+    await cb.executePendingAction(dupId)
+
+    const row = getPendingAction(dupId)!
+    expect(row.status).toBe('cancelled')
+    expect(row.cancelledBy).toBe('pda-in-flight')
+    cb.clearAllTimers()
+  })
+
   it('restorePendingActions: cancels orphaned executing rows as server-restart-stale', async () => {
     await freshDb()
     const cb = await import('../../src/sentinel/circuit-breaker.js')

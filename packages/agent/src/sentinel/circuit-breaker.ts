@@ -11,6 +11,7 @@ import {
 import { guardianBus } from '../coordination/event-bus.js'
 import { isKillSwitchActive } from '../routes/squad-api.js'
 import { getSentinelConfig } from './config.js'
+import { isRefundSafe } from './refund-guard.js'
 
 export type ActionExecutor = (
   payload: Record<string, unknown>,
@@ -134,6 +135,24 @@ export async function executePendingAction(id: string): Promise<void> {
   if (config.mode === 'advisory' && row.actionType === 'refund') {
     cancelCircuitBreakerAction(id, 'mode-change', 'advisory mode blocks fund actions')
     return
+  }
+
+  // Gate 4 — spec §9.1: re-check at fire time that no concurrent execution is
+  // already processing the same PDA. Prevents double-refund races where two
+  // timers fire close together for the same deposit.
+  if (row.actionType === 'refund') {
+    const currentPda = (row.payload as Record<string, unknown>).pda as string | undefined
+    if (currentPda) {
+      const inFlight = getAllPendingActionsWithStatus('executing')
+      const inFlightPdas = inFlight
+        .filter((r) => r.id !== id)
+        .map((r) => (r.payload as Record<string, unknown>).pda as string | undefined)
+        .filter((p): p is string => typeof p === 'string')
+      if (!isRefundSafe(currentPda, inFlightPdas)) {
+        cancelCircuitBreakerAction(id, 'pda-in-flight', `duplicate refund for PDA ${currentPda}`)
+        return
+      }
+    }
   }
 
   const executor = executors.get(row.actionType)
