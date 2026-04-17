@@ -104,7 +104,7 @@ describe('getSentinelConfig', () => {
     delete process.env.SENTINEL_DAILY_BUDGET_USD
     delete process.env.SENTINEL_BLOCK_ON_ERROR
     const c = getSentinelConfig()
-    expect(c.model).toBe('anthropic/claude-sonnet-4.6')
+    expect(c.model).toBe('openrouter:anthropic/claude-sonnet-4.6')
     expect(c.dailyBudgetUsd).toBe(10)
     expect(c.blockOnError).toBe(false)
   })

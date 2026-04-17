@@ -54,7 +54,7 @@ export function getSentinelConfig(): SentinelConfig {
     cancelWindowMs: Number(process.env.SENTINEL_CANCEL_WINDOW_MS ?? '30000'),
     rateLimitFundPerHour: Number(process.env.SENTINEL_RATE_LIMIT_FUND_PER_HOUR ?? '5'),
     rateLimitBlacklistPerHour: Number(process.env.SENTINEL_RATE_LIMIT_BLACKLIST_PER_HOUR ?? '20'),
-    model: process.env.SENTINEL_MODEL ?? 'anthropic/claude-sonnet-4.6',
+    model: process.env.SENTINEL_MODEL ?? 'openrouter:anthropic/claude-sonnet-4.6',
     dailyBudgetUsd: Number(process.env.SENTINEL_DAILY_BUDGET_USD ?? '10'),
     blockOnError: process.env.SENTINEL_BLOCK_ON_ERROR === 'true',
   }

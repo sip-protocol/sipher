@@ -38,7 +38,7 @@ SSH access: `ssh sip` (the `sipher` container runs under the `sip` user, there i
 | `SOLANA_RPC_URL_FALLBACK` | (empty) | Fallback RPC on primary failure |
 | `SIPHER_HELIUS_API_KEY` | (empty) | Dedicated Helius key (when `RPC_PROVIDER=helius`) |
 | `RPC_PROVIDER` | `generic` | `helius` / `quicknode` / `triton` / `generic` |
-| `SIPHER_MODEL` | `anthropic/claude-sonnet-4-6` | Default SIPHER LLM model |
+| `SIPHER_MODEL` | `anthropic/claude-sonnet-4.6` | Default SIPHER LLM model ID (provider `openrouter` hard-coded in `packages/agent/src/pi/provider.ts`) |
 | `SOLANA_NETWORK` | `mainnet-beta` | `mainnet-beta` / `devnet` |
 | `CORS_ORIGINS` | SIP domains | Comma-separated allowlist |
 | `RATE_LIMIT_MAX` | `100` | Requests per window |
@@ -60,7 +60,7 @@ SENTINEL is an LLM-backed security analyst that performs preflight risk assessme
 | `SENTINEL_CANCEL_WINDOW_MS` | `30000` | Circuit breaker wait time before execution fires |
 | `SENTINEL_RATE_LIMIT_FUND_PER_HOUR` | `5` | Per-wallet fund action limit |
 | `SENTINEL_RATE_LIMIT_BLACKLIST_PER_HOUR` | `20` | Global blacklist add rate limit |
-| `SENTINEL_MODEL` | `anthropic/claude-sonnet-4.6` | SENTINEL LLM (cheaper: `anthropic/claude-haiku-4.5`) |
+| `SENTINEL_MODEL` | `openrouter:anthropic/claude-sonnet-4.6` | SENTINEL LLM in `provider:modelId` format (cheaper: `openrouter:anthropic/claude-haiku-4.5`) |
 | `SENTINEL_DAILY_BUDGET_USD` | `10` | Daily budget cap — emits warning on exceed |
 | `SENTINEL_BLOCK_ON_ERROR` | `false` | Fail-open (default) or fail-closed on LLM preflight errors |
 | `SENTINEL_PREFLIGHT_SCOPE` | `fund-actions` | `fund-actions` / `critical-only` / `never` |
