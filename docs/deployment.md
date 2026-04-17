@@ -108,32 +108,40 @@ SIPHER_ADMIN_PASSWORD=$SIPHER_ADMIN_PASSWORD
 EOF
 chmod 600 ~/Documents/secret/sipher-vps-secrets.env
 
-# 3. Push to VPS (append to .env)
+# 3. Back up VPS .env before editing
+ssh sip 'cp ~/sipher/.env ~/sipher/.env.bak-$(date -u +%Y%m%dT%H%MZ)'
+
+# 4. Push to VPS (append to .env)
 {
   echo ""
   echo "# Auth secrets (rotated $(date -u +%Y-%m-%dT%HZ))"
   grep -E "^(JWT_SECRET|ADMIN_API_KEY|SIPHER_ADMIN_PASSWORD)=" ~/Documents/secret/sipher-vps-secrets.env
 } | ssh sip 'cat >> ~/sipher/.env'
 
-# 4. Recreate container (env changes require recreate, not restart)
+# 5. Recreate only the api service (env changes require recreate, not restart).
+#    Using `api` (not bare `up -d`) avoids bouncing redis unnecessarily.
 ssh sip 'cd ~/sipher && docker compose up -d api'
 
-# 5. Verify — should show no "variable not set" warnings
+# 6. Verify — should show no "variable not set" warnings
 ssh sip 'docker logs sipher --tail 30 | grep -iE "sentinel|listening|error"'
 ```
 
-After rotation, existing JWT sessions invalidate — users must re-login.
+**What rotation invalidates:**
+- **JWT sessions** — old tokens signed with the previous `JWT_SECRET` fail verification. Users re-login.
+- **In-memory admin sessions** — the `adminTokens` Map in `packages/agent/src/routes/admin.ts` is process-local; `docker compose up -d api` recreates the container and clears it regardless of whether `SIPHER_ADMIN_PASSWORD` changed.
+- **API keys** — `ADMIN_API_KEY` rotation requires updating any client that uses the `X-API-Key` header.
 
 ## Deployment Flow
 
 ```
 git push origin main
-  → GitHub Actions (.github/workflows/test-build-deploy.yml)
-  → Build Docker image (multi-arch)
-  → Push to ghcr.io/sip-protocol/sipher:latest
-  → SSH to VPS, docker compose pull + up -d api
-  → Healthcheck gated rollout
+  → GitHub Actions (.github/workflows/deploy.yml — "Test, Build & Deploy")
+  → Test job: typecheck + pnpm test -- --run
+  → Build job: build Docker image, push to ghcr.io/sip-protocol/sipher:latest
+  → Deploy job: SSH to VPS, docker compose pull + up -d + /api/health probe
 ```
+
+> The deploy step **does not sync `docker-compose.yml` or `.env`** to the VPS — it only pulls the new image and calls `docker compose up -d` against the VPS-local files. Changes to compose or env must be applied on the VPS manually.
 
 ## Rollback
 
@@ -152,7 +160,7 @@ cp .env.bak .env
 docker compose up -d api
 ```
 
-Always back up both `docker-compose.yml` and `.env` before editing — compose recreates recreate the container from the current files.
+Always back up both `docker-compose.yml` and `.env` before editing — `docker compose up -d` recreates the container from the current on-disk files, so an edit gone wrong can't self-heal.
 
 ## Troubleshooting
 
