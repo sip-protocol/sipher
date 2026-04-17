@@ -747,17 +747,25 @@ cp .env.example .env
 
 ### Environment Variables
 
+For the full reference — including SENTINEL vars, secrets management, and rotation procedure — see [`docs/deployment.md`](docs/deployment.md).
+
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `SOLANA_RPC_URL` | Yes | Solana RPC endpoint |
+| `JWT_SECRET` | Yes* | Signs Command Center auth JWTs (min 16 chars). Generate: `openssl rand -hex 32` |
+| `SIPHER_ADMIN_PASSWORD` | Yes* | Command Center admin login password. Empty = login disabled. |
+| `ADMIN_API_KEY` | No | Admin API key for `/api/admin/*`. Empty = admin endpoints return 503 |
+| `API_KEYS` | No | Comma-separated public API keys |
+| `SENTINEL_MODE` | No | SENTINEL autonomy: `yolo` (default) / `advisory` / `off` |
+| `SENTINEL_AUTHORITY_KEYPAIR` | No | Path to vault authority keypair JSON (for auto-refunds) |
 | `SOLANA_RPC_URL_FALLBACK` | No | Fallback RPC (auto-switches on failure) |
-| `API_KEYS` | No | Comma-separated API keys |
-| `ADMIN_API_KEY` | No | Admin API key for key management |
 | `RPC_PROVIDER` | No | RPC provider: `helius`, `quicknode`, `triton`, `generic` |
 | `RPC_PROVIDER_API_KEY` | No | API key for premium RPC provider |
 | `REDIS_URL` | No | Redis connection URL (falls back to in-memory) |
 | `STRIPE_WEBHOOK_SECRET` | No | Stripe webhook signing secret |
 | `CORS_ORIGINS` | No | Allowed CORS origins |
+
+<sub>*Required if Command Center UI is used (admin JWT flow). Services boot without them, but admin auth will fail.</sub>
 
 ### Rate Limits
 
