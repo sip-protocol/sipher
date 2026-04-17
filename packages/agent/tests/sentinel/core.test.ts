@@ -116,6 +116,65 @@ describe('SentinelCore', () => {
     guardianBus.off('sentinel:schema-violation', handler)
   })
 
+  it('extracts JSON from markdown code fence (```json ... ```)', async () => {
+    await freshDb()
+    stubBehavior = {
+      toolName: 'checkReputation',
+      toolArgs: { address: 'a1' },
+      finalText: '```json\n{"risk":"low","score":15,"reasons":["no red flags"],"recommendation":"allow"}\n```',
+    }
+    const { SentinelCore } = await import('../../src/sentinel/core.js')
+    const core = new SentinelCore()
+    const report = await core.assessRisk({ action: 'send', wallet: 'w1', recipient: 'r1', amount: 0.1 })
+    expect(report.risk).toBe('low')
+    expect(report.score).toBe(15)
+    expect(report.recommendation).toBe('allow')
+  })
+
+  it('extracts JSON from bare code fence (``` ... ```)', async () => {
+    await freshDb()
+    stubBehavior = {
+      toolName: 'checkReputation',
+      toolArgs: { address: 'a1' },
+      finalText: '```\n{"risk":"medium","score":45,"reasons":["unfamiliar recipient"],"recommendation":"warn"}\n```',
+    }
+    const { SentinelCore } = await import('../../src/sentinel/core.js')
+    const core = new SentinelCore()
+    const report = await core.assessRisk({ action: 'send', wallet: 'w1', recipient: 'r1', amount: 1 })
+    expect(report.risk).toBe('medium')
+    expect(report.recommendation).toBe('warn')
+  })
+
+  it('extracts last balanced JSON object when LLM wraps it in prose', async () => {
+    await freshDb()
+    stubBehavior = {
+      toolName: 'checkReputation',
+      toolArgs: { address: 'a1' },
+      finalText: 'After analyzing the evidence:\n\n- Sender is clean\n- Recipient has history\n\nFinal assessment:\n\n{"risk":"low","score":20,"reasons":["clean sender","active recipient"],"recommendation":"allow"}',
+    }
+    const { SentinelCore } = await import('../../src/sentinel/core.js')
+    const core = new SentinelCore()
+    const report = await core.assessRisk({ action: 'send', wallet: 'w1', recipient: 'r1', amount: 0.05 })
+    expect(report.risk).toBe('low')
+    expect(report.score).toBe(20)
+  })
+
+  it('extracts inner object even when outer braces are unrelated (nested extraction)', async () => {
+    await freshDb()
+    // Claude sometimes writes: "Here's my analysis: { notes: 'stuff' }. Final JSON: { ..RiskReport.. }"
+    stubBehavior = {
+      toolName: 'checkReputation',
+      toolArgs: { address: 'a1' },
+      finalText: 'Analysis summary: { inline note }. Final RiskReport follows:\n{"risk":"high","score":85,"reasons":["blacklisted sender"],"recommendation":"block","blockers":["blacklist-hit"]}',
+    }
+    const { SentinelCore } = await import('../../src/sentinel/core.js')
+    const core = new SentinelCore()
+    const report = await core.assessRisk({ action: 'send', wallet: 'w1', recipient: 'r1', amount: 5 })
+    expect(report.risk).toBe('high')
+    expect(report.recommendation).toBe('block')
+    expect(report.blockers).toContain('blacklist-hit')
+  })
+
   it('mode=off throws on invocation', async () => {
     await freshDb()
     process.env.SENTINEL_MODE = 'off'
