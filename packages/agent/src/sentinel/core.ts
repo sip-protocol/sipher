@@ -18,6 +18,54 @@ import { SENTINEL_SYSTEM_PROMPT, buildUserMessage, type PreflightContext } from 
 import { validateRiskReport, type RiskReport } from './risk-report.js'
 
 /**
+ * Extract a JSON object from LLM final-message text.
+ *
+ * Claude Sonnet sometimes ignores "pure JSON" directives and produces prose
+ * analysis, markdown-fenced JSON, or prose-followed-by-JSON. This helper
+ * handles the common deviations so downstream schema validation still sees
+ * structured data when the LLM produced any.
+ *
+ * Strategies (in order):
+ *   1. Direct JSON.parse of the trimmed text.
+ *   2. Markdown fence: ```json ... ``` or ``` ... ```.
+ *   3. Last balanced {...} object in the text (walks back from last '}').
+ *
+ * Returns the parsed object (still needs schema validation) or null if no
+ * strategy yielded valid JSON.
+ */
+export function extractJsonObject(text: string): unknown | null {
+  const trimmed = text.trim()
+  if (trimmed.length === 0) return null
+
+  // 1. Pure JSON
+  try { return JSON.parse(trimmed) } catch {}
+
+  // 2. Markdown code fence
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  if (fence && fence[1]) {
+    try { return JSON.parse(fence[1].trim()) } catch {}
+  }
+
+  // 3. Last balanced {...} object (walk back from last closing brace)
+  for (let close = trimmed.lastIndexOf('}'); close > 0; close = trimmed.lastIndexOf('}', close - 1)) {
+    let depth = 0
+    for (let i = close; i >= 0; i--) {
+      const ch = trimmed[i]
+      if (ch === '}') depth++
+      else if (ch === '{') {
+        depth--
+        if (depth === 0) {
+          try { return JSON.parse(trimmed.slice(i, close + 1)) } catch {}
+          break
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+/**
  * Cancel all pending actions belonging to a decision that failed to finalize.
  * Called from the audit-failure cascade (spec §9.4).
  */
@@ -169,13 +217,9 @@ export class SentinelCore {
       .map((c) => (c as { text?: string }).text ?? '')
       .join('') ?? ''
 
-    let parsed: Awaited<ReturnType<typeof validateRiskReport>> = null
-    try {
-      const raw = JSON.parse(finalText) as unknown
-      parsed = await validateRiskReport(raw)
-    } catch {
-      parsed = null
-    }
+    const raw = extractJsonObject(finalText)
+    const parsed: Awaited<ReturnType<typeof validateRiskReport>> =
+      raw === null ? null : await validateRiskReport(raw)
 
     // Token + cost aggregation from accumulated usage
     let inputTokens = 0, outputTokens = 0, costUsd = 0
