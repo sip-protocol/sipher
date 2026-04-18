@@ -1,0 +1,78 @@
+name: e2e
+
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'packages/agent/**'
+      - 'src/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - 'package.json'
+      - 'app/package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/e2e.yml'
+  push:
+    branches: [main]
+
+jobs:
+  component:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run app component tests
+        run: pnpm --filter @sipher/app test
+
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - name: Write E2E admin keypair
+        env:
+          E2E_ADMIN_KEYPAIR: ${{ secrets.E2E_ADMIN_KEYPAIR }}
+        run: |
+          mkdir -p e2e/fixtures
+          printf '%s' "$E2E_ADMIN_KEYPAIR" > e2e/fixtures/admin-keypair.json
+          chmod 600 e2e/fixtures/admin-keypair.json
+
+      - name: Run Playwright
+        env:
+          E2E_ADMIN_KEYPAIR_PATH: e2e/fixtures/admin-keypair.json
+          JWT_SECRET: ${{ secrets.E2E_JWT_SECRET }}
+        run: pnpm test:e2e
+
+      - if: failure() || cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
