@@ -367,7 +367,7 @@ export default function HeraldView({ token }: { token: string | null }) {
   const budget = data?.budget ?? { spent: 0, limit: 150, gate: 'open', percentage: 0 }
 
   return (
-    <div className="flex flex-col h-full">
+    <div data-testid="herald-view" className="flex flex-col h-full">
       <BudgetBar budget={budget} />
       <SubTabs active={tab} onChange={setTab} />
 
