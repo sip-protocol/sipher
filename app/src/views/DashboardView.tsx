@@ -98,7 +98,7 @@ export default function DashboardView({
   const budgetLimit = heraldBudget?.budget?.limit
 
   return (
-    <div className="flex flex-col gap-6">
+    <div data-testid="dashboard-view" className="flex flex-col gap-6">
       {/* Metric cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
