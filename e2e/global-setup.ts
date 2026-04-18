@@ -1,7 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { mintAdminJwt } from './fixtures/auth'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FRONTEND_ORIGIN = 'http://localhost:5173'
 const BACKEND_BASE = 'http://localhost:3000'
 const STORAGE_STATE_PATH = path.resolve(__dirname, './fixtures/storageState.json')

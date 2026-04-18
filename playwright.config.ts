@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test'
-import path from 'node:path'
 
 const PORT_FRONTEND = 5173
 const PORT_BACKEND = 3000
@@ -13,8 +12,8 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   timeout: 30_000,
   reporter: process.env.CI ? [['html'], ['github']] : [['html'], ['list']],
-  globalSetup: path.resolve(__dirname, './e2e/global-setup.ts'),
-  globalTeardown: path.resolve(__dirname, './e2e/global-teardown.ts'),
+  globalSetup: './e2e/global-setup.ts',
+  globalTeardown: './e2e/global-teardown.ts',
   use: {
     baseURL: `http://localhost:${PORT_FRONTEND}`,
     trace: 'retain-on-failure',

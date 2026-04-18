@@ -1,5 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const PATHS_TO_CLEAN = [
   path.resolve(__dirname, './fixtures/storageState.json'),
