@@ -25,7 +25,10 @@
     "thanks": "bash scripts/thanks.sh",
     "openapi:export": "tsx scripts/export-openapi.ts",
     "sdks:generate": "bash sdks/generator/generate.sh",
-    "devnet-demo": "tsx scripts/devnet-shielded-transfer.ts"
+    "devnet-demo": "tsx scripts/devnet-shielded-transfer.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.31",
@@ -49,6 +52,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",

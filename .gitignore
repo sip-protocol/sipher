@@ -10,3 +10,11 @@ data/
 !packages/**/src/data/
 .superpowers/
 .worktrees/
+
+# Playwright / RTL
+playwright-report/
+test-results/
+e2e/fixtures/admin-keypair.json
+e2e/fixtures/storageState.json
+e2e/test.db
+e2e/test.db-journal
