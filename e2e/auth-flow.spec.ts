@@ -3,10 +3,10 @@ import { test, expect } from '@playwright/test'
 const AUTH_STATE = 'e2e/fixtures/storageState.json'
 
 test.describe('auth flow', () => {
-  test('unauth user sees landing, no admin metrics', async ({ page }) => {
+  test('unauth user sees landing with connect button', async ({ page }) => {
     await page.context().addInitScript(() => window.localStorage.clear())
     await page.goto('/')
-    await expect(page.getByText(/connect wallet/i).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: /connect/i })).toBeVisible()
   })
 
   test.describe('authenticated', () => {

@@ -15,7 +15,6 @@ test('dashboard view renders without errors', async ({ page }) => {
   await mockSolanaRpc(page)
   await page.goto('/')
 
-  await page.getByRole('button', { name: /dashboard/i }).click().catch(() => {})
-  await expect(page.locator('main, [data-testid="dashboard-view"]').first()).toBeVisible()
+  await expect(page.locator('[data-testid="dashboard-view"]')).toBeVisible()
   expect(errors).toEqual([])
 })

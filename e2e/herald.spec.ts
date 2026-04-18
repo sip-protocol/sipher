@@ -11,9 +11,14 @@ test('herald view renders with admin budget visible', async ({ page }) => {
     if (msg.type() === 'error') errors.push(msg.text())
   })
 
-  await page.route('**/api/herald/**', async (route) => {
+  await page.route('**/api/herald', async (route) => {
     await route.fulfill({
-      json: { budget: { used: 0, total: 1000 }, queue: [], status: 'idle' },
+      json: {
+        budget: { spent: 0, limit: 1000, gate: 'open', percentage: 0 },
+        queue: [],
+        dms: [],
+        recentPosts: [],
+      },
     })
   })
 
