@@ -87,7 +87,7 @@ export default function VaultView({ token }: { token: string | null }) {
   const wallet = data?.wallet
 
   return (
-    <div className="flex flex-col gap-6 pb-2">
+    <div data-testid="vault-view" className="flex flex-col gap-6 pb-2">
       {error && (
         <div className="text-text-muted text-xs font-mono bg-card border border-border rounded-lg px-3 py-2">
           Could not load vault data
