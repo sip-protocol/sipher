@@ -63,7 +63,7 @@ The two layers cover different concerns and do not overlap: Playwright validates
 
 ```
 sipher/
-├── playwright.config.ts              # webServer: pnpm dev on :5174
+├── playwright.config.ts              # webServer: backend on :3000 + Vite on :5173
 ├── e2e/
 │   ├── fixtures/
 │   │   ├── auth.ts                   # ed25519 JWT helper (ported from /tmp/sipher-login.mjs)
@@ -120,10 +120,14 @@ Wallet signing is impossible in a headless browser. Instead, Playwright's `globa
 
 1. `e2e/global-setup.ts` runs once before all tests.
 2. Loads the admin keypair from `E2E_ADMIN_KEYPAIR_PATH` (locally: `~/Documents/secret/cipher-admin.json`; in CI: `e2e/fixtures/admin-keypair.json`, hydrated from the `E2E_ADMIN_KEYPAIR` GitHub Secret).
-3. Fetches a nonce from `POST http://localhost:5174/api/auth/nonce`.
-4. Signs the nonce with `@noble/curves/ed25519`.
-5. Exchanges the signature for a JWT at `POST /api/auth/login`.
-6. Writes `e2e/fixtures/storageState.json` with the JWT in localStorage under Sipher's expected key.
+3. Fetches a nonce from `POST http://localhost:3000/api/auth/nonce` with `{ wallet }`.
+4. Signs the returned `message` with `@noble/curves/ed25519`.
+5. Encodes the signature as base58 and calls `POST /api/auth/verify` with `{ wallet, nonce, signature }`.
+6. Writes `e2e/fixtures/storageState.json` with the Zustand-persist payload in `localStorage['sipher-auth']`.
+
+**Enabling prerequisite — Zustand persist middleware:**
+
+The app's `useAppStore` currently holds `token` and `isAdmin` in memory only, which means Playwright cannot inject authenticated state via `storageState`. The spec adds the `zustand/middleware/persist` adapter over the `token` and `isAdmin` fields under the storage key `sipher-auth`. This is a minimal (~5 line) change with a legitimate UX bonus: real users stay logged in across page refreshes instead of losing their session. Chat state and other ephemeral store fields remain in-memory via `partialize`.
 
 **Per-test opt-in:**
 
@@ -253,7 +257,7 @@ Steps:
 
 - Port the existing `/tmp/sipher-login.mjs` ed25519 signing logic into `e2e/fixtures/auth.ts` as a reusable helper. This is the single source of truth for test-mode JWT minting; if the auth flow changes, this file is the only place to update.
 - Route interceptors live in a shared `e2e/fixtures/mocks.ts` and are attached per-test via a Playwright fixture extension. No per-test boilerplate.
-- `playwright.config.ts` sets `webServer.reuseExistingServer = !process.env.CI` so local reruns are fast but CI always gets a clean boot.
+- `playwright.config.ts` declares two `webServer` entries: the Sipher backend (`pnpm dev`, awaiting `http://localhost:3000/health`) and the Vite frontend (`pnpm --filter app dev`, awaiting `http://localhost:5173`). Both set `reuseExistingServer = !process.env.CI` so local reruns are fast but CI always gets a clean boot. Vite's built-in `/api` proxy routes frontend traffic to the backend.
 - Set `fullyParallel: true` with `workers: 2` in CI to keep under 10-minute timeout.
 
 ## Out of Scope (for later phases)
