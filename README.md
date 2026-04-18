@@ -711,6 +711,34 @@ CI workflow auto-regenerates SDKs on spec changes (`.github/workflows/generate-s
 pnpm test -- --run
 ```
 
+## Running Tests
+
+### Backend + Agent (Vitest)
+
+```bash
+pnpm test -- --run                           # Root REST tests
+pnpm --filter @sipher/agent test -- --run    # Agent tests
+```
+
+### Frontend component tests (Vitest + RTL)
+
+```bash
+pnpm --filter @sipher/app test
+```
+
+### End-to-end (Playwright, Chromium)
+
+```bash
+pnpm exec playwright install chromium    # one-time browser install
+pnpm test:e2e                            # run all e2e specs
+pnpm test:e2e:ui                         # interactive UI mode
+pnpm test:e2e:headed                     # watch tests run in a visible browser
+```
+
+Playwright runs against the Vite dev server (port 5173) and the Sipher backend (port 3000), both spun up automatically via its `webServer` config. Admin flows use an ed25519-signed JWT minted at global-setup. Locally, this reads `~/Documents/secret/cipher-admin.json`; in CI, the `E2E_ADMIN_KEYPAIR` GitHub Secret supplies it.
+
+See [`docs/superpowers/specs/2026-04-18-test-infrastructure-design.md`](docs/superpowers/specs/2026-04-18-test-infrastructure-design.md) for architectural details.
+
 ---
 
 ## 🛠️ Tech Stack
