@@ -89,7 +89,10 @@ export default function DashboardView({
 
   const solBalance = vault?.balances?.sol
   const depositCount = history.filter((e) => e.type?.includes('deposit')).length
-  const allEvents = [...events, ...history].slice(0, 30)
+  const allEvents = [
+    ...events.map(e => ({ ...e, isLive: true })),
+    ...history.map(e => ({ ...e, isLive: false })),
+  ].slice(0, 30)
 
   // Privacy score placeholder — computed by SIPHER agent tool, not a REST endpoint
   const privacyScore = '—'
@@ -151,6 +154,7 @@ export default function DashboardView({
                 <ActivityEntry
                   key={event.id}
                   agent={event.agent as AgentName}
+                  type={event.type}
                   title={
                     (event.data?.title as string) ??
                     (event.data?.message as string) ??
@@ -159,6 +163,7 @@ export default function DashboardView({
                   detail={event.data?.detail as string}
                   time={event.timestamp}
                   level={event.level}
+                  isLive={event.isLive}
                 />
               ))}
             </div>
