@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Wallet,
   ShieldCheck,
@@ -6,6 +6,7 @@ import {
   Lightning,
 } from '@phosphor-icons/react'
 import { apiFetch } from '../api/client'
+import { useAppStore } from '../stores/app'
 import { type ActivityEvent } from '../hooks/useSSE'
 import { useIsAdmin } from '../hooks/useIsAdmin'
 import AdminOnly from '../components/AdminOnly'
@@ -29,6 +30,14 @@ interface HealthData {
 
 interface HeraldBudget {
   budget: { spent: number; limit: number; percentage: number; gate: string }
+}
+
+interface PrivacyData {
+  score: number
+  grade: string
+  factors: Record<string, { score: number; detail: string }>
+  recommendations: string[]
+  transactionsAnalyzed: number
 }
 
 interface ActivityRecord {
@@ -57,10 +66,48 @@ export default function DashboardView({
   token: string | null
 }) {
   const isAdmin = useIsAdmin()
+  const seedChat = useAppStore((s) => s.seedChat)
   const [vault, setVault] = useState<VaultData | null>(null)
   const [health, setHealth] = useState<HealthData | null>(null)
   const [heraldBudget, setHeraldBudget] = useState<HeraldBudget | null>(null)
   const [history, setHistory] = useState<ActivityEvent[]>([])
+  const [privacyData, setPrivacyData] = useState<PrivacyData | null>(null)
+  const [privacyError, setPrivacyError] = useState<string | null>(null)
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wallet = vault?.wallet
+
+  const fetchPrivacyScore = useCallback(async () => {
+    if (!wallet || !token) return
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/privacy/score`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ address: wallet, limit: 100 }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = await res.json()
+      setPrivacyData(json.data)
+      setPrivacyError(null)
+    } catch (err) {
+      setPrivacyError(err instanceof Error ? err.message : 'Failed to fetch privacy score')
+    }
+  }, [wallet, token])
+
+  useEffect(() => {
+    if (wallet && token) fetchPrivacyScore()
+  }, [wallet, token, fetchPrivacyScore])
+
+  useEffect(() => {
+    if (!wallet || !token) return
+    const fundMoverPattern = /^(send|swap|claim|refund|deposit)\.(success|completed)$/
+    const recent = events.find((e) => fundMoverPattern.test(e.type ?? ''))
+    if (!recent) return
+    if (refreshTimer.current) clearTimeout(refreshTimer.current)
+    refreshTimer.current = setTimeout(() => fetchPrivacyScore(), 5000)
+    return () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current)
+    }
+  }, [events, wallet, token, fetchPrivacyScore])
 
   useEffect(() => {
     if (!token) return
@@ -94,10 +141,6 @@ export default function DashboardView({
     ...history.map(e => ({ ...e, isLive: false })),
   ].slice(0, 30)
 
-  // Privacy score placeholder — computed by SIPHER agent tool, not a REST endpoint
-  const privacyScore = '—'
-  const scoreColor = undefined
-
   const budgetSpent = heraldBudget?.budget?.spent
   const budgetLimit = heraldBudget?.budget?.limit
 
@@ -111,13 +154,34 @@ export default function DashboardView({
           sub="SOL"
           icon={<Wallet size={16} />}
         />
-        <MetricCard
-          label="Privacy Score"
-          value={privacyScore}
-          sub="/100"
-          icon={<ShieldCheck size={16} />}
-          color={scoreColor}
-        />
+        {(() => {
+          const grade = privacyData?.grade
+          const colorByGrade: Record<string, string> = {
+            A: '#22c55e', B: '#84cc16', C: '#facc15', D: '#fb923c', F: '#ef4444',
+          }
+          const factors = privacyData
+            ? [
+                { label: 'Address reuse', score: privacyData.factors.addressReuse.score },
+                { label: 'Amount patterns', score: privacyData.factors.amountPatterns.score },
+                { label: 'Timing correlation', score: privacyData.factors.timingCorrelation.score },
+                { label: 'Counterparty exposure', score: privacyData.factors.counterpartyExposure.score },
+              ]
+            : undefined
+          return (
+            <div className="lg:col-span-2">
+              <MetricCard
+                variant="hero"
+                label={`Privacy Score${grade ? ` · ${grade}` : ''}`}
+                value={privacyData ? String(privacyData.score) : (privacyError ? '—' : '—')}
+                sub="/100"
+                icon={<ShieldCheck size={16} />}
+                color={grade ? colorByGrade[grade] : undefined}
+                factors={factors}
+                onClick={() => privacyData && seedChat(`Why is my privacy score ${privacyData.score}?`)}
+              />
+            </div>
+          )
+        })()}
         <MetricCard
           label="Deposits"
           value={depositCount.toString()}
