@@ -8,6 +8,7 @@ import {
 import { apiFetch } from '../api/client'
 import { type ActivityEvent } from '../hooks/useSSE'
 import { useIsAdmin } from '../hooks/useIsAdmin'
+import AdminOnly from '../components/AdminOnly'
 import MetricCard from '../components/MetricCard'
 import ActivityEntry from '../components/ActivityEntry'
 import AgentDot from '../components/AgentDot'
@@ -120,14 +121,14 @@ export default function DashboardView({
           sub="total"
           icon={<ArrowDown size={16} />}
         />
-        {isAdmin && (
+        <AdminOnly>
           <MetricCard
             label="Budget"
             value={budgetSpent != null ? `$${budgetSpent.toFixed(0)}` : '—'}
             sub={budgetLimit != null ? `/ $${budgetLimit}` : ''}
             icon={<Lightning size={16} />}
           />
-        )}
+        </AdminOnly>
       </div>
 
       {/* Two columns: Activity + Agent Status */}
@@ -165,7 +166,7 @@ export default function DashboardView({
         </div>
 
         {/* Guardian Squad (admin only) */}
-        {isAdmin && (
+        <AdminOnly>
           <div>
             <h3 className="text-[10px] font-semibold text-text-muted tracking-widest uppercase mb-3 px-1">
               Guardian Squad
@@ -199,7 +200,7 @@ export default function DashboardView({
               </p>
             )}
           </div>
-        )}
+        </AdminOnly>
       </div>
     </div>
   )
