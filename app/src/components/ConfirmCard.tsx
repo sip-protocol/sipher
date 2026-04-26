@@ -1,3 +1,5 @@
+import { Warning } from '@phosphor-icons/react'
+
 type Variant = 'normal' | 'warning'
 
 interface Props {
@@ -7,6 +9,7 @@ interface Props {
   onCancel: () => void
   variant?: Variant
   description?: string
+  // reserved for future countdown display; not currently consumed
   timeout?: number
 }
 
@@ -24,11 +27,14 @@ export default function ConfirmCard({
     ? 'border-yellow/50 text-yellow hover:bg-yellow/10'
     : 'border-sipher/50 text-sipher hover:bg-sipher/10'
   const primaryLabel = isWarning ? 'Override & Send' : 'Confirm & Sign'
-  const labelText = isWarning ? '⚠ Risk Confirm' : 'Confirm Action'
+  const labelText = isWarning ? 'Risk Confirm' : 'Confirm Action'
 
   return (
     <div className={`bg-card border ${borderClass} rounded-lg p-4 flex flex-col gap-3`}>
-      <div className="text-[12px] text-text-muted uppercase tracking-wide">{labelText}</div>
+      <div className="text-[12px] text-text-muted uppercase tracking-wide flex items-center gap-1">
+        {isWarning && <Warning size={12} weight="fill" className="text-yellow" aria-hidden="true" />}
+        <span>{labelText}</span>
+      </div>
       <div className="text-[14px] text-text">{action}: {amount}</div>
       {description && (
         <div className="text-[12px] text-text-muted leading-relaxed">{description}</div>
