@@ -49,7 +49,8 @@ import type { AgentMessage } from '@mariozechner/pi-agent-core'
 import { createPiAgent } from './pi/sipher-agent.js'
 import { streamPiAgent } from './pi/stream-bridge.js'
 import { attachToolGuard } from './pi/tool-guard.js'
-import { runPreflightGate } from './sentinel/preflight-gate.js'
+import { runPreflightGate, type AdvisoryInfo } from './sentinel/preflight-gate.js'
+import { getSentinelConfig } from './sentinel/config.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // System prompt — Sipher's identity and behavior rules
@@ -140,10 +141,15 @@ const TOOL_EXECUTORS: Record<string, ToolExecutor> = {
  * Execute a tool by name with the given input.
  * Runs preflight gate for fund-moving tools before dispatching.
  * Throws if the tool name is not registered or SENTINEL blocks.
+ *
+ * `onAdvisory` is invoked synchronously (before the underlying executor) when
+ * SENTINEL flagged the action without blocking AND mode === 'advisory'. The
+ * callback is optional — existing callers compile unchanged.
  */
 export async function executeTool(
   name: string,
   input: Record<string, unknown>,
+  onAdvisory?: (info: AdvisoryInfo) => void,
 ): Promise<unknown> {
   const executor = TOOL_EXECUTORS[name]
   if (!executor) {
@@ -153,6 +159,9 @@ export async function executeTool(
   const gate = await runPreflightGate(name, input)
   if (!gate.allowed) {
     throw new Error(`SENTINEL blocked: ${gate.reasons.join('; ')}`)
+  }
+  if (gate.advisory && onAdvisory && getSentinelConfig().mode === 'advisory') {
+    onAdvisory(gate.advisory)
   }
   return executor(input)
 }
@@ -206,12 +215,62 @@ export interface SSEError {
   message: string
 }
 
+export interface SSESentinelAdvisory {
+  type: 'sentinel_advisory'
+  /** Humanized action label, e.g. "Send to Abc...123" */
+  action: string
+  /** Optional amount string, e.g. "5 SOL" — empty when not applicable */
+  amount: string
+  /** Risk severity — low | medium | high */
+  severity: string
+  /** Concatenated reasons from the RiskReport */
+  description: string
+}
+
 export type SSEEvent =
   | SSEContentDelta
   | SSEToolUse
   | SSEToolResult
   | SSEMessageComplete
   | SSEError
+  | SSESentinelAdvisory
+
+// ─── Local helpers — humanize advisory metadata for the UI ──────────────────
+
+/**
+ * Build a short, human-readable label describing the action being taken.
+ * Best-effort — falls back to the tool name when no recipient is present.
+ */
+function humanizeAction(name: string, input: Record<string, unknown>): string {
+  const recipient = typeof input.recipient === 'string' ? input.recipient : undefined
+  const verb =
+    name === 'send' ? 'Send to' :
+    name === 'swap' ? 'Swap' :
+    name === 'deposit' ? 'Deposit' :
+    name === 'refund' ? 'Refund' :
+    name === 'sweep' ? 'Sweep' :
+    name === 'consolidate' ? 'Consolidate' :
+    name === 'splitSend' ? 'Split-send to' :
+    name === 'scheduleSend' ? 'Schedule send to' :
+    name === 'drip' ? 'Drip to' :
+    name === 'recurring' ? 'Recurring send to' :
+    name
+  if (recipient) {
+    const short = recipient.length > 8 ? `${recipient.slice(0, 4)}...${recipient.slice(-4)}` : recipient
+    return `${verb} ${short}`
+  }
+  return verb
+}
+
+/**
+ * Format the input amount + token (e.g. "5 SOL") or empty string when unset.
+ */
+function extractAmount(input: Record<string, unknown>): string {
+  const amount = input.amount
+  if (typeof amount !== 'number' || !Number.isFinite(amount)) return ''
+  const token = typeof input.token === 'string' && input.token ? input.token : 'SOL'
+  return `${amount} ${token}`
+}
 
 /**
  * Run the SIPHER agent loop to completion via Pi SDK.
@@ -271,19 +330,57 @@ export async function chat(
  * Pi SDK drives the agentic tool loop internally. The stream-bridge converts
  * Pi's push-based event model to a pull-based async generator of SSEEvents
  * compatible with AgentCore's SSEEvent vocabulary.
+ *
+ * SENTINEL advisories: When the default executor (`executeTool`) is in use
+ * and SENTINEL flagged the action without blocking, the advisory is captured
+ * via the optional `onAdvisory` callback and emitted as a `sentinel_advisory`
+ * SSE event immediately before the corresponding `tool_result`. Custom
+ * `opts.toolExecutor` overrides bypass advisory capture (no preflight gate).
  */
 export async function* chatStream(
   userMessage: string,
   opts: ChatOptions = {},
 ): AsyncGenerator<SSEEvent> {
+  const advisoryQueue: SSESentinelAdvisory[] = []
+  const baseExecutor = opts.toolExecutor ?? executeTool
+
+  // Wrap the executor so advisory callbacks are routed into a per-request queue.
+  // We keep the wrapper signature `(name, input) => Promise` to match the Pi
+  // executor contract and pass our internal `onAdvisory` only to the default
+  // `executeTool`. Custom executors are invoked unchanged.
+  const wrappedExecutor = (name: string, input: Record<string, unknown>): Promise<unknown> => {
+    if (baseExecutor === executeTool) {
+      return executeTool(name, input, (adv) => {
+        advisoryQueue.push({
+          type: 'sentinel_advisory',
+          action: humanizeAction(name, input),
+          amount: extractAmount(input),
+          severity: adv.severity,
+          description: adv.description,
+        })
+      })
+    }
+    return baseExecutor(name, input)
+  }
+
   const agent = createPiAgent({
     systemPrompt: opts.systemPrompt ?? SYSTEM_PROMPT,
     tools: opts.tools ?? TOOLS,
-    toolExecutor: opts.toolExecutor ?? executeTool,
+    toolExecutor: wrappedExecutor,
     model: opts.model,
     history: opts.history,
     sessionId: opts.sessionId,
   })
 
-  yield* streamPiAgent(agent, userMessage)
+  // Drain the advisory queue before each tool_result so the client renders the
+  // warning alongside the tool's outcome. Advisories are populated synchronously
+  // inside executeTool (which Pi awaits between tool_use and tool_result), so by
+  // the time tool_result arrives the queue holds the matching advisory(ies).
+  for await (const event of streamPiAgent(agent, userMessage)) {
+    if (event.type === 'tool_result' && advisoryQueue.length > 0) {
+      const drained = advisoryQueue.splice(0, advisoryQueue.length)
+      for (const adv of drained) yield adv
+    }
+    yield event
+  }
 }

@@ -16,8 +16,24 @@ export function getSentinelAssessor(): SentinelAssessor | null {
   return assessor
 }
 
+/**
+ * Advisory metadata surfaced when SENTINEL flagged an action but did not block.
+ * Populated only when the LLM analyst returned `recommendation: 'warn'` — static
+ * rules currently only allow or block, so they never produce an advisory.
+ */
+export interface AdvisoryInfo {
+  /** Risk level — low | medium | high (mirrors RiskReport.risk) */
+  severity: string
+  /** Human-readable summary built from RiskReport.reasons */
+  description: string
+  /** Original recommendation — 'warn' for advisories */
+  recommendation: string
+}
+
 export interface PreflightOutcome {
   allowed: true
+  /** Present when SENTINEL flagged but allowed the action (advisory mode) */
+  advisory?: AdvisoryInfo
 }
 
 export interface PreflightBlocked {
@@ -69,6 +85,18 @@ export async function runPreflightGate(
     })
     if (report.recommendation === 'block') {
       return { allowed: false, reasons: report.blockers ?? report.reasons }
+    }
+    // Surface advisory metadata when the LLM warned but didn't block. The caller
+    // decides whether to forward it to the client (e.g. SSE) based on mode.
+    if (report.recommendation === 'warn' && report.reasons.length > 0) {
+      return {
+        allowed: true,
+        advisory: {
+          severity: report.risk,
+          description: report.reasons.join('; '),
+          recommendation: report.recommendation,
+        },
+      }
     }
     return { allowed: true }
   } catch (err) {

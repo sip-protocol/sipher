@@ -34,6 +34,14 @@ function chunkToSSE(chunk: ResponseChunk): Record<string, unknown> {
         id: chunk.toolId,
         success: chunk.success,
       }
+    case 'sentinel_advisory':
+      return {
+        type: 'sentinel_advisory',
+        action: chunk.advisory?.action ?? '',
+        amount: chunk.advisory?.amount ?? '',
+        severity: chunk.advisory?.severity ?? '',
+        description: chunk.advisory?.description ?? '',
+      }
     case 'error':
       return { type: 'error', message: chunk.text }
     case 'done':

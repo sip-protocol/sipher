@@ -172,6 +172,18 @@ export class AgentCore {
           }
           break
 
+        case 'sentinel_advisory':
+          yield {
+            type: 'sentinel_advisory',
+            advisory: {
+              action: event.action,
+              amount: event.amount,
+              severity: event.severity,
+              description: event.description,
+            },
+          }
+          break
+
         case 'error':
           yield { type: 'error', text: event.message }
           break
