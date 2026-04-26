@@ -74,34 +74,41 @@ export default function DashboardView({
   const [privacyData, setPrivacyData] = useState<PrivacyData | null>(null)
   const [privacyError, setPrivacyError] = useState<string | null>(null)
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastProcessedEventId = useRef<string | null>(null)
   const wallet = vault?.wallet
 
-  const fetchPrivacyScore = useCallback(async () => {
+  const fetchPrivacyScore = useCallback(async (signal?: AbortSignal) => {
     if (!wallet || !token) return
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/privacy/score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ address: wallet, limit: 100 }),
+        signal,
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       setPrivacyData(json.data)
       setPrivacyError(null)
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
       setPrivacyError(err instanceof Error ? err.message : 'Failed to fetch privacy score')
     }
   }, [wallet, token])
 
   useEffect(() => {
-    if (wallet && token) fetchPrivacyScore()
+    if (!wallet || !token) return
+    const controller = new AbortController()
+    fetchPrivacyScore(controller.signal)
+    return () => controller.abort()
   }, [wallet, token, fetchPrivacyScore])
 
   useEffect(() => {
     if (!wallet || !token) return
     const fundMoverPattern = /^(send|swap|claim|refund|deposit)\.(success|completed)$/
     const recent = events.find((e) => fundMoverPattern.test(e.type ?? ''))
-    if (!recent) return
+    if (!recent || recent.id === lastProcessedEventId.current) return
+    lastProcessedEventId.current = recent.id
     if (refreshTimer.current) clearTimeout(refreshTimer.current)
     refreshTimer.current = setTimeout(() => fetchPrivacyScore(), 5000)
     return () => {
