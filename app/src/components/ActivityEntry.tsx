@@ -1,5 +1,6 @@
 import { AGENTS, type AgentName } from '../lib/agents'
 import { timeAgo } from '../lib/format'
+import EventIcon from './EventIcon'
 
 interface Action {
   label: string
@@ -8,14 +9,25 @@ interface Action {
 
 interface Props {
   agent: AgentName
+  type?: string
   title: string
   detail?: string
   time: string
   level: string
+  isLive?: boolean
   actions?: Action[]
 }
 
-export default function ActivityEntry({ agent, title, detail, time, level, actions }: Props) {
+export default function ActivityEntry({
+  agent,
+  type = '',
+  title,
+  detail,
+  time,
+  level,
+  isLive,
+  actions,
+}: Props) {
   const agentConfig = AGENTS[agent] ?? { name: agent.toUpperCase(), color: 'var(--color-text-muted)' }
   const isCritical = level === 'critical'
 
@@ -26,13 +38,9 @@ export default function ActivityEntry({ agent, title, detail, time, level, actio
         isCritical ? 'border-l-[3px] border-l-yellow' : '',
       ].join(' ')}
     >
-      {/* Top row: dot + agent name + time */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <div
-            className="w-1.5 h-1.5 rounded-full shrink-0"
-            style={{ backgroundColor: agentConfig.color }}
-          />
+          <EventIcon type={type} color={agentConfig.color} live={isLive} />
           <span
             className="text-[11px] font-semibold tracking-widest uppercase"
             style={{ color: agentConfig.color }}
@@ -43,15 +51,12 @@ export default function ActivityEntry({ agent, title, detail, time, level, actio
         <span className="text-text-muted text-[11px]">{timeAgo(time)}</span>
       </div>
 
-      {/* Title */}
       <p className="text-[14px] text-text leading-snug">{title}</p>
 
-      {/* Detail — monospace, for TX hashes, metrics, etc. */}
       {detail && (
         <p className="text-[12px] text-text-muted font-mono break-all">{detail}</p>
       )}
 
-      {/* Actions */}
       {actions && actions.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-1">
           {actions.map((action, i) => (
