@@ -1,7 +1,9 @@
 import { Router, type Request, type Response } from 'express'
-import { getPendingPosts, approvePost, rejectPost, editQueuedPost } from '../herald/approval.js'
+import { z } from 'zod'
+import { getPendingPosts, approvePost, rejectPost, getQueueItem, updateContent, NotFoundError } from '../herald/approval.js'
 import { getBudgetStatus } from '../herald/budget.js'
 import { getDb } from '../db.js'
+import { guardianBus } from '../coordination/event-bus.js'
 
 export const heraldRouter = Router()
 
@@ -18,10 +20,58 @@ heraldRouter.get('/', (_req: Request, res: Response) => {
   res.json({ queue, budget, dms, recentPosts })
 })
 
-// POST /api/herald/approve/:id — approve, reject, or edit a queued post
+// PATCH /api/herald/queue/:id — update content of any queue item (admin only via mount middleware)
+const updateSchema = z.object({
+  content: z.string().trim().min(1).max(280),
+})
+
+heraldRouter.patch('/queue/:id', (req: Request, res: Response): void => {
+  const parsed = updateSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({
+      error: {
+        code: 'INVALID_CONTENT',
+        message: parsed.error.issues[0]?.message ?? 'invalid content',
+      },
+    })
+    return
+  }
+
+  const id = req.params.id as string
+  const oldItem = getQueueItem(id)
+
+  try {
+    const updated = updateContent(id, parsed.data.content)
+    if (oldItem) {
+      const wallet = (req as unknown as Record<string, unknown>).wallet as string
+      guardianBus.emit({
+        source: 'herald',
+        type: 'herald:edited',
+        level: 'important',
+        data: {
+          id: updated.id,
+          oldContent: oldItem.content,
+          newContent: updated.content,
+          editedBy: wallet,
+        },
+        wallet,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    res.status(200).json(updated)
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: err.message } })
+      return
+    }
+    throw err
+  }
+})
+
+// POST /api/herald/approve/:id — approve or reject a queued post
 heraldRouter.post('/approve/:id', (req: Request, res: Response) => {
   const id = req.params.id as string
-  const { action, content } = req.body as { action?: string; content?: string }
+  const { action } = req.body as { action?: string }
 
   const post = getDb()
     .prepare("SELECT * FROM herald_queue WHERE id = ? AND status IN ('pending', 'approved')")
@@ -45,16 +95,7 @@ heraldRouter.post('/approve/:id', (req: Request, res: Response) => {
       res.json({ status: 'rejected', id })
       break
 
-    case 'edit':
-      if (!content) {
-        res.status(400).json({ error: 'content required for edit' })
-        return
-      }
-      editQueuedPost(id, content)
-      res.json({ status: 'edited', id })
-      break
-
     default:
-      res.status(400).json({ error: 'action must be approve, reject, or edit' })
+      res.status(400).json({ error: 'action must be approve or reject' })
   }
 })

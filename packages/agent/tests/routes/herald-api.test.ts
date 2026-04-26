@@ -122,7 +122,7 @@ describe('POST /api/herald/approve/:id', () => {
     expect(res.body.error).toMatch(/not found/i)
   })
 
-  it('returns 400 for edit action without content', async () => {
+  it('returns 400 for edit action (legacy — removed in favor of PATCH /queue/:id)', async () => {
     insertQueuePost('post-3', 'pending')
 
     const res = await supertest(createApp())
@@ -130,28 +130,14 @@ describe('POST /api/herald/approve/:id', () => {
       .send({ action: 'edit' })
 
     expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/content required/i)
-  })
-
-  it('edits a pending post content', async () => {
-    insertQueuePost('post-4', 'pending', 'original content')
-
-    const res = await supertest(createApp())
-      .post('/api/herald/approve/post-4')
-      .send({ action: 'edit', content: 'updated content' })
-
-    expect(res.status).toBe(200)
-    expect(res.body).toEqual({ status: 'edited', id: 'post-4' })
-
-    const row = getDb().prepare('SELECT content FROM herald_queue WHERE id = ?').get('post-4') as { content: string }
-    expect(row.content).toBe('updated content')
+    expect(res.body.error).toMatch(/action must be approve or reject/i)
   })
 
   it('returns 400 for unknown action', async () => {
-    insertQueuePost('post-5', 'pending')
+    insertQueuePost('post-4', 'pending')
 
     const res = await supertest(createApp())
-      .post('/api/herald/approve/post-5')
+      .post('/api/herald/approve/post-4')
       .send({ action: 'invalidaction' })
 
     expect(res.status).toBe(400)
