@@ -1,20 +1,44 @@
-export default function ConfirmCard({ action, amount, onConfirm, onCancel, timeout = 120 }: {
+type Variant = 'normal' | 'warning'
+
+interface Props {
   action: string
   amount: string
   onConfirm: () => void
   onCancel: () => void
+  variant?: Variant
+  description?: string
   timeout?: number
-}) {
+}
+
+export default function ConfirmCard({
+  action,
+  amount,
+  onConfirm,
+  onCancel,
+  variant = 'normal',
+  description,
+}: Props) {
+  const isWarning = variant === 'warning'
+  const borderClass = isWarning ? 'border-yellow/40' : 'border-elevated'
+  const primaryClass = isWarning
+    ? 'border-yellow/50 text-yellow hover:bg-yellow/10'
+    : 'border-sipher/50 text-sipher hover:bg-sipher/10'
+  const primaryLabel = isWarning ? 'Override & Send' : 'Confirm & Sign'
+  const labelText = isWarning ? '⚠ Risk Confirm' : 'Confirm Action'
+
   return (
-    <div className="bg-card border border-elevated rounded-lg p-4 flex flex-col gap-3">
-      <div className="text-[12px] text-text-muted uppercase tracking-wide">Confirm Action</div>
+    <div className={`bg-card border ${borderClass} rounded-lg p-4 flex flex-col gap-3`}>
+      <div className="text-[12px] text-text-muted uppercase tracking-wide">{labelText}</div>
       <div className="text-[14px] text-text">{action}: {amount}</div>
+      {description && (
+        <div className="text-[12px] text-text-muted leading-relaxed">{description}</div>
+      )}
       <div className="flex gap-2">
         <button
           onClick={onConfirm}
-          className="flex-1 border border-sipher/50 text-sipher py-2 rounded-lg text-[12px] font-medium hover:bg-sipher/10"
+          className={`flex-1 border ${primaryClass} py-2 rounded-lg text-[12px] font-medium`}
         >
-          Confirm & Sign
+          {primaryLabel}
         </button>
         <button
           onClick={onCancel}
