@@ -1,6 +1,9 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { PaperPlaneTilt, CircleNotch, Wrench } from '@phosphor-icons/react'
 import { useAppStore, type ChatMessage } from '../stores/app'
+import { sanitizeArgs } from '../lib/sanitize-args'
+import ToolTimeline from './ToolTimeline'
+import ConfirmCard from './ConfirmCard'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -16,6 +19,10 @@ export default function ChatSidebar({ fullScreen }: Props) {
   const appendToLast = useAppStore((s) => s.appendToLast)
   const finishStreaming = useAppStore((s) => s.finishStreaming)
   const setChatLoading = useAppStore((s) => s.setChatLoading)
+  const appendTool = useAppStore((s) => s.appendTool)
+  const completeTool = useAppStore((s) => s.completeTool)
+  const dismissMessage = useAppStore((s) => s.dismissMessage)
+  const consumePendingPrompt = useAppStore((s) => s.consumePendingPrompt)
 
   const [input, setInput] = useState('')
   const [activeTool, setActiveTool] = useState<string | null>(null)
@@ -26,20 +33,16 @@ export default function ChatSidebar({ fullScreen }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, chatLoading])
 
-  const sendMessage = useCallback(async () => {
-    if (!input.trim() || !token || chatLoading) return
+  const sendMessage = useCallback(async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim()
+    if (!text || !token || chatLoading) return
 
-    const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: input.trim(),
-    }
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text }
     addMessage(userMsg)
     setInput('')
     setChatLoading(true)
     setActiveTool(null)
 
-    // Create assistant placeholder
     const assistantMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'assistant',
@@ -49,17 +52,10 @@ export default function ChatSidebar({ fullScreen }: Props) {
     addMessage(assistantMsg)
 
     try {
-      const allMessages = [...messages, userMsg].map((m) => ({
-        role: m.role,
-        content: m.content,
-      }))
-
+      const allMessages = [...messages, userMsg].map((m) => ({ role: m.role, content: m.content }))
       const res = await fetch(`${API_URL}/api/chat/stream`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ messages: allMessages }),
       })
 
@@ -67,7 +63,6 @@ export default function ChatSidebar({ fullScreen }: Props) {
         const err = await res.json().catch(() => ({}))
         throw new Error((err as { error?: string }).error ?? `Error ${res.status}`)
       }
-
       if (!res.body) throw new Error('No response body')
 
       const reader = res.body.getReader()
@@ -77,7 +72,6 @@ export default function ChatSidebar({ fullScreen }: Props) {
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
         buffer = lines.pop() ?? ''
@@ -92,9 +86,24 @@ export default function ChatSidebar({ fullScreen }: Props) {
             if (event.type === 'content_block_delta' && event.text) {
               appendToLast(event.text)
             } else if (event.type === 'tool_use') {
+              appendTool(event.name, sanitizeArgs(event.input))
               setActiveTool(event.name)
             } else if (event.type === 'tool_result') {
+              completeTool(event.name, event.is_error ? 'error' : 'success')
               setActiveTool(null)
+            } else if (event.type === 'sentinel_advisory') {
+              addMessage({
+                id: crypto.randomUUID(),
+                role: 'system',
+                content: '',
+                kind: 'sentinel_advisory',
+                meta: {
+                  action: event.action,
+                  amount: event.amount,
+                  description: event.description,
+                  severity: event.severity,
+                },
+              })
             } else if (event.type === 'error') {
               appendToLast(`\n\nError: ${event.message}`)
             }
@@ -111,15 +120,16 @@ export default function ChatSidebar({ fullScreen }: Props) {
       setChatLoading(false)
       setActiveTool(null)
     }
-  }, [input, token, chatLoading, messages, addMessage, appendToLast, finishStreaming, setChatLoading])
+  }, [input, token, chatLoading, messages, addMessage, appendToLast, finishStreaming, setChatLoading, appendTool, completeTool])
+
+  // Consume seedChat prompt on mount/change
+  useEffect(() => {
+    const p = consumePendingPrompt()
+    if (p && token) sendMessage(p)
+  }, [consumePendingPrompt, sendMessage, token])
 
   return (
-    <div
-      className={`flex flex-col bg-card ${
-        fullScreen ? 'h-full' : 'h-full w-full'
-      }`}
-    >
-      {/* Header */}
+    <div className={`flex flex-col bg-card ${fullScreen ? 'h-full' : 'h-full w-full'}`}>
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
         <div className="w-1.5 h-1.5 rounded-full bg-sipher" />
         <span className="text-[13px] font-semibold text-text">SIPHER</span>
@@ -134,33 +144,48 @@ export default function ChatSidebar({ fullScreen }: Props) {
         )}
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2.5">
         {messages.length === 0 && (
-          <p className="text-text-muted text-sm text-center py-8">
-            Ask SIPHER anything about your privacy.
-          </p>
+          <p className="text-text-muted text-sm text-center py-8">Ask SIPHER anything about your privacy.</p>
         )}
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[85%] rounded-lg px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words ${
-                msg.role === 'user'
-                  ? 'bg-accent/15 border border-accent/20 text-text'
-                  : 'bg-elevated border border-border text-text'
-              }`}
-            >
-              {msg.content || (msg.streaming ? '...' : '')}
+        {messages.filter((m) => !m.dismissed).map((msg) => {
+          if (msg.role === 'system' && msg.kind === 'sentinel_advisory') {
+            const meta = (msg.meta ?? {}) as { action?: string; amount?: string; description?: string }
+            return (
+              <div key={msg.id} className="flex justify-start">
+                <div className="max-w-[90%] w-full">
+                  <ConfirmCard
+                    variant="warning"
+                    action={meta.action ?? 'Action'}
+                    amount={meta.amount ?? ''}
+                    description={meta.description}
+                    onConfirm={() => sendMessage('Yes, proceed anyway')}
+                    onCancel={() => dismissMessage(msg.id)}
+                  />
+                </div>
+              </div>
+            )
+          }
+          return (
+            <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div
+                className={`max-w-[85%] rounded-lg overflow-hidden text-[13px] leading-relaxed whitespace-pre-wrap break-words ${
+                  msg.role === 'user'
+                    ? 'bg-accent/15 border border-accent/20 text-text px-3 py-2'
+                    : 'bg-elevated border border-border text-text'
+                }`}
+              >
+                {msg.role === 'assistant' && <ToolTimeline tools={msg.tools} />}
+                <div className={msg.role === 'assistant' ? 'px-3 py-2' : ''}>
+                  {msg.content || (msg.streaming ? '...' : '')}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div className="px-3 py-3 border-t border-border shrink-0">
         <div className="flex gap-2">
           <input
@@ -178,7 +203,7 @@ export default function ChatSidebar({ fullScreen }: Props) {
             disabled={!token || chatLoading}
           />
           <button
-            onClick={sendMessage}
+            onClick={() => sendMessage()}
             disabled={!input.trim() || !token || chatLoading}
             className="bg-accent/15 border border-accent/20 rounded-lg px-3 py-2 text-accent hover:bg-accent/25 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Send"
