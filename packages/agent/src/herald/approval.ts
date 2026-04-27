@@ -1,5 +1,55 @@
 import { getDb } from '../db.js'
 
+export class NotFoundError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'NotFoundError'
+  }
+}
+
+/**
+ * Typed row from herald_queue.
+ * Note: schema has no updated_at column — created_at reflects creation time only.
+ * Last-edit timestamp tracking is deferred to a future migration.
+ */
+export interface QueueItem {
+  id: string
+  type: string
+  content: string
+  status: string
+  scheduled_at?: string | null
+  reply_to?: string | null
+  approved_by?: string | null
+  approved_at?: string | null
+  posted_at?: string | null
+  tweet_id?: string | null
+  metrics?: string | null
+  created_at: string
+}
+
+/**
+ * Fetch a single queue item by id. Returns undefined if not found.
+ */
+export function getQueueItem(id: string): QueueItem | undefined {
+  const row = getDb().prepare('SELECT * FROM herald_queue WHERE id = ?').get(id)
+  return row as QueueItem | undefined
+}
+
+/**
+ * Update the content of any queue item regardless of status (admin-level access).
+ * Unlike editQueuedPost, this has no status restriction — the route layer enforces
+ * any business rules about which statuses allow edits.
+ * Returns the canonical post-update row.
+ */
+export function updateContent(id: string, content: string): QueueItem {
+  const existing = getQueueItem(id)
+  if (!existing) throw new NotFoundError(`queue item ${id} not found`)
+  getDb().prepare('UPDATE herald_queue SET content = ? WHERE id = ?').run(content, id)
+  const updated = getQueueItem(id)
+  if (!updated) throw new NotFoundError(`queue item ${id} disappeared after update`)
+  return updated
+}
+
 /**
  * Get all pending posts from herald_queue, ordered by created_at ascending.
  */
