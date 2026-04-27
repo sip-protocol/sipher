@@ -47,6 +47,7 @@ export default function SentinelConfirm({ flagId, token, action, amount, descrip
         action={action}
         amount={amount}
         description={description}
+        disabled={busy}
         onConfirm={() => dispatch('override')}
         onCancel={() => dispatch('cancel')}
       />

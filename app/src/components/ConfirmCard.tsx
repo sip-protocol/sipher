@@ -9,6 +9,8 @@ interface Props {
   onCancel: () => void
   variant?: Variant
   description?: string
+  // disables both buttons (e.g. while a parent dispatches a REST call)
+  disabled?: boolean
   // reserved for future countdown display; not currently consumed
   timeout?: number
 }
@@ -20,6 +22,7 @@ export default function ConfirmCard({
   onCancel,
   variant = 'normal',
   description,
+  disabled = false,
 }: Props) {
   const isWarning = variant === 'warning'
   const borderClass = isWarning ? 'border-yellow/40' : 'border-elevated'
@@ -42,13 +45,15 @@ export default function ConfirmCard({
       <div className="flex gap-2">
         <button
           onClick={onConfirm}
-          className={`flex-1 border ${primaryClass} py-2 rounded-lg text-[12px] font-medium`}
+          disabled={disabled}
+          className={`flex-1 border ${primaryClass} py-2 rounded-lg text-[12px] font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {primaryLabel}
         </button>
         <button
           onClick={onCancel}
-          className="px-4 border border-elevated text-text-muted py-2 rounded-lg text-[12px] hover:text-text"
+          disabled={disabled}
+          className="px-4 border border-elevated text-text-muted py-2 rounded-lg text-[12px] hover:text-text disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Cancel
         </button>
