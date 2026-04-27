@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@triton-one/yellowstone-grpc@4.0.2':
+    hash: 3c931d1254c03781b9157ae6af31fea02733a207f5b9b6523b506f0a32d8a16a
+    path: patches/@triton-one__yellowstone-grpc@4.0.2.patch
+
 importers:
 
   .:
@@ -9106,7 +9111,7 @@ snapshots:
       '@solana/kit': 5.5.1(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@solana/spl-token': 0.4.14(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10))(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@solana/web3.js': 1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)
-      '@triton-one/yellowstone-grpc': 4.0.2
+      '@triton-one/yellowstone-grpc': 4.0.2(patch_hash=3c931d1254c03781b9157ae6af31fea02733a207f5b9b6523b506f0a32d8a16a)
       langchain: 1.2.17(@langchain/core@0.3.80(openai@6.26.0(ws@7.5.10(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod@3.25.76)))(openai@6.26.0(ws@7.5.10(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod@3.25.76))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod-to-json-schema@3.25.1(zod@3.25.76))
       pino: 10.3.0
       zod: 4.3.6
@@ -9153,7 +9158,7 @@ snapshots:
       '@solana/kit': 5.5.1(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@solana/spl-token': 0.4.14(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10))(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@solana/web3.js': 1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)
-      '@triton-one/yellowstone-grpc': 4.0.2
+      '@triton-one/yellowstone-grpc': 4.0.2(patch_hash=3c931d1254c03781b9157ae6af31fea02733a207f5b9b6523b506f0a32d8a16a)
       langchain: 1.2.17(@langchain/core@0.3.80(openai@6.26.0(ws@7.5.10(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod@3.25.76)))(openai@6.26.0(ws@8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod@4.3.6))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod-to-json-schema@3.25.1(zod@4.3.6))
       pino: 10.3.0
       zod: 4.3.6
@@ -11463,7 +11468,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@triton-one/yellowstone-grpc@4.0.2':
+  '@triton-one/yellowstone-grpc@4.0.2(patch_hash=3c931d1254c03781b9157ae6af31fea02733a207f5b9b6523b506f0a32d8a16a)':
     dependencies:
       '@grpc/grpc-js': 1.14.3
 
