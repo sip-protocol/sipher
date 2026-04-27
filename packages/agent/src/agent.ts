@@ -51,6 +51,7 @@ import { streamPiAgent } from './pi/stream-bridge.js'
 import { attachToolGuard } from './pi/tool-guard.js'
 import { runPreflightGate, type AdvisoryInfo } from './sentinel/preflight-gate.js'
 import { getSentinelConfig } from './sentinel/config.js'
+import { createPending } from './sentinel/pending.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // System prompt — Sipher's identity and behavior rules
@@ -142,14 +143,22 @@ const TOOL_EXECUTORS: Record<string, ToolExecutor> = {
  * Runs preflight gate for fund-moving tools before dispatching.
  * Throws if the tool name is not registered or SENTINEL blocks.
  *
- * `onAdvisory` is invoked synchronously (before the underlying executor) when
- * SENTINEL flagged the action without blocking AND mode === 'advisory'. The
- * callback is optional — existing callers compile unchanged.
+ * `onPause` is awaited (before the underlying executor) when SENTINEL flagged
+ * the action without blocking AND mode === 'advisory'. The callback's promise
+ * represents the user-driven approve/cancel decision:
+ *   - resolves → continue and run the tool
+ *   - rejects  → return a synthetic `{ status: 'cancelled_by_user', reason }`
+ *                result instead of running the tool. Pi treats this as the
+ *                tool's output; the LLM then communicates cancellation to the
+ *                user per its system prompt.
+ *
+ * The callback is optional — existing 2-arg callers compile unchanged and
+ * silently skip the pause (the tool runs as if no advisory existed).
  */
 export async function executeTool(
   name: string,
   input: Record<string, unknown>,
-  onAdvisory?: (info: AdvisoryInfo) => void,
+  onPause?: (info: AdvisoryInfo) => Promise<void>,
 ): Promise<unknown> {
   const executor = TOOL_EXECUTORS[name]
   if (!executor) {
@@ -160,8 +169,18 @@ export async function executeTool(
   if (!gate.allowed) {
     throw new Error(`SENTINEL blocked: ${gate.reasons.join('; ')}`)
   }
-  if (gate.advisory && onAdvisory && getSentinelConfig().mode === 'advisory') {
-    onAdvisory(gate.advisory)
+  if (gate.advisory && onPause && getSentinelConfig().mode === 'advisory') {
+    try {
+      await onPause(gate.advisory)
+    } catch (err) {
+      // User cancelled or the pending promise timed out — return a synthetic
+      // tool result so Pi's tool loop continues instead of throwing. The LLM
+      // sees this output and reports cancellation gracefully to the user.
+      return {
+        status: 'cancelled_by_user',
+        reason: err instanceof Error ? err.message : 'cancelled',
+      }
+    }
   }
   return executor(input)
 }
@@ -215,8 +234,10 @@ export interface SSEError {
   message: string
 }
 
-export interface SSESentinelAdvisory {
-  type: 'sentinel_advisory'
+export interface SSESentinelPause {
+  type: 'sentinel_pause'
+  /** Server-issued ID — client posts to /api/sentinel/override/:flagId or /cancel/:flagId */
+  flagId: string
   /** Humanized action label, e.g. "Send to Abc...123" */
   action: string
   /** Optional amount string, e.g. "5 SOL" — empty when not applicable */
@@ -233,7 +254,7 @@ export type SSEEvent =
   | SSEToolResult
   | SSEMessageComplete
   | SSEError
-  | SSESentinelAdvisory
+  | SSESentinelPause
 
 // ─── Local helpers — humanize advisory metadata for the UI ──────────────────
 
@@ -331,33 +352,54 @@ export async function chat(
  * Pi's push-based event model to a pull-based async generator of SSEEvents
  * compatible with AgentCore's SSEEvent vocabulary.
  *
- * SENTINEL advisories: When the default executor (`executeTool`) is in use
- * and SENTINEL flagged the action without blocking, the advisory is captured
- * via the optional `onAdvisory` callback and emitted as a `sentinel_advisory`
- * SSE event immediately before the corresponding `tool_result`. Custom
- * `opts.toolExecutor` overrides bypass advisory capture (no preflight gate).
+ * SENTINEL pause/resume: When the default executor (`executeTool`) is in use
+ * and SENTINEL flagged the action without blocking, a pending flag is created
+ * (sentinel/pending.ts) and a `sentinel_pause` SSE event is injected into the
+ * stream-bridge's external queue. The executor awaits the pending promise
+ * until the user POSTs to `/api/sentinel/override/:flagId` (resume) or
+ * `/cancel/:flagId` (cancel). Cancellation is surfaced as a synthetic
+ * `{ status: 'cancelled_by_user' }` tool result; the LLM reports it back.
+ *
+ * The pause event MUST go through streamPiAgent's external queue (not a
+ * chatStream-local buffer) — the wrapped executor blocks Pi between
+ * `tool_execution_start` and `tool_execution_end`, so any local drain pattern
+ * keyed on `tool_result` deadlocks: client never sees pause → never approves
+ * → executor blocks forever → bridge yields nothing. The external queue lets
+ * the bridge emit pause events while the executor is still mid-await.
+ *
+ * Custom `opts.toolExecutor` overrides bypass pause capture (no preflight gate).
  */
 export async function* chatStream(
   userMessage: string,
   opts: ChatOptions = {},
 ): AsyncGenerator<SSEEvent> {
-  const advisoryQueue: SSESentinelAdvisory[] = []
+  const sessionId = opts.sessionId ?? 'unknown'
+  const externalQueue: SSESentinelPause[] = []
+  let externalWake: (() => void) | null = null
   const baseExecutor = opts.toolExecutor ?? executeTool
 
-  // Wrap the executor so advisory callbacks are routed into a per-request queue.
-  // We keep the wrapper signature `(name, input) => Promise` to match the Pi
-  // executor contract and pass our internal `onAdvisory` only to the default
-  // `executeTool`. Custom executors are invoked unchanged.
+  // Wrap the executor so SENTINEL advisory pauses are captured and routed
+  // through the stream-bridge's external queue. We keep the wrapper signature
+  // `(name, input) => Promise` to match the Pi executor contract and only
+  // intercept calls that route through the default `executeTool`. Custom
+  // executors are invoked unchanged.
   const wrappedExecutor = (name: string, input: Record<string, unknown>): Promise<unknown> => {
     if (baseExecutor === executeTool) {
-      return executeTool(name, input, (adv) => {
-        advisoryQueue.push({
-          type: 'sentinel_advisory',
+      return executeTool(name, input, async (adv) => {
+        const { flagId, promise } = createPending(sessionId, name, input)
+        externalQueue.push({
+          type: 'sentinel_pause',
+          flagId,
           action: humanizeAction(name, input),
           amount: extractAmount(input),
           severity: adv.severity,
           description: adv.description,
         })
+        // Wake the bridge so it drains externalQueue immediately. Without this
+        // the pause event would sit until Pi emitted another event — which
+        // can't happen because Pi is blocked on this awaiting executor.
+        if (externalWake) externalWake()
+        await promise
       })
     }
     return baseExecutor(name, input)
@@ -372,15 +414,12 @@ export async function* chatStream(
     sessionId: opts.sessionId,
   })
 
-  // Drain the advisory queue before each tool_result so the client renders the
-  // warning alongside the tool's outcome. Advisories are populated synchronously
-  // inside executeTool (which Pi awaits between tool_use and tool_result), so by
-  // the time tool_result arrives the queue holds the matching advisory(ies).
-  for await (const event of streamPiAgent(agent, userMessage)) {
-    if (event.type === 'tool_result' && advisoryQueue.length > 0) {
-      const drained = advisoryQueue.splice(0, advisoryQueue.length)
-      for (const adv of drained) yield adv
-    }
+  for await (const event of streamPiAgent<SSESentinelPause>(agent, userMessage, {
+    externalQueue,
+    attachWake: (wake) => {
+      externalWake = wake
+    },
+  })) {
     yield event
   }
 }

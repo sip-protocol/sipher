@@ -96,6 +96,31 @@ export function mapPiEventToSSE(event: AgentEvent): SSEEvent[] {
 }
 
 /**
+ * Optional injection points for external producers (e.g. the chatStream
+ * sentinel pause loop) that need to interleave events into the bridge's
+ * output stream WITHOUT waiting for a Pi event to arrive.
+ *
+ * Why this exists: when a tool executor blocks on a user-driven approval
+ * (sentinel pause), the executor is awaited inside Pi's tool loop — Pi
+ * can't emit events until the executor returns. Without this hook the
+ * pause notification can't reach the SSE client until tool_execution_end,
+ * which deadlocks the system (client never sees pause → never approves →
+ * executor never resolves).
+ *
+ * The chatStream wrapper pushes pause events onto `externalQueue` and
+ * calls the wake function (received via `attachWake`) to make the
+ * generator drain its queues.
+ *
+ * Generic `T` lets callers extend the yielded event union with their own
+ * variants (e.g. SSESentinelPause from agent.ts) without forcing this
+ * module to import them.
+ */
+export interface StreamBridgeOptions<T = SSEEvent> {
+  externalQueue?: Array<T>
+  attachWake?: (wake: () => void) => void
+}
+
+/**
  * Wrap a Pi Agent run as an async generator of SSEEvents.
  *
  * The agent must have its tools, model, and system prompt configured before
@@ -108,12 +133,18 @@ export function mapPiEventToSSE(event: AgentEvent): SSEEvent[] {
  * - They are enqueued and a pending Promise is resolved to wake the generator
  * - The generator yields from the queue and waits when empty
  * - Cleanup via unsubscribe() in finally, regardless of early return or throw
+ *
+ * Optional `options.externalQueue` + `options.attachWake` allow callers to
+ * inject events from outside the Pi event stream (used by chatStream's
+ * sentinel pause loop — see chatStream in agent.ts).
  */
-export async function* streamPiAgent(
+export async function* streamPiAgent<T = SSEEvent>(
   agent: Agent,
   userMessage: string,
-): AsyncGenerator<SSEEvent, void, unknown> {
+  options?: StreamBridgeOptions<T>,
+): AsyncGenerator<SSEEvent | T, void, unknown> {
   const queue: SSEEvent[] = []
+  const externalQueue: Array<T> = options?.externalQueue ?? []
   let resolveNext: (() => void) | null = null
   let done = false
   let errorEvent: SSEError | null = null
@@ -124,6 +155,10 @@ export async function* streamPiAgent(
       resolveNext = null
     }
   }
+
+  // Hand the wake function back to the caller so external producers can push
+  // into externalQueue and trigger a drain.
+  if (options?.attachWake) options.attachWake(wake)
 
   const guardUnsub = attachToolGuard(agent)
 
@@ -158,7 +193,13 @@ export async function* streamPiAgent(
   })
 
   try {
-    while (!done || queue.length > 0) {
+    while (!done || queue.length > 0 || externalQueue.length > 0) {
+      // Drain externally-injected events first so pause notifications reach
+      // the client BEFORE the corresponding tool_result.
+      while (externalQueue.length > 0) {
+        const evt = externalQueue.shift()
+        if (evt) yield evt
+      }
       while (queue.length > 0) {
         const evt = queue.shift()
         if (evt) yield evt
