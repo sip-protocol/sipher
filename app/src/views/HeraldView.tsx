@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { Calendar, X as XIcon } from '@phosphor-icons/react'
 import { apiFetch } from '../api/client'
 import { timeAgo } from '../lib/format'
 
@@ -233,18 +234,44 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
 function QueueTab({
   items,
   onAction,
+  onEditSave,
 }: {
   items: QueueItem[]
   onAction: (id: string, action: 'approve' | 'reject') => Promise<void>
+  onEditSave: (id: string, content: string) => Promise<void>
 }) {
   const [pending, setPending] = useState<Record<string, boolean>>({})
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
-    setPending(p => ({ ...p, [id]: true }))
+    setPending((p) => ({ ...p, [id]: true }))
     try {
       await onAction(id, action)
     } finally {
-      setPending(p => ({ ...p, [id]: false }))
+      setPending((p) => ({ ...p, [id]: false }))
+    }
+  }
+
+  const beginEdit = (item: QueueItem) => {
+    setEditingId(item.id)
+    setEditDraft(item.content)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditDraft('')
+  }
+
+  const saveEdit = async () => {
+    if (!editingId) return
+    setSaving(true)
+    try {
+      await onEditSave(editingId, editDraft.trim())
+      cancelEdit()
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -256,38 +283,75 @@ function QueueTab({
 
   return (
     <div className="flex flex-col gap-3">
-      {items.map(item => (
-        <div key={item.id} className="bg-card border border-border rounded-lg p-4 flex flex-col gap-3">
-          <p className="text-sm text-text-secondary">{item.content}</p>
-          <div className="flex items-center gap-2 font-mono text-[10px] text-text-muted">
-            <span>📅</span>
-            <span>{item.scheduled_at ?? '—'}</span>
+      {items.map((item) => {
+        const isEditing = editingId === item.id
+        return (
+          <div key={item.id} className="bg-card border border-border rounded-lg p-4 flex flex-col gap-3">
+            {isEditing ? (
+              <>
+                <textarea
+                  className="bg-elevated border border-border rounded-lg px-3 py-2 text-[13px] text-text font-mono resize-none focus:outline-none focus:border-accent/40"
+                  rows={4}
+                  value={editDraft}
+                  maxLength={280}
+                  onChange={(e) => setEditDraft(e.target.value)}
+                />
+                <div className="flex justify-between items-center text-[10px] font-mono text-text-muted">
+                  <span>{editDraft.length}/280</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveEdit}
+                      disabled={saving || editDraft.trim().length === 0 || editDraft.length > 280}
+                      className="text-[11px] border border-green/40 text-green bg-green/10 px-3 py-1.5 rounded-lg font-medium hover:bg-green/20 disabled:opacity-50"
+                    >
+                      {saving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      disabled={saving}
+                      className="text-[11px] border border-border text-text-secondary bg-bg px-3 py-1.5 rounded-lg hover:bg-border disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-text-secondary">{item.content}</p>
+                <div className="flex items-center gap-2 font-mono text-[10px] text-text-muted">
+                  <Calendar size={11} className="text-text-muted" aria-hidden="true" />
+                  <span>{item.scheduled_at ?? '—'}</span>
+                </div>
+                <div className="flex gap-2 mt-1">
+                  <button
+                    onClick={() => handleAction(item.id, 'approve')}
+                    disabled={pending[item.id]}
+                    className="flex-1 text-[11px] border border-green/40 text-green bg-green/10 py-1.5 rounded-lg font-medium hover:bg-green/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {pending[item.id] ? '...' : 'Approve'}
+                  </button>
+                  <button
+                    onClick={() => beginEdit(item)}
+                    disabled={pending[item.id]}
+                    className="px-4 text-[11px] border border-border text-text-secondary bg-bg py-1.5 rounded-lg hover:bg-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleAction(item.id, 'reject')}
+                    disabled={pending[item.id]}
+                    className="px-3 border border-border text-text-muted bg-bg py-1.5 rounded-lg hover:text-red hover:border-red/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="Reject"
+                  >
+                    <XIcon size={12} weight="bold" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex gap-2 mt-1">
-            <button
-              onClick={() => handleAction(item.id, 'approve')}
-              disabled={pending[item.id]}
-              className="flex-1 text-[11px] border border-green/40 text-green bg-green/10 py-1.5 rounded-lg font-medium hover:bg-green/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {pending[item.id] ? '...' : 'Approve'}
-            </button>
-            <button
-              disabled={pending[item.id]}
-              className="px-4 text-[11px] border border-border text-text-secondary bg-bg py-1.5 rounded-lg hover:bg-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => handleAction(item.id, 'reject')}
-              disabled={pending[item.id]}
-              className="px-3 border border-border text-text-muted bg-bg py-1.5 rounded-lg hover:text-red hover:border-red/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Reject"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -356,6 +420,15 @@ export default function HeraldView({ token }: { token: string | null }) {
     load()
   }
 
+  const handleEditSave = async (id: string, content: string) => {
+    await apiFetch(`/api/herald/queue/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content }),
+      token: token!,
+    })
+    load()
+  }
+
   if (!token) {
     return (
       <div className="text-text-muted text-sm text-center py-20">
@@ -387,7 +460,7 @@ export default function HeraldView({ token }: { token: string | null }) {
         )}
 
         {data && tab === 'queue' && (
-          <QueueTab items={data.queue ?? []} onAction={handleApprove} />
+          <QueueTab items={data.queue ?? []} onAction={handleApprove} onEditSave={handleEditSave} />
         )}
 
         {data && tab === 'dms' && (
