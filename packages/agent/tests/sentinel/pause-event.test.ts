@@ -1,16 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SENTINEL advisory SSE event — covers the path:
-//   runPreflightGate → executeTool(onAdvisory) → chatStream(SSE injection)
+// SENTINEL pause SSE event — covers the path:
+//   runPreflightGate → executeTool(onPause) → chatStream(SSE injection)
 //
-// Two layers of test:
+// Three layers of test:
 //   1. runPreflightGate populates `advisory` for warn-recommendation reports
-//   2. executeTool fires the onAdvisory callback only in advisory mode
-//
-// We don't drive a full chatStream here — the queue/injection logic is
-// exercised by integration tests in pi-smoke. The new behavior we need to
-// prove is the gate change + callback wiring.
+//      (preflight gate behavior is unchanged from the advisory-light era —
+//      the gate still emits PreflightOutcome.advisory; only the downstream
+//      executor wiring changed)
+//   2. executeTool fires the onPause callback only in advisory mode and
+//      returns a synthetic cancelled result when onPause rejects
+//   3. chatStream injects sentinel_pause events with a flagId before
+//      tool_result, via the stream-bridge external queue
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('runPreflightGate advisory surface', () => {
@@ -90,7 +92,7 @@ describe('runPreflightGate advisory surface', () => {
   })
 })
 
-describe('executeTool onAdvisory callback', () => {
+describe('executeTool onPause callback', () => {
   beforeEach(() => {
     process.env.DB_PATH = ':memory:'
     vi.resetModules()
@@ -106,7 +108,7 @@ describe('executeTool onAdvisory callback', () => {
     getDb()
   }
 
-  it('fires onAdvisory when SENTINEL warns AND mode === advisory', async () => {
+  it('awaits onPause and continues to executor when promise resolves', async () => {
     await freshDb()
     process.env.SENTINEL_MODE = 'advisory'
     const { setSentinelAssessor } = await import('../../src/sentinel/preflight-gate.js')
@@ -119,30 +121,107 @@ describe('executeTool onAdvisory callback', () => {
       durationMs: 100,
     }) as never)
 
+    const executeSendMock = vi.fn().mockResolvedValue({ action: 'send', success: true })
     vi.doMock('../../src/tools/send.js', () => ({
-      executeSend: vi.fn().mockResolvedValue({ action: 'send', success: true }),
+      executeSend: executeSendMock,
       sendTool: { name: 'send', description: '', input_schema: { type: 'object', properties: {} } },
     }))
     const { executeTool } = await import('../../src/agent.js')
-    const onAdvisory = vi.fn()
+    const onPause = vi.fn().mockResolvedValue(undefined)
 
     const result = await executeTool(
       'send',
       { wallet: 'w1', recipient: 'stranger', amount: 5 },
-      onAdvisory,
+      onPause,
     )
 
-    expect(result).toMatchObject({ success: true })
-    expect(onAdvisory).toHaveBeenCalledTimes(1)
-    expect(onAdvisory).toHaveBeenCalledWith({
+    expect(onPause).toHaveBeenCalledTimes(1)
+    expect(onPause).toHaveBeenCalledWith({
       severity: 'medium',
       description: 'unknown recipient',
       recommendation: 'warn',
     })
+    expect(executeSendMock).toHaveBeenCalledTimes(1)
+    expect(result).toMatchObject({ success: true })
     vi.doUnmock('../../src/tools/send.js')
   })
 
-  it('does NOT fire onAdvisory when mode !== advisory (yolo allows silently)', async () => {
+  it('returns synthetic cancelled result (does NOT throw) when onPause rejects', async () => {
+    await freshDb()
+    process.env.SENTINEL_MODE = 'advisory'
+    const { setSentinelAssessor } = await import('../../src/sentinel/preflight-gate.js')
+    setSentinelAssessor(vi.fn().mockResolvedValue({
+      risk: 'medium',
+      score: 50,
+      reasons: ['unknown recipient'],
+      recommendation: 'warn',
+      decisionId: 'dec1',
+      durationMs: 100,
+    }) as never)
+
+    const executeSendMock = vi.fn().mockResolvedValue({ action: 'send', success: true })
+    vi.doMock('../../src/tools/send.js', () => ({
+      executeSend: executeSendMock,
+      sendTool: { name: 'send', description: '', input_schema: { type: 'object', properties: {} } },
+    }))
+    const { executeTool } = await import('../../src/agent.js')
+    const onPause = vi.fn().mockRejectedValue(new Error('cancelled_by_user'))
+
+    const result = await executeTool(
+      'send',
+      { wallet: 'w1', recipient: 'stranger', amount: 5 },
+      onPause,
+    )
+
+    expect(onPause).toHaveBeenCalledTimes(1)
+    // Synthetic cancelled tool result — Pi treats this as the tool's output,
+    // and the LLM communicates cancellation to the user.
+    expect(result).toEqual({
+      status: 'cancelled_by_user',
+      reason: 'cancelled_by_user',
+    })
+    // The underlying executor must NOT have run when the user cancelled.
+    expect(executeSendMock).not.toHaveBeenCalled()
+    vi.doUnmock('../../src/tools/send.js')
+  })
+
+  it('returns synthetic cancelled result when onPause rejects with non-Error reason', async () => {
+    await freshDb()
+    process.env.SENTINEL_MODE = 'advisory'
+    const { setSentinelAssessor } = await import('../../src/sentinel/preflight-gate.js')
+    setSentinelAssessor(vi.fn().mockResolvedValue({
+      risk: 'medium',
+      score: 50,
+      reasons: ['unknown recipient'],
+      recommendation: 'warn',
+      decisionId: 'dec1',
+      durationMs: 100,
+    }) as never)
+
+    const executeSendMock = vi.fn().mockResolvedValue({ action: 'send', success: true })
+    vi.doMock('../../src/tools/send.js', () => ({
+      executeSend: executeSendMock,
+      sendTool: { name: 'send', description: '', input_schema: { type: 'object', properties: {} } },
+    }))
+    const { executeTool } = await import('../../src/agent.js')
+    // Reject with a non-Error to cover the fallback branch in agent.ts
+    const onPause = vi.fn().mockRejectedValue('cancelled_str')
+
+    const result = await executeTool(
+      'send',
+      { wallet: 'w1', recipient: 'stranger', amount: 5 },
+      onPause,
+    )
+
+    expect(result).toEqual({
+      status: 'cancelled_by_user',
+      reason: 'cancelled',
+    })
+    expect(executeSendMock).not.toHaveBeenCalled()
+    vi.doUnmock('../../src/tools/send.js')
+  })
+
+  it('does NOT invoke onPause when mode !== advisory (yolo allows silently)', async () => {
     await freshDb()
     // SENTINEL_MODE unset → defaults to 'yolo'
     const { setSentinelAssessor } = await import('../../src/sentinel/preflight-gate.js')
@@ -160,19 +239,19 @@ describe('executeTool onAdvisory callback', () => {
       sendTool: { name: 'send', description: '', input_schema: { type: 'object', properties: {} } },
     }))
     const { executeTool } = await import('../../src/agent.js')
-    const onAdvisory = vi.fn()
+    const onPause = vi.fn().mockResolvedValue(undefined)
 
     await executeTool(
       'send',
       { wallet: 'w1', recipient: 'stranger', amount: 5 },
-      onAdvisory,
+      onPause,
     )
 
-    expect(onAdvisory).not.toHaveBeenCalled()
+    expect(onPause).not.toHaveBeenCalled()
     vi.doUnmock('../../src/tools/send.js')
   })
 
-  it('existing 2-arg callers still work (onAdvisory is optional)', async () => {
+  it('existing 2-arg callers still work (onPause is optional)', async () => {
     await freshDb()
     process.env.SENTINEL_MODE = 'advisory'
     const { setSentinelAssessor } = await import('../../src/sentinel/preflight-gate.js')
@@ -191,14 +270,14 @@ describe('executeTool onAdvisory callback', () => {
     }))
     const { executeTool } = await import('../../src/agent.js')
 
-    // No onAdvisory passed — must not throw
+    // No onPause passed — must not throw, and the executor runs normally.
     const result = await executeTool('send', { wallet: 'w1', recipient: 'stranger', amount: 5 })
     expect(result).toMatchObject({ success: true })
     vi.doUnmock('../../src/tools/send.js')
   })
 })
 
-describe('chatStream sentinel_advisory SSE injection', () => {
+describe('chatStream sentinel_pause SSE injection', () => {
   beforeEach(() => {
     process.env.DB_PATH = ':memory:'
     vi.resetModules()
@@ -214,7 +293,7 @@ describe('chatStream sentinel_advisory SSE injection', () => {
     getDb()
   }
 
-  it('injects sentinel_advisory event before tool_result in advisory mode', async () => {
+  it('injects sentinel_pause event before tool_result with flagId in advisory mode', async () => {
     await freshDb()
     process.env.SENTINEL_MODE = 'advisory'
 
@@ -228,10 +307,19 @@ describe('chatStream sentinel_advisory SSE injection', () => {
       durationMs: 100,
     }) as never)
 
+    // Force pending flags to time out fast so the executor unblocks within
+    // the test (synthetic cancelled result → tool_execution_end fires).
+    // 50ms is generous — tests don't need to wait on real users.
+    const { _setTimeoutMsForTests } = await import('../../src/sentinel/pending.js')
+    _setTimeoutMsForTests(50)
+
     // Stub Pi agent so we control event emission deterministically.
     // The fake agent invokes the toolExecutor (which is the chatStream-wrapped
-    // executor) between tool_execution_start and tool_execution_end so the
-    // advisory queue is populated before the tool_result event is yielded.
+    // executor) between tool_execution_start and tool_execution_end. The
+    // wrapped executor pushes the pause event onto streamPiAgent's external
+    // queue and awaits the pending promise. With the fast timeout above the
+    // promise rejects after ~50ms, the executor returns a synthetic cancelled
+    // result, and Pi proceeds to tool_execution_end.
     type Subscriber = (event: unknown) => void | Promise<void>
     vi.doMock('../../src/pi/sipher-agent.js', async (orig) => {
       const actual = (await orig()) as Record<string, unknown>
@@ -257,7 +345,7 @@ describe('chatStream sentinel_advisory SSE injection', () => {
               try {
                 await opts.toolExecutor('send', { wallet: 'w1', recipient: 'stranger', amount: 5 })
               } catch {
-                // executor throws if tools/send.js isn't mocked — keep going so we still emit end
+                // executor may throw if tools/send.js isn't mocked — keep going so we still emit end
               }
               for (const cb of [...subscribers]) {
                 await cb({
@@ -291,28 +379,34 @@ describe('chatStream sentinel_advisory SSE injection', () => {
     }
 
     const types = events.map((e) => e.type)
-    expect(types).toContain('sentinel_advisory')
+    expect(types).toContain('sentinel_pause')
 
-    const advisoryIdx = types.indexOf('sentinel_advisory')
+    const pauseIdx = types.indexOf('sentinel_pause')
     const toolResultIdx = types.indexOf('tool_result')
     const toolUseIdx = types.indexOf('tool_use')
 
-    // Order must be: tool_use → sentinel_advisory → tool_result
-    expect(toolUseIdx).toBeLessThan(advisoryIdx)
-    expect(advisoryIdx).toBeLessThan(toolResultIdx)
+    // Order must be: tool_use → sentinel_pause → tool_result
+    expect(toolUseIdx).toBeGreaterThanOrEqual(0)
+    expect(pauseIdx).toBeGreaterThan(toolUseIdx)
+    expect(toolResultIdx).toBeGreaterThan(pauseIdx)
 
-    const advisory = events[advisoryIdx] as {
+    const pause = events[pauseIdx] as {
       type: string
+      flagId: string
       action: string
       amount: string
       severity: string
       description: string
     }
-    expect(advisory.severity).toBe('high')
-    expect(advisory.description).toBe('recipient flagged in recent activity')
-    expect(advisory.amount).toBe('5 SOL')
-    expect(advisory.action).toContain('Send to')
+    expect(pause.flagId).toBeTypeOf('string')
+    expect(pause.flagId.length).toBeGreaterThan(0)
+    expect(pause.severity).toBe('high')
+    expect(pause.description).toBe('recipient flagged in recent activity')
+    expect(pause.amount).toBe('5 SOL')
+    expect(pause.action).toContain('Send to')
 
+    // Reset timeout for any other tests that import the module
+    _setTimeoutMsForTests(120_000)
     vi.doUnmock('../../src/tools/send.js')
     vi.doUnmock('../../src/pi/sipher-agent.js')
   })
