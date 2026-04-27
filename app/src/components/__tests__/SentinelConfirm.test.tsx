@@ -62,4 +62,43 @@ describe('SentinelConfirm', () => {
     )
     expect(onResolved).toHaveBeenCalledWith('cancel')
   })
+
+  it('prevents double-dispatch when busy', async () => {
+    // never resolves so busy stays true
+    global.fetch = vi.fn().mockImplementation(() => new Promise(() => {})) as typeof fetch
+    const onResolved = vi.fn()
+    render(
+      <SentinelConfirm
+        flagId="abc"
+        token="t"
+        action="Send"
+        amount="5 SOL"
+        description="x"
+        onResolved={onResolved}
+      />
+    )
+    const btn = screen.getByRole('button', { name: /override & send/i })
+    await userEvent.click(btn)
+    await userEvent.click(btn)
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(onResolved).not.toHaveBeenCalled()
+  })
+
+  it('surfaces error and does not resolve when fetch returns non-ok', async () => {
+    global.fetch = vi.fn().mockResolvedValue(new Response('{"error":"flag expired"}', { status: 404 })) as typeof fetch
+    const onResolved = vi.fn()
+    render(
+      <SentinelConfirm
+        flagId="abc"
+        token="t"
+        action="Send"
+        amount="5 SOL"
+        description="x"
+        onResolved={onResolved}
+      />
+    )
+    await userEvent.click(screen.getByRole('button', { name: /override & send/i }))
+    expect(onResolved).not.toHaveBeenCalled()
+    expect(screen.getByText(/failed/i)).toBeInTheDocument()
+  })
 })
