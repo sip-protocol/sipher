@@ -36,6 +36,31 @@ describe('ChatSidebar', () => {
     expect(input).toBeEnabled()
   })
 
+  it('renders SentinelConfirm card when a sentinel_pause message is in the store', () => {
+    useAppStore.setState({
+      token: 'test-jwt',
+      isAdmin: true,
+      messages: [
+        {
+          id: 'm1',
+          role: 'system',
+          content: '',
+          kind: 'sentinel_pause',
+          meta: {
+            flagId: 'flag-123',
+            action: 'Send',
+            amount: '5 SOL',
+            description: 'Risk: blacklisted address',
+            severity: 'high',
+          },
+        },
+      ],
+    })
+    render(<ChatSidebar />)
+    expect(screen.getByText(/blacklisted address/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /override & send/i })).toBeInTheDocument()
+  })
+
   it('sends message and appends streamed reply', async () => {
     useAppStore.setState({ token: 'test-jwt', isAdmin: true })
 
