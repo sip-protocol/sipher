@@ -117,6 +117,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 app.use(express.json({ limit: '1mb' }))
 
+// ─── CORS — only needed for dev/test (in prod the agent serves the app statically)
+// Reads comma-separated CORS_ORIGINS env. Empty/unset = no CORS headers (same-origin).
+const corsOrigins = (process.env.CORS_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean)
+if (corsOrigins.length > 0) {
+  app.use((req, res, next) => {
+    const origin = req.headers.origin
+    if (origin && corsOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+      res.setHeader('Access-Control-Allow-Credentials', 'true')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    }
+    if (req.method === 'OPTIONS') {
+      res.status(204).end()
+      return
+    }
+    next()
+  })
+  console.log(`  CORS:    enabled for ${corsOrigins.join(', ')}`)
+}
+
 // ─── Pay and Admin routes ────────────────────────────────────────────────────
 
 app.use('/pay', payRouter)

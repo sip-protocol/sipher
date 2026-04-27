@@ -40,6 +40,7 @@ export default defineConfig({
         AUTHORIZED_WALLETS: 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N',
         JWT_SECRET: process.env.JWT_SECRET ?? 'e2e-test-secret-at-least-16-chars',
         SENTINEL_MODE: 'off',
+        CORS_ORIGINS: `http://localhost:${PORT_FRONTEND}`,
       },
     },
     {
@@ -47,6 +48,9 @@ export default defineConfig({
       url: `http://localhost:${PORT_FRONTEND}`,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
+      env: {
+        VITE_API_URL: `http://localhost:${PORT_BACKEND}`,
+      },
     },
   ],
 })
