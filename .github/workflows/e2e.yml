@@ -54,6 +54,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - run: pnpm --filter @sipher/sdk build
+
       - run: pnpm exec playwright install --with-deps chromium
 
       - name: Write E2E admin keypair
