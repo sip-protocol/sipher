@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type View = 'dashboard' | 'vault' | 'herald' | 'squad' | 'chat'
 
@@ -34,38 +35,47 @@ interface AppState {
   setChatOpen: (open: boolean) => void
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  activeView: 'dashboard',
-  setActiveView: (activeView) => set({ activeView }),
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      activeView: 'dashboard',
+      setActiveView: (activeView) => set({ activeView }),
 
-  token: null,
-  isAdmin: false,
-  setAuth: (token, isAdmin) => set({ token, isAdmin }),
-  clearAuth: () => set({ token: null, isAdmin: false, messages: [], activeView: 'dashboard' }),
+      token: null,
+      isAdmin: false,
+      setAuth: (token, isAdmin) => set({ token, isAdmin }),
+      clearAuth: () => set({ token: null, isAdmin: false, messages: [], activeView: 'dashboard' }),
 
-  messages: [],
-  chatLoading: false,
-  addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
-  appendToLast: (text) =>
-    set((s) => {
-      const msgs = [...s.messages]
-      const last = msgs[msgs.length - 1]
-      if (last?.role === 'assistant') {
-        msgs[msgs.length - 1] = { ...last, content: last.content + text }
-      }
-      return { messages: msgs }
+      messages: [],
+      chatLoading: false,
+      addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
+      appendToLast: (text) =>
+        set((s) => {
+          const msgs = [...s.messages]
+          const last = msgs[msgs.length - 1]
+          if (last?.role === 'assistant') {
+            msgs[msgs.length - 1] = { ...last, content: last.content + text }
+          }
+          return { messages: msgs }
+        }),
+      finishStreaming: () =>
+        set((s) => {
+          const msgs = [...s.messages]
+          const last = msgs[msgs.length - 1]
+          if (last?.streaming) {
+            msgs[msgs.length - 1] = { ...last, streaming: false }
+          }
+          return { messages: msgs }
+        }),
+      setChatLoading: (chatLoading) => set({ chatLoading }),
+
+      chatOpen: false,
+      setChatOpen: (chatOpen) => set({ chatOpen }),
     }),
-  finishStreaming: () =>
-    set((s) => {
-      const msgs = [...s.messages]
-      const last = msgs[msgs.length - 1]
-      if (last?.streaming) {
-        msgs[msgs.length - 1] = { ...last, streaming: false }
-      }
-      return { messages: msgs }
-    }),
-  setChatLoading: (chatLoading) => set({ chatLoading }),
-
-  chatOpen: false,
-  setChatOpen: (chatOpen) => set({ chatOpen }),
-}))
+    {
+      name: 'sipher-auth',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s) => ({ token: s.token, isAdmin: s.isAdmin }),
+    }
+  )
+)

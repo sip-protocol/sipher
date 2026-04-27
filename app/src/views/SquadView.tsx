@@ -239,7 +239,7 @@ export default function SquadView({ token }: { token: string | null }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div data-testid="squad-view" className="flex flex-col gap-6">
       {error && (
         <div className="text-text-muted text-xs font-mono bg-card border border-border rounded-lg px-3 py-2">
           Live data unavailable — {error}
