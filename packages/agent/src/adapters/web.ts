@@ -158,6 +158,9 @@ export function createWebAdapter() {
     // Track client disconnect. On disconnect we also reject any pending
     // sentinel flags for this session so the wrapped executor unblocks and
     // Pi's tool loop can wind down (instead of waiting on the 120s timeout).
+    // Note: session ids are wallet-deterministic, so clearAll affects all
+    // concurrent streams for the same wallet (e.g. multi-tab). Acceptable
+    // because a single wallet realistically has one active stream at a time.
     let aborted = false
     res.on('close', () => {
       aborted = true

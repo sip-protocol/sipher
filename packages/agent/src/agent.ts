@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import type { AnthropicTool } from './pi/tool-adapter.js'
 import {
   depositTool,
@@ -373,7 +374,11 @@ export async function* chatStream(
   userMessage: string,
   opts: ChatOptions = {},
 ): AsyncGenerator<SSEEvent> {
-  const sessionId = opts.sessionId ?? 'unknown'
+  // Use a stable fallback UUID when no sessionId is provided so that pending
+  // flags from concurrent anonymous callers (tests, future direct callers)
+  // don't collide under a shared key. Production callers (AgentCore) always
+  // pass a real session id derived from the wallet.
+  const sessionId = opts.sessionId ?? randomUUID()
   const externalQueue: SSESentinelPause[] = []
   let externalWake: (() => void) | null = null
   const baseExecutor = opts.toolExecutor ?? executeTool
