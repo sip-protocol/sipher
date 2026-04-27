@@ -19,7 +19,7 @@ export interface ChatMessage {
   toolName?: string
   streaming?: boolean
   tools?: ToolCall[]
-  kind?: 'sentinel_advisory'
+  kind?: 'sentinel_pause'
   meta?: Record<string, unknown>
   dismissed?: boolean
 }

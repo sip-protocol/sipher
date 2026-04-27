@@ -30,13 +30,14 @@ export interface MsgContext {
 
 /** A single response chunk for streaming */
 export interface ResponseChunk {
-  type: 'text' | 'tool_start' | 'tool_end' | 'error' | 'done' | 'sentinel_advisory'
+  type: 'text' | 'tool_start' | 'tool_end' | 'error' | 'done' | 'sentinel_pause'
   text?: string
   toolName?: string
   toolId?: string
   success?: boolean
-  /** Populated only when type === 'sentinel_advisory' */
-  advisory?: {
+  /** Populated only when type === 'sentinel_pause' */
+  pause?: {
+    flagId: string
     action: string
     amount: string
     severity: string

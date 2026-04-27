@@ -172,10 +172,11 @@ export class AgentCore {
           }
           break
 
-        case 'sentinel_advisory':
+        case 'sentinel_pause':
           yield {
-            type: 'sentinel_advisory',
-            advisory: {
+            type: 'sentinel_pause',
+            pause: {
+              flagId: event.flagId,
               action: event.action,
               amount: event.amount,
               severity: event.severity,

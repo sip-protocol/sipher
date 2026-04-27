@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express'
 import type { ResponseChunk } from '../core/types.js'
 import { AgentCore } from '../core/agent-core.js'
+import { resolveSession } from '../session.js'
+import { clearAll } from '../sentinel/pending.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Web Adapter — maps Express HTTP requests to AgentCore
@@ -34,13 +36,14 @@ function chunkToSSE(chunk: ResponseChunk): Record<string, unknown> {
         id: chunk.toolId,
         success: chunk.success,
       }
-    case 'sentinel_advisory':
+    case 'sentinel_pause':
       return {
-        type: 'sentinel_advisory',
-        action: chunk.advisory?.action ?? '',
-        amount: chunk.advisory?.amount ?? '',
-        severity: chunk.advisory?.severity ?? '',
-        description: chunk.advisory?.description ?? '',
+        type: 'sentinel_pause',
+        flagId: chunk.pause?.flagId ?? '',
+        action: chunk.pause?.action ?? '',
+        amount: chunk.pause?.amount ?? '',
+        severity: chunk.pause?.severity ?? '',
+        description: chunk.pause?.description ?? '',
       }
     case 'error':
       return { type: 'error', message: chunk.text }
@@ -140,6 +143,11 @@ export function createWebAdapter() {
       return
     }
 
+    // Resolve the session up-front so the disconnect handler has a stable id.
+    // resolveSession is deterministic by wallet, so this is the same session
+    // AgentCore.streamMessage will use internally.
+    const session = resolveSession(wallet)
+
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream')
     res.setHeader('Cache-Control', 'no-cache')
@@ -147,10 +155,16 @@ export function createWebAdapter() {
     res.setHeader('X-Accel-Buffering', 'no')
     res.flushHeaders()
 
-    // Track client disconnect
+    // Track client disconnect. On disconnect we also reject any pending
+    // sentinel flags for this session so the wrapped executor unblocks and
+    // Pi's tool loop can wind down (instead of waiting on the 120s timeout).
+    // Note: session ids are wallet-deterministic, so clearAll affects all
+    // concurrent streams for the same wallet (e.g. multi-tab). Acceptable
+    // because a single wallet realistically has one active stream at a time.
     let aborted = false
     res.on('close', () => {
       aborted = true
+      clearAll(session.id)
     })
 
     try {

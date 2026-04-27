@@ -3,7 +3,7 @@ import { PaperPlaneTilt, CircleNotch, Wrench } from '@phosphor-icons/react'
 import { useAppStore, type ChatMessage } from '../stores/app'
 import { sanitizeArgs } from '../lib/sanitize-args'
 import ToolTimeline from './ToolTimeline'
-import ConfirmCard from './ConfirmCard'
+import SentinelConfirm from './SentinelConfirm'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -91,13 +91,14 @@ export default function ChatSidebar({ fullScreen }: Props) {
             } else if (event.type === 'tool_result') {
               completeTool(event.name, event.is_error ? 'error' : 'success')
               setActiveTool(null)
-            } else if (event.type === 'sentinel_advisory') {
+            } else if (event.type === 'sentinel_pause') {
               addMessage({
                 id: crypto.randomUUID(),
                 role: 'system',
                 content: '',
-                kind: 'sentinel_advisory',
+                kind: 'sentinel_pause' as const,
                 meta: {
+                  flagId: event.flagId,
                   action: event.action,
                   amount: event.amount,
                   description: event.description,
@@ -149,18 +150,18 @@ export default function ChatSidebar({ fullScreen }: Props) {
           <p className="text-text-muted text-sm text-center py-8">Ask SIPHER anything about your privacy.</p>
         )}
         {messages.filter((m) => !m.dismissed).map((msg) => {
-          if (msg.role === 'system' && msg.kind === 'sentinel_advisory') {
-            const meta = (msg.meta ?? {}) as { action?: string; amount?: string; description?: string }
+          if (msg.role === 'system' && msg.kind === 'sentinel_pause' && token) {
+            const meta = (msg.meta ?? {}) as { flagId?: string; action?: string; amount?: string; description?: string }
             return (
               <div key={msg.id} className="flex justify-start">
                 <div className="max-w-[90%] w-full">
-                  <ConfirmCard
-                    variant="warning"
+                  <SentinelConfirm
+                    flagId={meta.flagId ?? ''}
+                    token={token}
                     action={meta.action ?? 'Action'}
                     amount={meta.amount ?? ''}
                     description={meta.description}
-                    onConfirm={() => sendMessage('Yes, proceed anyway')}
-                    onCancel={() => dismissMessage(msg.id)}
+                    onResolved={() => dismissMessage(msg.id)}
                   />
                 </div>
               </div>
