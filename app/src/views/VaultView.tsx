@@ -13,6 +13,9 @@ import {
   CheckCircle,
   Binoculars,
 } from '@phosphor-icons/react'
+import AmountForm from '../components/AmountForm'
+import ConfirmCard from '../components/ConfirmCard'
+import { useAppStore } from '../stores/app'
 
 interface TokenBalance {
   mint: string
@@ -32,6 +35,9 @@ interface ActivityRow {
   wallet?: string
   created_at: string
 }
+
+type VaultAction = 'deposit' | 'withdraw'
+type Step = 'idle' | 'amount' | 'confirm'
 
 interface VaultData {
   wallet: string
@@ -70,6 +76,21 @@ export default function VaultView({ token }: { token: string | null }) {
   const [data, setData] = useState<VaultData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
+
+  const seedChat = useAppStore((s) => s.seedChat)
+  const [step, setStep] = useState<Step>('idle')
+  const [pendingAction, setPendingAction] = useState<VaultAction | null>(null)
+  const [pendingAmount, setPendingAmount] = useState<number>(0)
+
+  const reset = () => { setPendingAction(null); setPendingAmount(0); setStep('idle') }
+  const begin = (a: VaultAction) => { setPendingAction(a); setStep('amount') }
+  const submitAmount = (n: number) => { setPendingAmount(n); setStep('confirm') }
+  const confirm = () => {
+    if (!pendingAction || !pendingAmount) return
+    const direction = pendingAction === 'deposit' ? 'to' : 'from'
+    seedChat(`${pendingAction} ${pendingAmount} SOL ${direction} vault`)
+    reset()
+  }
 
   useEffect(() => {
     if (!token) return
@@ -123,11 +144,19 @@ export default function VaultView({ token }: { token: string | null }) {
           </p>
         )}
         <div className="flex gap-3">
-          <button className="flex-1 border border-green/40 text-green py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-green/10 transition-colors flex justify-center items-center gap-2">
+          <button
+            onClick={() => begin('deposit')}
+            disabled={step !== 'idle' || (sol ?? 0) <= 0}
+            className="flex-1 border border-green/40 text-green py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-green/10 transition-colors flex justify-center items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
             <ArrowDownLeft size={16} />
             Deposit
           </button>
-          <button className="flex-1 border border-border text-text py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-elevated transition-colors flex justify-center items-center gap-2">
+          <button
+            onClick={() => begin('withdraw')}
+            disabled={step !== 'idle' || (sol ?? 0) <= 0}
+            className="flex-1 border border-border text-text py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-elevated transition-colors flex justify-center items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
             <MaskHappy size={16} />
             Withdraw
           </button>
@@ -137,6 +166,25 @@ export default function VaultView({ token }: { token: string | null }) {
           </button>
         </div>
       </section>
+
+      {/* Deposit / Withdraw flow */}
+      {step === 'amount' && pendingAction && (
+        <AmountForm
+          action={pendingAction.charAt(0).toUpperCase() + pendingAction.slice(1)}
+          max={sol ?? 0}
+          onSubmit={submitAmount}
+          onCancel={reset}
+        />
+      )}
+
+      {step === 'confirm' && pendingAction && (
+        <ConfirmCard
+          action={pendingAction.charAt(0).toUpperCase() + pendingAction.slice(1)}
+          amount={`${pendingAmount} SOL`}
+          onConfirm={confirm}
+          onCancel={reset}
+        />
+      )}
 
       {/* Recent Activity */}
       <section className="flex flex-col gap-3">
