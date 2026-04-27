@@ -97,6 +97,10 @@ sentinelAdminRouter.get('/decisions', (req: Request, res: Response) => {
   res.json({ decisions: listDecisions({ limit, source }) })
 })
 
+// ─── Promise-gate endpoints (pause/resume for advisory mode) ────────────────
+// NOTE: distinct from /pending/:id/cancel above (circuit-breaker, SQLite-backed).
+// These act on in-memory pending promises owned by sentinel/pending.ts.
+
 sentinelAdminRouter.post('/override/:flagId', (req: Request, res: Response) => {
   const flagId = String(req.params.flagId)
   const ok = resolvePending(flagId)
