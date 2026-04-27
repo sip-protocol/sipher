@@ -9,7 +9,7 @@ import {
 
 describe('sentinel-pending', () => {
   beforeEach(() => {
-    clearAll('test-session')
+    for (const s of ['test-session', 's1', 's2']) clearAll(s)
     _setTimeoutMsForTests(120_000)
     vi.useRealTimers()
   })

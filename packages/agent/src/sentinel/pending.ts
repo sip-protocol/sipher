@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 
-interface PendingFlag {
+export interface PendingFlag {
   sessionId: string
   toolName: string
   toolInput: unknown
