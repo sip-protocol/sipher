@@ -6,6 +6,7 @@ import {
 import { cancelCircuitBreakerAction } from '../sentinel/circuit-breaker.js'
 import { getSentinelAssessor } from '../sentinel/preflight-gate.js'
 import { getSentinelConfig } from '../sentinel/config.js'
+import { resolvePending, rejectPending } from '../sentinel/pending.js'
 
 // ─── Public endpoints (verifyJwt only) ──────────────────────────────────────
 export const sentinelPublicRouter: Router = Router()
@@ -94,6 +95,26 @@ sentinelAdminRouter.get('/decisions', (req: Request, res: Response) => {
   const limit = Number(String(req.query.limit ?? '50'))
   const source = (typeof req.query.source === 'string' ? req.query.source : undefined)
   res.json({ decisions: listDecisions({ limit, source }) })
+})
+
+sentinelAdminRouter.post('/override/:flagId', (req: Request, res: Response) => {
+  const flagId = String(req.params.flagId)
+  const ok = resolvePending(flagId)
+  if (!ok) {
+    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'flag not found or expired' } })
+    return
+  }
+  res.status(204).send()
+})
+
+sentinelAdminRouter.post('/cancel/:flagId', (req: Request, res: Response) => {
+  const flagId = String(req.params.flagId)
+  const ok = rejectPending(flagId, 'cancelled_by_user')
+  if (!ok) {
+    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'flag not found or expired' } })
+    return
+  }
+  res.status(204).send()
 })
 
 // ─── Combined router (backwards compatibility) ──────────────────────────────
