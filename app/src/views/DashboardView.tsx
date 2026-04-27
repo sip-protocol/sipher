@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Wallet,
   ShieldCheck,
@@ -6,8 +6,10 @@ import {
   Lightning,
 } from '@phosphor-icons/react'
 import { apiFetch } from '../api/client'
+import { useAppStore } from '../stores/app'
 import { type ActivityEvent } from '../hooks/useSSE'
 import { useIsAdmin } from '../hooks/useIsAdmin'
+import AdminOnly from '../components/AdminOnly'
 import MetricCard from '../components/MetricCard'
 import ActivityEntry from '../components/ActivityEntry'
 import AgentDot from '../components/AgentDot'
@@ -28,6 +30,14 @@ interface HealthData {
 
 interface HeraldBudget {
   budget: { spent: number; limit: number; percentage: number; gate: string }
+}
+
+interface PrivacyData {
+  score: number
+  grade: string
+  factors: Record<string, { score: number; detail: string }>
+  recommendations: string[]
+  transactionsAnalyzed: number
 }
 
 interface ActivityRecord {
@@ -56,10 +66,55 @@ export default function DashboardView({
   token: string | null
 }) {
   const isAdmin = useIsAdmin()
+  const seedChat = useAppStore((s) => s.seedChat)
   const [vault, setVault] = useState<VaultData | null>(null)
   const [health, setHealth] = useState<HealthData | null>(null)
   const [heraldBudget, setHeraldBudget] = useState<HeraldBudget | null>(null)
   const [history, setHistory] = useState<ActivityEvent[]>([])
+  const [privacyData, setPrivacyData] = useState<PrivacyData | null>(null)
+  const [privacyError, setPrivacyError] = useState<string | null>(null)
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastProcessedEventId = useRef<string | null>(null)
+  const wallet = vault?.wallet
+
+  const fetchPrivacyScore = useCallback(async (signal?: AbortSignal) => {
+    if (!wallet || !token) return
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/privacy/score`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ address: wallet, limit: 100 }),
+        signal,
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = await res.json()
+      setPrivacyData(json.data)
+      setPrivacyError(null)
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+      setPrivacyError(err instanceof Error ? err.message : 'Failed to fetch privacy score')
+    }
+  }, [wallet, token])
+
+  useEffect(() => {
+    if (!wallet || !token) return
+    const controller = new AbortController()
+    fetchPrivacyScore(controller.signal)
+    return () => controller.abort()
+  }, [wallet, token, fetchPrivacyScore])
+
+  useEffect(() => {
+    if (!wallet || !token) return
+    const fundMoverPattern = /^(send|swap|claim|refund|deposit)\.(success|completed)$/
+    const recent = events.find((e) => fundMoverPattern.test(e.type ?? ''))
+    if (!recent || recent.id === lastProcessedEventId.current) return
+    lastProcessedEventId.current = recent.id
+    if (refreshTimer.current) clearTimeout(refreshTimer.current)
+    refreshTimer.current = setTimeout(() => fetchPrivacyScore(), 5000)
+    return () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current)
+    }
+  }, [events, wallet, token, fetchPrivacyScore])
 
   useEffect(() => {
     if (!token) return
@@ -88,11 +143,10 @@ export default function DashboardView({
 
   const solBalance = vault?.balances?.sol
   const depositCount = history.filter((e) => e.type?.includes('deposit')).length
-  const allEvents = [...events, ...history].slice(0, 30)
-
-  // Privacy score placeholder — computed by SIPHER agent tool, not a REST endpoint
-  const privacyScore = '—'
-  const scoreColor = undefined
+  const allEvents = [
+    ...events.map(e => ({ ...e, isLive: true })),
+    ...history.map(e => ({ ...e, isLive: false })),
+  ].slice(0, 30)
 
   const budgetSpent = heraldBudget?.budget?.spent
   const budgetLimit = heraldBudget?.budget?.limit
@@ -107,27 +161,48 @@ export default function DashboardView({
           sub="SOL"
           icon={<Wallet size={16} />}
         />
-        <MetricCard
-          label="Privacy Score"
-          value={privacyScore}
-          sub="/100"
-          icon={<ShieldCheck size={16} />}
-          color={scoreColor}
-        />
+        {(() => {
+          const grade = privacyData?.grade
+          const colorByGrade: Record<string, string> = {
+            A: '#22c55e', B: '#84cc16', C: '#facc15', D: '#fb923c', F: '#ef4444',
+          }
+          const factors = privacyData
+            ? [
+                { label: 'Address reuse', score: privacyData.factors.addressReuse.score },
+                { label: 'Amount patterns', score: privacyData.factors.amountPatterns.score },
+                { label: 'Timing correlation', score: privacyData.factors.timingCorrelation.score },
+                { label: 'Counterparty exposure', score: privacyData.factors.counterpartyExposure.score },
+              ]
+            : undefined
+          return (
+            <div className="lg:col-span-2">
+              <MetricCard
+                variant="hero"
+                label={`Privacy Score${grade ? ` · ${grade}` : ''}`}
+                value={privacyData ? String(privacyData.score) : (privacyError ? '—' : '—')}
+                sub="/100"
+                icon={<ShieldCheck size={16} />}
+                color={grade ? colorByGrade[grade] : undefined}
+                factors={factors}
+                onClick={() => privacyData && seedChat(`Why is my privacy score ${privacyData.score}?`)}
+              />
+            </div>
+          )
+        })()}
         <MetricCard
           label="Deposits"
           value={depositCount.toString()}
           sub="total"
           icon={<ArrowDown size={16} />}
         />
-        {isAdmin && (
+        <AdminOnly>
           <MetricCard
             label="Budget"
             value={budgetSpent != null ? `$${budgetSpent.toFixed(0)}` : '—'}
             sub={budgetLimit != null ? `/ $${budgetLimit}` : ''}
             icon={<Lightning size={16} />}
           />
-        )}
+        </AdminOnly>
       </div>
 
       {/* Two columns: Activity + Agent Status */}
@@ -150,6 +225,7 @@ export default function DashboardView({
                 <ActivityEntry
                   key={event.id}
                   agent={event.agent as AgentName}
+                  type={event.type}
                   title={
                     (event.data?.title as string) ??
                     (event.data?.message as string) ??
@@ -158,6 +234,7 @@ export default function DashboardView({
                   detail={event.data?.detail as string}
                   time={event.timestamp}
                   level={event.level}
+                  isLive={event.isLive}
                 />
               ))}
             </div>
@@ -165,7 +242,7 @@ export default function DashboardView({
         </div>
 
         {/* Guardian Squad (admin only) */}
-        {isAdmin && (
+        <AdminOnly>
           <div>
             <h3 className="text-[10px] font-semibold text-text-muted tracking-widest uppercase mb-3 px-1">
               Guardian Squad
@@ -199,7 +276,7 @@ export default function DashboardView({
               </p>
             )}
           </div>
-        )}
+        </AdminOnly>
       </div>
     </div>
   )

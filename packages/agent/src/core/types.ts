@@ -30,11 +30,18 @@ export interface MsgContext {
 
 /** A single response chunk for streaming */
 export interface ResponseChunk {
-  type: 'text' | 'tool_start' | 'tool_end' | 'error' | 'done'
+  type: 'text' | 'tool_start' | 'tool_end' | 'error' | 'done' | 'sentinel_advisory'
   text?: string
   toolName?: string
   toolId?: string
   success?: boolean
+  /** Populated only when type === 'sentinel_advisory' */
+  advisory?: {
+    action: string
+    amount: string
+    severity: string
+    description: string
+  }
 }
 
 /** Full (non-streaming) agent response */
