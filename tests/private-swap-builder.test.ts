@@ -155,3 +155,48 @@ describe('buildPrivateSwap — C-SPL branches', () => {
     expect(result.executionOrder).not.toContain('wrap')
   })
 })
+
+describe('buildPrivateSwap — stealth + commitment invariants', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(jupiterProvider.getQuote).mockResolvedValue(makeJupiterQuote())
+    vi.mocked(jupiterProvider.buildSwapTransaction).mockResolvedValue(makeJupiterSwapTx())
+    vi.mocked(csplModule.getCSPLService).mockResolvedValue(mockCSPLService('fail') as never)
+  })
+
+  it('outputStealthAddress is a valid base58 Solana address (32 bytes)', async () => {
+    const result = await buildPrivateSwap({
+      sender,
+      inputMint: SOL_MINT,
+      inputAmount: '1000000000',
+      outputMint: USDC_MINT,
+    })
+
+    // base58 Solana addresses are 32-44 chars
+    expect(result.outputStealthAddress).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
+
+    // Validate by reconstructing PublicKey (will throw if invalid)
+    const { PublicKey } = await import('@solana/web3.js')
+    expect(() => new PublicKey(result.outputStealthAddress)).not.toThrow()
+    expect(new PublicKey(result.outputStealthAddress).toBytes()).toHaveLength(32)
+  })
+
+  it('commitment is 33-byte compressed point hex; blindingFactor is 32-byte hex', async () => {
+    const result = await buildPrivateSwap({
+      sender,
+      inputMint: SOL_MINT,
+      inputAmount: '1000000000',
+      outputMint: USDC_MINT,
+    })
+
+    // commitment: 0x + 66 hex chars (33 bytes)
+    expect(result.commitment).toMatch(/^0x[0-9a-f]{66}$/)
+
+    // First byte after 0x must be 02 or 03 (compressed point prefix)
+    const prefix = result.commitment.slice(2, 4)
+    expect(['02', '03']).toContain(prefix)
+
+    // blindingFactor: 0x + 64 hex chars (32 bytes)
+    expect(result.blindingFactor).toMatch(/^0x[0-9a-f]{64}$/)
+  })
+})
