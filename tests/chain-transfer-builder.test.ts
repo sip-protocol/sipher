@@ -50,5 +50,7 @@ describe('getSupportedTransferChains', () => {
         'near',
       ])
     )
+    expect(chains).not.toContain('bitcoin')  // Symmetry with isTransferSupported negative test
+    expect(chains).not.toBe(getSupportedTransferChains())  // Returns a fresh array (immutability guard)
   })
 })
