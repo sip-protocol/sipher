@@ -18,3 +18,7 @@ e2e/fixtures/admin-keypair.json
 e2e/fixtures/storageState.json
 e2e/test.db
 e2e/test.db-journal
+
+# SENTINEL spec-capture artifacts (transient)
+e2e/sentinel-capture/
+.env.spec
