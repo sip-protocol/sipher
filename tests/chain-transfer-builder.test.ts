@@ -1,0 +1,311 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// Mock transaction-builder.js BEFORE importing chain-transfer-builder
+vi.mock('../src/services/transaction-builder.js', () => ({
+  buildShieldedSolTransfer: vi.fn().mockResolvedValue('mockedSolTxBase64'),
+  buildShieldedSplTransfer: vi.fn().mockResolvedValue('mockedSplTxBase64'),
+  buildAnchorShieldedSolTransfer: vi.fn().mockResolvedValue({
+    transaction: 'mockedAnchorTxBase64',
+    noteId: 'mockedNoteIdPDA',
+    encryptedAmount: '0xdeadbeefcafebabe',
+    instructionType: 'anchor' as const,
+  }),
+}))
+
+const txBuilder = await import('../src/services/transaction-builder.js')
+
+const {
+  isTransferSupported,
+  getSupportedTransferChains,
+  buildPrivateTransfer,
+} = await import('../src/services/chain-transfer-builder.js')
+
+// Realistic test recipient meta-address (use real ed25519/secp256k1 hex)
+// 32-byte ed25519 pubkey for solana/near
+const SOLANA_SPENDING_KEY = '0x' + 'a'.repeat(64)
+const SOLANA_VIEWING_KEY = '0x' + 'b'.repeat(64)
+
+// 33-byte secp256k1 compressed pubkeys for evm (valid curve points)
+const EVM_SPENDING_KEY = '0x02acf11ab16a2ff3306993b16294b9885e721758656537728a4d46d7721828bb56'
+const EVM_VIEWING_KEY = '0x0264c15fa5af8fd6cea8c3450871a907cb4ae531fb18c69c8598f58226b1754379'
+
+const sender = 'SenderAddrXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+
+describe('isTransferSupported', () => {
+  it.each([
+    'solana',
+    'ethereum',
+    'polygon',
+    'arbitrum',
+    'optimism',
+    'base',
+    'near',
+  ])('returns true for supported chain: %s', (chain) => {
+    expect(isTransferSupported(chain)).toBe(true)
+  })
+
+  it('returns false for unsupported chain', () => {
+    expect(isTransferSupported('bitcoin')).toBe(false)
+  })
+})
+
+describe('getSupportedTransferChains', () => {
+  it('returns array containing all 7 supported chains', () => {
+    const chains = getSupportedTransferChains()
+    expect(chains).toHaveLength(7)
+    expect(chains).toEqual(
+      expect.arrayContaining([
+        'solana',
+        'ethereum',
+        'polygon',
+        'arbitrum',
+        'optimism',
+        'base',
+        'near',
+      ])
+    )
+    expect(chains).not.toContain('bitcoin')  // Symmetry with isTransferSupported negative test
+    expect(chains).not.toBe(getSupportedTransferChains())  // Returns a fresh array (immutability guard)
+  })
+})
+
+describe('buildPrivateTransfer — Solana branch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('native SOL → calls buildAnchorShieldedSolTransfer with anchor instructionType', async () => {
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: SOLANA_SPENDING_KEY,
+        viewingKey: SOLANA_VIEWING_KEY,
+        chain: 'solana',
+      },
+      amount: '1000000',
+    })
+
+    expect(txBuilder.buildAnchorShieldedSolTransfer).toHaveBeenCalledOnce()
+    expect(result.instructionType).toBe('anchor')
+    expect(result.chain).toBe('solana')
+    expect(result.curve).toBe('ed25519')
+  })
+
+  it('native SOL → falls back to system transfer when Anchor throws', async () => {
+    vi.mocked(txBuilder.buildAnchorShieldedSolTransfer).mockRejectedValueOnce(
+      new Error('CONFIG_PDA account not found')
+    )
+
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: SOLANA_SPENDING_KEY,
+        viewingKey: SOLANA_VIEWING_KEY,
+        chain: 'solana',
+      },
+      amount: '1000000',
+    })
+
+    expect(txBuilder.buildShieldedSolTransfer).toHaveBeenCalledOnce()
+    expect(result.instructionType).toBe('system')
+  })
+
+  it('SPL token (mint provided) → calls buildShieldedSplTransfer', async () => {
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: SOLANA_SPENDING_KEY,
+        viewingKey: SOLANA_VIEWING_KEY,
+        chain: 'solana',
+      },
+      amount: '500000',
+      token: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC mint
+    })
+
+    expect(txBuilder.buildShieldedSplTransfer).toHaveBeenCalledOnce()
+    expect(result.chain).toBe('solana')
+    expect(result.chainData.type).toBe('solana')
+    if (result.chainData.type === 'solana') {
+      expect(result.chainData.mint).toBe('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
+    }
+  })
+})
+
+describe('buildPrivateTransfer — EVM branch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  const evmChainsWithIds: Array<[string, number]> = [
+    ['ethereum', 1],
+    ['polygon', 137],
+    ['arbitrum', 42161],
+    ['optimism', 10],
+    ['base', 8453],
+  ]
+
+  it.each(evmChainsWithIds)('native ETH on %s returns {to, value, data:0x}', async (chain, _chainId) => {
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: EVM_SPENDING_KEY,
+        viewingKey: EVM_VIEWING_KEY,
+        chain,
+      },
+      amount: '1000000000000000000', // 1 ETH in wei
+    })
+
+    expect(result.chainData.type).toBe('evm')
+    if (result.chainData.type === 'evm') {
+      expect(result.chainData.to.toLowerCase()).toMatch(/^0x[0-9a-f]{40}$/)
+      expect(result.chainData.value).toBe('1000000000000000000')
+      expect(result.chainData.data).toBe('0x')
+    }
+  })
+
+  it('ERC20 → data starts with 0xa9059cbb + padded address + padded amount', async () => {
+    const tokenContract = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' // USDC on ETH
+    const amount = '1000000' // 1 USDC
+
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: EVM_SPENDING_KEY,
+        viewingKey: EVM_VIEWING_KEY,
+        chain: 'ethereum',
+      },
+      amount,
+      token: tokenContract,
+    })
+
+    expect(result.chainData.type).toBe('evm')
+    if (result.chainData.type === 'evm') {
+      expect(result.chainData.to).toBe(tokenContract)
+      expect(result.chainData.tokenContract).toBe(tokenContract)
+      expect(result.chainData.value).toBe('0')
+      expect(result.chainData.data.startsWith('0xa9059cbb')).toBe(true)
+      expect(result.chainData.data.length).toBe(2 + 8 + 64 + 64)
+
+      const amountHex = result.chainData.data.slice(2 + 8 + 64)
+      const amountReadback = BigInt('0x' + amountHex)
+      expect(amountReadback).toBe(BigInt(amount))
+    }
+  })
+
+  it.each(evmChainsWithIds)('sets correct chainId for %s → %i', async (chain, chainId) => {
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: EVM_SPENDING_KEY,
+        viewingKey: EVM_VIEWING_KEY,
+        chain,
+      },
+      amount: '1000',
+    })
+
+    expect(result.chainData.type).toBe('evm')
+    if (result.chainData.type === 'evm') {
+      expect(result.chainData.chainId).toBe(chainId)
+    }
+  })
+})
+
+describe('buildPrivateTransfer — NEAR branch', () => {
+  it('native NEAR → returns Transfer action with amount', async () => {
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: SOLANA_SPENDING_KEY, // ed25519 reused for NEAR
+        viewingKey: SOLANA_VIEWING_KEY,
+        chain: 'near',
+      },
+      amount: '1000000000000000000000000', // 1 NEAR (24 decimals)
+    })
+
+    expect(result.chainData.type).toBe('near')
+    if (result.chainData.type === 'near') {
+      expect(result.chainData.actions).toHaveLength(1)
+      expect(result.chainData.actions[0]).toEqual({
+        type: 'Transfer',
+        amount: '1000000000000000000000000',
+      })
+      expect(result.chainData.tokenContract).toBeUndefined()
+    }
+  })
+
+  it('NEP-141 FT → FunctionCall with ft_transfer + base64 args', async () => {
+    const tokenContract = 'usdc.fakes.testnet'
+    const amount = '1000000' // 1 USDC
+
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: SOLANA_SPENDING_KEY,
+        viewingKey: SOLANA_VIEWING_KEY,
+        chain: 'near',
+      },
+      amount,
+      token: tokenContract,
+    })
+
+    expect(result.chainData.type).toBe('near')
+    if (result.chainData.type === 'near') {
+      expect(result.chainData.receiverId).toBe(tokenContract)
+      expect(result.chainData.tokenContract).toBe(tokenContract)
+      expect(result.chainData.actions).toHaveLength(1)
+
+      const action = result.chainData.actions[0]
+      expect(action.type).toBe('FunctionCall')
+      if (action.type === 'FunctionCall') {
+        expect(action.methodName).toBe('ft_transfer')
+        expect(action.gas).toBe('30000000000000')
+        expect(action.deposit).toBe('1')
+
+        const decoded = JSON.parse(Buffer.from(action.args, 'base64').toString())
+        expect(decoded.amount).toBe(amount)
+        expect(decoded.memo).toBe('SIP private transfer')
+        expect(decoded.receiver_id).toBe(result.stealthAddress)
+      }
+    }
+  })
+})
+
+describe('buildPrivateTransfer — error + curve detection', () => {
+  it('throws on unsupported chain', async () => {
+    // bitcoin is a valid SDK chain (secp256k1) but not in our transfer builder's dispatch
+    // so use valid secp256k1 keys to pass SDK validation and hit our Unsupported guard
+    await expect(
+      buildPrivateTransfer({
+        sender,
+        recipientMetaAddress: {
+          spendingKey: EVM_SPENDING_KEY,
+          viewingKey: EVM_VIEWING_KEY,
+          chain: 'bitcoin',
+        },
+        amount: '1000',
+      })
+    ).rejects.toThrow(/Unsupported transfer chain/)
+  })
+
+  it.each([
+    ['solana', 'ed25519' as const, SOLANA_SPENDING_KEY, SOLANA_VIEWING_KEY],
+    ['near', 'ed25519' as const, SOLANA_SPENDING_KEY, SOLANA_VIEWING_KEY],
+    ['ethereum', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
+    ['polygon', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
+    ['arbitrum', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
+    ['optimism', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
+    ['base', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
+  ])('chain=%s returns curve=%s', async (chain, expectedCurve, spendingKey, viewingKey) => {
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey,
+        viewingKey,
+        chain,
+      },
+      amount: '1000',
+    })
+
+    expect(result.curve).toBe(expectedCurve)
+  })
+})
