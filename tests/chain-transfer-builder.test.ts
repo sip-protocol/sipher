@@ -25,9 +25,9 @@ const {
 const SOLANA_SPENDING_KEY = '0x' + 'a'.repeat(64)
 const SOLANA_VIEWING_KEY = '0x' + 'b'.repeat(64)
 
-// 33-byte secp256k1 compressed pubkey for evm
-const EVM_SPENDING_KEY = '0x02' + 'c'.repeat(64)
-const EVM_VIEWING_KEY = '0x02' + 'd'.repeat(64)
+// 33-byte secp256k1 compressed pubkeys for evm (valid curve points)
+const EVM_SPENDING_KEY = '0x02acf11ab16a2ff3306993b16294b9885e721758656537728a4d46d7721828bb56'
+const EVM_VIEWING_KEY = '0x0264c15fa5af8fd6cea8c3450871a907cb4ae531fb18c69c8598f58226b1754379'
 
 const sender = 'SenderAddrXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
 
@@ -127,6 +127,85 @@ describe('buildPrivateTransfer — Solana branch', () => {
     expect(result.chainData.type).toBe('solana')
     if (result.chainData.type === 'solana') {
       expect(result.chainData.mint).toBe('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
+    }
+  })
+})
+
+describe('buildPrivateTransfer — EVM branch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  const evmChainsWithIds: Array<[string, number]> = [
+    ['ethereum', 1],
+    ['polygon', 137],
+    ['arbitrum', 42161],
+    ['optimism', 10],
+    ['base', 8453],
+  ]
+
+  it.each(evmChainsWithIds)('native ETH on %s returns {to, value, data:0x}', async (chain, _chainId) => {
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: EVM_SPENDING_KEY,
+        viewingKey: EVM_VIEWING_KEY,
+        chain,
+      },
+      amount: '1000000000000000000', // 1 ETH in wei
+    })
+
+    expect(result.chainData.type).toBe('evm')
+    if (result.chainData.type === 'evm') {
+      expect(result.chainData.to.toLowerCase()).toMatch(/^0x[0-9a-f]{40}$/)
+      expect(result.chainData.value).toBe('1000000000000000000')
+      expect(result.chainData.data).toBe('0x')
+    }
+  })
+
+  it('ERC20 → data starts with 0xa9059cbb + padded address + padded amount', async () => {
+    const tokenContract = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' // USDC on ETH
+    const amount = '1000000' // 1 USDC
+
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: EVM_SPENDING_KEY,
+        viewingKey: EVM_VIEWING_KEY,
+        chain: 'ethereum',
+      },
+      amount,
+      token: tokenContract,
+    })
+
+    expect(result.chainData.type).toBe('evm')
+    if (result.chainData.type === 'evm') {
+      expect(result.chainData.to).toBe(tokenContract)
+      expect(result.chainData.tokenContract).toBe(tokenContract)
+      expect(result.chainData.value).toBe('0')
+      expect(result.chainData.data.startsWith('0xa9059cbb')).toBe(true)
+      expect(result.chainData.data.length).toBe(2 + 8 + 64 + 64)
+
+      const amountHex = result.chainData.data.slice(2 + 8 + 64)
+      const amountReadback = BigInt('0x' + amountHex)
+      expect(amountReadback).toBe(BigInt(amount))
+    }
+  })
+
+  it.each(evmChainsWithIds)('sets correct chainId for %s → %i', async (chain, chainId) => {
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: EVM_SPENDING_KEY,
+        viewingKey: EVM_VIEWING_KEY,
+        chain,
+      },
+      amount: '1000',
+    })
+
+    expect(result.chainData.type).toBe('evm')
+    if (result.chainData.type === 'evm') {
+      expect(result.chainData.chainId).toBe(chainId)
     }
   })
 })
