@@ -1,6 +1,8 @@
 import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { getDb } from '../../db.js'
 
+// Reference: docs/sentinel/tools.md
+
 export interface GetPendingClaimsParams { wallet?: string }
 export interface PendingClaim {
   ephemeralPubkey: string
@@ -11,6 +13,12 @@ export interface GetPendingClaimsResult {
   claims: PendingClaim[]
 }
 
+/**
+ * List stealth transfers detected by SentinelWorker that have not yet been claimed.
+ * @type read | @usedBy SentinelCore
+ * @whenFired When SENTINEL surveys unclaimed inbound transfers to assess outstanding exposure.
+ * @see docs/sentinel/tools.md#getpendingclaims
+ */
 export const getPendingClaimsTool: AnthropicTool = {
   name: 'getPendingClaims',
   description: 'List stealth transfers detected by SentinelWorker that have not yet been claimed.',

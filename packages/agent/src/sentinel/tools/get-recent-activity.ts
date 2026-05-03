@@ -1,6 +1,8 @@
 import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { getDb } from '../../db.js'
 
+// Reference: docs/sentinel/tools.md
+
 export interface GetRecentActivityParams { address: string; limit?: number; since?: string }
 
 export interface ActivityEventRow {
@@ -18,6 +20,12 @@ export interface GetRecentActivityResult {
   count: number
 }
 
+/**
+ * Fetch recent activity_stream events for a given wallet or address.
+ * @type read | @usedBy SentinelCore
+ * @whenFired When SENTINEL gauges baseline behavior and activity volume for an account before making a risk call.
+ * @see docs/sentinel/tools.md#getrecentactivity
+ */
 export const getRecentActivityTool: AnthropicTool = {
   name: 'getRecentActivity',
   description: 'Fetch recent activity_stream events for a given wallet/address. Use to gauge account baseline behavior.',

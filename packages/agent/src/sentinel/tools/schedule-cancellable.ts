@@ -1,6 +1,8 @@
 import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { scheduleCancellableAction } from '../circuit-breaker.js'
 
+// Reference: docs/sentinel/tools.md
+
 export interface ScheduleCancellableParams {
   actionType: string
   payload: Record<string, unknown>
@@ -10,6 +12,12 @@ export interface ScheduleCancellableParams {
   decisionId?: string
 }
 
+/**
+ * Schedule an action for delayed execution inside the circuit breaker with a cancellation window.
+ * @type action | @usedBy SentinelCore
+ * @whenFired When executeRefund determines the amount exceeds the auto-refund threshold and deferred execution is required.
+ * @see docs/sentinel/tools.md#schedulecancellableaction
+ */
 export const scheduleCancellableTool: AnthropicTool = {
   name: 'scheduleCancellableAction',
   description:

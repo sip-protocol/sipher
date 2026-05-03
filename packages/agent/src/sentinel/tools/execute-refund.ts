@@ -3,6 +3,8 @@ import { getSentinelConfig } from '../config.js'
 import { scheduleCancellableAction } from '../circuit-breaker.js'
 import { performVaultRefund } from '../vault-refund.js'
 
+// Reference: docs/sentinel/tools.md
+
 export interface SentinelRefundParams {
   pda: string
   amount: number
@@ -17,6 +19,13 @@ export interface SentinelRefundResult {
   result?: Record<string, unknown>
 }
 
+/**
+ * Auto-refund a deposit PDA back to the depositor via the sipher_vault authority_refund path.
+ * Small amounts execute immediately; larger amounts enter the circuit breaker with a cancellation window.
+ * @type action | @usedBy SentinelCore
+ * @whenFired When SENTINEL determines a deposit should be returned — either on timeout, suspected fraud, or operator directive.
+ * @see docs/sentinel/tools.md#executerefund
+ */
 export const executeRefundTool: AnthropicTool = {
   name: 'executeRefund',
   description:

@@ -1,6 +1,8 @@
 import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { Connection, PublicKey } from '@solana/web3.js'
 
+// Reference: docs/sentinel/tools.md
+
 export interface GetDepositStatusParams { pda: string }
 export interface GetDepositStatusResult {
   status: 'active' | 'expired' | 'refunded' | 'unknown'
@@ -9,6 +11,12 @@ export interface GetDepositStatusResult {
   expiresAt: string | null
 }
 
+/**
+ * Fetch on-chain status of a sipher_vault deposit PDA.
+ * @type read | @usedBy SentinelCore
+ * @whenFired When SENTINEL needs to confirm whether a PDA is still active before issuing a refund or risk decision.
+ * @see docs/sentinel/tools.md#getdepositstatus
+ */
 export const getDepositStatusTool: AnthropicTool = {
   name: 'getDepositStatus',
   description: 'Fetch on-chain status of a sipher_vault deposit PDA (active/expired/refunded).',

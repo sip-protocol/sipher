@@ -1,9 +1,17 @@
 import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { guardianBus } from '../../coordination/event-bus.js'
 
+// Reference: docs/sentinel/tools.md
+
 export interface VetoSipherParams { contextId: string; reason: string }
 export interface VetoSipherResult { vetoed: true; reason: string }
 
+/**
+ * Veto an in-progress SIPHER fund-moving action during preflight, surfacing as recommendation=block in the RiskReport.
+ * @type action | @usedBy SentinelCore
+ * @whenFired When SENTINEL's preflight gate determines the pending operation is high-risk and must not proceed.
+ * @see docs/sentinel/tools.md#vetosipheraction
+ */
 export const vetoSipherTool: AnthropicTool = {
   name: 'vetoSipherAction',
   description:

@@ -1,8 +1,16 @@
 import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { cancelCircuitBreakerAction } from '../circuit-breaker.js'
 
+// Reference: docs/sentinel/tools.md
+
 export interface CancelPendingParams { actionId: string; reason: string }
 
+/**
+ * Cancel a pending circuit-breaker action before its execute window fires.
+ * @type action | @usedBy SentinelCore
+ * @whenFired When SENTINEL re-evaluates a scheduled action and determines the risk posture has changed, warranting cancellation.
+ * @see docs/sentinel/tools.md#cancelpendingaction
+ */
 export const cancelPendingTool: AnthropicTool = {
   name: 'cancelPendingAction',
   description: 'Cancel a pending circuit-breaker action before its execute window fires.',
