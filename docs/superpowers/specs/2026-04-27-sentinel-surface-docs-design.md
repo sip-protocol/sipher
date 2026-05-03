@@ -17,7 +17,7 @@ The 2026-04-18 test-infrastructure audit listed Phase 3 as "SENTINEL external-to
 - **10 REST endpoints** under `/api/sentinel/*` (4 public `verifyJwt` + 6 admin `verifyJwt + requireOwner`), including a quirk where `POST /pending/:id/cancel` (circuit-breaker, SQLite-backed) and `POST /cancel/:flagId` (promise-gate, in-memory) sit on the same admin router and read identically.
 - **14 SENTINEL agent tools** (7 read + 7 action) in `packages/agent/src/sentinel/tools/`, plus the conversational `assessRisk` tool used by SIPHER.
 - **15 config env vars** (mode, scanner, threat detection, autonomy, rate limits, LLM tuning) parsed in `packages/agent/src/sentinel/config.ts`.
-- **SQLite audit log** spread across `decisions`, `pending_actions`, `blacklist` tables in `packages/agent/src/db.ts`.
+- **SQLite audit log** spread across `sentinel_blacklist`, `sentinel_risk_history`, `sentinel_pending_actions`, `sentinel_decisions` tables in `packages/agent/src/db.ts`.
 
 These exist and work. The pause/resume flow shipped 2026-04-27 in PR #155. But the surface is documented only across:
 
@@ -162,7 +162,7 @@ Categories (15 vars total):
 ### `audit-log.md`
 
 - One-paragraph overview: every SENTINEL decision is logged. Read via `GET /api/sentinel/decisions`.
-- `CREATE TABLE` statements **copied verbatim** from `packages/agent/src/db.ts` for: `decisions`, `pending_actions`, `blacklist`
+- `CREATE TABLE` statements **copied verbatim** from `packages/agent/src/db.ts` for: `sentinel_blacklist`, `sentinel_risk_history`, `sentinel_pending_actions`, `sentinel_decisions`
 - Sample row per table from a real local devnet run
 - Retention note: verify behavior in `db.ts` during plan execution; document whatever is true (auto-cleanup vs manual)
 
