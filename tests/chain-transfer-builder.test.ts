@@ -209,3 +209,62 @@ describe('buildPrivateTransfer — EVM branch', () => {
     }
   })
 })
+
+describe('buildPrivateTransfer — NEAR branch', () => {
+  it('native NEAR → returns Transfer action with amount', async () => {
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: SOLANA_SPENDING_KEY, // ed25519 reused for NEAR
+        viewingKey: SOLANA_VIEWING_KEY,
+        chain: 'near',
+      },
+      amount: '1000000000000000000000000', // 1 NEAR (24 decimals)
+    })
+
+    expect(result.chainData.type).toBe('near')
+    if (result.chainData.type === 'near') {
+      expect(result.chainData.actions).toHaveLength(1)
+      expect(result.chainData.actions[0]).toEqual({
+        type: 'Transfer',
+        amount: '1000000000000000000000000',
+      })
+      expect(result.chainData.tokenContract).toBeUndefined()
+    }
+  })
+
+  it('NEP-141 FT → FunctionCall with ft_transfer + base64 args', async () => {
+    const tokenContract = 'usdc.fakes.testnet'
+    const amount = '1000000' // 1 USDC
+
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey: SOLANA_SPENDING_KEY,
+        viewingKey: SOLANA_VIEWING_KEY,
+        chain: 'near',
+      },
+      amount,
+      token: tokenContract,
+    })
+
+    expect(result.chainData.type).toBe('near')
+    if (result.chainData.type === 'near') {
+      expect(result.chainData.receiverId).toBe(tokenContract)
+      expect(result.chainData.tokenContract).toBe(tokenContract)
+      expect(result.chainData.actions).toHaveLength(1)
+
+      const action = result.chainData.actions[0]
+      if (action.type === 'FunctionCall') {
+        expect(action.methodName).toBe('ft_transfer')
+        expect(action.gas).toBe('30000000000000')
+        expect(action.deposit).toBe('1')
+
+        const decoded = JSON.parse(Buffer.from(action.args, 'base64').toString())
+        expect(decoded.amount).toBe(amount)
+        expect(decoded.memo).toBe('SIP private transfer')
+        expect(typeof decoded.receiver_id).toBe('string')
+      }
+    }
+  })
+})
