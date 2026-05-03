@@ -64,7 +64,8 @@ Why a shared `fixtures/builder-mocks.ts`: all 3 test files need the same `vi.moc
 
 - `mockSolanaConnection(overrides?)` — returns the Connection mock factory
 - `makeConfigPDABytes(counter: bigint)` — produces a `Buffer.alloc(51)` with `total_transfers` written at offset 43 as u64 LE
-- `mockJupiterFetch(quoteOverrides?, swapOverrides?)` — returns a `vi.fn()` for `vi.stubGlobal('fetch', ...)`
+- `makeJupiterQuote(opts?)` — returns a typed `QuoteEntry` shape for use with `vi.mock('./jupiter-provider.js')` (preferred over fetch-global stubbing — mocks at module boundary so the builder gets the same shape it would receive in production)
+- `makeJupiterSwapTx(swapTransaction?)` — returns a typed `SwapTransactionResult` shape for `buildSwapTransaction` mock
 - `mockCSPLService(behavior: 'success' | 'fail' | 'throws')` — returns the CSPL service mock
 
 ### Mocking strategy per file (Q1 = real-kitchen / service-integration)
