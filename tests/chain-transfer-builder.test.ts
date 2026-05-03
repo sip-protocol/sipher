@@ -295,7 +295,7 @@ describe('buildPrivateTransfer — error + curve detection', () => {
     ['arbitrum', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
     ['optimism', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
     ['base', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
-  ])('returns curve=%s for chain=%s', async (chain, expectedCurve, spendingKey, viewingKey) => {
+  ])('chain=%s returns curve=%s', async (chain, expectedCurve, spendingKey, viewingKey) => {
     const result = await buildPrivateTransfer({
       sender,
       recipientMetaAddress: {
