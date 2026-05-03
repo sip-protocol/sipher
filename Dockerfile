@@ -13,6 +13,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate && \
 
 # Copy workspace config and all package.json files first (cache deps layer)
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY patches/ patches/
 COPY packages/sdk/package.json packages/sdk/
 COPY packages/agent/package.json packages/agent/
 COPY app/package.json app/
