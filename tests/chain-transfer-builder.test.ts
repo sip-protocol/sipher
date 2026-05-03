@@ -255,6 +255,7 @@ describe('buildPrivateTransfer — NEAR branch', () => {
       expect(result.chainData.actions).toHaveLength(1)
 
       const action = result.chainData.actions[0]
+      expect(action.type).toBe('FunctionCall')
       if (action.type === 'FunctionCall') {
         expect(action.methodName).toBe('ft_transfer')
         expect(action.gas).toBe('30000000000000')
@@ -263,7 +264,7 @@ describe('buildPrivateTransfer — NEAR branch', () => {
         const decoded = JSON.parse(Buffer.from(action.args, 'base64').toString())
         expect(decoded.amount).toBe(amount)
         expect(decoded.memo).toBe('SIP private transfer')
-        expect(typeof decoded.receiver_id).toBe('string')
+        expect(decoded.receiver_id).toBe(result.stealthAddress)
       }
     }
   })
