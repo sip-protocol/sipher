@@ -11,7 +11,7 @@ export function makeConfigPDABytes(counter: bigint): Buffer {
   return buf
 }
 
-interface SolanaConnectionMockOverrides {
+export interface SolanaConnectionMockOverrides {
   getAccountInfo?: ReturnType<typeof vi.fn>
   getLatestBlockhash?: ReturnType<typeof vi.fn>
   getSlot?: ReturnType<typeof vi.fn>
@@ -66,16 +66,20 @@ export function mockCSPLService(behavior: CSPLBehavior) {
 }
 
 interface JupiterQuoteOptions {
+  inputMint?: string
+  outputMint?: string
   inAmount?: string
   outAmount?: string
   slippageBps?: number
   quoteId?: string
   priceImpactPct?: string
+  expiresAt?: number
 }
 
 /**
- * Builds a canned Jupiter quote response shape for tests.
+ * Builds a canned Jupiter QuoteEntry shape for tests.
  * Mock jupiter-provider.getQuote to return this.
+ * Matches the QuoteEntry interface in src/services/jupiter-provider.ts:26-36.
  */
 export function makeJupiterQuote(opts: JupiterQuoteOptions = {}) {
   const inAmount = opts.inAmount ?? '1000000000'
@@ -83,18 +87,34 @@ export function makeJupiterQuote(opts: JupiterQuoteOptions = {}) {
   const slippageBps = opts.slippageBps ?? 50
   return {
     quoteId: opts.quoteId ?? 'jup_test_quote_001',
+    inputMint: opts.inputMint ?? 'So11111111111111111111111111111111111111112',
+    outputMint: opts.outputMint ?? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
     inAmount,
     outAmount,
     outAmountMin: String(Math.floor(Number(outAmount) * (10000 - slippageBps) / 10000)),
     priceImpactPct: opts.priceImpactPct ?? '0.05',
     slippageBps,
+    expiresAt: opts.expiresAt ?? Date.now() + 30_000,
   }
 }
 
+interface JupiterSwapTxOptions {
+  swapTransaction?: string
+  quoteId?: string
+  computeUnitPrice?: number
+  priorityFee?: number
+}
+
 /**
- * Builds a canned Jupiter swap-tx response.
+ * Builds a canned Jupiter SwapTransactionResult shape for tests.
  * Mock jupiter-provider.buildSwapTransaction to return this.
+ * Matches the SwapTransactionResult interface in src/services/jupiter-provider.ts:44-49.
  */
-export function makeJupiterSwapTx(swapTransaction = 'mockedJupiterSwapTxBase64String===') {
-  return { swapTransaction }
+export function makeJupiterSwapTx(opts: JupiterSwapTxOptions = {}) {
+  return {
+    swapTransaction: opts.swapTransaction ?? 'mockedJupiterSwapTxBase64String===',
+    quoteId: opts.quoteId ?? 'jup_test_quote_001',
+    computeUnitPrice: opts.computeUnitPrice ?? 1000,
+    priorityFee: opts.priorityFee ?? 5000,
+  }
 }
