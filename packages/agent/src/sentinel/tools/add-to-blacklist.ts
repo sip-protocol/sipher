@@ -4,6 +4,8 @@ import { isBlacklistWithinRateLimit } from '../rate-limit.js'
 import { getSentinelConfig } from '../config.js'
 import { guardianBus } from '../../coordination/event-bus.js'
 
+// Reference: docs/sentinel/tools.md
+
 export interface AddToBlacklistParams {
   address: string
   reason: string
@@ -18,6 +20,12 @@ export interface AddToBlacklistResult {
   error?: string
 }
 
+/**
+ * Add an address to the SENTINEL blacklist with a severity level and optional expiry.
+ * @type action | @usedBy SentinelCore
+ * @whenFired When SENTINEL concludes an address poses a confirmed threat and blacklist autonomy is enabled.
+ * @see docs/sentinel/tools.md#addtoblacklist
+ */
 export const addToBlacklistTool: AnthropicTool = {
   name: 'addToBlacklist',
   description: 'Add an address to the SENTINEL blacklist. Rate-limited to SENTINEL_RATE_LIMIT_BLACKLIST_PER_HOUR/hr.',

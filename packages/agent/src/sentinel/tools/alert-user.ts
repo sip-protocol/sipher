@@ -2,6 +2,8 @@ import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { insertActivity } from '../../db.js'
 import { guardianBus } from '../../coordination/event-bus.js'
 
+// Reference: docs/sentinel/tools.md
+
 export interface AlertUserParams {
   wallet: string
   severity: 'warn' | 'block' | 'critical'
@@ -15,6 +17,12 @@ export interface AlertUserResult {
   activityId: string
 }
 
+/**
+ * Emit a SENTINEL alert visible in the activity stream and optionally surfaced as a UI toast.
+ * @type action | @usedBy SentinelCore
+ * @whenFired When SENTINEL detects a suspicious event that requires user attention without blocking the operation.
+ * @see docs/sentinel/tools.md#alertuser
+ */
 export const alertUserTool: AnthropicTool = {
   name: 'alertUser',
   description: 'Emit a SENTINEL alert visible in the activity stream + optional UI toast.',

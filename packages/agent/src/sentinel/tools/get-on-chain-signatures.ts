@@ -1,6 +1,8 @@
 import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { Connection, PublicKey } from '@solana/web3.js'
 
+// Reference: docs/sentinel/tools.md
+
 export interface GetOnChainSignaturesParams { address: string; limit?: number }
 
 export interface OnChainSignature {
@@ -15,6 +17,12 @@ export interface GetOnChainSignaturesResult {
   signatures: OnChainSignature[]
 }
 
+/**
+ * Fetch recent Solana transaction signatures for an address.
+ * @type read | @usedBy SentinelCore
+ * @whenFired When SENTINEL audits on-chain activity history to detect anomalous transaction patterns.
+ * @see docs/sentinel/tools.md#getonchainsignatures
+ */
 export const getOnChainSignaturesTool: AnthropicTool = {
   name: 'getOnChainSignatures',
   description:

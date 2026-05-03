@@ -1,12 +1,20 @@
 import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { Connection, PublicKey } from '@solana/web3.js'
 
+// Reference: docs/sentinel/tools.md
+
 export interface GetVaultBalanceParams { wallet: string }
 export interface GetVaultBalanceResult {
   sol: number
   tokens: { mint: string; amount: number }[]
 }
 
+/**
+ * Read SOL and SPL token balances held by the vault for a given wallet.
+ * @type read | @usedBy SentinelCore
+ * @whenFired When SENTINEL needs vault liquidity context to evaluate whether a refund or transfer is safe to execute.
+ * @see docs/sentinel/tools.md#getvaultbalance
+ */
 export const getVaultBalanceTool: AnthropicTool = {
   name: 'getVaultBalance',
   description: 'Read SOL and SPL token balances held by the vault for a given wallet.',
