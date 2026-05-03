@@ -200,3 +200,50 @@ describe('buildPrivateSwap — stealth + commitment invariants', () => {
     expect(result.blindingFactor).toMatch(/^0x[0-9a-f]{64}$/)
   })
 })
+
+describe('buildPrivateSwap — viewing key hash', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(jupiterProvider.getQuote).mockResolvedValue(makeJupiterQuote())
+    vi.mocked(jupiterProvider.buildSwapTransaction).mockResolvedValue(makeJupiterSwapTx())
+    vi.mocked(csplModule.getCSPLService).mockResolvedValue(mockCSPLService('fail') as never)
+  })
+
+  it('with provided meta-address → vkHash = 0x + sha256(viewingKey bytes)', async () => {
+    const { sha256 } = await import('@noble/hashes/sha256')
+    const { hexToBytes, bytesToHex } = await import('@noble/hashes/utils')
+
+    const result = await buildPrivateSwap({
+      sender,
+      inputMint: SOL_MINT,
+      inputAmount: '1000000000',
+      outputMint: USDC_MINT,
+      recipientMetaAddress: {
+        spendingKey: PROVIDED_SPENDING_KEY,
+        viewingKey: PROVIDED_VIEWING_KEY,
+        chain: 'solana',
+      },
+    })
+
+    const viewingKeyBytes = hexToBytes(PROVIDED_VIEWING_KEY.slice(2))
+    const expectedHash = `0x${bytesToHex(sha256(viewingKeyBytes))}`
+
+    expect(result.viewingKeyHash).toBe(expectedHash)
+  })
+
+  it('without meta-address → vkHash = 0x + sha256("ephemeral-" + outputStealthAddress)', async () => {
+    const { sha256 } = await import('@noble/hashes/sha256')
+    const { bytesToHex } = await import('@noble/hashes/utils')
+
+    const result = await buildPrivateSwap({
+      sender,
+      inputMint: SOL_MINT,
+      inputAmount: '1000000000',
+      outputMint: USDC_MINT,
+    })
+
+    const expectedHash = `0x${bytesToHex(sha256(new TextEncoder().encode('ephemeral-' + result.outputStealthAddress)))}`
+
+    expect(result.viewingKeyHash).toBe(expectedHash)
+  })
+})
