@@ -9,8 +9,6 @@
 // vi.hoisted to avoid TDZ. This file holds DATA shapes only — call sites
 // pass them into mockResolvedValueOnce / mockReturnValueOnce inside tests.
 
-import { PublicKey } from '@solana/web3.js'
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Test constants
 // ─────────────────────────────────────────────────────────────────────────────
@@ -211,7 +209,7 @@ export function makeMockMint(base58 = SOL_MINT): { toBase58: () => string } {
 // Stealth meta-address helpers (for send tool tests)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Build a fake stealth-address generation result (matches @sip-protocol/sdk shape) */
+/** Build a fake stealth-address generation result (partial — covers fields that send.ts reads) */
 export function makeStealthAddress() {
   return {
     stealthAddress: {
@@ -221,7 +219,7 @@ export function makeStealthAddress() {
   }
 }
 
-/** Build a fake Pedersen commit result (matches @sip-protocol/sdk shape) */
+/** Build a fake Pedersen commit result (partial — covers fields that send.ts reads) */
 export function makeCommitResult() {
   return {
     commitment: '0x' + 'cc'.repeat(33),
