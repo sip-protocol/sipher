@@ -120,23 +120,23 @@ For each of the 14 SENTINEL-specific tools + `assessRisk`:
 
 The 14 SENTINEL tools, grouped:
 
-**Read (7):**
-- `check-reputation`
-- `get-deposit-status`
-- `get-on-chain-signatures`
-- `get-pending-claims`
-- `get-recent-activity`
-- `get-risk-history`
-- `get-vault-balance`
+**Read (7)** — LLM-facing names (camelCase):
+- `checkReputation`
+- `getDepositStatus`
+- `getOnChainSignatures`
+- `getPendingClaims`
+- `getRecentActivity`
+- `getRiskHistory`
+- `getVaultBalance`
 
-**Action (7):**
-- `add-to-blacklist`
-- `alert-user`
-- `cancel-pending`
-- `execute-refund`
-- `remove-from-blacklist`
-- `schedule-cancellable`
-- `veto-sipher-action`
+**Action (7)** — LLM-facing names (camelCase):
+- `addToBlacklist`
+- `alertUser`
+- `cancelPendingAction`
+- `executeRefund`
+- `removeFromBlacklist`
+- `scheduleCancellableAction`
+- `vetoSipherAction`
 
 Plus a separate section for `assessRisk` (used in conversational SIPHER agent flows, not the SentinelCore loop).
 
