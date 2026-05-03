@@ -79,9 +79,9 @@ For each of the 10 endpoints, the following template:
 **Auth:** verifyJwt
 **Description:** Run a one-shot risk assessment for a proposed action.
 **Request body:** { action, wallet, recipient?, amount?, token?, metadata? }
-**Response 200:** RiskReport { score, decision, reasoning, flags[] }
-**Response 400:** { error: "action and wallet are required strings" }
-**Response 503:** { error: "SENTINEL assessor not configured" }
+**Response 200:** RiskReport `{ risk, score, reasons[], recommendation, blockers[], decisionId, durationMs }` — when LLM is unconfigured or fails schema validation, the response is still 200 with `risk:"high", recommendation:"block", reasons:["SENTINEL output failed schema validation"]` (verified shape from local capture).
+**Response 400:** `{ error: "action and wallet are required strings" }`
+**Response 503:** `{ error: "SENTINEL assessor not configured" }` — only when no assessor is registered at startup; production agents always register one.
 **Example:** [verified curl request + response]
 **Notes:** RiskReport shape lives in `packages/agent/src/sentinel/risk-report.ts`
 ```

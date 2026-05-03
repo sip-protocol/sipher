@@ -109,7 +109,7 @@ echo "JWT_SECRET=$JWT_SECRET" > .env.spec
 JWT_SECRET=$JWT_SECRET \
   AUTHORIZED_WALLETS=C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N \
   SENTINEL_MODE=advisory \
-  SIPHER_DB_PATH=./e2e/sentinel-capture/db.sqlite \
+  DB_PATH=./e2e/sentinel-capture/db.sqlite \
   HERALD_ENABLED=false \
   pnpm --filter @sipher/agent dev > /tmp/sipher-spec-boot.log 2>&1 &
 AGENT_PID=$!
@@ -174,7 +174,7 @@ curl -s -X POST -H "Authorization: Bearer $JWT" -H "Content-Type: application/js
 cat e2e/sentinel-capture/post-assess.json | jq '.decision'
 ```
 
-Expected: a JSON `RiskReport` shape with at least `decision`, `score`, `reasoning`, `flags`. Decision is one of `allow`/`flag`/`block` (verify in `risk-report.ts`).
+Expected: a JSON `RiskReport` with shape `{ risk, score, reasons[], recommendation, blockers[], decisionId, durationMs }`. `recommendation` is one of `allow`/`flag`/`block`. Verify exact schema in `packages/agent/src/sentinel/risk-report.ts`. If LLM is unconfigured locally, the agent returns 200 with `risk:"high", recommendation:"block"` (the schema-validation fallback) — capture this as-is and document both the happy-path and fallback shapes.
 
 - [ ] **Step 6: Insert one blacklist entry to capture admin POST + DELETE shape**
 
@@ -221,7 +221,9 @@ curl -s -X POST -H "Authorization: Bearer $JWT" -H "Content-Type: application/js
   -w "\n%{http_code}\n" > e2e/sentinel-capture/post-pending-cancel-404.txt
 ```
 
-Expected: 404 with `{"error":{"code":"NOT_FOUND","message":"flag not found or expired"}}` for promise-gate routes; pending-cancel returns `{success: false}` (verify in source — see `routes/sentinel-api.ts:84-92`).
+Expected:
+- `/override/:flagId` and `/cancel/:flagId` (promise-gate, in-memory): **404** with `{"error":{"code":"NOT_FOUND","message":"flag not found or expired"}}`
+- `/pending/:id/cancel` (circuit-breaker, SQLite): **200** with `{"success": false}` (the handler always returns 200 regardless of whether the action existed; `success` reflects whether the cancellation took effect). See `routes/sentinel-api.ts:84-92`.
 
 - [ ] **Step 8: Capture audit-log schemas + sample rows**
 
@@ -818,7 +820,7 @@ Create `docs/sentinel/audit-log.md`:
 ```markdown
 # SENTINEL Audit Log
 
-Every SENTINEL decision and state change is logged to SQLite. Read via [`GET /api/sentinel/decisions`](./rest-api.md#get-apisentineldecisions) and [`GET /api/sentinel/blacklist`](./rest-api.md#get-apisentinelblacklist), or directly via `sqlite3` against `$SIPHER_DB_PATH`.
+Every SENTINEL decision and state change is logged to SQLite. Read via [`GET /api/sentinel/decisions`](./rest-api.md#get-apisentineldecisions) and [`GET /api/sentinel/blacklist`](./rest-api.md#get-apisentinelblacklist), or directly via `sqlite3` against `$DB_PATH`.
 
 ## Tables
 
@@ -897,11 +899,11 @@ The decision log. One row per LLM-mediated assessment. Read via `GET /api/sentin
 
 \`\`\`bash
 # Latest decisions across all sources
-sqlite3 -header -column $SIPHER_DB_PATH \
+sqlite3 -header -column $DB_PATH \
   "SELECT id, invocation_source, verdict, model, cost_usd, created_at FROM sentinel_decisions ORDER BY created_at DESC LIMIT 20"
 
 # Active blacklist entries
-sqlite3 -header -column $SIPHER_DB_PATH \
+sqlite3 -header -column $DB_PATH \
   "SELECT address, reason, severity, added_at FROM sentinel_blacklist WHERE removed_at IS NULL"
 \`\`\`
 
