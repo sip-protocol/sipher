@@ -269,3 +269,43 @@ describe('buildPrivateTransfer — NEAR branch', () => {
     }
   })
 })
+
+describe('buildPrivateTransfer — error + curve detection', () => {
+  it('throws on unsupported chain', async () => {
+    // bitcoin is a valid SDK chain (secp256k1) but not in our transfer builder's dispatch
+    // so use valid secp256k1 keys to pass SDK validation and hit our Unsupported guard
+    await expect(
+      buildPrivateTransfer({
+        sender,
+        recipientMetaAddress: {
+          spendingKey: EVM_SPENDING_KEY,
+          viewingKey: EVM_VIEWING_KEY,
+          chain: 'bitcoin',
+        },
+        amount: '1000',
+      })
+    ).rejects.toThrow(/Unsupported transfer chain/)
+  })
+
+  it.each([
+    ['solana', 'ed25519' as const, SOLANA_SPENDING_KEY, SOLANA_VIEWING_KEY],
+    ['near', 'ed25519' as const, SOLANA_SPENDING_KEY, SOLANA_VIEWING_KEY],
+    ['ethereum', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
+    ['polygon', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
+    ['arbitrum', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
+    ['optimism', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
+    ['base', 'secp256k1' as const, EVM_SPENDING_KEY, EVM_VIEWING_KEY],
+  ])('returns curve=%s for chain=%s', async (chain, expectedCurve, spendingKey, viewingKey) => {
+    const result = await buildPrivateTransfer({
+      sender,
+      recipientMetaAddress: {
+        spendingKey,
+        viewingKey,
+        chain,
+      },
+      amount: '1000',
+    })
+
+    expect(result.curve).toBe(expectedCurve)
+  })
+})
