@@ -99,3 +99,59 @@ describe('buildPrivateSwap — happy path', () => {
     expect(typeof result.csplWrapped).toBe('boolean')
   })
 })
+
+describe('buildPrivateSwap — C-SPL branches', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(jupiterProvider.getQuote).mockResolvedValue(makeJupiterQuote())
+    vi.mocked(jupiterProvider.buildSwapTransaction).mockResolvedValue(makeJupiterSwapTx())
+  })
+
+  it('CSPL wrap succeeds → wrap tx in bundle, csplWrapped=true, computeUnits=400_000', async () => {
+    vi.mocked(csplModule.getCSPLService).mockResolvedValue(mockCSPLService('success') as never)
+
+    const result = await buildPrivateSwap({
+      sender,
+      inputMint: SOL_MINT,
+      inputAmount: '1000000000',
+      outputMint: USDC_MINT,
+    })
+
+    expect(result.csplWrapped).toBe(true)
+    expect(result.estimatedComputeUnits).toBe(400_000)
+    expect(result.transactions[0].type).toBe('wrap')
+    expect(result.executionOrder).toContain('wrap')
+    expect(result.executionOrder).toContain('swap')
+  })
+
+  it('CSPL returns {success: false} → no wrap tx, csplWrapped=false, computeUnits=200_000', async () => {
+    vi.mocked(csplModule.getCSPLService).mockResolvedValue(mockCSPLService('fail') as never)
+
+    const result = await buildPrivateSwap({
+      sender,
+      inputMint: SOL_MINT,
+      inputAmount: '1000000000',
+      outputMint: USDC_MINT,
+    })
+
+    expect(result.csplWrapped).toBe(false)
+    expect(result.estimatedComputeUnits).toBe(200_000)
+    expect(result.executionOrder).not.toContain('wrap')
+    expect(result.transactions.every(tx => tx.type !== 'wrap')).toBe(true)
+  })
+
+  it('CSPL throws → silently caught, no wrap tx, csplWrapped=false, computeUnits=200_000', async () => {
+    vi.mocked(csplModule.getCSPLService).mockRejectedValue(new Error('CSPL service down'))
+
+    const result = await buildPrivateSwap({
+      sender,
+      inputMint: SOL_MINT,
+      inputAmount: '1000000000',
+      outputMint: USDC_MINT,
+    })
+
+    expect(result.csplWrapped).toBe(false)
+    expect(result.estimatedComputeUnits).toBe(200_000)
+    expect(result.executionOrder).not.toContain('wrap')
+  })
+})
