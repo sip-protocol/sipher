@@ -8,9 +8,18 @@ import { getSentinelAssessor } from '../sentinel/preflight-gate.js'
 import { getSentinelConfig } from '../sentinel/config.js'
 import { resolvePending, rejectPending } from '../sentinel/pending.js'
 
+// Reference: docs/sentinel/rest-api.md
+
 // ─── Public endpoints (verifyJwt only) ──────────────────────────────────────
 export const sentinelPublicRouter: Router = Router()
 
+/**
+ * One-shot risk assessment for a proposed action.
+ * @auth verifyJwt
+ * @body { action, wallet, recipient?, amount?, token?, metadata? }
+ * @returns 200 RiskReport | 400 { error } | 503 { error }
+ * @see docs/sentinel/rest-api.md#post-apisentinelassess
+ */
 sentinelPublicRouter.post('/assess', async (req: Request, res: Response) => {
   const { action, wallet, recipient, amount, token, metadata } = req.body ?? {}
   if (typeof action !== 'string' || typeof wallet !== 'string') {
@@ -30,17 +39,37 @@ sentinelPublicRouter.post('/assess', async (req: Request, res: Response) => {
   }
 })
 
+/**
+ * List active blacklist entries.
+ * @auth verifyJwt
+ * @query limit? number (default 50)
+ * @returns 200 { entries: BlacklistEntry[] }
+ * @see docs/sentinel/rest-api.md#get-apisentinelblacklist
+ */
 sentinelPublicRouter.get('/blacklist', (req: Request, res: Response) => {
   const limit = Number(String(req.query.limit ?? '50'))
   res.json({ entries: listBlacklist({ limit }) })
 })
 
+/**
+ * List pending circuit-breaker actions (SQLite-backed).
+ * @auth verifyJwt
+ * @query wallet? string, status? string
+ * @returns 200 { actions: PendingAction[] }
+ * @see docs/sentinel/rest-api.md#get-apisentinelpending
+ */
 sentinelPublicRouter.get('/pending', (req: Request, res: Response) => {
   const wallet = (typeof req.query.wallet === 'string' ? req.query.wallet : undefined)
   const status = (typeof req.query.status === 'string' ? req.query.status : undefined)
   res.json({ actions: listPendingActions({ wallet, status }) })
 })
 
+/**
+ * Return SENTINEL runtime configuration and daily spend.
+ * @auth verifyJwt
+ * @returns 200 { mode, preflightScope, model, dailyBudgetUsd, dailyCostUsd, blockOnError }
+ * @see docs/sentinel/rest-api.md#get-apisentinelstatus
+ */
 sentinelPublicRouter.get('/status', (_req: Request, res: Response) => {
   const config = getSentinelConfig()
   res.json({
@@ -56,6 +85,13 @@ sentinelPublicRouter.get('/status', (_req: Request, res: Response) => {
 // ─── Admin endpoints (verifyJwt + requireOwner) ─────────────────────────────
 export const sentinelAdminRouter: Router = Router()
 
+/**
+ * Add an address to the blacklist.
+ * @auth verifyJwt + requireOwner
+ * @body { address, reason, severity, expiresAt?, sourceEventId? }
+ * @returns 200 { success: true, entryId } | 400 { error }
+ * @see docs/sentinel/rest-api.md#post-apisentinelblacklist
+ */
 sentinelAdminRouter.post('/blacklist', (req: Request, res: Response) => {
   const { address, reason, severity, expiresAt, sourceEventId } = req.body ?? {}
   if (!address || !reason || !severity) {
@@ -71,6 +107,14 @@ sentinelAdminRouter.post('/blacklist', (req: Request, res: Response) => {
   res.json({ success: true, entryId: id })
 })
 
+/**
+ * Soft-remove a blacklist entry by id.
+ * @auth verifyJwt + requireOwner
+ * @param id blacklist entry id
+ * @body { reason? string }
+ * @returns 200 { success: true }
+ * @see docs/sentinel/rest-api.md#delete-apisentinelblacklistid
+ */
 sentinelAdminRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
   const w = (req as unknown as Record<string, unknown>).wallet
   const wallet = (typeof w === 'string' ? w : undefined)
@@ -81,6 +125,15 @@ sentinelAdminRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
   res.json({ success: true })
 })
 
+/**
+ * Circuit-breaker cancel — mark a pending action cancelled in SQLite.
+ * Circuit-breaker cancel — distinct from the promise-gate `/cancel/:flagId`.
+ * @auth verifyJwt + requireOwner
+ * @param id pending action id
+ * @body { reason? string }
+ * @returns 200 { success: boolean }
+ * @see docs/sentinel/rest-api.md#post-apisentinelpendingidcancel
+ */
 sentinelAdminRouter.post('/pending/:id/cancel', (req: Request, res: Response) => {
   const reason = (req.body?.reason as string) ?? 'manual cancel'
   const w = (req as unknown as Record<string, unknown>).wallet
@@ -91,6 +144,13 @@ sentinelAdminRouter.post('/pending/:id/cancel', (req: Request, res: Response) =>
   res.json({ success: ok })
 })
 
+/**
+ * List SENTINEL decision log entries.
+ * @auth verifyJwt + requireOwner
+ * @query limit? number (default 50), source? string
+ * @returns 200 { decisions: Decision[] }
+ * @see docs/sentinel/rest-api.md#get-apisentineldecisions
+ */
 sentinelAdminRouter.get('/decisions', (req: Request, res: Response) => {
   const limit = Number(String(req.query.limit ?? '50'))
   const source = (typeof req.query.source === 'string' ? req.query.source : undefined)
@@ -101,6 +161,14 @@ sentinelAdminRouter.get('/decisions', (req: Request, res: Response) => {
 // NOTE: distinct from /pending/:id/cancel above (circuit-breaker, SQLite-backed).
 // These act on in-memory pending promises owned by sentinel/pending.ts.
 
+/**
+ * Promise-gate resolve — approve a paused advisory-mode action.
+ * Promise-gate resolve — see also `/cancel/:flagId` reject.
+ * @auth verifyJwt + requireOwner
+ * @param flagId in-memory promise flag id
+ * @returns 204 | 404 { error }
+ * @see docs/sentinel/rest-api.md#post-apisentineloverrideflagid
+ */
 sentinelAdminRouter.post('/override/:flagId', (req: Request, res: Response) => {
   const flagId = String(req.params.flagId)
   const ok = resolvePending(flagId)
@@ -111,6 +179,14 @@ sentinelAdminRouter.post('/override/:flagId', (req: Request, res: Response) => {
   res.status(204).send()
 })
 
+/**
+ * Promise-gate reject — deny a paused advisory-mode action.
+ * Promise-gate reject — distinct from the circuit-breaker `/pending/:id/cancel`.
+ * @auth verifyJwt + requireOwner
+ * @param flagId in-memory promise flag id
+ * @returns 204 | 404 { error }
+ * @see docs/sentinel/rest-api.md#post-apisentinelcancelflagid
+ */
 sentinelAdminRouter.post('/cancel/:flagId', (req: Request, res: Response) => {
   const flagId = String(req.params.flagId)
   const ok = rejectPending(flagId, 'cancelled_by_user')
