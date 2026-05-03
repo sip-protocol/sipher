@@ -138,4 +138,10 @@ describe('executeStatus — service interaction', () => {
       if (original !== undefined) process.env.SOLANA_NETWORK = original
     }
   })
+
+  it('propagates getVaultConfig errors', async () => {
+    mockGetVaultConfig.mockRejectedValueOnce(new Error('rpc unavailable'))
+
+    await expect(executeStatus()).rejects.toThrow(/rpc unavailable/i)
+  })
 })

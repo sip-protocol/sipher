@@ -181,4 +181,12 @@ describe('executeBalance — service interaction', () => {
     expect(depositor.toBase58()).toBe(VALID_WALLET)
     expect(mint.toBase58()).toBe(SOL_MINT)
   })
+
+  it('propagates getVaultBalance errors', async () => {
+    mockGetVaultBalance.mockRejectedValueOnce(new Error('rpc unavailable'))
+
+    await expect(
+      executeBalance({ token: 'SOL', wallet: VALID_WALLET })
+    ).rejects.toThrow(/rpc unavailable/i)
+  })
 })
