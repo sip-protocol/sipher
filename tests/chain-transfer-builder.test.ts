@@ -124,6 +124,7 @@ describe('buildPrivateTransfer — Solana branch', () => {
 
     expect(txBuilder.buildShieldedSplTransfer).toHaveBeenCalledOnce()
     expect(result.chain).toBe('solana')
+    expect(result.chainData.type).toBe('solana')
     if (result.chainData.type === 'solana') {
       expect(result.chainData.mint).toBe('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
     }
