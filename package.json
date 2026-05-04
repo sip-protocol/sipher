@@ -53,6 +53,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "@sipher/sdk": "workspace:*",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
