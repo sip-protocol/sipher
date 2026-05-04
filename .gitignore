@@ -6,6 +6,8 @@ dist/
 coverage/
 scripts/.colosseum-state.json
 scripts/.sipher-agent-state.json
+# Phase 3 devnet refund E2E — bootstrap state handoff (gitignored, not evidence)
+scripts/.devnet-vault-bootstrap.json
 data/
 !packages/**/src/data/
 .superpowers/
