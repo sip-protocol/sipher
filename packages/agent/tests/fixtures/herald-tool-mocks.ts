@@ -41,6 +41,17 @@ export const SAMPLE_SEARCH_QUERY = 'SIP Protocol privacy'
 /** Sample DM body */
 export const SAMPLE_DM_TEXT = 'Hello from HERALD'
 
+/**
+ * Loose schema-shape type for HERALD tool definition tests.
+ * Pi AI's `Tool` type uses a generic `object` for parameters, so we cast
+ * to this shape when asserting on the schema (e.g., `tool.parameters as ToolSchemaLike`).
+ * `required` is optional because some tools have all-optional params.
+ */
+export type ToolSchemaLike = {
+  required?: string[]
+  properties?: Record<string, unknown>
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // twitter-api-v2 response shapes — partial, matching what HERALD tools read
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 // packages/agent/tests/herald/tools/like-tweet.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { VALID_TWEET_ID, HERALD_USER_ID } from '../../fixtures/herald-tool-mocks.js'
+import { VALID_TWEET_ID, HERALD_USER_ID, type ToolSchemaLike } from '../../fixtures/herald-tool-mocks.js'
 
 const {
   mockGetWriteClient,
@@ -36,7 +36,7 @@ beforeEach(() => {
   mockCanMakeCall.mockReturnValue(true)
   mockGetHeraldUserId.mockReturnValue(HERALD_USER_ID)
   mockGetWriteClient.mockReturnValue({ v2: { like: mockLike } })
-  mockLike.mockResolvedValue({ data: { liked: true } })
+  mockLike.mockResolvedValue(undefined)
 })
 
 describe('likeTweetTool definition', () => {
@@ -45,7 +45,7 @@ describe('likeTweetTool definition', () => {
   })
 
   it('declares required tweet_id field', () => {
-    const schema = likeTweetTool.parameters as { required: string[] }
+    const schema = likeTweetTool.parameters as ToolSchemaLike
     expect(schema.required).toEqual(['tweet_id'])
   })
 
@@ -72,17 +72,23 @@ describe('executeLikeTweet — branches', () => {
     expect(mockTrackXApiCost).not.toHaveBeenCalled()
   })
 
-  it('throws when tweet_id is empty string', async () => {
+  it.each([
+    ['empty', ''],
+    ['whitespace-only', '   '],
+    ['tabs', '\t\t'],
+  ])('throws when tweet_id is %s', async (_label, tweet_id) => {
     await expect(
-      executeLikeTweet({ tweet_id: '' }),
+      executeLikeTweet({ tweet_id }),
     ).rejects.toThrow(/tweet_id is required/i)
     expect(mockLike).not.toHaveBeenCalled()
   })
 
-  it('throws when tweet_id is whitespace-only', async () => {
-    await expect(
-      executeLikeTweet({ tweet_id: '   ' }),
-    ).rejects.toThrow(/tweet_id is required/i)
+  it('returns { liked: false } (no throw) when budget is blocked AND tweet_id is empty (gate runs before validation)', async () => {
+    mockCanMakeCall.mockReturnValueOnce(false)
+
+    const r = await executeLikeTweet({ tweet_id: '' })
+
+    expect(r).toEqual({ liked: false })
     expect(mockLike).not.toHaveBeenCalled()
   })
 })
