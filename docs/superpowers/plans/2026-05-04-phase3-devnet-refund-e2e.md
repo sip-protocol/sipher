@@ -562,7 +562,7 @@ function printSummary(
   console.log('\n──────────────────────────────────────────────────')
   console.log('✓ Bootstrap complete.')
   console.log(`  PDA:                ${recordPDA.toBase58()}`)
-  console.log(`  Net balance:        ${record.balance} lamports (post-fee)`)
+  console.log(`  Net balance:        ${record.balance} lamports (no fee on deposit)`)
   console.log(`  Earliest refund at: ${earliestRefundAt}`)
   console.log(`  Solscan:            https://solscan.io/tx/${depositTxId}?cluster=devnet`)
   console.log(`\n  Run scripts/devnet-vault-refund-e2e.ts after that time.`)
@@ -634,14 +634,14 @@ Transferring 0.01 SOL → ATA + syncNative ...
   wrap_sol_to_wsol confirmed: <sig>
 Sending deposit transaction ...
 Deposit confirmed: <sig>
-DepositRecord: balance=9990000, last_deposit_at=2026-05-04T...Z
+DepositRecord: balance=10000000, last_deposit_at=2026-05-04T...Z
 
 State written to /.../scripts/.devnet-vault-bootstrap.json (mode 600)
 
 ──────────────────────────────────────────────────
 ✓ Bootstrap complete.
   PDA:                <pda>
-  Net balance:        9990000 lamports (post-fee)
+  Net balance:        10000000 lamports (no fee on deposit)
   Earliest refund at: 2026-05-05T...Z
   Solscan:            https://solscan.io/tx/<deposit-sig>?cluster=devnet
 
@@ -660,7 +660,7 @@ cat scripts/.devnet-vault-bootstrap.json | jq 'keys'
 
 ```bash
 cat scripts/.devnet-vault-bootstrap.json | jq '.depositedNetLamports'
-# Expected: 9990000  (10M lamports - 10bps fee)
+# Expected: 10000000  (deposit does not deduct fee — only withdraw_private does)
 ```
 
 ```bash
@@ -673,7 +673,7 @@ ls -la scripts/.devnet-vault-bootstrap.json | awk '{print $1}'
 Open the Solscan URL printed in Step 1 (the `Solscan:` line) in a browser. Confirm:
 - TX status: Success
 - Token balance change: Depositor's wSOL ATA decreased by 10,000,000 lamports
-- Vault token PDA's wSOL balance increased by 10,000,000 lamports (split as 9,990,000 to vault_token + 10,000 to fee_token)
+- Vault token PDA's wSOL balance increased by 10,000,000 lamports (full amount to vault_token; fee_token receives 0 since deposit does not deduct fee — only withdraw_private does)
 
 If any check fails: do NOT proceed. The state file is on-disk but the chain state is wrong. Use `scripts/recon-devnet-deposits.mjs` to inspect, then either re-run bootstrap (after fixing root cause) or escalate to RECTOR.
 
@@ -1072,7 +1072,7 @@ Expected:
 ```
 Phase 3 — devnet vault refund E2E
 
-State loaded: pda=..., depositedNet=9990000 lamports
+State loaded: pda=..., depositedNet=10000000 lamports
 
 ✗ Refund E2E failed: Refund timeout not yet elapsed. Earliest refund at 2026-05-05T...Z (XX.XXh remaining). Re-run after that time.
 ```
@@ -1134,21 +1134,21 @@ Expected stdout:
 ```
 Phase 3 — devnet vault refund E2E
 
-State loaded: pda=..., depositedNet=9990000 lamports
+State loaded: pda=..., depositedNet=10000000 lamports
 Refund eligible: timeout elapsed (earliest was 2026-05-05T...Z)
-Pre-state: depositorWSol=0, recordBalance=9990000
+Pre-state: depositorWSol=0, recordBalance=10000000
 Calling performVaultRefund ...
 performVaultRefund OK: txId=<sig>
 Refund TX finalized: <sig>
-Post-state: depositorWSol=9990000, recordExists=false, recordBalance=n/a
+Post-state: depositorWSol=10000000, recordExists=true, recordBalance=0
 
 Evidence written to /.../docs/sentinel/evidence/devnet-refund-2026-05-05.json
 
 ──────────────────────────────────────────────────
 ✓ Phase 3 devnet refund E2E PASSED.
   PDA:                <pda>
-  Pre-refund balance: 9990000 lamports
-  wSOL delta:         9990000 lamports
+  Pre-refund balance: 10000000 lamports
+  wSOL delta:         10000000 lamports
   Refund TX:          https://solscan.io/tx/<sig>?cluster=devnet
   Deposit TX:         https://solscan.io/tx/<deposit-sig>?cluster=devnet
 ──────────────────────────────────────────────────
