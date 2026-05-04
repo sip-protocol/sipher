@@ -470,14 +470,14 @@ describe('executeVetoSipher — service interaction', () => {
 
     expect(mockGuardianEmit).toHaveBeenCalledTimes(1)
     const [event] = mockGuardianEmit.mock.calls[0]
-    expect(event).toMatchObject({
+    expect(event).toStrictEqual({
       source: 'sentinel',
       type: 'sentinel:veto',
       level: 'critical',
       data: { contextId: 'ctx1', reason: 'critical violation' },
       wallet: null,
+      timestamp: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/),
     })
-    expect(typeof event.timestamp).toBe('string')
   })
 
   it('forwards arbitrary contextId and reason verbatim', async () => {
@@ -1712,14 +1712,14 @@ describe('executeRemoveFromBlacklist — service interaction', () => {
 
     expect(mockGuardianEmit).toHaveBeenCalledTimes(1)
     const [event] = mockGuardianEmit.mock.calls[0]
-    expect(event).toMatchObject({
+    expect(event).toStrictEqual({
       source: 'sentinel',
       type: 'sentinel:blacklist-removed',
       level: 'important',
       data: { entryId: VALID_ENTRY_ID, reason: 'false positive' },
       wallet: null,
+      timestamp: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/),
     })
-    expect(typeof event.timestamp).toBe('string')
   })
 
   it('propagates softRemoveBlacklist throw and skips bus emit', async () => {
@@ -1935,15 +1935,18 @@ describe('executeAlertUser — service interaction', () => {
     })
 
     const [event] = mockGuardianEmit.mock.calls[0]
-    expect(event).toMatchObject({
+    expect(event).toStrictEqual({
       source: 'sentinel',
       type: 'sentinel:alert',
+      level: 'important',
       data: {
         title: 'Suspicious deposit',
         detail: 'new address',
         severity: 'warn',
+        actionableId: undefined,
       },
       wallet: VALID_WALLET,
+      timestamp: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/),
     })
   })
 
@@ -2650,7 +2653,7 @@ describe('executeAddToBlacklist — service interaction', () => {
 
     expect(mockGuardianEmit).toHaveBeenCalledTimes(1)
     const [event] = mockGuardianEmit.mock.calls[0]
-    expect(event).toMatchObject({
+    expect(event).toStrictEqual({
       source: 'sentinel',
       type: 'sentinel:blacklist-added',
       level: 'important',
@@ -2661,6 +2664,7 @@ describe('executeAddToBlacklist — service interaction', () => {
         reason: 'scam',
       },
       wallet: null,
+      timestamp: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/),
     })
   })
 
