@@ -157,12 +157,12 @@ build + send deposit transaction
 │
 fetch resulting DepositRecord
 ├─ getAccountInfo(depositRecordPDA) → deserialize
-├─ assert balance == 9_990_000n  (10M lamports - 10bps fee = 9.99M)
+├─ assert balance == 10_000_000n  (deposit does NOT deduct fee; only withdraw_private does)
 │
 write state JSON
 └─ scripts/.devnet-vault-bootstrap.json (mode 600):
    { vaultProgramId, vaultConfig, depositor, tokenMint: wSOL,
-     amount: 0.01, amountLamports: 10_000_000, depositedNet: 9_990_000,
+     amount: 0.01, amountLamports: 10_000_000, depositedNet: 10_000_000,
      pda: depositRecordPDA, depositTxId, lastDepositAt, earliestRefundAt,
      depositConfirmedAt, setupTxIds: { vaultToken?, feeToken?, ataAndWrap },
      network: 'devnet' }
@@ -234,7 +234,7 @@ print summary table to stdout
   "amount": 0.01,
   "amountLamports": 10000000,
   "feeBps": 10,
-  "depositedNetLamports": 9990000,
+  "depositedNetLamports": 10000000,
   "setup": {
     "vaultTokenCreatedTxId": "<base58 sig | null if pre-existed>",
     "feeTokenCreatedTxId":   "<base58 sig | null if pre-existed>",
