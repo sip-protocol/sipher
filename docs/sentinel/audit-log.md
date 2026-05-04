@@ -69,7 +69,7 @@ CREATE INDEX IF NOT EXISTS idx_risk_history
 
 ### sentinel_pending_actions
 
-Circuit-breaker queue. Populated when an action is scheduled to fire after a cancellation window (see [`SENTINEL_CANCEL_WINDOW_MS`](./config.md#autonomy)). Cancel via [`POST /api/sentinel/pending/:id/cancel`](./rest-api.md#post-apisentinelpendingidcancel). The `status` column transitions through `pending` → `executed` or `cancelled`.
+Circuit-breaker queue. Populated when an action is scheduled to fire after a cancellation window (see [`SENTINEL_CANCEL_WINDOW_MS`](./config.md#autonomy)). Cancel via [`POST /api/sentinel/circuit-breaker/:id/cancel`](./rest-api.md#post-apisentinelcircuit-breakeridcancel). The `status` column transitions through `pending` → `executed` or `cancelled`.
 
 ```sql
 CREATE TABLE IF NOT EXISTS sentinel_pending_actions (
