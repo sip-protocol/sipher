@@ -5,14 +5,6 @@ All endpoints live under `/api/sentinel`. JWT-based auth via `Authorization: Bea
 - **Public** routes require `verifyJwt` only.
 - **Admin** routes require `verifyJwt + requireOwner` — wallet must appear in `AUTHORIZED_WALLETS` env var.
 
-> [!WARNING]
-> Two distinct cancel routes exist on the admin router and look nearly identical by name:
->
-> - `POST /api/sentinel/pending/:id/cancel` — cancels a circuit-breaker pending action (SQLite-backed, returns 200 + `{"success": true}` on success, 404 + `NOT_FOUND` envelope on missing)
-> - `POST /api/sentinel/cancel/:flagId` — rejects an in-memory promise-gate flag (returns 204 on success, 404 + `NOT_FOUND` envelope on missing)
->
-> They operate on different state stores. A rename is tracked in [follow-up issue #1](https://github.com/sip-protocol/sipher/issues/157).
-
 ## Error Envelope
 
 All SENTINEL routes that emit errors return a structured envelope:
@@ -307,7 +299,7 @@ curl -X DELETE http://localhost:5006/api/sentinel/blacklist/01KQP25BM8RVZJ92CTAN
 
 ---
 
-### POST /api/sentinel/pending/:id/cancel
+### POST /api/sentinel/circuit-breaker/:id/cancel
 
 **Auth:** `verifyJwt + requireOwner`
 
@@ -344,7 +336,7 @@ Returned when the action ID does not exist or is already settled. (Behavior chan
 **Example:**
 
 ```bash
-curl -X POST http://localhost:5006/api/sentinel/pending/01KQP25BM8RVZJ92CTANFDNTMG/cancel \
+curl -X POST http://localhost:5006/api/sentinel/circuit-breaker/01KQP25BM8RVZJ92CTANFDNTMG/cancel \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{ "reason": "admin override, action no longer needed" }'
@@ -385,7 +377,7 @@ curl -H "Authorization: Bearer $JWT" \
 
 ---
 
-### POST /api/sentinel/override/:flagId
+### POST /api/sentinel/promise-gate/:flagId/resolve
 
 **Auth:** `verifyJwt + requireOwner`
 
@@ -410,20 +402,17 @@ Returned when no in-memory flag exists for the given `flagId`. Flags expire when
 **Example:**
 
 ```bash
-curl -X POST http://localhost:5006/api/sentinel/override/flag_01KQP24PG0KZCJVWJDQM8H3JAY \
+curl -X POST http://localhost:5006/api/sentinel/promise-gate/flag_01KQP24PG0KZCJVWJDQM8H3JAY/resolve \
   -H "Authorization: Bearer $JWT"
 ```
 
 ---
 
-### POST /api/sentinel/cancel/:flagId
+### POST /api/sentinel/promise-gate/:flagId/reject
 
 **Auth:** `verifyJwt + requireOwner`
 
 **Description:** Reject a pending in-memory promise-gate flag — the admin denial path when SENTINEL is in `advisory` mode and has paused an action. Calls `rejectPending(flagId, 'cancelled_by_user')` in `packages/agent/src/sentinel/pending.ts`. The paused tool call receives a rejection and the agent aborts the action.
-
-> [!WARNING]
-> See the top-of-file warning about dual-cancel route ambiguity. This route operates on **in-memory promise-gate flags**. For cancelling SQLite-backed circuit-breaker actions, use `POST /api/sentinel/pending/:id/cancel`.
 
 **Path params:**
 
@@ -444,7 +433,7 @@ Returned when no in-memory flag exists for the given `flagId`.
 **Example:**
 
 ```bash
-curl -X POST http://localhost:5006/api/sentinel/cancel/flag_01KQP24PG0KZCJVWJDQM8H3JAY \
+curl -X POST http://localhost:5006/api/sentinel/promise-gate/flag_01KQP24PG0KZCJVWJDQM8H3JAY/reject \
   -H "Authorization: Bearer $JWT"
 ```
 
