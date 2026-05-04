@@ -17,6 +17,11 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
+// Note: no "service errors" describe block here. executeVetoSipher does not
+// wrap guardianBus.emit in try/catch — bus errors propagate unhandled (intended).
+// Tools with DB writes (alert-user, add-to-blacklist, remove-from-blacklist) DO
+// include service-error coverage; this tool's emit-then-return body has no failure
+// surface to test independently.
 describe('vetoSipherTool definition', () => {
   it('has correct name', () => {
     expect(vetoSipherTool.name).toBe('vetoSipherAction')
@@ -50,14 +55,14 @@ describe('executeVetoSipher — service interaction', () => {
 
     expect(mockGuardianEmit).toHaveBeenCalledTimes(1)
     const [event] = mockGuardianEmit.mock.calls[0]
-    expect(event).toMatchObject({
+    expect(event).toStrictEqual({
       source: 'sentinel',
       type: 'sentinel:veto',
       level: 'critical',
       data: { contextId: 'ctx1', reason: 'critical violation' },
       wallet: null,
+      timestamp: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/),
     })
-    expect(typeof event.timestamp).toBe('string')
   })
 
   it('forwards arbitrary contextId and reason verbatim', async () => {
