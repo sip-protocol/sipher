@@ -174,14 +174,15 @@ sentinelAdminRouter.get('/decisions', (req: Request, res: Response) => {
  * Promise-gate resolve — see also `/cancel/:flagId` reject.
  * @auth verifyJwt + requireOwner
  * @param flagId in-memory promise flag id
- * @returns 204 | 404 { error }
+ * @returns 204 | 404 ErrorEnvelope
  * @see docs/sentinel/rest-api.md#post-apisentineloverrideflagid
+ * @see docs/sentinel/rest-api.md#error-envelope
  */
 sentinelAdminRouter.post('/override/:flagId', (req: Request, res: Response) => {
   const flagId = String(req.params.flagId)
   const ok = resolvePending(flagId)
   if (!ok) {
-    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'flag not found or expired' } })
+    sendSentinelError(res, 'NOT_FOUND', 'flag not found or expired')
     return
   }
   res.status(204).send()
@@ -192,14 +193,15 @@ sentinelAdminRouter.post('/override/:flagId', (req: Request, res: Response) => {
  * Promise-gate reject — distinct from the circuit-breaker `/pending/:id/cancel`.
  * @auth verifyJwt + requireOwner
  * @param flagId in-memory promise flag id
- * @returns 204 | 404 { error }
+ * @returns 204 | 404 ErrorEnvelope
  * @see docs/sentinel/rest-api.md#post-apisentinelcancelflagid
+ * @see docs/sentinel/rest-api.md#error-envelope
  */
 sentinelAdminRouter.post('/cancel/:flagId', (req: Request, res: Response) => {
   const flagId = String(req.params.flagId)
   const ok = rejectPending(flagId, 'cancelled_by_user')
   if (!ok) {
-    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'flag not found or expired' } })
+    sendSentinelError(res, 'NOT_FOUND', 'flag not found or expired')
     return
   }
   res.status(204).send()
