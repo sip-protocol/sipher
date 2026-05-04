@@ -1,3 +1,6 @@
+> 📖 **Public mirror:** [docs.sip-protocol.org/sipher/sentinel/config](https://docs.sip-protocol.org/sipher/sentinel/config/)
+> This file is the source of truth. Public mirror is hand-synced — see [docs-sip/CLAUDE.md](https://github.com/sip-protocol/docs-sip/blob/main/CLAUDE.md#sentinel-mirror).
+
 # SENTINEL Configuration
 
 All SENTINEL behavior is tuned via environment variables. Read at startup by `getSentinelConfig` in `packages/agent/src/sentinel/config.ts`. Defaults shown below are verified against that file as of the `Last verified` date.

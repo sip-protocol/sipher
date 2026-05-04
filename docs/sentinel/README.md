@@ -1,3 +1,6 @@
+> 📖 **Public mirror:** [docs.sip-protocol.org/sipher/sentinel/overview](https://docs.sip-protocol.org/sipher/sentinel/overview/)
+> This file is the source of truth. Public mirror is hand-synced — see [docs-sip/CLAUDE.md](https://github.com/sip-protocol/docs-sip/blob/main/CLAUDE.md#sentinel-mirror).
+
 # SENTINEL — External Surface Reference
 
 SENTINEL is Sipher's LLM-backed security analyst. Think of it as the security department of an office building: it watches every fund-moving action, flags suspicious wallets, can pause execution for human review, and logs every decision for audit. This folder is the integrator-facing reference for SENTINEL's external surface.

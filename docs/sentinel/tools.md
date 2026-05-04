@@ -1,3 +1,6 @@
+> 📖 **Public mirror:** [docs.sip-protocol.org/sipher/sentinel/tools](https://docs.sip-protocol.org/sipher/sentinel/tools/)
+> This file is the source of truth. Public mirror is hand-synced — see [docs-sip/CLAUDE.md](https://github.com/sip-protocol/docs-sip/blob/main/CLAUDE.md#sentinel-mirror).
+
 # SENTINEL Agent Tools
 
 Tools that SENTINEL's LLM agent (`SentinelCore`) calls during risk assessment, plus the `assessRisk` tool exposed to the conversational SIPHER agent.

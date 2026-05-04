@@ -579,6 +579,14 @@ ssh sip@176.222.53.185 "docker logs sipher --tail 50"
 
 ---
 
+## SENTINEL Docs Mirror Policy
+
+`docs/sentinel/*.md` is the source of truth. A public mirror lives at `docs.sip-protocol.org/sipher/sentinel/*` (Astro Starlight, repo: `sip-protocol/docs-sip`).
+
+**Sync rule:** Any PR that edits `docs/sentinel/*.md` MUST also update the corresponding `.mdx` in `docs-sip/src/content/docs/sipher/sentinel/`, in the same logical change (paired PRs, or a single multi-repo branch). Update the "Last synced: YYYY-MM-DD" date in both files. See [docs-sip/CLAUDE.md](https://github.com/sip-protocol/docs-sip/blob/main/CLAUDE.md#sentinel-mirror) for the six transform rules.
+
+---
+
 ## AI GUIDELINES
 
 ### DO:
