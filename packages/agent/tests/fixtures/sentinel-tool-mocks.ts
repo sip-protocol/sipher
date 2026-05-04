@@ -21,7 +21,7 @@ export const VALID_WALLET = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
 export const VALID_PDA = 'So11111111111111111111111111111111111111112'
 
 /** A third valid base58 pubkey for blacklist-target tests */
-export const VALID_TARGET_ADDRESS = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+export const VALID_TARGET_ADDRESS = 'BadAcT11111111111111111111111111111111111111'
 
 /** Synthetic ULID (Crockford base32, 26 chars) — matches the shape ulid() produces */
 export const VALID_ENTRY_ID = '01HZZZZZZZZZZZZZZZZZZZZZZZ'
@@ -103,7 +103,12 @@ export function makeRiskHistoryRow(
   }
 }
 
-/** Raw row shape returned by SQLite for activity_stream queries */
+/**
+ * Shape of activity_stream rows as projected by `getRecentActivity` in
+ * `src/sentinel/tools/get-recent-activity.ts`. The real activity_stream
+ * table has more columns (actionable, action_type, action_data) that
+ * are not selected by this query path.
+ */
 export interface ActivityStreamRowShape {
   id: string
   agent: string
@@ -131,7 +136,11 @@ export function makeActivityStreamRow(
   }
 }
 
-/** Raw row shape for unclaimed-event activity_stream rows (detail JSON has stealth fields) */
+/**
+ * Two-field projection (`detail`, `created_at`) returned by the SQL query
+ * inside `executeGetPendingClaims`. NOT the full activity_stream row —
+ * that query selects only these two columns.
+ */
 export function makePendingClaimRow(
   overrides: Partial<{ detail: string; created_at: string }> = {},
 ): { detail: string; created_at: string } {
@@ -149,7 +158,7 @@ export function makePendingClaimRow(
 export interface OnChainSignatureRPCShape {
   signature: string
   slot: number
-  blockTime: number | null
+  blockTime?: number | null
   err: unknown
   memo: string | null
 }
@@ -223,6 +232,15 @@ export function makeAccountInfo(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SentinelConfig shape
+//
+// This is a SUBSET of the real `SentinelConfig` interface (in
+// `src/sentinel/config.ts`) covering only the fields read by the 14 SENTINEL
+// tools as of 2026-05-04: mode, preflightScope, blacklistAutonomy,
+// rateLimitBlacklistPerHour, autoRefundThreshold, cancelWindowMs.
+//
+// If a future SENTINEL tool reads other fields, extend this shape to match.
+// We deliberately don't import the real type to keep the fixture self-contained
+// per the Phase 5 spec (no global Phase 5 fixture).
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface SentinelConfigShape {
@@ -234,6 +252,11 @@ export interface SentinelConfigShape {
   cancelWindowMs: number
 }
 
+/**
+ * Build a SentinelConfig fixture. Default mode is `'yolo'` (permissive — lets
+ * action tools run). Production VPS runs in `'advisory'` mode; tests for
+ * advisory-mode behavior should override `mode: 'advisory'` explicitly.
+ */
 export function makeSentinelConfig(
   overrides: Partial<SentinelConfigShape> = {},
 ): SentinelConfigShape {
