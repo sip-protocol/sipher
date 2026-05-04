@@ -8,8 +8,8 @@ All endpoints live under `/api/sentinel`. JWT-based auth via `Authorization: Bea
 > [!WARNING]
 > Two distinct cancel routes exist on the admin router and look nearly identical by name:
 >
-> - `POST /api/sentinel/pending/:id/cancel` — cancels a circuit-breaker pending action (SQLite-backed, always returns 200 + `{"success": bool}`)
-> - `POST /api/sentinel/cancel/:flagId` — rejects an in-memory promise-gate flag (returns 204 on success, 404 on missing)
+> - `POST /api/sentinel/pending/:id/cancel` — cancels a circuit-breaker pending action (SQLite-backed, returns 200 + `{"success": true}` on success, 404 + `NOT_FOUND` envelope on missing)
+> - `POST /api/sentinel/cancel/:flagId` — rejects an in-memory promise-gate flag (returns 204 on success, 404 + `NOT_FOUND` envelope on missing)
 >
 > They operate on different state stores. A rename is tracked in [follow-up issue #1](https://github.com/sip-protocol/sipher/issues/157).
 
