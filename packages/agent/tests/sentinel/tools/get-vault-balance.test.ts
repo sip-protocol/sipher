@@ -1,3 +1,4 @@
+// packages/agent/tests/sentinel/tools/get-vault-balance.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   makeParsedTokenAccount,

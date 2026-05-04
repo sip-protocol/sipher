@@ -1,3 +1,4 @@
+// packages/agent/tests/sentinel/tools/remove-from-blacklist.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { VALID_ENTRY_ID } from '../../fixtures/sentinel-tool-mocks.js'
 

@@ -1,3 +1,4 @@
+// packages/agent/tests/sentinel/tools/veto-sipher-action.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const { mockGuardianEmit } = vi.hoisted(() => ({

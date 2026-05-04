@@ -75,4 +75,14 @@ describe('executeCheckReputation — service interaction', () => {
     expect(mockGetActiveBlacklistEntry).toHaveBeenCalledTimes(1)
     expect(mockGetActiveBlacklistEntry).toHaveBeenCalledWith(VALID_TARGET_ADDRESS)
   })
+
+  it('propagates getActiveBlacklistEntry throw', async () => {
+    mockGetActiveBlacklistEntry.mockImplementationOnce(() => {
+      throw new Error('db locked')
+    })
+
+    await expect(
+      executeCheckReputation({ address: VALID_TARGET_ADDRESS }),
+    ).rejects.toThrow(/db locked/)
+  })
 })

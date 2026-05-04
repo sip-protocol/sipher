@@ -125,4 +125,14 @@ describe('executeGetPendingClaims — service interaction', () => {
     expect(sql).toMatch(/ORDER BY created_at DESC/)
     expect(sql).toMatch(/LIMIT 100/)
   })
+
+  it('propagates DB throw from prepare().all()', async () => {
+    mockAll.mockImplementationOnce(() => {
+      throw new Error('db locked')
+    })
+
+    await expect(
+      executeGetPendingClaims({}),
+    ).rejects.toThrow(/db locked/)
+  })
 })

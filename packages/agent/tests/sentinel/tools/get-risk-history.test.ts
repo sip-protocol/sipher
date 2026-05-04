@@ -91,4 +91,14 @@ describe('executeGetRiskHistory — service interaction', () => {
 
     expect(mockGetRiskHistory).toHaveBeenCalledWith(VALID_TARGET_ADDRESS, 5)
   })
+
+  it('propagates getRiskHistory throw', async () => {
+    mockGetRiskHistory.mockImplementationOnce(() => {
+      throw new Error('db locked')
+    })
+
+    await expect(
+      executeGetRiskHistory({ address: VALID_TARGET_ADDRESS }),
+    ).rejects.toThrow(/db locked/)
+  })
 })

@@ -129,4 +129,14 @@ describe('executeGetRecentActivity — service interaction', () => {
     const [sql] = mockPrepare.mock.calls[0]
     expect(sql).toMatch(/ORDER BY created_at DESC/)
   })
+
+  it('propagates DB throw from prepare().all()', async () => {
+    mockAll.mockImplementationOnce(() => {
+      throw new Error('db locked')
+    })
+
+    await expect(
+      executeGetRecentActivity({ address: VALID_WALLET }),
+    ).rejects.toThrow(/db locked/)
+  })
 })
