@@ -69,13 +69,13 @@ describe('SENTINEL pause/resume routes', () => {
     await expect(promise).resolves.toBeUndefined()
   })
 
-  it('POST /api/sentinel/cancel/:flagId rejects the pending promise (204)', async () => {
+  it('POST /api/sentinel/promise-gate/:flagId/reject rejects the pending promise (204)', async () => {
     const { flagId, promise } = createPending('test-session', 'send', { amount: 1 })
     // attach noop catch before the HTTP call so Node doesn't flag the rejection as unhandled
     // before our .rejects assertion consumes it
     promise.catch(() => {})
     const res = await supertest(createApp())
-      .post(`/api/sentinel/cancel/${flagId}`)
+      .post(`/api/sentinel/promise-gate/${flagId}/reject`)
       .set('Authorization', `Bearer ${signJwt(ADMIN_WALLET)}`)
     expect(res.status).toBe(204)
     await expect(promise).rejects.toThrow(/cancelled/i)

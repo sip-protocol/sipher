@@ -189,14 +189,14 @@ sentinelAdminRouter.post('/promise-gate/:flagId/resolve', (req: Request, res: Re
 
 /**
  * Promise-gate reject — deny a paused advisory-mode action.
- * Promise-gate reject — distinct from the circuit-breaker `/pending/:id/cancel`.
+ * Operates on the in-memory pending-promise registry owned by `sentinel/pending.ts`.
  * @auth verifyJwt + requireOwner
  * @param flagId in-memory promise flag id
  * @returns 204 | 404 ErrorEnvelope
- * @see docs/sentinel/rest-api.md#post-apisentinelcancelflagid
+ * @see docs/sentinel/rest-api.md#post-apisentinelpromise-gateflagidreject
  * @see docs/sentinel/rest-api.md#error-envelope
  */
-sentinelAdminRouter.post('/cancel/:flagId', (req: Request, res: Response) => {
+sentinelAdminRouter.post('/promise-gate/:flagId/reject', (req: Request, res: Response) => {
   const flagId = String(req.params.flagId)
   const ok = rejectPending(flagId, 'cancelled_by_user')
   if (!ok) {
