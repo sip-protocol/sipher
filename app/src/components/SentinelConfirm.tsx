@@ -28,7 +28,12 @@ export default function SentinelConfirm({ flagId, token, action, amount, descrip
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) {
-        setError(`Action failed (${res.status})`)
+        let message = `Action failed (${res.status})`
+        try {
+          const body = await res.json()
+          if (body?.error?.message) message = String(body.error.message)
+        } catch { /* fall back to status */ }
+        setError(message)
         return
       }
       success = true
