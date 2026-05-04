@@ -64,7 +64,7 @@ async function main(): Promise<void> {
   const state = readStateJson()
   assertRefundEligible(state)
 
-  // Set env vars BEFORE importing performVaultRefund (it reads them at module load)
+  // Set env vars before calling performVaultRefund — it reads them at function-call time
   process.env.SENTINEL_AUTHORITY_KEYPAIR = KEYPAIR_PATH
   process.env.SOLANA_NETWORK = state.network
 
@@ -88,7 +88,7 @@ async function main(): Promise<void> {
   console.log(`Refund TX finalized: ${result.txId}`)
 
   const post = await capturePostState(conn, recordPDA, wsolAta)
-  const assertions = computeAssertions(pre, post, result.txId)
+  const assertions = await computeAssertions(conn, pre, post, result.txId)
 
   if (!assertions.txConfirmed || !assertions.balanceIncreased || !assertions.depositRecordClosed) {
     dumpFailure(pre, post, assertions, result.txId)
@@ -207,10 +207,19 @@ type Assertions = {
   expectedDelta: bigint
 }
 
-function computeAssertions(pre: PreState, post: PostState, txId: string): Assertions {
+async function computeAssertions(
+  conn: Connection,
+  pre: PreState,
+  post: PostState,
+  txId: string,
+): Promise<Assertions> {
   const wSolDelta = post.depositorWSolBalance - pre.depositorWSolBalance
   const expectedDelta = pre.depositRecordBalance
-  const txConfirmed = typeof txId === 'string' && txId.length > 0
+  const tx = await conn.getTransaction(txId, {
+    commitment: 'finalized',
+    maxSupportedTransactionVersion: 0,
+  })
+  const txConfirmed = tx !== null && tx.meta?.err === null
   const balanceIncreased = wSolDelta === expectedDelta
   const depositRecordClosed = !post.recordExists || (post.recordBalance ?? 1n) === 0n
   return { txConfirmed, balanceIncreased, depositRecordClosed, wSolDelta, expectedDelta }
