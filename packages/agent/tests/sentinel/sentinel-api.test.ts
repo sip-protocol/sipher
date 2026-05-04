@@ -141,6 +141,17 @@ describe('sentinel REST endpoints', () => {
     cb.clearAllTimers()
   })
 
+  it('POST /pending/:id/cancel returns 404 + NOT_FOUND when ID does not exist', async () => {
+    const app = await buildApp(vi.fn())
+    const res = await request(app).post('/api/sentinel/pending/does-not-exist/cancel').send({
+      reason: 'attempted cancel',
+    })
+    expect(res.status).toBe(404)
+    expect(res.body).toStrictEqual({
+      error: { code: 'NOT_FOUND', message: 'pending action not found or already resolved' },
+    })
+  })
+
   it('GET /decisions lists audit log', async () => {
     const app = await buildApp(vi.fn())
     const { insertDecisionDraft, finalizeDecision } = await import('../../src/db.js')

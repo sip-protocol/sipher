@@ -134,8 +134,9 @@ sentinelAdminRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
  * @auth verifyJwt + requireOwner
  * @param id pending action id
  * @body { reason? string }
- * @returns 200 { success: boolean }
+ * @returns 200 { success: true } | 404 ErrorEnvelope
  * @see docs/sentinel/rest-api.md#post-apisentinelpendingidcancel
+ * @see docs/sentinel/rest-api.md#error-envelope
  */
 sentinelAdminRouter.post('/pending/:id/cancel', (req: Request, res: Response) => {
   const reason = (req.body?.reason as string) ?? 'manual cancel'
@@ -144,7 +145,11 @@ sentinelAdminRouter.post('/pending/:id/cancel', (req: Request, res: Response) =>
   const by = typeof wallet === 'string' ? `user:${wallet}` : 'admin'
   const id = (typeof req.params.id === 'string' ? req.params.id : String(req.params.id))
   const ok = cancelCircuitBreakerAction(id, by, reason)
-  res.json({ success: ok })
+  if (!ok) {
+    sendSentinelError(res, 'NOT_FOUND', 'pending action not found or already resolved')
+    return
+  }
+  res.json({ success: true })
 })
 
 /**
