@@ -484,7 +484,7 @@ All return `ApiResponse<T>`: `{ success, data?, error? }`
 | POST | `/v1/sentinel/blacklist` | Add address to blacklist (admin) | Yes | — |
 | DELETE | `/v1/sentinel/blacklist/:address` | Remove address from blacklist (admin) | Yes | — |
 | GET | `/v1/sentinel/pending` | List pending cancellable actions | Yes | — |
-| POST | `/v1/sentinel/pending/:id/cancel` | Cancel a pending action | Yes | — |
+| POST | `/v1/sentinel/circuit-breaker/:id/cancel` | Cancel a pending action | Yes | — |
 | GET | `/v1/sentinel/decisions` | Recent SENTINEL risk decisions | Yes | — |
 | GET | `/v1/sentinel/status` | SENTINEL mode + health status | Yes | — |
 

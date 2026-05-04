@@ -237,7 +237,7 @@ export interface SSEError {
 
 export interface SSESentinelPause {
   type: 'sentinel_pause'
-  /** Server-issued ID — client posts to /api/sentinel/override/:flagId or /cancel/:flagId */
+  /** Server-issued ID — client posts to /api/sentinel/promise-gate/:flagId/resolve or /reject */
   flagId: string
   /** Humanized action label, e.g. "Send to Abc...123" */
   action: string
@@ -357,8 +357,8 @@ export async function chat(
  * and SENTINEL flagged the action without blocking, a pending flag is created
  * (sentinel/pending.ts) and a `sentinel_pause` SSE event is injected into the
  * stream-bridge's external queue. The executor awaits the pending promise
- * until the user POSTs to `/api/sentinel/override/:flagId` (resume) or
- * `/cancel/:flagId` (cancel). Cancellation is surfaced as a synthetic
+ * until the user POSTs to `/api/sentinel/promise-gate/:flagId/resolve` (resume) or
+ * `/promise-gate/:flagId/reject` (cancel). Cancellation is surfaced as a synthetic
  * `{ status: 'cancelled_by_user' }` tool result; the LLM reports it back.
  *
  * The pause event MUST go through streamPiAgent's external queue (not a

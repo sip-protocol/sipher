@@ -30,7 +30,7 @@ export function _setTimeoutMsForTests(ms: number): void {
 }
 
 /**
- * Create an in-memory pending flag awaiting admin override or cancellation.
+ * Create an in-memory pending flag awaiting admin approval or denial.
  * Used by the pause/resume flow when SentinelCore returns a `flag` verdict in advisory mode.
  * The returned `promise` resolves on `resolvePending(flagId)` or rejects on `rejectPending(flagId)`
  * or after `TIMEOUT_MS` (120 s by default).
@@ -39,7 +39,7 @@ export function _setTimeoutMsForTests(ms: number): void {
  * @param toolInput - full tool input payload (forwarded to the admin UI for review)
  * @returns `{ flagId, promise }` — emit `flagId` in the SSE `sentinel_pause` event;
  *   await `promise` in the tool executor until the admin resolves or rejects the flag.
- * @see docs/sentinel/rest-api.md#post-apisentineloverrideflagid
+ * @see docs/sentinel/rest-api.md#post-apisentinelpromise-gateflagidresolve
  */
 export function createPending(
   sessionId: string,
@@ -72,12 +72,12 @@ export function createPending(
 }
 
 /**
- * Resolve a pending flag — admin override path.
- * Mapped to `POST /api/sentinel/override/:flagId`.
+ * Resolve a pending flag — admin approval path.
+ * Mapped to `POST /api/sentinel/promise-gate/:flagId/resolve`.
  * Clears the auto-timeout, removes the flag from the Map, and calls the promise resolver.
  * @param flagId - flag identifier returned by `createPending`
  * @returns `true` if the flag existed and was resolved; `false` if not found or already settled.
- * @see docs/sentinel/rest-api.md#post-apisentineloverrideflagid
+ * @see docs/sentinel/rest-api.md#post-apisentinelpromise-gateflagidresolve
  */
 export function resolvePending(flagId: string): boolean {
   const entry = pending.get(flagId)
@@ -89,13 +89,13 @@ export function resolvePending(flagId: string): boolean {
 }
 
 /**
- * Reject a pending flag — admin cancel path.
- * Mapped to `POST /api/sentinel/cancel/:flagId`.
+ * Reject a pending flag — admin denial path.
+ * Mapped to `POST /api/sentinel/promise-gate/:flagId/reject`.
  * Clears the auto-timeout, removes the flag from the Map, and rejects the promise with `reason`.
  * @param flagId - flag identifier returned by `createPending`
  * @param reason - rejection reason string (e.g. `'cancelled_by_user'`), wrapped in an Error
  * @returns `true` if the flag existed and was rejected; `false` if not found or already settled.
- * @see docs/sentinel/rest-api.md#post-apisentinelcancelflagid
+ * @see docs/sentinel/rest-api.md#post-apisentinelpromise-gateflagidreject
  */
 export function rejectPending(flagId: string, reason: string): boolean {
   const entry = pending.get(flagId)

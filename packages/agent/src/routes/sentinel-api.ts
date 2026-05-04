@@ -130,15 +130,15 @@ sentinelAdminRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
 
 /**
  * Circuit-breaker cancel — mark a pending action cancelled in SQLite.
- * Circuit-breaker cancel — distinct from the promise-gate `/cancel/:flagId`.
+ * Operates on the durable circuit-breaker queue (distinct from the in-memory promise-gate routes).
  * @auth verifyJwt + requireOwner
  * @param id pending action id
  * @body { reason? string }
  * @returns 200 { success: true } | 404 ErrorEnvelope
- * @see docs/sentinel/rest-api.md#post-apisentinelpendingidcancel
+ * @see docs/sentinel/rest-api.md#post-apisentinelcircuit-breakeridcancel
  * @see docs/sentinel/rest-api.md#error-envelope
  */
-sentinelAdminRouter.post('/pending/:id/cancel', (req: Request, res: Response) => {
+sentinelAdminRouter.post('/circuit-breaker/:id/cancel', (req: Request, res: Response) => {
   const reason = (req.body?.reason as string) ?? 'manual cancel'
   const w = (req as unknown as Record<string, unknown>).wallet
   const wallet = (typeof w === 'string' ? w : undefined)
@@ -166,19 +166,18 @@ sentinelAdminRouter.get('/decisions', (req: Request, res: Response) => {
 })
 
 // ─── Promise-gate endpoints (pause/resume for advisory mode) ────────────────
-// NOTE: distinct from /pending/:id/cancel above (circuit-breaker, SQLite-backed).
 // These act on in-memory pending promises owned by sentinel/pending.ts.
 
 /**
  * Promise-gate resolve — approve a paused advisory-mode action.
- * Promise-gate resolve — see also `/cancel/:flagId` reject.
+ * Operates on the in-memory pending-promise registry owned by `sentinel/pending.ts`.
  * @auth verifyJwt + requireOwner
  * @param flagId in-memory promise flag id
  * @returns 204 | 404 ErrorEnvelope
- * @see docs/sentinel/rest-api.md#post-apisentineloverrideflagid
+ * @see docs/sentinel/rest-api.md#post-apisentinelpromise-gateflagidresolve
  * @see docs/sentinel/rest-api.md#error-envelope
  */
-sentinelAdminRouter.post('/override/:flagId', (req: Request, res: Response) => {
+sentinelAdminRouter.post('/promise-gate/:flagId/resolve', (req: Request, res: Response) => {
   const flagId = String(req.params.flagId)
   const ok = resolvePending(flagId)
   if (!ok) {
@@ -190,14 +189,14 @@ sentinelAdminRouter.post('/override/:flagId', (req: Request, res: Response) => {
 
 /**
  * Promise-gate reject — deny a paused advisory-mode action.
- * Promise-gate reject — distinct from the circuit-breaker `/pending/:id/cancel`.
+ * Operates on the in-memory pending-promise registry owned by `sentinel/pending.ts`.
  * @auth verifyJwt + requireOwner
  * @param flagId in-memory promise flag id
  * @returns 204 | 404 ErrorEnvelope
- * @see docs/sentinel/rest-api.md#post-apisentinelcancelflagid
+ * @see docs/sentinel/rest-api.md#post-apisentinelpromise-gateflagidreject
  * @see docs/sentinel/rest-api.md#error-envelope
  */
-sentinelAdminRouter.post('/cancel/:flagId', (req: Request, res: Response) => {
+sentinelAdminRouter.post('/promise-gate/:flagId/reject', (req: Request, res: Response) => {
   const flagId = String(req.params.flagId)
   const ok = rejectPending(flagId, 'cancelled_by_user')
   if (!ok) {
