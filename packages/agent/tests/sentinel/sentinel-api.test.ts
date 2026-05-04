@@ -42,10 +42,42 @@ describe('sentinel REST endpoints', () => {
     expect(res.body).toMatchObject({ risk: 'low', recommendation: 'allow' })
   })
 
-  it('POST /assess returns 400 on missing required fields', async () => {
+  it('POST /assess returns 400 + VALIDATION_FAILED envelope on missing required fields', async () => {
     const app = await buildApp(vi.fn())
     const res = await request(app).post('/api/sentinel/assess').send({})
     expect(res.status).toBe(400)
+    expect(res.body).toStrictEqual({
+      error: { code: 'VALIDATION_FAILED', message: 'action and wallet are required strings' },
+    })
+  })
+
+  it('POST /assess returns 503 + UNAVAILABLE when assessor is not configured', async () => {
+    await freshDb()
+    const { setSentinelAssessor } = await import('../../src/sentinel/preflight-gate.js')
+    setSentinelAssessor(null)
+    const { sentinelPublicRouter } = await import('../../src/routes/sentinel-api.js')
+    const app = express()
+    app.use(express.json())
+    app.use('/api/sentinel', sentinelPublicRouter)
+    const res = await request(app).post('/api/sentinel/assess').send({
+      action: 'send', wallet: 'w1',
+    })
+    expect(res.status).toBe(503)
+    expect(res.body).toStrictEqual({
+      error: { code: 'UNAVAILABLE', message: 'SENTINEL assessor not configured' },
+    })
+  })
+
+  it('POST /assess returns 500 + INTERNAL envelope when assessor throws', async () => {
+    const assess = vi.fn().mockRejectedValue(new Error('boom'))
+    const app = await buildApp(assess as never)
+    const res = await request(app).post('/api/sentinel/assess').send({
+      action: 'send', wallet: 'w1',
+    })
+    expect(res.status).toBe(500)
+    expect(res.body).toStrictEqual({
+      error: { code: 'INTERNAL', message: 'boom' },
+    })
   })
 
   it('GET /blacklist returns active entries', async () => {

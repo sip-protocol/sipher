@@ -7,6 +7,7 @@ import { cancelCircuitBreakerAction } from '../sentinel/circuit-breaker.js'
 import { getSentinelAssessor } from '../sentinel/preflight-gate.js'
 import { getSentinelConfig } from '../sentinel/config.js'
 import { resolvePending, rejectPending } from '../sentinel/pending.js'
+import { sendSentinelError } from './sentinel-errors.js'
 
 // Reference: docs/sentinel/rest-api.md
 
@@ -17,25 +18,26 @@ export const sentinelPublicRouter: Router = Router()
  * One-shot risk assessment for a proposed action.
  * @auth verifyJwt
  * @body { action, wallet, recipient?, amount?, token?, metadata? }
- * @returns 200 RiskReport | 400 { error } | 503 { error }
+ * @returns 200 RiskReport | 400 ErrorEnvelope | 500 ErrorEnvelope | 503 ErrorEnvelope
  * @see docs/sentinel/rest-api.md#post-apisentinelassess
+ * @see docs/sentinel/rest-api.md#error-envelope
  */
 sentinelPublicRouter.post('/assess', async (req: Request, res: Response) => {
   const { action, wallet, recipient, amount, token, metadata } = req.body ?? {}
   if (typeof action !== 'string' || typeof wallet !== 'string') {
-    res.status(400).json({ error: 'action and wallet are required strings' })
+    sendSentinelError(res, 'VALIDATION_FAILED', 'action and wallet are required strings')
     return
   }
   const assessor = getSentinelAssessor()
   if (!assessor) {
-    res.status(503).json({ error: 'SENTINEL assessor not configured' })
+    sendSentinelError(res, 'UNAVAILABLE', 'SENTINEL assessor not configured')
     return
   }
   try {
     const report = await assessor({ action, wallet, recipient, amount, token, metadata })
     res.json(report)
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'assess failed' })
+    sendSentinelError(res, 'INTERNAL', e instanceof Error ? e.message : 'assess failed')
   }
 })
 
