@@ -1173,7 +1173,7 @@ cat docs/sentinel/evidence/devnet-refund-$(date -u +%Y-%m-%d).json | jq '.solsca
 
 Open both `solscan.deposit` and `solscan.refund` URLs from the evidence JSON. Confirm:
 - Both TXs status: Success
-- Refund TX shows wSOL ATA gaining 9,990,000 lamports
+- Refund TX shows wSOL ATA gaining 10,000,000 lamports (the full pre-refund DepositRecord.balance — authority_refund does not deduct fee)
 - Refund TX includes `authority_refund` instruction (or whatever the program log shows for that variant)
 
 NO COMMIT for this task. The evidence file is the artifact, but it commits with Task 6 alongside CHANGELOG + memory updates.
