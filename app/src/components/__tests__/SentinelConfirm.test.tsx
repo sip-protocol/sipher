@@ -23,7 +23,7 @@ describe('SentinelConfirm', () => {
     expect(screen.getByRole('button', { name: /override & send/i })).toBeInTheDocument()
   })
 
-  it('POSTs to override endpoint on Override click', async () => {
+  it('POSTs to promise-gate resolve endpoint on Override click', async () => {
     const onResolved = vi.fn()
     render(
       <SentinelConfirm
@@ -37,13 +37,13 @@ describe('SentinelConfirm', () => {
     )
     await userEvent.click(screen.getByRole('button', { name: /override & send/i }))
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/sentinel/override/abc'),
+      expect.stringContaining('/api/sentinel/promise-gate/abc/resolve'),
       expect.objectContaining({ method: 'POST' }),
     )
-    expect(onResolved).toHaveBeenCalledWith('override')
+    expect(onResolved).toHaveBeenCalledWith('resolve')
   })
 
-  it('POSTs to cancel endpoint on Cancel click', async () => {
+  it('POSTs to promise-gate reject endpoint on Cancel click', async () => {
     const onResolved = vi.fn()
     render(
       <SentinelConfirm
@@ -57,10 +57,10 @@ describe('SentinelConfirm', () => {
     )
     await userEvent.click(screen.getByRole('button', { name: /^cancel$/i }))
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/sentinel/cancel/abc'),
+      expect.stringContaining('/api/sentinel/promise-gate/abc/reject'),
       expect.objectContaining({ method: 'POST' }),
     )
-    expect(onResolved).toHaveBeenCalledWith('cancel')
+    expect(onResolved).toHaveBeenCalledWith('reject')
   })
 
   it('prevents double-dispatch when busy', async () => {

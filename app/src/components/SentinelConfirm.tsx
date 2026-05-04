@@ -10,20 +10,20 @@ interface Props {
   action: string
   amount: string
   description?: string
-  onResolved: (decision: 'override' | 'cancel') => void
+  onResolved: (decision: 'resolve' | 'reject') => void
 }
 
 export default function SentinelConfirm({ flagId, token, action, amount, description, onResolved }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const dispatch = async (kind: 'override' | 'cancel') => {
+  const dispatch = async (verb: 'resolve' | 'reject') => {
     if (busy) return
     setBusy(true)
     setError(null)
     let success = false
     try {
-      const res = await fetch(`${API_URL}/api/sentinel/${kind}/${encodeURIComponent(flagId)}`, {
+      const res = await fetch(`${API_URL}/api/sentinel/promise-gate/${encodeURIComponent(flagId)}/${verb}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -42,7 +42,7 @@ export default function SentinelConfirm({ flagId, token, action, amount, descrip
     } finally {
       setBusy(false)
     }
-    if (success) onResolved(kind)
+    if (success) onResolved(verb)
   }
 
   return (
@@ -53,8 +53,8 @@ export default function SentinelConfirm({ flagId, token, action, amount, descrip
         amount={amount}
         description={description}
         disabled={busy}
-        onConfirm={() => dispatch('override')}
-        onCancel={() => dispatch('cancel')}
+        onConfirm={() => dispatch('resolve')}
+        onCancel={() => dispatch('reject')}
       />
       {error && <div className="text-[12px] text-red px-1">{error}</div>}
     </div>
