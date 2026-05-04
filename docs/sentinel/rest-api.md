@@ -1,3 +1,6 @@
+> 📖 **Public mirror:** [docs.sip-protocol.org/sipher/sentinel/rest-api](https://docs.sip-protocol.org/sipher/sentinel/rest-api/)
+> This file is the source of truth. Public mirror is hand-synced — see [docs-sip/CLAUDE.md](https://github.com/sip-protocol/docs-sip/blob/main/CLAUDE.md#sentinel-mirror).
+
 # SENTINEL REST API
 
 All endpoints live under `/api/sentinel`. JWT-based auth via `Authorization: Bearer <token>`.
