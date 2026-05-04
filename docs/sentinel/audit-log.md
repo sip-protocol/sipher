@@ -1,3 +1,6 @@
+> 📖 **Public mirror:** [docs.sip-protocol.org/sipher/sentinel/audit-log](https://docs.sip-protocol.org/sipher/sentinel/audit-log/)
+> This file is the source of truth. Public mirror is hand-synced — see [docs-sip/CLAUDE.md](https://github.com/sip-protocol/docs-sip/blob/main/CLAUDE.md#sentinel-mirror).
+
 # SENTINEL Audit Log
 
 Every SENTINEL decision and state change is logged to SQLite. Read via [`GET /api/sentinel/decisions`](./rest-api.md#get-apisentineldecisions) and [`GET /api/sentinel/blacklist`](./rest-api.md#get-apisentinelblacklist), or directly via `sqlite3` against `$DB_PATH`.
