@@ -34,6 +34,7 @@ import {
   deriveVaultConfigPDA,
   deriveVaultTokenPDA,
   deriveFeeTokenPDA,
+  deriveDepositRecordPDA,
   deserializeVaultConfig,
   deserializeDepositRecord,
   buildDepositTx,
@@ -249,6 +250,19 @@ async function runDeposit(
   conn: Connection,
   depositor: Keypair,
 ): Promise<DepositResult> {
+  const [recordPDA] = deriveDepositRecordPDA(depositor.publicKey, NATIVE_MINT)
+  const existing = await conn.getAccountInfo(recordPDA, 'confirmed')
+  if (existing) {
+    const record = deserializeDepositRecord(Buffer.from(existing.data))
+    throw new Error(
+      `DepositRecord already exists at ${recordPDA.toBase58()} ` +
+      `(last_deposit_at=${new Date(Number(record.lastDepositAt) * 1000).toISOString()}). ` +
+      `Re-running would reset the 24h refund timer. Either delete ` +
+      `scripts/.devnet-vault-bootstrap.json and reuse the existing PDA via the refund script, ` +
+      `or use a different depositor keypair.`,
+    )
+  }
+
   const ata = await getAssociatedTokenAddress(NATIVE_MINT, depositor.publicKey)
   const { transaction, depositRecordAddress } = await buildDepositTx(
     conn,
