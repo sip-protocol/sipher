@@ -59,7 +59,7 @@ function createApp() {
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('SENTINEL pause/resume routes', () => {
+describe('SENTINEL promise-gate routes', () => {
   it('POST /api/sentinel/promise-gate/:flagId/resolve resolves the pending promise (204)', async () => {
     const { flagId, promise } = createPending('test-session', 'send', { amount: 1 })
     const res = await supertest(createApp())
