@@ -130,15 +130,15 @@ sentinelAdminRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
 
 /**
  * Circuit-breaker cancel — mark a pending action cancelled in SQLite.
- * Circuit-breaker cancel — distinct from the promise-gate `/cancel/:flagId`.
+ * Operates on the durable circuit-breaker queue (distinct from the in-memory promise-gate routes).
  * @auth verifyJwt + requireOwner
  * @param id pending action id
  * @body { reason? string }
  * @returns 200 { success: true } | 404 ErrorEnvelope
- * @see docs/sentinel/rest-api.md#post-apisentinelpendingidcancel
+ * @see docs/sentinel/rest-api.md#post-apisentinelcircuit-breakeridcancel
  * @see docs/sentinel/rest-api.md#error-envelope
  */
-sentinelAdminRouter.post('/pending/:id/cancel', (req: Request, res: Response) => {
+sentinelAdminRouter.post('/circuit-breaker/:id/cancel', (req: Request, res: Response) => {
   const reason = (req.body?.reason as string) ?? 'manual cancel'
   const w = (req as unknown as Record<string, unknown>).wallet
   const wallet = (typeof w === 'string' ? w : undefined)
@@ -166,7 +166,6 @@ sentinelAdminRouter.get('/decisions', (req: Request, res: Response) => {
 })
 
 // ─── Promise-gate endpoints (pause/resume for advisory mode) ────────────────
-// NOTE: distinct from /pending/:id/cancel above (circuit-breaker, SQLite-backed).
 // These act on in-memory pending promises owned by sentinel/pending.ts.
 
 /**

@@ -127,13 +127,13 @@ describe('sentinel REST endpoints', () => {
     expect((res.body.actions as unknown[]).length).toBe(1)
   })
 
-  it('POST /pending/:id/cancel cancels an action', async () => {
+  it('POST /circuit-breaker/:id/cancel cancels an action', async () => {
     const app = await buildApp(vi.fn())
     const cb = await import('../../src/sentinel/circuit-breaker.js')
     const id = cb.scheduleCancellableAction({
       actionType: 'refund', payload: {}, reasoning: 'r', wallet: 'w1', delayMs: 60000,
     })
-    const res = await request(app).post(`/api/sentinel/pending/${id}/cancel`).send({ reason: 'user cancelled' })
+    const res = await request(app).post(`/api/sentinel/circuit-breaker/${id}/cancel`).send({ reason: 'user cancelled' })
     expect(res.status).toBe(200)
     expect(res.body.success).toBe(true)
     const { getPendingAction } = await import('../../src/db.js')
@@ -141,9 +141,9 @@ describe('sentinel REST endpoints', () => {
     cb.clearAllTimers()
   })
 
-  it('POST /pending/:id/cancel returns 404 + NOT_FOUND when ID does not exist', async () => {
+  it('POST /circuit-breaker/:id/cancel returns 404 + NOT_FOUND when ID does not exist', async () => {
     const app = await buildApp(vi.fn())
-    const res = await request(app).post('/api/sentinel/pending/does-not-exist/cancel').send({
+    const res = await request(app).post('/api/sentinel/circuit-breaker/does-not-exist/cancel').send({
       reason: 'attempted cancel',
     })
     expect(res.status).toBe(404)
