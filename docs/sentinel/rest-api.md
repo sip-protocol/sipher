@@ -8,10 +8,28 @@ All endpoints live under `/api/sentinel`. JWT-based auth via `Authorization: Bea
 > [!WARNING]
 > Two distinct cancel routes exist on the admin router and look nearly identical by name:
 >
-> - `POST /api/sentinel/pending/:id/cancel` — cancels a circuit-breaker pending action (SQLite-backed, always returns 200 + `{"success": bool}`)
-> - `POST /api/sentinel/cancel/:flagId` — rejects an in-memory promise-gate flag (returns 204 on success, 404 on missing)
+> - `POST /api/sentinel/pending/:id/cancel` — cancels a circuit-breaker pending action (SQLite-backed, returns 200 + `{"success": true}` on success, 404 + `NOT_FOUND` envelope on missing)
+> - `POST /api/sentinel/cancel/:flagId` — rejects an in-memory promise-gate flag (returns 204 on success, 404 + `NOT_FOUND` envelope on missing)
 >
 > They operate on different state stores. A rename is tracked in [follow-up issue #1](https://github.com/sip-protocol/sipher/issues/157).
+
+## Error Envelope
+
+All SENTINEL routes that emit errors return a structured envelope:
+
+```json
+{ "error": { "code": "<CODE>", "message": "<human-readable>" } }
+```
+
+| Code | HTTP status | Meaning |
+|---|---|---|
+| `VALIDATION_FAILED` | 400 | Required fields missing or malformed |
+| `NOT_FOUND` | 404 | Resource ID does not exist |
+| `FORBIDDEN` | 403 | Reserved (auth middleware emits its own legacy shape today) |
+| `UNAVAILABLE` | 503 | Server up but a dependency is unconfigured |
+| `INTERNAL` | 500 | Unexpected server-side failure |
+
+**Note on auth errors:** 401/403 responses from `verifyJwt` and `requireOwner` middleware still use the legacy `{error: "string"}` shape. Normalizing those is tracked separately as a future API-wide cleanup.
 
 ---
 
@@ -60,7 +78,7 @@ All endpoints live under `/api/sentinel`. JWT-based auth via `Authorization: Bea
 **Response 400:**
 
 ```json
-{ "error": "action and wallet are required strings" }
+{ "error": { "code": "VALIDATION_FAILED", "message": "action and wallet are required strings" } }
 ```
 
 Returned when `action` or `wallet` is missing or not a string.
@@ -68,7 +86,7 @@ Returned when `action` or `wallet` is missing or not a string.
 **Response 500:**
 
 ```json
-{ "error": "<error message from assessor>" }
+{ "error": { "code": "INTERNAL", "message": "<error message from assessor>" } }
 ```
 
 Returned when the assessor throws an unexpected error.
@@ -76,7 +94,7 @@ Returned when the assessor throws an unexpected error.
 **Response 503:**
 
 ```json
-{ "error": "SENTINEL assessor not configured" }
+{ "error": { "code": "UNAVAILABLE", "message": "SENTINEL assessor not configured" } }
 ```
 
 Only returned when no assessor is registered at startup. Production agents always register one via `setSentinelAssessor`, so this path is rarely hit in deployed environments.
@@ -234,7 +252,7 @@ Admin routes require both `verifyJwt` AND `requireOwner` middleware. The calling
 **Response 400:**
 
 ```json
-{ "error": "address, reason, severity required" }
+{ "error": { "code": "VALIDATION_FAILED", "message": "address, reason, severity required" } }
 ```
 
 **Example:**
@@ -307,16 +325,21 @@ curl -X DELETE http://localhost:5006/api/sentinel/blacklist/01KQP25BM8RVZJ92CTAN
 { "reason": "string (default: 'manual cancel')" }
 ```
 
-**Response 200:** Always 200. The `success` boolean signals whether the ID was found and cancelled.
+**Response 200:**
 
 ```json
-{ "success": false }
+{ "success": true }
 ```
 
-When the action ID exists and is in a cancellable state, `success` is `true`. When the ID is not found or already settled, `success` is `false` (as shown above — captured against a missing ID in a fresh DB).
+Returned when the action ID exists and was cancelled.
 
-> [!NOTE]
-> Unlike the promise-gate routes (`/override/:flagId` and `/cancel/:flagId`), this endpoint does **not** return 404 for missing IDs. The `success` boolean carries that signal instead. See [follow-up issue #1](https://github.com/sip-protocol/sipher/issues/157) for the rename plan.
+**Response 404:**
+
+```json
+{ "error": { "code": "NOT_FOUND", "message": "pending action not found or already resolved" } }
+```
+
+Returned when the action ID does not exist or is already settled. (Behavior changed in this PR — previously this path returned `200 + {success: false}`.)
 
 **Example:**
 
@@ -427,4 +450,4 @@ curl -X POST http://localhost:5006/api/sentinel/cancel/flag_01KQP24PG0KZCJVWJDQM
 
 ---
 
-*Last verified: 2026-04-27 | Source: `packages/agent/src/routes/sentinel-api.ts`*
+*Last verified: 2026-05-04 | Source: `packages/agent/src/routes/sentinel-api.ts`*

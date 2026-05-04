@@ -84,8 +84,10 @@ describe('SentinelConfirm', () => {
     expect(onResolved).not.toHaveBeenCalled()
   })
 
-  it('surfaces error and does not resolve when fetch returns non-ok', async () => {
-    global.fetch = vi.fn().mockResolvedValue(new Response('{"error":"flag expired"}', { status: 404 })) as typeof fetch
+  it('displays envelope error message when fetch returns non-ok with envelope body', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response('{"error":{"code":"NOT_FOUND","message":"flag not found or expired"}}', { status: 404 })
+    ) as typeof fetch
     const onResolved = vi.fn()
     render(
       <SentinelConfirm
@@ -99,6 +101,26 @@ describe('SentinelConfirm', () => {
     )
     await userEvent.click(screen.getByRole('button', { name: /override & send/i }))
     expect(onResolved).not.toHaveBeenCalled()
-    expect(screen.getByText(/failed/i)).toBeInTheDocument()
+    expect(await screen.findByText('flag not found or expired')).toBeInTheDocument()
+  })
+
+  it('falls back to status display when response body is not envelope-shaped', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response('<html>500</html>', { status: 500 })
+    ) as typeof fetch
+    const onResolved = vi.fn()
+    render(
+      <SentinelConfirm
+        flagId="abc"
+        token="t"
+        action="Send"
+        amount="5 SOL"
+        description="x"
+        onResolved={onResolved}
+      />
+    )
+    await userEvent.click(screen.getByRole('button', { name: /override & send/i }))
+    expect(onResolved).not.toHaveBeenCalled()
+    expect(await screen.findByText(/Action failed \(500\)/)).toBeInTheDocument()
   })
 })

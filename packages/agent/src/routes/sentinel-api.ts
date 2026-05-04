@@ -7,6 +7,7 @@ import { cancelCircuitBreakerAction } from '../sentinel/circuit-breaker.js'
 import { getSentinelAssessor } from '../sentinel/preflight-gate.js'
 import { getSentinelConfig } from '../sentinel/config.js'
 import { resolvePending, rejectPending } from '../sentinel/pending.js'
+import { sendSentinelError } from './sentinel-errors.js'
 
 // Reference: docs/sentinel/rest-api.md
 
@@ -17,25 +18,26 @@ export const sentinelPublicRouter: Router = Router()
  * One-shot risk assessment for a proposed action.
  * @auth verifyJwt
  * @body { action, wallet, recipient?, amount?, token?, metadata? }
- * @returns 200 RiskReport | 400 { error } | 503 { error }
+ * @returns 200 RiskReport | 400 ErrorEnvelope | 500 ErrorEnvelope | 503 ErrorEnvelope
  * @see docs/sentinel/rest-api.md#post-apisentinelassess
+ * @see docs/sentinel/rest-api.md#error-envelope
  */
 sentinelPublicRouter.post('/assess', async (req: Request, res: Response) => {
   const { action, wallet, recipient, amount, token, metadata } = req.body ?? {}
   if (typeof action !== 'string' || typeof wallet !== 'string') {
-    res.status(400).json({ error: 'action and wallet are required strings' })
+    sendSentinelError(res, 'VALIDATION_FAILED', 'action and wallet are required strings')
     return
   }
   const assessor = getSentinelAssessor()
   if (!assessor) {
-    res.status(503).json({ error: 'SENTINEL assessor not configured' })
+    sendSentinelError(res, 'UNAVAILABLE', 'SENTINEL assessor not configured')
     return
   }
   try {
     const report = await assessor({ action, wallet, recipient, amount, token, metadata })
     res.json(report)
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'assess failed' })
+    sendSentinelError(res, 'INTERNAL', e instanceof Error ? e.message : 'assess failed')
   }
 })
 
@@ -89,13 +91,14 @@ export const sentinelAdminRouter: Router = Router()
  * Add an address to the blacklist.
  * @auth verifyJwt + requireOwner
  * @body { address, reason, severity, expiresAt?, sourceEventId? }
- * @returns 200 { success: true, entryId } | 400 { error }
+ * @returns 200 { success: true, entryId } | 400 ErrorEnvelope
  * @see docs/sentinel/rest-api.md#post-apisentinelblacklist
+ * @see docs/sentinel/rest-api.md#error-envelope
  */
 sentinelAdminRouter.post('/blacklist', (req: Request, res: Response) => {
   const { address, reason, severity, expiresAt, sourceEventId } = req.body ?? {}
   if (!address || !reason || !severity) {
-    res.status(400).json({ error: 'address, reason, severity required' })
+    sendSentinelError(res, 'VALIDATION_FAILED', 'address, reason, severity required')
     return
   }
   const wallet = (req as unknown as Record<string, unknown>).wallet as string | undefined
@@ -131,8 +134,9 @@ sentinelAdminRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
  * @auth verifyJwt + requireOwner
  * @param id pending action id
  * @body { reason? string }
- * @returns 200 { success: boolean }
+ * @returns 200 { success: true } | 404 ErrorEnvelope
  * @see docs/sentinel/rest-api.md#post-apisentinelpendingidcancel
+ * @see docs/sentinel/rest-api.md#error-envelope
  */
 sentinelAdminRouter.post('/pending/:id/cancel', (req: Request, res: Response) => {
   const reason = (req.body?.reason as string) ?? 'manual cancel'
@@ -141,7 +145,11 @@ sentinelAdminRouter.post('/pending/:id/cancel', (req: Request, res: Response) =>
   const by = typeof wallet === 'string' ? `user:${wallet}` : 'admin'
   const id = (typeof req.params.id === 'string' ? req.params.id : String(req.params.id))
   const ok = cancelCircuitBreakerAction(id, by, reason)
-  res.json({ success: ok })
+  if (!ok) {
+    sendSentinelError(res, 'NOT_FOUND', 'pending action not found or already resolved')
+    return
+  }
+  res.json({ success: true })
 })
 
 /**
@@ -166,14 +174,15 @@ sentinelAdminRouter.get('/decisions', (req: Request, res: Response) => {
  * Promise-gate resolve — see also `/cancel/:flagId` reject.
  * @auth verifyJwt + requireOwner
  * @param flagId in-memory promise flag id
- * @returns 204 | 404 { error }
+ * @returns 204 | 404 ErrorEnvelope
  * @see docs/sentinel/rest-api.md#post-apisentineloverrideflagid
+ * @see docs/sentinel/rest-api.md#error-envelope
  */
 sentinelAdminRouter.post('/override/:flagId', (req: Request, res: Response) => {
   const flagId = String(req.params.flagId)
   const ok = resolvePending(flagId)
   if (!ok) {
-    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'flag not found or expired' } })
+    sendSentinelError(res, 'NOT_FOUND', 'flag not found or expired')
     return
   }
   res.status(204).send()
@@ -184,14 +193,15 @@ sentinelAdminRouter.post('/override/:flagId', (req: Request, res: Response) => {
  * Promise-gate reject — distinct from the circuit-breaker `/pending/:id/cancel`.
  * @auth verifyJwt + requireOwner
  * @param flagId in-memory promise flag id
- * @returns 204 | 404 { error }
+ * @returns 204 | 404 ErrorEnvelope
  * @see docs/sentinel/rest-api.md#post-apisentinelcancelflagid
+ * @see docs/sentinel/rest-api.md#error-envelope
  */
 sentinelAdminRouter.post('/cancel/:flagId', (req: Request, res: Response) => {
   const flagId = String(req.params.flagId)
   const ok = rejectPending(flagId, 'cancelled_by_user')
   if (!ok) {
-    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'flag not found or expired' } })
+    sendSentinelError(res, 'NOT_FOUND', 'flag not found or expired')
     return
   }
   res.status(204).send()

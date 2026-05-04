@@ -6,7 +6,7 @@
 **Live URL:** https://sipher.sip-protocol.org
 **Tagline:** "Privacy-as-a-Skill for Multi-Chain Agents"
 **Purpose:** REST API + OpenClaw skill enabling any autonomous agent to add transaction privacy via SIP Protocol
-**Stats:** 66 REST endpoints | 1290 agent + 555 REST tests | 22 SIPHER tools | 14 SENTINEL tools | 9 HERALD X tools | 17 chains | Command Center UI (2,079 lines, 24 files) | 4 client SDKs (TS, Python, Rust, Go) | Eliza plugin
+**Stats:** 66 REST endpoints | 1300 agent + 555 REST tests | 22 SIPHER tools | 14 SENTINEL tools | 9 HERALD X tools | 17 chains | Command Center UI (2,079 lines, 24 files) | 4 client SDKs (TS, Python, Rust, Go) | Eliza plugin
 
 ---
 
@@ -130,7 +130,7 @@ cd app && npx tsc --noEmit # Type check
 - **Logging:** Pino v9 (structured JSON, audit logs)
 - **Docs:** swagger-ui-express (OpenAPI 3.1)
 - **Cache:** Redis 7 (rate limiting, idempotency) with in-memory fallback
-- **Testing:** Vitest + Supertest (555 REST + 1290 agent tests)
+- **Testing:** Vitest + Supertest (555 REST + 1300 agent tests)
 - **Deployment:** Docker + GHCR → VPS (port 5006)
 - **Domain:** sipher.sip-protocol.org
 - **Frontend:** React 19, Vite 6, Tailwind CSS 4, Zustand 5, Phosphor Icons React
@@ -144,7 +144,7 @@ cd app && npx tsc --noEmit # Type check
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (localhost:5006)
 pnpm build                      # Build for production
-pnpm test -- --run              # Run REST tests (555 tests, 35 suites) + agent tests (1290 tests, 103 suites)
+pnpm test -- --run              # Run REST tests (555 tests, 35 suites) + agent tests (1300 tests, 104 suites)
 pnpm typecheck                  # Type check
 pnpm demo                       # Full-flow demo (requires dev server running)
 pnpm openapi:export              # Export static OpenAPI spec to dist/openapi.json
@@ -374,7 +374,7 @@ sipher/
 │       │   │   └── tools/              # 14 SENTINEL tools (7 read + 7 action)
 │       │   ├── tools/              # 22 SIPHER agent tools (deposit, send, swap, scan, assessRisk, ...)
 │       │   └── routes/             # Agent-specific Express routes (incl. /sentinel/*)
-│       └── tests/                  # 1290 agent tests (103 suites)
+│       └── tests/                  # 1300 agent tests (104 suites)
 ├── tests/                          # 555 REST tests across 35 suites
 │   ├── health.test.ts
 │   ├── stealth.test.ts
@@ -582,7 +582,7 @@ ssh sip@176.222.53.185 "docker logs sipher --tail 50"
 ## AI GUIDELINES
 
 ### DO:
-- Run `pnpm test -- --run` after code changes (555 REST tests + 1290 agent tests must pass)
+- Run `pnpm test -- --run` after code changes (555 REST tests + 1300 agent tests must pass)
 - Run `pnpm typecheck` before committing
 - Use @sip-protocol/sdk for all crypto operations (never roll your own)
 - Keep API responses consistent: `{ success, data?, error? }`
@@ -629,12 +629,12 @@ See [ROADMAP.md](ROADMAP.md) for the full 6-phase roadmap (38 issues across 6 mi
 | 5 | Backend Aggregation | 5 | ✅ Complete |
 | 6 | Enterprise | 6 | ✅ Complete |
 
-**Progress:** 38/38 issues complete | 555 REST tests + 1290 agent tests | 66 endpoints | 17 chains | All phases complete | Live demo at /v1/demo
+**Progress:** 38/38 issues complete | 555 REST tests + 1300 agent tests | 66 endpoints | 17 chains | All phases complete | Live demo at /v1/demo
 
 **Quick check:** `gh issue list -R sip-protocol/sipher --state open`
 
 ---
 
 **Last Updated:** 2026-04-16
-**Status:** SENTINEL Formalization Complete | 66 REST Endpoints | 555 REST + 1290 Agent Tests | 22 SIPHER Tools | 14 SENTINEL Tools | 9 HERALD X Tools | 17 Chains | Command Center UI (2,079 lines) | Platform Abstraction (AgentCore + Web/X Adapters + SentinelCore/Adapter) | Real Jupiter API | SQLite Persistence | Devnet Proof
+**Status:** SENTINEL Formalization Complete | 66 REST Endpoints | 555 REST + 1300 Agent Tests | 22 SIPHER Tools | 14 SENTINEL Tools | 9 HERALD X Tools | 17 Chains | Command Center UI (2,079 lines) | Platform Abstraction (AgentCore + Web/X Adapters + SentinelCore/Adapter) | Real Jupiter API | SQLite Persistence | Devnet Proof
 **Devnet Proof:** [Solscan](https://solscan.io/tx/4FmLGsLkC5DYJojpQeSQoGMArsJonTEnx729gnFCeYEjFsr8Z46VrDzKQXLhFrpM9Uj6ezBtCQckU28odzvjvV4a?cluster=devnet) — real 0.01 SOL shielded transfer via stealth address
