@@ -100,6 +100,15 @@ describe('sentinel REST endpoints', () => {
     expect(getActiveBlacklistEntry('bad')).not.toBeNull()
   })
 
+  it('POST /blacklist returns 400 + VALIDATION_FAILED envelope on missing fields', async () => {
+    const app = await buildApp(vi.fn())
+    const res = await request(app).post('/api/sentinel/blacklist').send({ address: 'only-address' })
+    expect(res.status).toBe(400)
+    expect(res.body).toStrictEqual({
+      error: { code: 'VALIDATION_FAILED', message: 'address, reason, severity required' },
+    })
+  })
+
   it('DELETE /blacklist/:id soft-removes entry', async () => {
     const app = await buildApp(vi.fn())
     const { insertBlacklist, getActiveBlacklistEntry } = await import('../../src/db.js')

@@ -91,13 +91,14 @@ export const sentinelAdminRouter: Router = Router()
  * Add an address to the blacklist.
  * @auth verifyJwt + requireOwner
  * @body { address, reason, severity, expiresAt?, sourceEventId? }
- * @returns 200 { success: true, entryId } | 400 { error }
+ * @returns 200 { success: true, entryId } | 400 ErrorEnvelope
  * @see docs/sentinel/rest-api.md#post-apisentinelblacklist
+ * @see docs/sentinel/rest-api.md#error-envelope
  */
 sentinelAdminRouter.post('/blacklist', (req: Request, res: Response) => {
   const { address, reason, severity, expiresAt, sourceEventId } = req.body ?? {}
   if (!address || !reason || !severity) {
-    res.status(400).json({ error: 'address, reason, severity required' })
+    sendSentinelError(res, 'VALIDATION_FAILED', 'address, reason, severity required')
     return
   }
   const wallet = (req as unknown as Record<string, unknown>).wallet as string | undefined
