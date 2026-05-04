@@ -170,14 +170,14 @@ sentinelAdminRouter.get('/decisions', (req: Request, res: Response) => {
 
 /**
  * Promise-gate resolve — approve a paused advisory-mode action.
- * Promise-gate resolve — see also `/cancel/:flagId` reject.
+ * Operates on the in-memory pending-promise registry owned by `sentinel/pending.ts`.
  * @auth verifyJwt + requireOwner
  * @param flagId in-memory promise flag id
  * @returns 204 | 404 ErrorEnvelope
- * @see docs/sentinel/rest-api.md#post-apisentineloverrideflagid
+ * @see docs/sentinel/rest-api.md#post-apisentinelpromise-gateflagidresolve
  * @see docs/sentinel/rest-api.md#error-envelope
  */
-sentinelAdminRouter.post('/override/:flagId', (req: Request, res: Response) => {
+sentinelAdminRouter.post('/promise-gate/:flagId/resolve', (req: Request, res: Response) => {
   const flagId = String(req.params.flagId)
   const ok = resolvePending(flagId)
   if (!ok) {

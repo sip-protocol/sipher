@@ -60,10 +60,10 @@ function createApp() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('SENTINEL pause/resume routes', () => {
-  it('POST /api/sentinel/override/:flagId resolves the pending promise (204)', async () => {
+  it('POST /api/sentinel/promise-gate/:flagId/resolve resolves the pending promise (204)', async () => {
     const { flagId, promise } = createPending('test-session', 'send', { amount: 1 })
     const res = await supertest(createApp())
-      .post(`/api/sentinel/override/${flagId}`)
+      .post(`/api/sentinel/promise-gate/${flagId}/resolve`)
       .set('Authorization', `Bearer ${signJwt(ADMIN_WALLET)}`)
     expect(res.status).toBe(204)
     await expect(promise).resolves.toBeUndefined()
@@ -83,7 +83,7 @@ describe('SENTINEL pause/resume routes', () => {
 
   it('returns 404 for unknown flag id', async () => {
     const res = await supertest(createApp())
-      .post('/api/sentinel/override/does-not-exist')
+      .post('/api/sentinel/promise-gate/does-not-exist/resolve')
       .set('Authorization', `Bearer ${signJwt(ADMIN_WALLET)}`)
     expect(res.status).toBe(404)
     expect(res.body.error.code).toBe('NOT_FOUND')
@@ -94,7 +94,7 @@ describe('SENTINEL pause/resume routes', () => {
     const { flagId, promise } = createPending('test-session', 'send', { amount: 1 })
     promise.catch(() => {})
     const res = await supertest(createApp())
-      .post(`/api/sentinel/override/${flagId}`)
+      .post(`/api/sentinel/promise-gate/${flagId}/resolve`)
       .set('Authorization', `Bearer ${signJwt(NON_ADMIN_WALLET)}`)
     expect(res.status).toBe(403)
   })
@@ -103,7 +103,7 @@ describe('SENTINEL pause/resume routes', () => {
     // attach noop catch — afterEach clearAll rejects this promise, suppress the unhandled noise
     const { flagId, promise } = createPending('test-session', 'send', { amount: 1 })
     promise.catch(() => {})
-    const res = await supertest(createApp()).post(`/api/sentinel/override/${flagId}`)
+    const res = await supertest(createApp()).post(`/api/sentinel/promise-gate/${flagId}/resolve`)
     expect(res.status).toBe(401)
   })
 })
