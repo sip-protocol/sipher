@@ -372,7 +372,7 @@ function printSummary(
   console.log('\n──────────────────────────────────────────────────')
   console.log('✓ Bootstrap complete.')
   console.log(`  PDA:                ${recordPDA.toBase58()}`)
-  console.log(`  Net balance:        ${record.balance} lamports (post-fee)`)
+  console.log(`  Net balance:        ${record.balance} lamports (no fee on deposit)`)
   console.log(`  Earliest refund at: ${earliestRefundAt}`)
   console.log(`  Solscan:            https://solscan.io/tx/${depositTxId}?cluster=devnet`)
   console.log(`\n  Run scripts/devnet-vault-refund-e2e.ts after that time.`)
