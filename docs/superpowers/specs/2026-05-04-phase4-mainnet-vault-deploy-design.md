@@ -1,7 +1,9 @@
 # Phase 4 — Mainnet Sipher Vault Deploy + SIPHER Integration — Design Spec
 
+> **⚠️ SUPERSEDED 2026-05-05** by `2026-05-05-phase4-split-devnet-beta-mainnet-design.md`. The original single-phase Phase 4 has been split into Phase 4a (Devnet Beta, ~1 week public soak with hybrid Superteam → CT testers) and Phase 4b (Mainnet, fast-follow after gate criteria pass). All locked decisions D1, D2, D4, D5 carry forward unchanged; only D3 (sequencing) is revised. Read the new spec for the current source of truth. This document is preserved for history.
+
 **Date:** 2026-05-04
-**Status:** Approved scope, ready for implementation plan
+**Status:** SUPERSEDED — see deprecation note above
 **Audit phase:** Phase 4 of the 2026-04-18 SENTINEL audit-driven plan (last deferred phase)
 **Predecessor specs:** `2026-05-04-phase3-devnet-refund-e2e-design.md` (devnet refund E2E — closes Day 2 the morning before Phase 4 starts)
 **Related programs:** `sip_privacy` (already mainnet-live, Mar 7 2026), `sipher_vault` (devnet-live since Mar 31 2026)
