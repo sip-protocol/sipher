@@ -1,0 +1,44 @@
+{
+  "phase": "phase-3-devnet-refund-e2e",
+  "schemaVersion": 1,
+  "vaultProgramId": "S1Phr5rmDfkZTyLXzH5qUHeiqZS3Uf517SQzRbU4kHB",
+  "vaultConfig": "CpL4qyHFJYkU5WKdcjTJUu52fYFzjrvHZo4fjPp9T76u",
+  "depositor": "FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr",
+  "tokenMint": "So11111111111111111111111111111111111111112",
+  "tokenSymbol": "wSOL",
+  "amount": 0.01,
+  "amountLamports": 10000000,
+  "feeBps": 10,
+  "depositedNetLamports": 10000000,
+  "setup": {
+    "vaultTokenCreatedTxId": "4HAf7KvDSipemgpE9Gzgw3zS87k77h13oTmWQkoHfotNhULt2t3QvJrVpwDZduFBe7f151MTL9WdPZ1qsN4LMeBS",
+    "feeTokenCreatedTxId": "mgcjav39JuPzobZ4qvhi3qdLqQ6ZRrhTVrWxFyG54vn5qez1NjhCJcCgZQ36dpZ1L6RidV2Wz5HYbJ5ciwyS3DT",
+    "ataAndWrapTxId": "V2QS8jF58kK52TUUMThtN8vf3U4VxbdgAQoyX5dD9f2AyYLcA91VXmC8em4a6Vb7KAxixz3qyqpJk76S1UvveXA"
+  },
+  "deposit": {
+    "txId": "Z1R9PUZyPDHWoVvP9HoGysv3Rz15KT1tefosDp3q2akfZULMekjgXBnJRUKaVYsb8XPRUVSCoNPr3AzDPDhUw4F",
+    "confirmedAt": "2026-05-04T14:13:15.666Z",
+    "lastDepositAt": "2026-05-04T14:13:14.000Z"
+  },
+  "refund": {
+    "txId": "4YHpsgZpXhvYd9EsCRBjfkhUDgGGitAM3R4gu9EqivtKwMRtamkMN2BUumdZTPbaRt3sQb4mp8QW2YFVZJ2EnYDz",
+    "confirmedAt": "2026-05-05T22:43:35.649Z",
+    "earliestRefundAt": "2026-05-05T14:13:14.000Z"
+  },
+  "balances": {
+    "depositorWSolBefore": "0",
+    "depositorWSolAfter": "10000000",
+    "wSolDelta": "10000000"
+  },
+  "solscan": {
+    "deposit": "https://solscan.io/tx/Z1R9PUZyPDHWoVvP9HoGysv3Rz15KT1tefosDp3q2akfZULMekjgXBnJRUKaVYsb8XPRUVSCoNPr3AzDPDhUw4F?cluster=devnet",
+    "refund": "https://solscan.io/tx/4YHpsgZpXhvYd9EsCRBjfkhUDgGGitAM3R4gu9EqivtKwMRtamkMN2BUumdZTPbaRt3sQb4mp8QW2YFVZJ2EnYDz?cluster=devnet"
+  },
+  "assertions": {
+    "txConfirmed": true,
+    "balanceIncreased": true,
+    "depositRecordClosed": true
+  },
+  "executedBy": "rector",
+  "executedAt": "2026-05-05T22:43:35.649Z"
+}

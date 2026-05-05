@@ -2,6 +2,13 @@
 
 All notable changes to Sipher are documented here.
 
+## Phase 8: Phase 3 Devnet Refund E2E (May 5, 2026)
+
+- Audit closure: 2026-04-18 SENTINEL audit's last open item — Phase 3 devnet refund E2E — closed
+- Added `scripts/devnet-vault-bootstrap.ts` and `scripts/devnet-vault-refund-e2e.ts` — manually-invoked one-shot scripts that drive the production `performVaultRefund` against the live `sipher_vault` program on Solana devnet
+- Added two diagnostic recon scripts (`scripts/recon-devnet-deposits.mjs`, `scripts/recon-devnet-vault-tokens.mjs`) for ongoing visibility into vault state
+- Added committed evidence artifact at `docs/sentinel/evidence/devnet-refund-2026-05-05.json` capturing one observed end-to-end run (deposit + refund, both finalized on devnet, all three pre/post assertions green)
+
 ## Phase 7: SENTINEL Formalization (Apr 16, 2026)
 
 - Added SentinelCore — LLM-backed security analyst agent (Pi SDK)
