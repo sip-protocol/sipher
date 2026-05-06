@@ -4,6 +4,7 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { useAppStore } from '../stores/app'
 import { decodeJwtPayload, isJwtExpired } from '../lib/jwt'
 import { requestNonce, verifySignature } from '../api/auth'
+import { refreshToken } from '../api/refresh'
 
 export type AuthStatus = 'connecting' | 'unauthed' | 'authed' | 'expired' | 'error'
 
@@ -74,6 +75,56 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
       lastWalletRef.current = null
     }
   }, [connected, token, isAdmin, clearAuth])
+
+  // Expiry watcher: schedule a preemptive refresh inside the last 5min of
+  // the JWT lifetime, plus a cleanup timer that fires at exact expiry to
+  // ensure the store doesn't keep a stale token if refresh failed.
+  useEffect(() => {
+    if (!token || !expiresAt) return
+
+    const nowSec = Math.floor(Date.now() / 1000)
+    const remainingSec = expiresAt - nowSec
+    const fiveMinSec = 5 * 60
+
+    const clearTimer = setTimeout(
+      () => {
+        clearAuth()
+      },
+      Math.max(0, remainingSec) * 1000,
+    )
+
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+    const attemptRefresh = async (currentToken: string) => {
+      try {
+        const result = await refreshToken(currentToken)
+        if (result) {
+          const newExp = parseExpiryToEpoch(result.expiresIn)
+          setAuth(result.token, isAdmin, newExp)
+        }
+      } catch {
+        // Refresh failed — let the clearTimer handle expiry. We don't
+        // surface this error: the 401 interceptor will catch the next
+        // outgoing request and trigger UI re-auth.
+      }
+    }
+
+    if (remainingSec > fiveMinSec) {
+      refreshTimer = setTimeout(
+        () => {
+          void attemptRefresh(token)
+        },
+        (remainingSec - fiveMinSec) * 1000,
+      )
+    } else if (remainingSec > 0) {
+      void attemptRefresh(token)
+    }
+
+    return () => {
+      clearTimeout(clearTimer)
+      if (refreshTimer) clearTimeout(refreshTimer)
+    }
+  }, [token, expiresAt, isAdmin, clearAuth, setAuth])
 
   const status: AuthStatus = useMemo(() => {
     if (authenticating) return 'connecting'

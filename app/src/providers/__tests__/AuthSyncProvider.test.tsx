@@ -196,6 +196,163 @@ describe('AuthSyncProvider — status machine', () => {
   })
 })
 
+describe('AuthSyncProvider — expiry watcher', () => {
+  const originalFetch = global.fetch
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    useAppStore.setState({ token: null, isAdmin: false, expiresAt: null }, false)
+    mockedUseWallet.mockReset()
+    global.fetch = vi.fn() as unknown as typeof fetch
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    global.fetch = originalFetch
+  })
+
+  it('clears token when expiry timer fires', () => {
+    const expiresInSec = 60
+    const exp = Math.floor(Date.now() / 1000) + expiresInSec
+    const tok = makeJwtForTest({ wallet: 'W', exp })
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      wallet: { adapter: {} },
+      signMessage: vi.fn(),
+      disconnect: vi.fn(),
+    })
+    useAppStore.setState({ token: tok, isAdmin: false, expiresAt: exp }, false)
+
+    render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+    expect(useAppStore.getState().token).toBe(tok)
+
+    act(() => {
+      vi.advanceTimersByTime(expiresInSec * 1000 + 1000)
+    })
+
+    expect(useAppStore.getState().token).toBeNull()
+  })
+
+  it('attempts immediate refresh when already within 5min window', async () => {
+    const expiresInSec = 60
+    const exp = Math.floor(Date.now() / 1000) + expiresInSec
+    const oldTok = makeJwtForTest({ wallet: 'W', exp })
+    const newExp = Math.floor(Date.now() / 1000) + 86400
+    const newTok = makeJwtForTest({ wallet: 'W', exp: newExp })
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      wallet: { adapter: {} },
+      signMessage: vi.fn(),
+      disconnect: vi.fn(),
+    })
+    // Only the FIRST refresh succeeds; subsequent calls (triggered by the
+    // re-effect after token swap schedules another refresh in the future)
+    // would only fire if we advanced the clock by 23h55m, which we don't.
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ token: newTok, expiresIn: '24h' }),
+    })
+    useAppStore.setState({ token: oldTok, isAdmin: false, expiresAt: exp }, false)
+
+    render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+
+    // Drain microtasks for the IIFE refresh promise chain (no time advance —
+    // the new long-window timers from the post-refresh re-effect must not
+    // fire in this test).
+    await act(async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve()
+    })
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/auth/refresh',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(useAppStore.getState().token).toBe(newTok)
+  })
+
+  it('schedules refresh near expiry when JWT has more than 5min remaining', async () => {
+    const expiresInSec = 24 * 3600
+    const exp = Math.floor(Date.now() / 1000) + expiresInSec
+    const oldTok = makeJwtForTest({ wallet: 'W', exp })
+    const newExp = Math.floor(Date.now() / 1000) + expiresInSec + 24 * 3600
+    const newTok = makeJwtForTest({ wallet: 'W', exp: newExp })
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      wallet: { adapter: {} },
+      signMessage: vi.fn(),
+      disconnect: vi.fn(),
+    })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: newTok, expiresIn: '24h' }),
+    })
+    useAppStore.setState({ token: oldTok, isAdmin: false, expiresAt: exp }, false)
+
+    render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+
+    // Should NOT refresh yet — we're far from expiry
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000)
+    })
+    expect(global.fetch).not.toHaveBeenCalled()
+
+    // Advance to within the 5-minute window
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync((expiresInSec - 5 * 60 - 60) * 1000 + 1000)
+    })
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/auth/refresh',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('clears token if refresh fails and expiry passes', async () => {
+    const expiresInSec = 30
+    const exp = Math.floor(Date.now() / 1000) + expiresInSec
+    const tok = makeJwtForTest({ wallet: 'W', exp })
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      wallet: { adapter: {} },
+      signMessage: vi.fn(),
+      disconnect: vi.fn(),
+    })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: 'invalid' }),
+    })
+    useAppStore.setState({ token: tok, isAdmin: false, expiresAt: exp }, false)
+
+    render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(expiresInSec * 1000 + 1000)
+    })
+
+    expect(useAppStore.getState().token).toBeNull()
+  })
+})
+
 describe('AuthSyncProvider — authenticate', () => {
   const originalFetch = global.fetch
 
