@@ -11,8 +11,7 @@ import { useAppStore, type View } from '../stores/app'
 import { useAuth } from '../hooks/useAuth'
 import AgentDot from './AgentDot'
 import { truncateAddress } from '../lib/format'
-
-const NETWORK = (import.meta.env.VITE_SOLANA_NETWORK ?? 'mainnet-beta') as string
+import { useNetworkConfigStore } from '../lib/networkConfig'
 
 interface Tab {
   id: View
@@ -36,6 +35,7 @@ export default function Header() {
   const { isAuthenticated, authenticate, isAdmin } = useAuth()
   const activeView = useAppStore((s) => s.activeView)
   const setActiveView = useAppStore((s) => s.setActiveView)
+  const network = useNetworkConfigStore((s) => s.config?.network ?? 'mainnet')
 
   const visibleTabs = TABS.filter((t) => {
     if (t.adminOnly && !isAdmin) return false
@@ -78,7 +78,7 @@ export default function Header() {
         </div>
 
         <span className="text-[10px] font-mono text-text-muted bg-elevated px-1.5 py-0.5 rounded">
-          {NETWORK === 'mainnet-beta' ? 'mainnet' : 'devnet'}
+          {network}
         </span>
 
         {connected && publicKey ? (
