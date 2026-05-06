@@ -30,7 +30,8 @@ interface AppState {
 
   token: string | null
   isAdmin: boolean
-  setAuth: (token: string, isAdmin: boolean) => void
+  expiresAt: number | null
+  setAuth: (token: string, isAdmin: boolean, expiresAt?: number | null) => void
   clearAuth: () => void
 
   messages: ChatMessage[]
@@ -58,8 +59,10 @@ export const useAppStore = create<AppState>()(
 
       token: null,
       isAdmin: false,
-      setAuth: (token, isAdmin) => set({ token, isAdmin }),
-      clearAuth: () => set({ token: null, isAdmin: false, messages: [], activeView: 'dashboard' }),
+      expiresAt: null,
+      setAuth: (token, isAdmin, expiresAt = null) => set({ token, isAdmin, expiresAt }),
+      clearAuth: () =>
+        set({ token: null, isAdmin: false, expiresAt: null, messages: [], activeView: 'dashboard' }),
 
       messages: [],
       chatLoading: false,
@@ -122,8 +125,15 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'sipher-auth',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ token: s.token, isAdmin: s.isAdmin }),
+      partialize: (s) => ({ token: s.token, isAdmin: s.isAdmin, expiresAt: s.expiresAt }),
+      migrate: (persistedState, fromVersion) => {
+        if (fromVersion === 0) {
+          return { ...(persistedState as object), token: null, isAdmin: false, expiresAt: null }
+        }
+        return persistedState as Partial<AppState>
+      },
     }
   )
 )
