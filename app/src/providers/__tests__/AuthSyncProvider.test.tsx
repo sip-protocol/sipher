@@ -1,14 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, act } from '@testing-library/react'
 import { AuthSyncProvider } from '../AuthSyncProvider'
-import { useAuthState } from '../../hooks/useAuthState'
+import { useAuthState, type AuthState } from '../../hooks/useAuthState'
 import { useAppStore } from '../../stores/app'
+
+const mockSetVisible = vi.fn()
 
 vi.mock('@solana/wallet-adapter-react', () => ({
   useWallet: vi.fn(),
 }))
 vi.mock('@solana/wallet-adapter-react-ui', () => ({
-  useWalletModal: () => ({ setVisible: vi.fn() }),
+  useWalletModal: () => ({ setVisible: mockSetVisible, visible: false }),
 }))
 
 import { useWallet } from '@solana/wallet-adapter-react'
@@ -151,5 +153,208 @@ describe('AuthSyncProvider — status machine', () => {
     }
     expect(() => render(<Bad />)).toThrow(/useAuthSyncContext must be used within AuthSyncProvider/)
     errSpy.mockRestore()
+  })
+})
+
+describe('AuthSyncProvider — authenticate', () => {
+  const originalFetch = global.fetch
+
+  beforeEach(() => {
+    useAppStore.setState({ token: null, isAdmin: false, expiresAt: null }, false)
+    mockedUseWallet.mockReset()
+    global.fetch = vi.fn() as unknown as typeof fetch
+  })
+
+  afterEach(() => {
+    global.fetch = originalFetch
+  })
+
+  function captureAuth() {
+    const captured: { current: AuthState | null } = { current: null }
+    function Capture() {
+      captured.current = useAuthState()
+      return null
+    }
+    return { Capture, captured }
+  }
+
+  it('opens wallet modal when called with no wallet connected', async () => {
+    mockSetVisible.mockReset()
+    mockedUseWallet.mockReturnValue({
+      connected: false,
+      publicKey: null,
+      signMessage: undefined,
+      disconnect: vi.fn(),
+    })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+    await act(async () => {
+      await captured.current!.authenticate()
+    })
+    expect(mockSetVisible).toHaveBeenCalledWith(true)
+  })
+
+  it('signMessage happy path: nonce → sign → verify → setAuth', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 86400
+    const issuedToken = makeJwtForTest({ wallet: 'WalletA', exp: futureExp })
+    const mockSignMessage = vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4]))
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'WalletA' },
+      signMessage: mockSignMessage,
+      disconnect: vi.fn(),
+    })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ nonce: 'abc', message: 'sipher.sip-protocol.org wants you to sign in.\n\nNonce: abc' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token: issuedToken, isAdmin: false, expiresIn: '24h' }),
+      })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+
+    await act(async () => {
+      await captured.current!.authenticate()
+    })
+
+    expect(mockSignMessage).toHaveBeenCalledOnce()
+    const state = useAppStore.getState()
+    expect(state.token).toBe(issuedToken)
+    expect(state.isAdmin).toBe(false)
+    expect(state.expiresAt).toBeGreaterThan(Math.floor(Date.now() / 1000))
+  })
+
+  it('passes through isAdmin=true from server', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const adminToken = makeJwtForTest({ wallet: 'AdminWallet', exp: futureExp, isAdmin: true })
+    const mockSignMessage = vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4]))
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'AdminWallet' },
+      signMessage: mockSignMessage,
+      disconnect: vi.fn(),
+    })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ nonce: 'a', message: 'm' }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token: adminToken, isAdmin: true, expiresIn: '1h' }),
+      })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+    await act(async () => {
+      await captured.current!.authenticate()
+    })
+    expect(useAppStore.getState().isAdmin).toBe(true)
+  })
+
+  it('throws when wallet has no signMessage', async () => {
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      signMessage: undefined,
+      disconnect: vi.fn(),
+    })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+
+    await expect(
+      act(async () => {
+        await captured.current!.authenticate()
+      }),
+    ).rejects.toThrow(/doesn't support sign-in/i)
+    expect(useAppStore.getState().token).toBeNull()
+  })
+
+  it('propagates user-rejection from signMessage', async () => {
+    const rejectErr = new Error('User rejected the request')
+    const mockSignMessage = vi.fn().mockRejectedValue(rejectErr)
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      signMessage: mockSignMessage,
+      disconnect: vi.fn(),
+    })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ nonce: 'abc', message: 'm' }),
+    })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+
+    await expect(
+      act(async () => {
+        await captured.current!.authenticate()
+      }),
+    ).rejects.toThrow(/User rejected/i)
+    expect(useAppStore.getState().token).toBeNull()
+  })
+
+  it('reports status=connecting while authenticate runs', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const okToken = makeJwtForTest({ wallet: 'W', exp: futureExp })
+    let resolveSign: ((s: Uint8Array) => void) | null = null
+    const mockSignMessage = vi.fn().mockReturnValue(
+      new Promise<Uint8Array>((resolve) => {
+        resolveSign = resolve
+      }),
+    )
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      signMessage: mockSignMessage,
+      disconnect: vi.fn(),
+    })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ nonce: 'a', message: 'm' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ token: okToken, isAdmin: false, expiresIn: '1h' }) })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+
+    let pending: Promise<void> | null = null
+    await act(async () => {
+      pending = captured.current!.authenticate()
+      await Promise.resolve()
+    })
+    expect(captured.current!.status).toBe('connecting')
+
+    await act(async () => {
+      resolveSign!(new Uint8Array([1, 2, 3]))
+      await pending!
+    })
+    expect(captured.current!.status).toBe('authed')
   })
 })
