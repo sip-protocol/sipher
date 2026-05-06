@@ -1,0 +1,138 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import Header from '../Header'
+import type { AuthState, AuthStatus } from '../../hooks/useAuthState'
+import { useAppStore } from '../../stores/app'
+
+const mockAuthenticate = vi.fn()
+const mockDisconnect = vi.fn()
+const mockToastShow = vi.fn(() => 'toast-id')
+const mockClipboardWrite = vi.fn()
+
+let currentAuth: AuthState = {
+  status: 'unauthed',
+  token: null,
+  expiresAt: null,
+  isAdmin: false,
+  publicKey: null,
+  authenticate: mockAuthenticate,
+  disconnect: mockDisconnect,
+  error: null,
+}
+
+vi.mock('../../hooks/useAuthState', () => ({
+  useAuthState: () => currentAuth,
+}))
+
+vi.mock('../../providers/ToastProvider', () => ({
+  useToast: () => ({ show: mockToastShow, dismiss: vi.fn() }),
+}))
+
+vi.mock('../../lib/networkConfig', () => ({
+  useNetworkConfigStore: <T,>(selector: (s: { config: { network: string } }) => T) =>
+    selector({ config: { network: 'devnet' } }),
+}))
+
+const FULL = 'HciZTd6rR7YsaS5ZNThx9KdgqSimxwMzJgs2j98U25En'
+
+function setAuth(partial: Partial<AuthState> & { status: AuthStatus }) {
+  currentAuth = {
+    ...currentAuth,
+    ...partial,
+    authenticate: mockAuthenticate,
+    disconnect: mockDisconnect,
+  }
+}
+
+beforeEach(() => {
+  mockAuthenticate.mockReset()
+  mockAuthenticate.mockResolvedValue(undefined)
+  mockDisconnect.mockReset()
+  mockDisconnect.mockResolvedValue(undefined)
+  mockToastShow.mockReset()
+  mockClipboardWrite.mockReset()
+  Object.assign(navigator, {
+    clipboard: { writeText: mockClipboardWrite.mockResolvedValue(undefined) },
+  })
+  useAppStore.setState({ activeView: 'dashboard' }, false)
+  setAuth({ status: 'unauthed', publicKey: null, isAdmin: false })
+})
+
+describe('Header — auth pill', () => {
+  it('renders Connect button when unauthed', () => {
+    setAuth({ status: 'unauthed', publicKey: null })
+    render(<Header />)
+    const btn = screen.getByRole('button', { name: 'Connect' })
+    expect(btn).toBeInTheDocument()
+  })
+
+  it('Connect click calls authenticate', () => {
+    setAuth({ status: 'unauthed', publicKey: null })
+    render(<Header />)
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }))
+    expect(mockAuthenticate).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders Re-sign in button when expired', () => {
+    setAuth({ status: 'expired', publicKey: FULL })
+    render(<Header />)
+    expect(screen.getByRole('button', { name: /Re-sign in/i })).toBeInTheDocument()
+  })
+
+  it('Re-sign click calls authenticate', () => {
+    setAuth({ status: 'expired', publicKey: FULL })
+    render(<Header />)
+    fireEvent.click(screen.getByRole('button', { name: /Re-sign in/i }))
+    expect(mockAuthenticate).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders WalletDropdown when authed with publicKey', () => {
+    setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
+    render(<Header />)
+    expect(screen.getByRole('button', { name: /HciZ\.\.\.25En/ })).toBeInTheDocument()
+  })
+
+  it('WalletDropdown Disconnect calls disconnect + shows toast', async () => {
+    setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
+    render(<Header />)
+    fireEvent.click(screen.getByRole('button', { name: /HciZ\.\.\.25En/ }))
+    fireEvent.click(screen.getByText('Disconnect'))
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(mockDisconnect).toHaveBeenCalledTimes(1)
+  })
+
+  it('WalletDropdown Copy writes address to clipboard', async () => {
+    setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
+    render(<Header />)
+    fireEvent.click(screen.getByRole('button', { name: /HciZ\.\.\.25En/ }))
+    fireEvent.click(screen.getByText('Copy address'))
+    await Promise.resolve()
+    expect(mockClipboardWrite).toHaveBeenCalledWith(FULL)
+  })
+})
+
+describe('Header — tabs', () => {
+  it('hides admin-only tabs when isAdmin is false', () => {
+    setAuth({ status: 'authed', publicKey: FULL, token: 'tok', isAdmin: false })
+    render(<Header />)
+    expect(screen.getByRole('button', { name: /Dashboard/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Vault/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Herald/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Squad/i })).not.toBeInTheDocument()
+  })
+
+  it('shows admin-only tabs when isAdmin is true', () => {
+    setAuth({ status: 'authed', publicKey: FULL, token: 'tok', isAdmin: true })
+    render(<Header />)
+    expect(screen.getByRole('button', { name: /Herald/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Squad/i })).toBeInTheDocument()
+  })
+
+  it('clicking a tab calls setActiveView', () => {
+    setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
+    render(<Header />)
+    fireEvent.click(screen.getByRole('button', { name: /Vault/i }))
+    expect(useAppStore.getState().activeView).toBe('vault')
+  })
+})
