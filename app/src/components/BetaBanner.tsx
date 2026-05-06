@@ -31,7 +31,7 @@ export function BetaBanner({ beta }: { beta: boolean }) {
             rel="noreferrer"
             className="underline font-medium"
           >
-            Get SOL from devnet faucet →
+            Get devnet SOL →
           </a>
         </p>
         <button

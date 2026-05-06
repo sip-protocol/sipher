@@ -10,7 +10,7 @@ describe('BetaBanner', () => {
   it('renders when beta=true', () => {
     render(<BetaBanner beta={true} />)
     expect(screen.getByText(/DEVNET BETA/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /faucet/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /devnet sol/i })).toHaveAttribute(
       'href',
       'https://faucet.solana.com',
     )
