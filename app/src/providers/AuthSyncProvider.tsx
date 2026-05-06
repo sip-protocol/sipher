@@ -64,6 +64,17 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
     }
   }, [connected, publicKey, token, clearAuth])
 
+  // Auto-clear when the wallet disconnects externally (user clicks
+  // Disconnect in their Phantom extension, locks their hardware wallet,
+  // browser wipes wallet-adapter state, etc.). The other reconciliation
+  // effects only fire when `connected` is true, so they can't catch this.
+  useEffect(() => {
+    if (!connected && (token !== null || isAdmin)) {
+      clearAuth()
+      lastWalletRef.current = null
+    }
+  }, [connected, token, isAdmin, clearAuth])
+
   const status: AuthStatus = useMemo(() => {
     if (authenticating) return 'connecting'
     if (!connected || !publicKey) return 'unauthed'
@@ -126,8 +137,12 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
   }
 
   const disconnect = async () => {
-    await walletDisconnect()
-    clearAuth()
+    try {
+      await walletDisconnect()
+    } finally {
+      clearAuth()
+      lastWalletRef.current = null
+    }
   }
 
   const value: AuthState = {

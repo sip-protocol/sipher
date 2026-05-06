@@ -145,6 +145,46 @@ describe('AuthSyncProvider — status machine', () => {
     expect(screen.getByTestId('isAdmin').textContent).toBe('yes')
   })
 
+  it('clears auth automatically when wallet disconnects externally', () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const validToken = makeJwtForTest({ wallet: 'W', exp: futureExp })
+
+    // Start connected with a valid token
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      wallet: { adapter: {} },
+      signMessage: vi.fn(),
+      disconnect: vi.fn(),
+    })
+    useAppStore.setState({ token: validToken, isAdmin: false, expiresAt: futureExp }, false)
+
+    const { rerender } = render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+    expect(useAppStore.getState().token).toBe(validToken)
+
+    // Simulate external disconnect
+    mockedUseWallet.mockReturnValue({
+      connected: false,
+      publicKey: null,
+      wallet: null,
+      signMessage: undefined,
+      disconnect: vi.fn(),
+    })
+    rerender(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+
+    expect(useAppStore.getState().token).toBeNull()
+    expect(useAppStore.getState().isAdmin).toBe(false)
+    expect(useAppStore.getState().expiresAt).toBeNull()
+  })
+
   it('throws when useAuthState used outside provider', () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     function Bad() {
@@ -500,6 +540,67 @@ describe('AuthSyncProvider — authenticate', () => {
       }),
     ).rejects.toThrow(/User rejected/i)
     expect(mockSignMessage).not.toHaveBeenCalled()
+    expect(useAppStore.getState().token).toBeNull()
+  })
+
+  it('disconnect() calls wallet.disconnect AND clears auth', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const validToken = makeJwtForTest({ wallet: 'W', exp: futureExp })
+    useAppStore.setState({ token: validToken, isAdmin: true, expiresAt: futureExp }, false)
+
+    const mockDisconnect = vi.fn().mockResolvedValue(undefined)
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      wallet: { adapter: {} },
+      signMessage: vi.fn(),
+      disconnect: mockDisconnect,
+    })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+
+    await act(async () => {
+      await captured.current!.disconnect()
+    })
+
+    expect(mockDisconnect).toHaveBeenCalled()
+    const state = useAppStore.getState()
+    expect(state.token).toBeNull()
+    expect(state.isAdmin).toBe(false)
+    expect(state.expiresAt).toBeNull()
+  })
+
+  it('disconnect() still clears auth when walletDisconnect throws', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const validToken = makeJwtForTest({ wallet: 'W', exp: futureExp })
+    useAppStore.setState({ token: validToken, isAdmin: false, expiresAt: futureExp }, false)
+
+    const mockDisconnect = vi.fn().mockRejectedValue(new Error('extension closed'))
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      wallet: { adapter: {} },
+      signMessage: vi.fn(),
+      disconnect: mockDisconnect,
+    })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+
+    await expect(
+      act(async () => {
+        await captured.current!.disconnect()
+      }),
+    ).rejects.toThrow(/extension closed/)
     expect(useAppStore.getState().token).toBeNull()
   })
 
