@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useWallet } from '@solana/wallet-adapter-react'
 import {
   ChartBar,
   Vault,
@@ -10,7 +9,8 @@ import {
   SignOut,
 } from '@phosphor-icons/react'
 import { useAppStore, type View } from '../stores/app'
-import { useIsAdmin } from '../hooks/useIsAdmin'
+import { useAuthState } from '../hooks/useAuthState'
+import { useToast } from '../providers/ToastProvider'
 
 interface TabDef {
   id: View
@@ -27,9 +27,15 @@ const TABS: TabDef[] = [
 export default function BottomNav() {
   const activeView = useAppStore((s) => s.activeView)
   const setActiveView = useAppStore((s) => s.setActiveView)
-  const isAdmin = useIsAdmin()
-  const { disconnect } = useWallet()
+  const { isAdmin, disconnect } = useAuthState()
+  const { show: showToast } = useToast()
   const [moreOpen, setMoreOpen] = useState(false)
+
+  const handleDisconnect = async () => {
+    setMoreOpen(false)
+    await disconnect()
+    showToast({ message: 'Disconnected', kind: 'info', durationMs: 3000 })
+  }
 
   return (
     <>
@@ -98,10 +104,7 @@ export default function BottomNav() {
                 </>
               )}
               <button
-                onClick={() => {
-                  disconnect()
-                  setMoreOpen(false)
-                }}
+                onClick={handleDisconnect}
                 className="flex items-center gap-3 px-3 py-3 rounded-lg text-red hover:bg-red/10 transition-colors"
               >
                 <SignOut size={20} />
