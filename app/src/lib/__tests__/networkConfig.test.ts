@@ -3,7 +3,7 @@ import { useNetworkConfigStore, fetchNetworkConfig } from '../networkConfig'
 
 describe('networkConfig store', () => {
   beforeEach(() => {
-    useNetworkConfigStore.setState({ config: null, error: null, loading: false })
+    useNetworkConfigStore.setState({ config: null, error: null })
     vi.restoreAllMocks()
   })
 
@@ -26,7 +26,6 @@ describe('networkConfig store', () => {
     expect(state.config?.network).toBe('devnet')
     expect(state.config?.beta).toBe(true)
     expect(state.error).toBeNull()
-    expect(state.loading).toBe(false)
   })
 
   it('fetchNetworkConfig sets error on 5xx', async () => {
@@ -40,7 +39,6 @@ describe('networkConfig store', () => {
     const state = useNetworkConfigStore.getState()
     expect(state.config).toBeNull()
     expect(state.error).toBeTruthy()
-    expect(state.loading).toBe(false)
   })
 
   it('fetchNetworkConfig sets error when fetch throws', async () => {
@@ -49,7 +47,6 @@ describe('networkConfig store', () => {
     const state = useNetworkConfigStore.getState()
     expect(state.config).toBeNull()
     expect(state.error).toContain('network unreachable')
-    expect(state.loading).toBe(false)
   })
 
   it('solscanUrl helper appends suffix correctly', async () => {
