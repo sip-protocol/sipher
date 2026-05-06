@@ -1,0 +1,47 @@
+# .gitleaks.toml — custom config for sipher repo
+title = "Sipher gitleaks config"
+
+[allowlist]
+  description = "Test fixtures, SDK stubs, docs, and known safe placeholders"
+  paths = [
+    # Root integration test suites (contain dummy keys/addresses for API shape testing)
+    '''tests/.*''',
+    # Agent package test suites (Pi agent, sentinel, HERALD tool tests)
+    '''packages/agent/tests/.*''',
+    # Colocated __tests__ directories in the app frontend
+    '''app/src/.*__tests__/.*''',
+    # Auto-generated Python SDK stubs (openapi-generator output, not secrets)
+    '''sdks/python/test/.*''',
+    # Go SDK OpenAPI spec (example values, not secrets)
+    '''sdks/go/api/openapi.yaml''',
+    # Internal docs: plans, specs, evidence files
+    '''docs/superpowers/plans/.*''',
+    '''docs/superpowers/specs/.*''',
+    '''docs/sentinel/evidence/.*''',
+    # Integration READMEs with usage examples
+    '''integrations/.*''',
+  ]
+  regexes = [
+    # Placeholder used in .env.example for Helius key slot
+    '''SIPHER_HELIUS_API_KEY=__set_in_vps_only__''',
+    # Stripe webhook secret dev default in src/config.ts (not a real whsec_ token)
+    '''whsec_sipher_dev_secret''',
+    # Common test-fixture API key literals used across test suites
+    '''test-key''',
+    '''test-key-DO-NOT-LEAK-THIS''',
+    '''test-key-1''',
+    '''test-key-2''',
+    '''test-key-3''',
+    '''dev-key-1''',
+    '''dev-key-2''',
+    '''key-a''',
+    '''key-b''',
+    # JWT secret literals in test files
+    '''test-secret-for-sentinel-pause-tests''',
+    '''test-secret-for-queue-patch-tests''',
+    '''e2e-test-secret-at-least-16-chars''',
+    # Test JWT token literal in frontend component tests
+    '''test-jwt''',
+    # Helius fixture key used in rpc-provider tests
+    '''test-helius-key-12345''',
+  ]

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import {
@@ -11,6 +11,7 @@ import './styles/theme.css'
 import Header from './components/Header'
 import BottomNav from './components/BottomNav'
 import ChatSidebar from './components/ChatSidebar'
+import { BetaBanner } from './components/BetaBanner'
 import DashboardView from './views/DashboardView'
 import VaultView from './views/VaultView'
 import HeraldView from './views/HeraldView'
@@ -18,17 +19,13 @@ import SquadView from './views/SquadView'
 import { useAppStore } from './stores/app'
 import { useAuth } from './hooks/useAuth'
 import { useSSE } from './hooks/useSSE'
-
-const NETWORK = (import.meta.env.VITE_SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
-const ENDPOINTS: Record<string, string> = {
-  devnet: 'https://api.devnet.solana.com',
-  'mainnet-beta': 'https://api.mainnet-beta.solana.com',
-}
+import { useNetworkConfigStore, fetchNetworkConfig } from './lib/networkConfig'
 
 function AppShell() {
   const activeView = useAppStore((s) => s.activeView)
   const { token, isAdmin } = useAuth()
   const { events } = useSSE(token)
+  const beta = useNetworkConfigStore((s) => s.config?.beta ?? false)
 
   const renderView = () => {
     switch (activeView) {
@@ -53,6 +50,7 @@ function AppShell() {
 
   return (
     <div className="flex flex-col h-dvh bg-bg">
+      <BetaBanner beta={beta} />
       <Header />
 
       <div className="flex-1 flex overflow-hidden">
@@ -72,14 +70,39 @@ function AppShell() {
 }
 
 export default function App() {
-  const endpoint = import.meta.env.VITE_SOLANA_RPC_URL ?? ENDPOINTS[NETWORK]
+  const config = useNetworkConfigStore((s) => s.config)
+  const error = useNetworkConfigStore((s) => s.error)
+
+  useEffect(() => {
+    fetchNetworkConfig()
+  }, [])
+
   const wallets = useMemo(
     () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
-    []
+    [],
   )
 
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg text-text">
+        <div className="max-w-md p-6 text-center">
+          <h1 className="text-xl font-semibold mb-2">Sipher temporarily unavailable</h1>
+          <p className="text-sm text-text-muted">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!config) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg text-text-muted">
+        <p className="text-sm">Loading…</p>
+      </div>
+    )
+  }
+
   return (
-    <ConnectionProvider endpoint={endpoint}>
+    <ConnectionProvider endpoint={config.publicRpcUrl}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <AppShell />

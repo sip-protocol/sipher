@@ -38,6 +38,7 @@
     "@sip-protocol/types": "^0.2.2",
     "@solana/spl-token": "^0.4.0",
     "@solana/web3.js": "^1.95.0",
+    "bs58": "^6.0.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "envalid": "^8.1.1",

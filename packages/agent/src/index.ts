@@ -25,10 +25,24 @@ import { setSentinelAssessor } from './sentinel/preflight-gate.js'
 import { performVaultRefund, assertVaultRefundWired } from './sentinel/vault-refund.js'
 import { sentinelPublicRouter, sentinelAdminRouter } from './routes/sentinel-api.js'
 import { getSentinelConfig } from './sentinel/config.js'
+import { configRouter } from './routes/config.js'
+import { loadNetworkConfig } from './config/network.js'
 import {
   getAllPendingActionsWithStatus,
   cancelPendingAction as dbCancelPendingAction,
 } from './db.js'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Network config validation — fail fast before any side-effecting init
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Validate network config first — throws and process exits if SIPHER_NETWORK
+// or SIPHER_HELIUS_API_KEY are missing. Must run BEFORE getDb() so the agent
+// never touches the database when its config is broken.
+const networkConfig = loadNetworkConfig()
+console.log(
+  `  Network: ${networkConfig.network} (cluster=${networkConfig.clusterName}, publicRpc=${networkConfig.publicRpcUrl}, beta=${networkConfig.beta})`,
+)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Database & session initialization
@@ -147,6 +161,9 @@ app.use('/admin', adminRouter)
 
 // Auth (nonce + JWT verify) — no auth required on these two
 app.use('/api/auth', authRouter)
+
+// Public network metadata (read by UI before auth) — never returns RPC URL or API key
+app.use('/api/config', configRouter)
 
 // Activity SSE stream — JWT required (EventSource passes ?token=)
 app.get('/api/stream', verifyJwt, streamHandler)
