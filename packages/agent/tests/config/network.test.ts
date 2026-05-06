@@ -25,6 +25,7 @@ describe('loadNetworkConfig', () => {
     expect(cfg.publicRpcUrl).toBe('https://api.devnet.solana.com')
     expect(cfg.rpcUrl).toContain('devnet')
     expect(cfg.rpcUrl).toContain('test-key')
+    expect(cfg.vaultConfig).toBe('CpL4qyHFJYkU5WKdcjTJUu52fYFzjrvHZo4fjPp9T76u')
   })
 
   it('resolves mainnet config when SIPHER_NETWORK=mainnet', () => {
@@ -36,6 +37,9 @@ describe('loadNetworkConfig', () => {
     expect(cfg.beta).toBe(false)
     expect(cfg.solscanSuffix).toBe('')
     expect(cfg.publicRpcUrl).toBe('https://api.mainnet-beta.solana.com')
+    expect(cfg.rpcUrl).toContain('mainnet')
+    expect(cfg.rpcUrl).toContain('test-key')
+    expect(cfg.vaultConfig).toBe('CpL4qyHFJYkU5WKdcjTJUu52fYFzjrvHZo4fjPp9T76u')
   })
 
   it('throws when SIPHER_NETWORK unset', () => {

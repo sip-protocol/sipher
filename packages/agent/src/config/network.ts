@@ -22,16 +22,19 @@ const DEVNET_VAULT_CONFIG = 'CpL4qyHFJYkU5WKdcjTJUu52fYFzjrvHZo4fjPp9T76u'
 const MAINNET_VAULT_CONFIG = DEVNET_VAULT_CONFIG
 
 export function loadNetworkConfig(): NetworkConfig {
-  const network = process.env.SIPHER_NETWORK as Network | undefined
-  if (network !== 'devnet' && network !== 'mainnet') {
+  const raw = process.env.SIPHER_NETWORK
+  if (raw !== 'devnet' && raw !== 'mainnet') {
     throw new Error(
-      `FATAL: SIPHER_NETWORK env var required (must be 'devnet' or 'mainnet'), got: ${network ?? '(unset)'}`,
+      `FATAL: SIPHER_NETWORK env var required (must be 'devnet' or 'mainnet'), got: ${raw ?? '(unset)'}`,
     )
   }
+  const network: Network = raw
 
   const apiKey = process.env.SIPHER_HELIUS_API_KEY
   if (!apiKey) {
-    throw new Error('FATAL: SIPHER_HELIUS_API_KEY env var required')
+    throw new Error(
+      `FATAL: SIPHER_HELIUS_API_KEY env var required, got: ${apiKey === undefined ? '(unset)' : '(empty string)'}`,
+    )
   }
 
   if (network === 'devnet') {
