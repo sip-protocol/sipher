@@ -1,13 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 const STORAGE_KEY = 'sipher.beta-banner.dismissed'
 
 export function BetaBanner({ beta }: { beta: boolean }) {
-  const [dismissed, setDismissed] = useState<boolean>(false)
-
-  useEffect(() => {
-    setDismissed(sessionStorage.getItem(STORAGE_KEY) === 'true')
-  }, [])
+  const [dismissed, setDismissed] = useState<boolean>(
+    () => sessionStorage.getItem(STORAGE_KEY) === 'true',
+  )
 
   if (!beta) return null
   if (dismissed) return null
@@ -19,7 +17,7 @@ export function BetaBanner({ beta }: { beta: boolean }) {
 
   return (
     <div
-      role="alert"
+      role="status"
       className="sticky top-0 z-50 w-full bg-amber-100 text-amber-900 border-b border-amber-300"
     >
       <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-4">
