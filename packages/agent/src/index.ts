@@ -40,7 +40,9 @@ import {
 // or SIPHER_HELIUS_API_KEY are missing. Must run BEFORE getDb() so the agent
 // never touches the database when its config is broken.
 const networkConfig = loadNetworkConfig()
-console.log(`  Network: SIPHER_NETWORK=${networkConfig.network} (beta=${networkConfig.beta})`)
+console.log(
+  `  Network: ${networkConfig.network} (cluster=${networkConfig.clusterName}, publicRpc=${networkConfig.publicRpcUrl}, beta=${networkConfig.beta})`,
+)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Database & session initialization
