@@ -12,6 +12,7 @@
 import { Connection, PublicKey } from '@solana/web3.js'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import bs58 from 'bs58'
 
 const VAULT_PROGRAM_ID = new PublicKey('S1Phr5rmDfkZTyLXzH5qUHeiqZS3Uf517SQzRbU4kHB')
 const RPC_URL = process.env.SIPHER_DEVNET_RPC ?? 'https://api.devnet.solana.com'
@@ -49,7 +50,7 @@ type GateResult = {
     C1_days_since_launch: { value: number, pass: boolean }
     C2_deposits: { count: number, distinct_wallets: number, pass: boolean }
     C3_withdraws: { count: number, distinct_wallets: number, pass: boolean }
-    C4_refunds: { count: number, pass: boolean }
+    C4_refunds: { authority_refunds: number, user_refunds: number, pass: boolean }
     C5_reverts: { total: number, user_error: number, unexplained: number, pass: boolean }
     C6_authority_interventions: { count: number, pass: boolean }
   }
@@ -58,8 +59,29 @@ type GateResult = {
   reverts: Revert[]
 }
 
-function classifyError(err: unknown): string {
-  return JSON.stringify(err).slice(0, 200)
+// Custom error codes from the sipher_vault IDL.
+// User errors are clearly caller-side mistakes; anything else is unexplained and fails C5.
+const USER_ERROR_CODES = new Set([
+  6000, // ProgramPaused
+  6001, // Unauthorized
+  6002, // InsufficientBalance
+  6004, // ZeroDeposit
+  6005, // RefundNotExpired
+  6006, // NothingToRefund
+  6010, // BalanceLocked
+])
+
+function classifyError(err: unknown): { error: string; classification: 'user_error' | 'unexplained' } {
+  const errStr = JSON.stringify(err).slice(0, 200)
+  // Anchor Custom error variant: { InstructionError: [ixIndex, { Custom: <code> }] }
+  const customMatch = JSON.stringify(err).match(/"Custom"\s*:\s*(\d+)/)
+  if (customMatch) {
+    const code = Number(customMatch[1])
+    if (USER_ERROR_CODES.has(code)) {
+      return { error: errStr, classification: 'user_error' }
+    }
+  }
+  return { error: errStr, classification: 'unexplained' }
 }
 
 async function main(): Promise<void> {
@@ -74,18 +96,19 @@ async function main(): Promise<void> {
   const excludeSet = new Set(excludeRaw.wallets)
 
   console.log(`Querying TX history for program ${VAULT_PROGRAM_ID.toBase58()} ...`)
-  const sigs = await conn.getSignaturesForAddress(VAULT_PROGRAM_ID, { limit: 1000 })
+  const sigs = await conn.getSignaturesForAddress(VAULT_PROGRAM_ID, { limit: 200 })
   console.log(`Found ${sigs.length} signatures`)
 
   const txDetails = await Promise.all(
-    sigs.slice(0, 200).map((s) =>
+    sigs.map((s) =>
       conn.getParsedTransaction(s.signature, { maxSupportedTransactionVersion: 0 }).catch(() => null),
     ),
   )
 
   let deposits = 0
   let withdraws = 0
-  let refunds = 0
+  let userRefunds = 0
+  let authorityRefunds = 0
   let authorityInterventions = 0
   const depositors = new Set<string>()
   const withdrawSigners = new Set<string>()
@@ -110,44 +133,39 @@ async function main(): Promise<void> {
     for (const ix of ixs) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = (ix as any).data ?? ''
-      const disc = Buffer.from(data, 'base64').slice(0, 8).toString('hex')
+      // getParsedTransaction returns bs58-encoded data for unknown (Anchor) programs —
+      // NOT base64. Using base64 silently produces wrong bytes and breaks all discriminator matches.
+      const disc = Buffer.from(bs58.decode(data)).slice(0, 8).toString('hex')
 
       if (disc === IX_DISCRIMINATORS.deposit) {
         if (failed) {
-          reverts.push({
-            tx: sig,
-            error: classifyError(tx.meta!.err),
-            classification: 'user_error',
-            reason: 'deposit failed',
-          })
+          const { error, classification } = classifyError(tx.meta!.err)
+          reverts.push({ tx: sig, error, classification, reason: 'deposit failed' })
         } else if (!excludeSet.has(signer)) {
           deposits++
           depositors.add(signer)
         }
       } else if (disc === IX_DISCRIMINATORS.withdraw_private) {
         if (failed) {
-          reverts.push({
-            tx: sig,
-            error: classifyError(tx.meta!.err),
-            classification: 'user_error',
-            reason: 'withdraw_private failed',
-          })
+          const { error, classification } = classifyError(tx.meta!.err)
+          reverts.push({ tx: sig, error, classification, reason: 'withdraw_private failed' })
         } else if (!excludeSet.has(signer)) {
           withdraws++
           withdrawSigners.add(signer)
         }
-      } else if (
-        disc === IX_DISCRIMINATORS.refund ||
-        disc === IX_DISCRIMINATORS.authority_refund
-      ) {
-        if (!failed) refunds++
+      } else if (disc === IX_DISCRIMINATORS.authority_refund) {
         if (failed) {
-          reverts.push({
-            tx: sig,
-            error: classifyError(tx.meta!.err),
-            classification: 'user_error',
-            reason: 'refund failed',
-          })
+          const { error, classification } = classifyError(tx.meta!.err)
+          reverts.push({ tx: sig, error, classification, reason: 'authority_refund failed' })
+        } else {
+          authorityRefunds++
+        }
+      } else if (disc === IX_DISCRIMINATORS.refund) {
+        if (failed) {
+          const { error, classification } = classifyError(tx.meta!.err)
+          reverts.push({ tx: sig, error, classification, reason: 'refund failed' })
+        } else {
+          userRefunds++
         }
       } else if (
         disc === IX_DISCRIMINATORS.set_paused ||
@@ -180,7 +198,7 @@ async function main(): Promise<void> {
       distinct_wallets: withdrawSigners.size,
       pass: withdraws >= 3 && withdrawSigners.size >= 2,
     },
-    C4_refunds: { count: refunds, pass: refunds >= 1 },
+    C4_refunds: { authority_refunds: authorityRefunds, user_refunds: userRefunds, pass: authorityRefunds >= 1 },
     C5_reverts: {
       total: reverts.length,
       user_error: userErrorReverts,
