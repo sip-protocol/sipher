@@ -318,6 +318,191 @@ describe('AuthSyncProvider — authenticate', () => {
     expect(useAppStore.getState().token).toBeNull()
   })
 
+  it('uses SIWS when wallet exposes signIn and server accepts', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const issuedToken = makeJwtForTest({ wallet: 'PhantomWallet', exp: futureExp })
+    const mockSignIn = vi.fn().mockResolvedValue({
+      signature: new Uint8Array([1, 2, 3, 4]),
+      signedMessage: new TextEncoder().encode('siwsmsg'),
+    })
+    const mockSignMessage = vi.fn()
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'PhantomWallet' },
+      wallet: { adapter: { signIn: mockSignIn } },
+      signMessage: mockSignMessage,
+      disconnect: vi.fn(),
+    })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ nonce: 'n', message: 'm' }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token: issuedToken, isAdmin: false, expiresIn: '24h' }),
+      })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+    await act(async () => {
+      await captured.current!.authenticate()
+    })
+
+    expect(mockSignIn).toHaveBeenCalledOnce()
+    expect(mockSignMessage).not.toHaveBeenCalled()
+
+    const verifyCall = (global.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[1]
+    const verifyBody = JSON.parse(verifyCall[1].body as string)
+    expect(verifyBody.signedMessage).toBeTruthy()
+    expect(typeof verifyBody.signedMessage).toBe('string')
+    expect(useAppStore.getState().token).toBe(issuedToken)
+  })
+
+  it('falls back to signMessage when SIWS server returns 4xx (legacy server)', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const issuedToken = makeJwtForTest({ wallet: 'PhantomWallet', exp: futureExp })
+    const mockSignIn = vi.fn().mockResolvedValue({
+      signature: new Uint8Array([1, 2, 3, 4]),
+      signedMessage: new TextEncoder().encode('siwsmsg'),
+    })
+    const mockSignMessage = vi.fn().mockResolvedValue(new Uint8Array([9, 9, 9]))
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'PhantomWallet' },
+      wallet: { adapter: { signIn: mockSignIn } },
+      signMessage: mockSignMessage,
+      disconnect: vi.fn(),
+    })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ nonce: 'n', message: 'm' }) })
+      // First verify call (with signedMessage) returns 401 — legacy server
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: 'signature verification failed' }),
+      })
+      // Second verify call (signMessage path) succeeds
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token: issuedToken, isAdmin: false, expiresIn: '24h' }),
+      })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+    await act(async () => {
+      await captured.current!.authenticate()
+    })
+
+    expect(mockSignIn).toHaveBeenCalledOnce()
+    expect(mockSignMessage).toHaveBeenCalledOnce()
+    expect(useAppStore.getState().token).toBe(issuedToken)
+  })
+
+  it('falls back to signMessage when SIWS returns no signature', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const issuedToken = makeJwtForTest({ wallet: 'JupiterWallet', exp: futureExp })
+    const mockSignIn = vi.fn().mockResolvedValue({})
+    const mockSignMessage = vi.fn().mockResolvedValue(new Uint8Array([7, 8, 9]))
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'JupiterWallet' },
+      wallet: { adapter: { signIn: mockSignIn } },
+      signMessage: mockSignMessage,
+      disconnect: vi.fn(),
+    })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ nonce: 'n', message: 'm' }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token: issuedToken, isAdmin: false, expiresIn: '24h' }),
+      })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+    await act(async () => {
+      await captured.current!.authenticate()
+    })
+
+    expect(mockSignIn).toHaveBeenCalledOnce()
+    expect(mockSignMessage).toHaveBeenCalledOnce()
+    expect(useAppStore.getState().token).toBe(issuedToken)
+  })
+
+  it('falls back to signMessage when SIWS throws non-rejection error', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const issuedToken = makeJwtForTest({ wallet: 'W', exp: futureExp })
+    const mockSignIn = vi.fn().mockRejectedValue(new Error('signIn not implemented'))
+    const mockSignMessage = vi.fn().mockResolvedValue(new Uint8Array([5, 5, 5]))
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      wallet: { adapter: { signIn: mockSignIn } },
+      signMessage: mockSignMessage,
+      disconnect: vi.fn(),
+    })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ nonce: 'n', message: 'm' }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token: issuedToken, isAdmin: false, expiresIn: '1h' }),
+      })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+    await act(async () => {
+      await captured.current!.authenticate()
+    })
+
+    expect(mockSignMessage).toHaveBeenCalledOnce()
+    expect(useAppStore.getState().token).toBe(issuedToken)
+  })
+
+  it('propagates user rejection from SIWS without falling through', async () => {
+    const rejectErr = new Error('User rejected the request')
+    const mockSignIn = vi.fn().mockRejectedValue(rejectErr)
+    const mockSignMessage = vi.fn()
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      wallet: { adapter: { signIn: mockSignIn } },
+      signMessage: mockSignMessage,
+      disconnect: vi.fn(),
+    })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ nonce: 'n', message: 'm' }),
+    })
+
+    const { Capture, captured } = captureAuth()
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+
+    await expect(
+      act(async () => {
+        await captured.current!.authenticate()
+      }),
+    ).rejects.toThrow(/User rejected/i)
+    expect(mockSignMessage).not.toHaveBeenCalled()
+    expect(useAppStore.getState().token).toBeNull()
+  })
+
   it('reports status=connecting while authenticate runs', async () => {
     const futureExp = Math.floor(Date.now() / 1000) + 3600
     const okToken = makeJwtForTest({ wallet: 'W', exp: futureExp })

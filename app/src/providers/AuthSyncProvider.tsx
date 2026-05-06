@@ -27,7 +27,7 @@ export function useAuthSyncContext(): AuthState {
 }
 
 export function AuthSyncProvider({ children }: { children: ReactNode }) {
-  const { connected, publicKey, signMessage, disconnect: walletDisconnect } = useWallet()
+  const { connected, publicKey, wallet, signMessage, disconnect: walletDisconnect } = useWallet()
   const { setVisible } = useWalletModal()
   const token = useAppStore((s) => s.token)
   const isAdmin = useAppStore((s) => s.isAdmin)
@@ -77,8 +77,9 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
       setVisible(true)
       return
     }
-    if (!signMessage) {
-      const message = "This wallet doesn't support sign-in. Try Phantom, Solflare, or another wallet-standard wallet."
+    if (!signMessage && !walletSupportsSignIn(wallet)) {
+      const message =
+        "This wallet doesn't support sign-in. Try Phantom, Solflare, or another wallet-standard wallet."
       setError(message)
       throw new Error(message)
     }
@@ -88,9 +89,30 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
     try {
       const wallet58 = publicKey.toBase58()
       const { nonce, message } = await requestNonce(wallet58)
-      const sig = await signMessage(new TextEncoder().encode(message))
-      const sigHex = bytesToHex(sig)
-      const verifyResult = await verifySignature(wallet58, nonce, sigHex)
+
+      const siwsResult = await trySiws(wallet, wallet58, nonce)
+      let verifyResult: VerifyResult
+      if (siwsResult) {
+        try {
+          verifyResult = await verifySignature(wallet58, nonce, siwsResult.signatureHex, {
+            signedMessage: siwsResult.signedMessageBase64,
+          })
+        } catch (err) {
+          // Server may not yet support the SIWS verify path; gracefully fall
+          // back to signMessage. Re-throws below if signMessage isn't
+          // available.
+          if (!signMessage) throw err
+          verifyResult = await runSignMessageFlow(signMessage, wallet58, nonce, message)
+        }
+      } else {
+        if (!signMessage) {
+          throw new Error(
+            "This wallet doesn't support sign-in. Try Phantom, Solflare, or another wallet-standard wallet.",
+          )
+        }
+        verifyResult = await runSignMessageFlow(signMessage, wallet58, nonce, message)
+      }
+
       const expiresAtSec = parseExpiryToEpoch(verifyResult.expiresIn)
       setAuth(verifyResult.token, verifyResult.isAdmin, expiresAtSec)
       lastWalletRef.current = wallet58
@@ -128,6 +150,12 @@ function bytesToHex(bytes: Uint8Array): string {
     .join('')
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  return btoa(binary)
+}
+
 // Convert "24h" / "1h" / "300s" / "7d" relative TTL to absolute epoch seconds.
 // Falls back to now+1h for unparseable input rather than throwing — verify
 // already succeeded so we shouldn't drop the token over a parsing edge case.
@@ -139,4 +167,89 @@ function parseExpiryToEpoch(expiresIn: string): number {
   const unit = match[2].toLowerCase() as 's' | 'm' | 'h' | 'd'
   const mul = { s: 1, m: 60, h: 3600, d: 86400 }[unit]
   return now + n * mul
+}
+
+interface VerifyResult {
+  token: string
+  isAdmin: boolean
+  expiresIn: string
+}
+
+interface SiwsSignResult {
+  signatureHex: string
+  signedMessageBase64: string
+}
+
+interface WalletAdapterWithSignIn {
+  signIn?: (input: {
+    domain: string
+    address: string
+    statement?: string
+    nonce: string
+  }) => Promise<{
+    signature?: Uint8Array
+    signedMessage?: Uint8Array
+  }>
+}
+
+interface WalletWithAdapter {
+  adapter?: unknown
+}
+
+function getSignInAdapter(
+  wallet: unknown,
+): WalletAdapterWithSignIn['signIn'] | null {
+  const adapter = (wallet as WalletWithAdapter | null)?.adapter as
+    | WalletAdapterWithSignIn
+    | undefined
+  if (!adapter || typeof adapter.signIn !== 'function') return null
+  return adapter.signIn.bind(adapter)
+}
+
+function walletSupportsSignIn(wallet: unknown): boolean {
+  return getSignInAdapter(wallet) !== null
+}
+
+function isUserRejection(err: unknown): boolean {
+  if (!(err instanceof Error)) return false
+  if (/reject|denied|user.*declin|cancel/i.test(err.message)) return true
+  const name = (err as { name?: string }).name
+  return Boolean(name && /reject|user/i.test(name))
+}
+
+async function trySiws(
+  wallet: unknown,
+  wallet58: string,
+  nonce: string,
+): Promise<SiwsSignResult | null> {
+  const signIn = getSignInAdapter(wallet)
+  if (!signIn) return null
+  try {
+    const result = await signIn({
+      domain: typeof window !== 'undefined' ? window.location.host : 'sipher.sip-protocol.org',
+      address: wallet58,
+      statement: 'Sign in to Sipher',
+      nonce,
+    })
+    if (!result?.signature || !result.signedMessage) return null
+    if (result.signature.length === 0 || result.signedMessage.length === 0) return null
+    return {
+      signatureHex: bytesToHex(result.signature),
+      signedMessageBase64: bytesToBase64(result.signedMessage),
+    }
+  } catch (err) {
+    if (isUserRejection(err)) throw err
+    return null
+  }
+}
+
+async function runSignMessageFlow(
+  signMessage: (message: Uint8Array) => Promise<Uint8Array>,
+  wallet58: string,
+  nonce: string,
+  message: string,
+): Promise<VerifyResult> {
+  const sig = await signMessage(new TextEncoder().encode(message))
+  const sigHex = bytesToHex(sig)
+  return verifySignature(wallet58, nonce, sigHex)
 }
