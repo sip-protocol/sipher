@@ -5,6 +5,8 @@ import { useAppStore } from '../stores/app'
 import { decodeJwtPayload, isJwtExpired } from '../lib/jwt'
 import { requestNonce, verifySignature } from '../api/auth'
 import { refreshToken } from '../api/refresh'
+import { registerAuthInterceptor } from '../api/client'
+import { useToast } from './ToastProvider'
 
 export type AuthStatus = 'connecting' | 'unauthed' | 'authed' | 'expired' | 'error'
 
@@ -30,6 +32,7 @@ export function useAuthSyncContext(): AuthState {
 export function AuthSyncProvider({ children }: { children: ReactNode }) {
   const { connected, publicKey, wallet, signMessage, disconnect: walletDisconnect } = useWallet()
   const { setVisible } = useWalletModal()
+  const { show: showToast } = useToast()
   const token = useAppStore((s) => s.token)
   const isAdmin = useAppStore((s) => s.isAdmin)
   const expiresAt = useAppStore((s) => s.expiresAt)
@@ -39,6 +42,7 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [authenticating, setAuthenticating] = useState(false)
   const lastWalletRef = useRef<string | null>(null)
+  const authenticateRef = useRef<() => Promise<void>>(() => Promise.resolve())
 
   // Track wallet identity across renders; clear auth when the wallet changes.
   useEffect(() => {
@@ -195,6 +199,32 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
       lastWalletRef.current = null
     }
   }
+
+  authenticateRef.current = authenticate
+
+  // Wire the global 401 interceptor: any apiFetch that returns 401 clears
+  // the token and surfaces a "Session expired — Sign in" toast with a CTA
+  // that re-runs authenticate().
+  useEffect(() => {
+    registerAuthInterceptor(() => {
+      clearAuth()
+      showToast({
+        message: 'Session expired — please sign in again.',
+        kind: 'warn',
+        durationMs: 12_000,
+        action: {
+          label: 'Sign in',
+          onClick: () => {
+            authenticateRef.current().catch(() => {
+              // Errors already surfaced via setError + toast on failure;
+              // swallow here so the toast click doesn't bubble.
+            })
+          },
+        },
+      })
+    })
+    return () => registerAuthInterceptor(null)
+  }, [clearAuth, showToast])
 
   const value: AuthState = {
     status,

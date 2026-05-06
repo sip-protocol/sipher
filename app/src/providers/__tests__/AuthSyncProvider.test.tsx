@@ -4,6 +4,13 @@ import { AuthSyncProvider } from '../AuthSyncProvider'
 import { useAuthState, type AuthState } from '../../hooks/useAuthState'
 import { useAppStore } from '../../stores/app'
 
+const mockToastShow = vi.fn(() => 'toast-id')
+const mockToastDismiss = vi.fn()
+vi.mock('../ToastProvider', () => ({
+  useToast: () => ({ show: mockToastShow, dismiss: mockToastDismiss }),
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+
 const mockSetVisible = vi.fn()
 
 vi.mock('@solana/wallet-adapter-react', () => ({

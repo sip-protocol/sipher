@@ -20,6 +20,8 @@ import { useAppStore } from './stores/app'
 import { useAuth } from './hooks/useAuth'
 import { useSSE } from './hooks/useSSE'
 import { useNetworkConfigStore, fetchNetworkConfig } from './lib/networkConfig'
+import { ToastProvider } from './providers/ToastProvider'
+import { AuthSyncProvider } from './providers/AuthSyncProvider'
 
 function AppShell() {
   const activeView = useAppStore((s) => s.activeView)
@@ -105,7 +107,11 @@ export default function App() {
     <ConnectionProvider endpoint={config.publicRpcUrl}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          <AppShell />
+          <ToastProvider>
+            <AuthSyncProvider>
+              <AppShell />
+            </AuthSyncProvider>
+          </ToastProvider>
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
