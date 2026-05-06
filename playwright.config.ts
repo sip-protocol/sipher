@@ -41,6 +41,10 @@ export default defineConfig({
         JWT_SECRET: process.env.JWT_SECRET ?? 'e2e-test-secret-at-least-16-chars',
         SENTINEL_MODE: 'off',
         CORS_ORIGINS: `http://localhost:${PORT_FRONTEND}`,
+        // Phase 4a: network config required at boot — e2e always uses devnet with a dummy key.
+        // Real Helius calls are not made in e2e tests (no deposit/withdraw flows).
+        SIPHER_NETWORK: process.env.SIPHER_NETWORK ?? 'devnet',
+        SIPHER_HELIUS_API_KEY: process.env.SIPHER_HELIUS_API_KEY ?? 'e2e-placeholder-key',
       },
     },
     {
