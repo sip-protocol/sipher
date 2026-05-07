@@ -13,21 +13,29 @@ services:
       - API_KEYS=${API_KEYS}
       - ADMIN_API_KEY=${ADMIN_API_KEY}
       - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.mainnet-beta.solana.com}
+      - SOLANA_RPC_URL_FALLBACK=${SOLANA_RPC_URL_FALLBACK:-}
       - SIPHER_HELIUS_API_KEY=${SIPHER_HELIUS_API_KEY:-}
       - RPC_PROVIDER=${RPC_PROVIDER:-generic}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://sipher.sip-protocol.org,https://sip-protocol.org,https://app.sip-protocol.org}
       - REDIS_URL=redis://redis:6379
-      - TRUST_PROXY=1
+      - TRUST_PROXY=${TRUST_PROXY:-1}
       - LOG_LEVEL=info
       - RATE_LIMIT_MAX=100
       - RATE_LIMIT_WINDOW_MS=60000
       # Phase 2 — Guardian Command
       - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRY=${JWT_EXPIRY:-24h}
       - SIPHER_ADMIN_PASSWORD=${SIPHER_ADMIN_PASSWORD}
       - AUTHORIZED_WALLETS=${AUTHORIZED_WALLETS:-}
-      - SOLANA_NETWORK=${SOLANA_NETWORK:-mainnet-beta}
-      # SENTINEL
-      - SENTINEL_MODE=${SENTINEL_MODE:-yolo}
+      # Network config — loadNetworkConfig() reads SIPHER_NETWORK at boot and
+      # FATAL-throws if unset (no silent mainnet fallback). The default 'devnet'
+      # below matches the devnet-beta posture we ship with; flip to 'mainnet'
+      # in the operator env when promoting to production.
+      - SIPHER_NETWORK=${SIPHER_NETWORK:-devnet}
+      - SOLANA_NETWORK=${SOLANA_NETWORK:-devnet}
+      # SENTINEL — default 'advisory' is fail-safe; an explicit 'yolo' opts into
+      # autonomous fund-moving operations and emits a startup warning.
+      - SENTINEL_MODE=${SENTINEL_MODE:-advisory}
       - SENTINEL_AUTHORITY_KEYPAIR=${SENTINEL_AUTHORITY_KEYPAIR:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
