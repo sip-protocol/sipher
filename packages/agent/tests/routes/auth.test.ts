@@ -73,9 +73,10 @@ function createApp() {
 describe('POST /auth/nonce', () => {
   it('returns nonce and message for valid wallet', async () => {
     const app = createApp()
+    const { wallet } = generateTestWallet()
     const res = await supertest(app)
       .post('/auth/nonce')
-      .send({ wallet: 'wallet123abc' })
+      .send({ wallet })
     expect(res.status).toBe(200)
     expect(res.body.nonce).toBeDefined()
     expect(typeof res.body.nonce).toBe('string')
@@ -89,7 +90,7 @@ describe('POST /auth/nonce', () => {
       .post('/auth/nonce')
       .send({})
     expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/wallet/i)
+    expect(res.body.error?.code).toBe('VALIDATION_FAILED')
   })
 
   it('rejects non-string wallet', async () => {
@@ -98,16 +99,66 @@ describe('POST /auth/nonce', () => {
       .post('/auth/nonce')
       .send({ wallet: 12345 })
     expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/wallet/i)
+    expect(res.body.error?.code).toBe('VALIDATION_FAILED')
+    expect(res.body.error?.message).toMatch(/wallet/i)
   })
 
   it('generates unique nonces per request', async () => {
     const app = createApp()
+    const { wallet } = generateTestWallet()
     const [r1, r2] = await Promise.all([
-      supertest(app).post('/auth/nonce').send({ wallet: 'wallet123' }),
-      supertest(app).post('/auth/nonce').send({ wallet: 'wallet123' }),
+      supertest(app).post('/auth/nonce').send({ wallet }),
+      supertest(app).post('/auth/nonce').send({ wallet }),
     ])
     expect(r1.body.nonce).not.toBe(r2.body.nonce)
+  })
+
+  describe('input validation', () => {
+    it('rejects wallet longer than 64 chars', async () => {
+      const app = createApp()
+      const res = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet: 'A'.repeat(65) })
+      expect(res.status).toBe(400)
+      expect(res.body.error?.code).toBe('VALIDATION_FAILED')
+    })
+
+    it('rejects wallet with non-base58 chars', async () => {
+      const app = createApp()
+      const res = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet: 'has spaces and !@#' })
+      expect(res.status).toBe(400)
+      expect(res.body.error?.code).toBe('VALIDATION_FAILED')
+    })
+
+    it('rejects wallet shorter than 32 chars', async () => {
+      const app = createApp()
+      const res = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet: 'A'.repeat(31) })
+      expect(res.status).toBe(400)
+      expect(res.body.error?.code).toBe('VALIDATION_FAILED')
+    })
+
+    it('accepts valid base58 Solana pubkey (32-44 chars)', async () => {
+      const app = createApp()
+      const res = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr' })
+      expect(res.status).toBe(200)
+      expect(res.body.nonce).toBeDefined()
+    })
+
+    it('rejects wallet containing the forbidden base58 character "l"', async () => {
+      const app = createApp()
+      // 32-char string with lowercase 'l' (Bitcoin/Solana base58 omits 0OIl)
+      const res = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet: 'l'.repeat(32) })
+      expect(res.status).toBe(400)
+      expect(res.body.error?.code).toBe('VALIDATION_FAILED')
+    })
   })
 })
 

@@ -10,6 +10,10 @@ import { ed25519 } from '@noble/curves/ed25519'
 const NONCE_TTL = 5 * 60 * 1000 // 5 minutes
 const JWT_EXPIRY = '1h'
 
+// Solana wallet base58 shape: 32-44 characters, Bitcoin/Solana base58 alphabet
+// (digits 1-9 + uppercase A-Z minus I, O + lowercase a-z minus l).
+const BASE58_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
+
 // In-memory store: nonce → { wallet, expires }
 const pendingNonces = new Map<string, { wallet: string; expires: number }>()
 
@@ -108,10 +112,21 @@ export const authRouter = Router()
  * Issues a one-time nonce tied to a wallet address.
  */
 authRouter.post('/nonce', (req: Request, res: Response) => {
-  const { wallet } = req.body as { wallet?: string }
+  const { wallet } = req.body as { wallet?: unknown }
 
-  if (!wallet || typeof wallet !== 'string') {
-    res.status(400).json({ error: 'wallet required' })
+  // Shape validation — reject non-strings, oversize input, non-base58 strings.
+  // Without this, an attacker can: (a) fill pendingNonces with 64KB string keys,
+  // (b) force /verify to amplify ed25519 work on garbage inputs.
+  if (typeof wallet !== 'string') {
+    res.status(400).json({ error: { code: 'VALIDATION_FAILED', message: 'wallet must be a string' } })
+    return
+  }
+  if (wallet.length > 64) {
+    res.status(400).json({ error: { code: 'VALIDATION_FAILED', message: 'wallet too long' } })
+    return
+  }
+  if (!BASE58_REGEX.test(wallet)) {
+    res.status(400).json({ error: { code: 'VALIDATION_FAILED', message: 'wallet must be a valid base58 Solana pubkey (32-44 chars)' } })
     return
   }
 
