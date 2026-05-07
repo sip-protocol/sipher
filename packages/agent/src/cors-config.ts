@@ -1,9 +1,16 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express'
 
-// Matches any Vercel preview URL for the sipher project:
-//   https://<branch-slug>-sipher.vercel.app
-// Branch slugs are lowercase alphanumeric + hyphens, e.g. "feat-redesign-tokens".
-const VERCEL_PREVIEW_PATTERN = /^https:\/\/[a-z0-9-]+-sipher\.vercel\.app$/
+// Matches any Vercel preview URL for the sipher project under the
+// rectors-projects team. Vercel preview URLs follow:
+//   https://<project>-<hash-or-branch>-<team-slug>.vercel.app
+// Examples:
+//   https://sipher-96i1chii4-rectors-projects.vercel.app   (deploy hash)
+//   https://sipher-git-feat-x-rectors-projects.vercel.app  (branch deploy)
+// Anchoring on both the project name AND the team slug means a project
+// named "sipher" under a different team (e.g. an attacker registering
+// "sipher" elsewhere) does not match.
+const VERCEL_PREVIEW_PATTERN =
+  /^https:\/\/sipher-[a-z0-9-]+-rectors-projects\.vercel\.app$/
 
 /**
  * Builds a CORS middleware from a comma-separated origins env string.

@@ -21,13 +21,22 @@ describe('CORS allowlist', () => {
     expect(res.headers['access-control-allow-origin']).toBe('https://sipher.sip-protocol.org')
   })
 
-  it('accepts a Vercel preview origin matching *-sipher.vercel.app', async () => {
+  it('accepts a Vercel preview origin under the rectors-projects team', async () => {
     const app = createApp('https://sipher.sip-protocol.org')
     const res = await supertest(app)
       .get('/test')
-      .set('Origin', 'https://feat-redesign-tokens-sipher.vercel.app')
+      .set('Origin', 'https://sipher-96i1chii4-rectors-projects.vercel.app')
     expect(res.status).toBe(200)
-    expect(res.headers['access-control-allow-origin']).toBe('https://feat-redesign-tokens-sipher.vercel.app')
+    expect(res.headers['access-control-allow-origin']).toBe('https://sipher-96i1chii4-rectors-projects.vercel.app')
+  })
+
+  it('accepts a Vercel branch-deploy origin under the rectors-projects team', async () => {
+    const app = createApp('https://sipher.sip-protocol.org')
+    const res = await supertest(app)
+      .get('/test')
+      .set('Origin', 'https://sipher-git-feat-redesign-rectors-projects.vercel.app')
+    expect(res.status).toBe(200)
+    expect(res.headers['access-control-allow-origin']).toBe('https://sipher-git-feat-redesign-rectors-projects.vercel.app')
   })
 
   it('rejects an unrelated origin not in the allowlist and not a sipher preview', async () => {
@@ -39,11 +48,20 @@ describe('CORS allowlist', () => {
     expect(res.headers['access-control-allow-origin']).toBeUndefined()
   })
 
-  it('rejects a different Vercel project that is not *-sipher.vercel.app', async () => {
+  it('rejects a different Vercel project under any team', async () => {
     const app = createApp('https://sipher.sip-protocol.org')
     const res = await supertest(app)
       .get('/test')
-      .set('Origin', 'https://something-else.vercel.app')
+      .set('Origin', 'https://something-else-rectors-projects.vercel.app')
+    expect(res.status).toBe(200)
+    expect(res.headers['access-control-allow-origin']).toBeUndefined()
+  })
+
+  it('rejects a sipher-named project under a different team', async () => {
+    const app = createApp('https://sipher.sip-protocol.org')
+    const res = await supertest(app)
+      .get('/test')
+      .set('Origin', 'https://sipher-abc-attacker-team.vercel.app')
     expect(res.status).toBe(200)
     expect(res.headers['access-control-allow-origin']).toBeUndefined()
   })
