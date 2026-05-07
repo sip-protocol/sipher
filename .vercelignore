@@ -1,16 +1,19 @@
 # Vercel only builds @sipher/app. Exclude paths that aren't needed
 # for the FE build: backend code, contracts, e2e fixtures, data files.
-# Keep packages/ + pnpm-workspace.yaml + pnpm-lock.yaml + patches/ so
+# Keep packages/, pnpm-workspace.yaml, pnpm-lock.yaml, patches/ so
 # pnpm install can resolve the workspace correctly with --filter.
+# Patterns are anchored to repo root with leading "/" so they don't
+# match nested dirs (critical for app/src/ — without anchoring, a
+# bare `src/` would exclude app/src/ too).
 
-contracts/
-programs/
-sdks/
-e2e/
-docs/
-scripts/
-src/
-data/
+/contracts/
+/programs/
+/sdks/
+/e2e/
+/docs/
+/scripts/
+/src/
+/data/
 *.log
 *.sqlite
 *.sqlite-journal
