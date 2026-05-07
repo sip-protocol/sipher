@@ -16,6 +16,7 @@ import {
 import AmountForm from '../components/AmountForm'
 import ConfirmCard from '../components/ConfirmCard'
 import { useAppStore } from '../stores/app'
+import { useAuthState } from '../hooks/useAuthState'
 
 interface TokenBalance {
   mint: string
@@ -72,7 +73,8 @@ function extractAmount(row: ActivityRow): string {
   return match ? `${match[1]} SOL` : ''
 }
 
-export default function VaultView({ token }: { token: string | null }) {
+export default function VaultView() {
+  const { token } = useAuthState()
   const [data, setData] = useState<VaultData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)

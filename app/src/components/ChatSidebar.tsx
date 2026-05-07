@@ -4,12 +4,11 @@ import { useAppStore, type ChatMessage } from '../stores/app'
 import { useAuthState } from '../hooks/useAuthState'
 import { useToast } from '../providers/ToastProvider'
 import { sanitizeArgs } from '../lib/sanitize-args'
+import { isAuthError } from '../lib/auth-errors'
 import ToolTimeline from './ToolTimeline'
 import SentinelConfirm from './SentinelConfirm'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
-
-const AUTH_ERROR_PATTERN = /401|expired|invalid token|unauthori[sz]ed/i
 
 interface Props {
   fullScreen?: boolean
@@ -123,7 +122,7 @@ export default function ChatSidebar({ fullScreen }: Props) {
       // 401-class errors flow through the global apiFetch interceptor's
       // session-expired toast; suppress here so we don't double-notify or
       // paint the raw token-error text into the assistant's bubble.
-      if (!AUTH_ERROR_PATTERN.test(msg)) {
+      if (!isAuthError(msg)) {
         showToast({ message: msg, kind: 'error', durationMs: 6000 })
       }
     } finally {
@@ -167,7 +166,6 @@ export default function ChatSidebar({ fullScreen }: Props) {
                 <div className="max-w-[90%] w-full">
                   <SentinelConfirm
                     flagId={meta.flagId ?? ''}
-                    token={token}
                     action={meta.action ?? 'Action'}
                     amount={meta.amount ?? ''}
                     description={meta.description}

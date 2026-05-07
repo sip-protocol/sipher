@@ -114,4 +114,30 @@ describe('apiFetch', () => {
     })
     await expect(apiFetch('/test')).rejects.toThrow(/503/)
   })
+
+  it('returns undefined for 204 No Content without parsing body', async () => {
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      headers: new Headers(),
+      json: async () => {
+        throw new Error('should not be called')
+      },
+    })
+    const result = await apiFetch('/test', { method: 'POST' })
+    expect(result).toBeUndefined()
+  })
+
+  it('returns undefined for content-length: 0 without parsing body', async () => {
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-length': '0' }),
+      json: async () => {
+        throw new Error('should not be called')
+      },
+    })
+    const result = await apiFetch('/test')
+    expect(result).toBeUndefined()
+  })
 })

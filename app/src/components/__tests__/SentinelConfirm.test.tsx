@@ -1,10 +1,33 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useAppStore } from '../../stores/app'
 import SentinelConfirm from '../SentinelConfirm'
+
+vi.mock('../../hooks/useAuthState', async () => {
+  const { useAppStore: store } = await vi.importActual<
+    typeof import('../../stores/app')
+  >('../../stores/app')
+  return {
+    useAuthState: () => {
+      const t = store.getState().token
+      return {
+        status: t ? ('authed' as const) : ('unauthed' as const),
+        token: t,
+        expiresAt: null,
+        isAdmin: store.getState().isAdmin,
+        publicKey: null,
+        authenticate: () => Promise.resolve(),
+        disconnect: () => Promise.resolve(),
+        error: null,
+      }
+    },
+  }
+})
 
 describe('SentinelConfirm', () => {
   beforeEach(() => {
+    useAppStore.setState({ token: 't', isAdmin: false })
     global.fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 })) as typeof fetch
   })
 
@@ -12,7 +35,6 @@ describe('SentinelConfirm', () => {
     render(
       <SentinelConfirm
         flagId="abc"
-        token="t"
         action="Send"
         amount="5 SOL"
         description="Risk: blacklisted address"
@@ -28,7 +50,6 @@ describe('SentinelConfirm', () => {
     render(
       <SentinelConfirm
         flagId="abc"
-        token="t"
         action="Send"
         amount="5 SOL"
         description="x"
@@ -48,7 +69,6 @@ describe('SentinelConfirm', () => {
     render(
       <SentinelConfirm
         flagId="abc"
-        token="t"
         action="Send"
         amount="5 SOL"
         description="x"
@@ -70,7 +90,6 @@ describe('SentinelConfirm', () => {
     render(
       <SentinelConfirm
         flagId="abc"
-        token="t"
         action="Send"
         amount="5 SOL"
         description="x"
@@ -92,7 +111,6 @@ describe('SentinelConfirm', () => {
     render(
       <SentinelConfirm
         flagId="abc"
-        token="t"
         action="Send"
         amount="5 SOL"
         description="x"
@@ -112,7 +130,6 @@ describe('SentinelConfirm', () => {
     render(
       <SentinelConfirm
         flagId="abc"
-        token="t"
         action="Send"
         amount="5 SOL"
         description="x"
@@ -121,6 +138,6 @@ describe('SentinelConfirm', () => {
     )
     await userEvent.click(screen.getByRole('button', { name: /override & send/i }))
     expect(onResolved).not.toHaveBeenCalled()
-    expect(await screen.findByText(/Action failed \(500\)/)).toBeInTheDocument()
+    expect(await screen.findByText(/API error 500/)).toBeInTheDocument()
   })
 })

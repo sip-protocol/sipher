@@ -53,5 +53,11 @@ export async function apiFetch<T>(
     }
     throw new Error(`API error ${res.status}`)
   }
+  // 204 No Content / explicitly empty bodies — there is nothing to parse and
+  // res.json() on an empty stream throws. Endpoints like promise-gate
+  // resolve/reject return 204 on success; callers ignore the return value.
+  if (res.status === 204 || res.headers?.get('content-length') === '0') {
+    return undefined as T
+  }
   return res.json() as Promise<T>
 }
