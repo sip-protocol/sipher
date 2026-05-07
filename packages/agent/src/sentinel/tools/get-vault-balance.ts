@@ -1,5 +1,6 @@
 import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { Connection, PublicKey } from '@solana/web3.js'
+import { loadNetworkConfig } from '../../config/network.js'
 
 // Reference: docs/sentinel/tools.md
 
@@ -28,8 +29,7 @@ export const getVaultBalanceTool: AnthropicTool = {
 export async function executeGetVaultBalance(
   params: GetVaultBalanceParams,
 ): Promise<GetVaultBalanceResult> {
-  const rpc = process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
-  const conn = new Connection(rpc, 'confirmed')
+  const conn = new Connection(loadNetworkConfig().rpcUrl, 'confirmed')
   const pubkey = new PublicKey(params.wallet)
   const lamports = await conn.getBalance(pubkey)
   const tokenAccounts = await conn.getParsedTokenAccountsByOwner(pubkey, {

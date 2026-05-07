@@ -1,5 +1,6 @@
 import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { Connection, PublicKey } from '@solana/web3.js'
+import { loadNetworkConfig } from '../../config/network.js'
 
 // Reference: docs/sentinel/tools.md
 
@@ -42,8 +43,7 @@ export async function executeGetOnChainSignatures(
   params: GetOnChainSignaturesParams,
 ): Promise<GetOnChainSignaturesResult> {
   const limit = Math.min(params.limit ?? 10, 50)
-  const rpc = process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
-  const conn = new Connection(rpc, 'confirmed')
+  const conn = new Connection(loadNetworkConfig().rpcUrl, 'confirmed')
   const pubkey = new PublicKey(params.address)
   const raw = await conn.getSignaturesForAddress(pubkey, { limit })
   const signatures: OnChainSignature[] = raw.map((s) => {

@@ -109,27 +109,19 @@ describe('executeGetVaultBalance — branches', () => {
 })
 
 describe('executeGetVaultBalance — service interaction', () => {
-  it('uses default mainnet RPC when SOLANA_RPC_URL is unset', async () => {
+  it('uses loadNetworkConfig().rpcUrl for the connection', async () => {
+    // The test env (vitest.config.ts) sets SIPHER_NETWORK=devnet +
+    // SIPHER_HELIUS_API_KEY=test-key, so loadNetworkConfig() resolves to a
+    // keyed devnet Helius URL. The exact host can shift if Helius changes
+    // their endpoint shape, so we match on the substring.
     mockGetBalance.mockResolvedValueOnce(0)
     mockGetParsedTokenAccountsByOwner.mockResolvedValueOnce({ value: [] })
 
     await executeGetVaultBalance({ wallet: VALID_WALLET })
 
+    expect(mockConnectionCtor).toHaveBeenCalledTimes(1)
     expect(mockConnectionCtor).toHaveBeenCalledWith(
-      'https://api.mainnet-beta.solana.com',
-      'confirmed',
-    )
-  })
-
-  it('honors SOLANA_RPC_URL when set', async () => {
-    process.env.SOLANA_RPC_URL = 'https://api.devnet.solana.com'
-    mockGetBalance.mockResolvedValueOnce(0)
-    mockGetParsedTokenAccountsByOwner.mockResolvedValueOnce({ value: [] })
-
-    await executeGetVaultBalance({ wallet: VALID_WALLET })
-
-    expect(mockConnectionCtor).toHaveBeenCalledWith(
-      'https://api.devnet.solana.com',
+      expect.stringContaining('helius-rpc.com'),
       'confirmed',
     )
   })

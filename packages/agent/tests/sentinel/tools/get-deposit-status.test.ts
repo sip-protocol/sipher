@@ -74,26 +74,15 @@ describe('executeGetDepositStatus — branches', () => {
 })
 
 describe('executeGetDepositStatus — service interaction', () => {
-  it('uses default mainnet RPC when SOLANA_RPC_URL is unset', async () => {
+  it('uses loadNetworkConfig().rpcUrl for the connection', async () => {
+    // Test env (vitest.config.ts) → SIPHER_NETWORK=devnet + Helius test key.
     mockGetAccountInfo.mockResolvedValueOnce(null)
 
     await executeGetDepositStatus({ pda: VALID_PDA })
 
     expect(mockConnectionCtor).toHaveBeenCalledTimes(1)
     expect(mockConnectionCtor).toHaveBeenCalledWith(
-      'https://api.mainnet-beta.solana.com',
-      'confirmed',
-    )
-  })
-
-  it('honors SOLANA_RPC_URL when set', async () => {
-    process.env.SOLANA_RPC_URL = 'https://api.devnet.solana.com'
-    mockGetAccountInfo.mockResolvedValueOnce(null)
-
-    await executeGetDepositStatus({ pda: VALID_PDA })
-
-    expect(mockConnectionCtor).toHaveBeenCalledWith(
-      'https://api.devnet.solana.com',
+      expect.stringContaining('helius-rpc.com'),
       'confirmed',
     )
   })
