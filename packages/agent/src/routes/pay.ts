@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { getPaymentLink, markPaymentLinkPaid } from '../db.js'
+import { loadNetworkConfig } from '../config/network.js'
 import {
   renderPaymentPage,
   renderExpiredPage,
@@ -24,8 +25,7 @@ export async function verifyTransaction(
   expectedAddress: string,
   expectedAmount: number | null,
 ): Promise<{ valid: boolean; error?: string }> {
-  const rpcUrl = process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
-  const connection = new Connection(rpcUrl, 'confirmed')
+  const connection = new Connection(loadNetworkConfig().rpcUrl, 'confirmed')
 
   try {
     const tx = await connection.getTransaction(txSignature, {
