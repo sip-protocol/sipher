@@ -18,6 +18,21 @@ import tsParser from '@typescript-eslint/parser'
 import tseslint from 'typescript-eslint'
 
 export default [
+  // Global ignores — build artifacts, node_modules, and any generated dist
+  // output anywhere in the workspace. Without this, `pnpm build` populates
+  // `packages/agent/dist/` and a subsequent `pnpm lint` scans those .js
+  // files (which carry the same disable-directive scaffolding as src) and
+  // errors on the unregistered plugin reference (no flat-config block
+  // matches them, so the typescript-eslint plugin isn't loaded for that
+  // scan path).
+  {
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/build/**',
+      'packages/agent/coverage/**',
+    ],
+  },
   {
     files: ['packages/agent/src/**/*.ts'],
     ignores: [
