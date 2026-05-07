@@ -27,6 +27,7 @@ import { performVaultRefund, assertVaultRefundWired } from './sentinel/vault-ref
 import { sentinelPublicRouter, sentinelAdminRouter } from './routes/sentinel-api.js'
 import { getSentinelConfig } from './sentinel/config.js'
 import { configRouter } from './routes/config.js'
+import { buildCorsMiddleware } from './cors-config.js'
 import { loadNetworkConfig } from './config/network.js'
 import {
   getAllPendingActionsWithStatus,
@@ -142,25 +143,16 @@ console.log(`[agent] trust proxy = ${trustProxy} (set TRUST_PROXY env var to ove
 
 app.use(express.json({ limit: '1mb' }))
 
-// ─── CORS — only needed for dev/test (in prod the agent serves the app statically)
+// ─── CORS ────────────────────────────────────────────────────────────────────
 // Reads comma-separated CORS_ORIGINS env. Empty/unset = no CORS headers (same-origin).
-const corsOrigins = (process.env.CORS_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean)
-if (corsOrigins.length > 0) {
-  app.use((req, res, next) => {
-    const origin = req.headers.origin
-    if (origin && corsOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin)
-      res.setHeader('Access-Control-Allow-Credentials', 'true')
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    }
-    if (req.method === 'OPTIONS') {
-      res.status(204).end()
-      return
-    }
-    next()
-  })
-  console.log(`  CORS:    enabled for ${corsOrigins.join(', ')}`)
+// In addition to the explicit allowlist, any *-sipher.vercel.app preview URL is
+// accepted automatically so Vercel branch previews work without touching the env.
+const corsOriginsEnv = process.env.CORS_ORIGINS ?? ''
+const corsMw = buildCorsMiddleware(corsOriginsEnv)
+if (corsMw) {
+  app.use(corsMw)
+  const listed = corsOriginsEnv.split(',').map((s) => s.trim()).filter(Boolean)
+  console.log(`  CORS:    enabled for ${listed.join(', ')} + *-sipher.vercel.app previews`)
 }
 
 // ─── Pay and Admin routes ────────────────────────────────────────────────────
@@ -215,11 +207,9 @@ app.get('/api/activity', verifyJwt, (req: Request, res: Response) => {
   res.json({ activity })
 })
 
-// Serve web chat UI (static files from app/dist)
-// In production: packages/agent/dist/ -> ../../../app/dist
-// Resolved via __dirname so it works regardless of cwd
-const webRoot = path.resolve(__dirname, '../../../app/dist')
-app.use(express.static(webRoot))
+// FE is served by Vercel at sipher.sip-protocol.org. Backend
+// is API-only at sipher-api.sip-protocol.org. CORS_ORIGINS env
+// gates which Vercel preview/prod origins can call us.
 
 // ─── Chat endpoint ──────────────────────────────────────────────────────────
 

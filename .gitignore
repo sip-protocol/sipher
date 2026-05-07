@@ -24,3 +24,4 @@ e2e/test.db-journal
 # SENTINEL spec-capture artifacts (transient)
 e2e/sentinel-capture/
 .env.spec
+.vercel
