@@ -371,6 +371,87 @@ describe('POST /auth/verify', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/refresh
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('POST /auth/refresh', () => {
+  it('returns a fresh JWT when current token is within 5min of expiry', async () => {
+    const app = createApp()
+    const wallet = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+    const oldToken = jwt.sign({ wallet, isAdmin: false }, JWT_SECRET, { expiresIn: '4m' })
+
+    const res = await supertest(app)
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${oldToken}`)
+      .send()
+    expect(res.status).toBe(200)
+    expect(typeof res.body.token).toBe('string')
+    expect(res.body.expiresIn).toBeDefined()
+
+    // Refresh must preserve the wallet + isAdmin claims
+    const decoded = jwt.verify(res.body.token, JWT_SECRET) as { wallet: string; isAdmin: boolean }
+    expect(decoded.wallet).toBe(wallet)
+    expect(decoded.isAdmin).toBe(false)
+  })
+
+  it('returns 425 TOO_EARLY when current token has more than 5min remaining', async () => {
+    const app = createApp()
+    const wallet = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+    const newToken = jwt.sign({ wallet, isAdmin: false }, JWT_SECRET, { expiresIn: '20m' })
+
+    const res = await supertest(app)
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${newToken}`)
+      .send()
+    expect(res.status).toBe(425)
+    expect(res.body.error?.code).toBe('TOO_EARLY')
+  })
+
+  it('returns 401 INVALID_TOKEN when current token is expired', async () => {
+    const app = createApp()
+    const wallet = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+    const expiredToken = jwt.sign({ wallet, isAdmin: false }, JWT_SECRET, { expiresIn: '-1s' })
+
+    const res = await supertest(app)
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${expiredToken}`)
+      .send()
+    expect(res.status).toBe(401)
+    expect(res.body.error?.code).toBe('INVALID_TOKEN')
+  })
+
+  it('returns 401 INVALID_TOKEN when token signed with wrong secret', async () => {
+    const app = createApp()
+    const wallet = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+    const badToken = jwt.sign({ wallet, isAdmin: false }, 'a-different-secret-16-chars', { expiresIn: '4m' })
+
+    const res = await supertest(app)
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${badToken}`)
+      .send()
+    expect(res.status).toBe(401)
+    expect(res.body.error?.code).toBe('INVALID_TOKEN')
+  })
+
+  it('returns 401 UNAUTHENTICATED when no Authorization header is sent', async () => {
+    const app = createApp()
+    const res = await supertest(app).post('/auth/refresh').send()
+    expect(res.status).toBe(401)
+    expect(res.body.error?.code).toBe('UNAUTHENTICATED')
+  })
+
+  it('returns 401 UNAUTHENTICATED when Authorization header is malformed', async () => {
+    const app = createApp()
+    const res = await supertest(app)
+      .post('/auth/refresh')
+      .set('Authorization', 'NotBearer some-token')
+      .send()
+    expect(res.status).toBe(401)
+    expect(res.body.error?.code).toBe('UNAUTHENTICATED')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // verifyJwt middleware
 // ─────────────────────────────────────────────────────────────────────────────
 

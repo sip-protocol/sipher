@@ -242,6 +242,54 @@ authRouter.post('/verify', (req: Request, res: Response) => {
   res.json({ token, expiresIn: JWT_EXPIRY, isAdmin })
 })
 
+/**
+ * POST /auth/refresh
+ * Issues a fresh JWT when the bearer token is valid and within the last 5min
+ * of its lifetime. Token issued during refresh inherits the original wallet +
+ * isAdmin claims.
+ *
+ * Status codes:
+ *  - 200: new token issued
+ *  - 401 UNAUTHENTICATED: missing or malformed Authorization header
+ *  - 401 INVALID_TOKEN: token signature/structure invalid, or already expired
+ *  - 425 TOO_EARLY: token still has > 5min remaining
+ */
+const REFRESH_WINDOW_SECONDS = 5 * 60
+
+authRouter.post('/refresh', (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: { code: 'UNAUTHENTICATED', message: 'Missing or malformed Authorization header' } })
+    return
+  }
+  const token = authHeader.slice(7)
+
+  let payload: jwt.JwtPayload & { wallet?: string; isAdmin?: boolean }
+  try {
+    payload = jwt.verify(token, getSecret(), { algorithms: ['HS256'] }) as jwt.JwtPayload & { wallet?: string; isAdmin?: boolean }
+  } catch {
+    res.status(401).json({ error: { code: 'INVALID_TOKEN', message: 'Token invalid or expired' } })
+    return
+  }
+
+  const now = Math.floor(Date.now() / 1000)
+  const exp = payload.exp ?? 0
+  if (exp - now > REFRESH_WINDOW_SECONDS) {
+    res.status(425).json({ error: { code: 'TOO_EARLY', message: 'Refresh allowed within 5min of expiry' } })
+    return
+  }
+
+  const wallet = payload.wallet
+  if (typeof wallet !== 'string') {
+    res.status(401).json({ error: { code: 'INVALID_TOKEN', message: 'Token missing wallet claim' } })
+    return
+  }
+  const isAdmin = payload.isAdmin === true
+
+  const newToken = jwt.sign({ wallet, isAdmin }, getSecret(), { expiresIn: JWT_EXPIRY, algorithm: 'HS256' })
+  res.json({ token: newToken, expiresIn: JWT_EXPIRY })
+})
+
 // ─── SSE Ticket Exchange ─────────────────────────────────────────────────────
 // Short-lived one-time tickets for SSE connections (avoids JWT in URL)
 
