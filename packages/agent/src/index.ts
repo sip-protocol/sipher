@@ -208,7 +208,7 @@ app.get('/api/activity', verifyJwt, (req: Request, res: Response) => {
 })
 
 // FE is served by Vercel at sipher.sip-protocol.org. Backend
-// is API-only at api.sipher.sip-protocol.org. CORS_ORIGINS env
+// is API-only at sipher-api.sip-protocol.org. CORS_ORIGINS env
 // gates which Vercel preview/prod origins can call us.
 
 // ─── Chat endpoint ──────────────────────────────────────────────────────────

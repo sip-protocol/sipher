@@ -4,7 +4,7 @@ Production deployment reference for Sipher on the SIP Protocol VPS.
 
 ## Overview
 
-Sipher's API runs as a Docker container (`sipher` + `sipher-redis`) behind nginx at [api.sipher.sip-protocol.org](https://api.sipher.sip-protocol.org). The frontend is hosted on Vercel at [sipher.sip-protocol.org](https://sipher.sip-protocol.org) and consumes the API cross-origin (CORS allowlist gated). Deployment is GitOps: GitHub Actions builds on push to `main`, publishes to GHCR, then SSHes into the VPS and recreates the container. Vercel auto-deploys on push to `main` and on PR open (preview URLs at `*-sipher.vercel.app`).
+Sipher's API runs as a Docker container (`sipher` + `sipher-redis`) behind nginx at [sipher-api.sip-protocol.org](https://sipher-api.sip-protocol.org). The frontend is hosted on Vercel at [sipher.sip-protocol.org](https://sipher.sip-protocol.org) and consumes the API cross-origin (CORS allowlist gated). Deployment is GitOps: GitHub Actions builds on push to `main`, publishes to GHCR, then SSHes into the VPS and recreates the container. Vercel auto-deploys on push to `main` and on PR open (preview URLs at `sipher-<hash>-rectors-projects.vercel.app`).
 
 ## VPS Layout
 
