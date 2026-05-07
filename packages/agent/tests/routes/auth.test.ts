@@ -46,9 +46,9 @@ function signMessage(message: string, privateKey: Uint8Array): string {
 
 const { authRouter, verifyJwt, _resetAuthStateForTests } = await import('../../src/routes/auth.js')
 
-beforeEach(() => {
+beforeEach(async () => {
   process.env.JWT_SECRET = JWT_SECRET
-  _resetAuthStateForTests()
+  await _resetAuthStateForTests()
 })
 
 afterEach(() => {

@@ -2,12 +2,13 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import crypto from 'node:crypto'
 import { ed25519 } from '@noble/curves/ed25519'
+import { createStore } from '../state/ephemeral.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const NONCE_TTL = 5 * 60 * 1000 // 5 minutes
+const NONCE_TTL_SECONDS = 5 * 60 // 5 minutes
 // JWT lifetime. 24h default keeps users from re-signing every hour during
 // normal browsing; 1h in tests preserves existing TTL-shape assertions.
 // Operator can override via env (e.g. shorten to '4h' for higher security).
@@ -65,38 +66,41 @@ function authorizedWalletsSet(): Set<string> {
 
 console.log(`[agent] AUTHORIZED_WALLETS: ${authorizedWalletsSet().size} entries`)
 
-// In-memory store: nonce → { wallet, expires }
-const pendingNonces = new Map<string, { wallet: string; expires: number }>()
+// Pending nonces: nonce → { wallet, expires }. TTL = 5 min.
+const pendingNonces = createStore<{ wallet: string; expires: number }>('pendingNonces', { maxSize: 10_000 })
 
-// Per-IP rate limiter for /verify (prevents ed25519 CPU amplification)
-const verifyAttempts = new Map<string, { count: number; resetAt: number }>()
+// Per-IP rate limiter for /verify (prevents ed25519 CPU amplification).
+const verifyAttempts = createStore<{ count: number; resetAt: number }>('verifyAttempts', { maxSize: 1_000 })
 const VERIFY_RATE_LIMIT = 10  // per minute
 const VERIFY_WINDOW_MS = 60_000
+const VERIFY_WINDOW_SECONDS = VERIFY_WINDOW_MS / 1000
 
-function checkVerifyRateLimit(ip: string): boolean {
+async function checkVerifyRateLimit(ip: string): Promise<boolean> {
   const now = Date.now()
-  const entry = verifyAttempts.get(ip)
+  const entry = await verifyAttempts.get(ip)
   if (!entry || entry.resetAt < now) {
-    verifyAttempts.set(ip, { count: 1, resetAt: now + VERIFY_WINDOW_MS })
+    await verifyAttempts.set(ip, { count: 1, resetAt: now + VERIFY_WINDOW_MS }, VERIFY_WINDOW_SECONDS)
     return true
   }
-  entry.count++
-  return entry.count <= VERIFY_RATE_LIMIT
+  const nextCount = entry.count + 1
+  await verifyAttempts.set(ip, { count: nextCount, resetAt: entry.resetAt }, VERIFY_WINDOW_SECONDS)
+  return nextCount <= VERIFY_RATE_LIMIT
 }
 
 // Per-IP rate limiter for /nonce (anonymous endpoint — without this, one
 // attacker can fill pendingNonces and DoS legitimate sign-ins, even after
 // the input-validation cap).
-const nonceAttempts = new Map<string, { count: number; firstAt: number }>()
+const nonceAttempts = createStore<{ count: number; firstAt: number }>('nonceAttempts', { maxSize: 1_000 })
 const NONCE_RATE_LIMIT_MAX = 5
 const NONCE_RATE_LIMIT_WINDOW_MS = 60_000
+const NONCE_RATE_LIMIT_WINDOW_SECONDS = NONCE_RATE_LIMIT_WINDOW_MS / 1000
 
-function nonceRateLimit(req: Request, res: Response, next: NextFunction): void {
+async function nonceRateLimit(req: Request, res: Response, next: NextFunction): Promise<void> {
   const ip = req.ip ?? 'unknown'
   const now = Date.now()
-  const entry = nonceAttempts.get(ip)
+  const entry = await nonceAttempts.get(ip)
   if (!entry || now - entry.firstAt > NONCE_RATE_LIMIT_WINDOW_MS) {
-    nonceAttempts.set(ip, { count: 1, firstAt: now })
+    await nonceAttempts.set(ip, { count: 1, firstAt: now }, NONCE_RATE_LIMIT_WINDOW_SECONDS)
     next()
     return
   }
@@ -104,7 +108,7 @@ function nonceRateLimit(req: Request, res: Response, next: NextFunction): void {
     res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many nonce requests, slow down' } })
     return
   }
-  entry.count += 1
+  await nonceAttempts.set(ip, { count: entry.count + 1, firstAt: entry.firstAt }, NONCE_RATE_LIMIT_WINDOW_SECONDS)
   next()
 }
 
@@ -186,7 +190,7 @@ export const authRouter = Router()
  * POST /auth/nonce
  * Issues a one-time nonce tied to a wallet address.
  */
-authRouter.post('/nonce', nonceRateLimit, (req: Request, res: Response) => {
+authRouter.post('/nonce', nonceRateLimit, async (req: Request, res: Response) => {
   const { wallet } = req.body as { wallet?: unknown }
 
   // Shape validation — reject non-strings, oversize input, non-base58 strings.
@@ -205,13 +209,11 @@ authRouter.post('/nonce', nonceRateLimit, (req: Request, res: Response) => {
     return
   }
 
-  if (pendingNonces.size >= 10_000) {
-    res.status(429).json({ error: 'too many pending nonces — try again later' })
-    return
-  }
-
+  // The store enforces maxSize via FIFO eviction internally — no explicit
+  // size check needed here; the legacy "too many pending nonces" 429 went
+  // away with the per-IP rate limiter (B5) anyway.
   const nonce = crypto.randomBytes(32).toString('hex')
-  pendingNonces.set(nonce, { wallet, expires: Date.now() + NONCE_TTL })
+  await pendingNonces.set(nonce, { wallet, expires: Date.now() + NONCE_TTL_SECONDS * 1000 }, NONCE_TTL_SECONDS)
 
   res.json({ nonce, message: `sipher.sip-protocol.org wants you to sign in.\n\nNonce: ${nonce}` })
 })
@@ -221,9 +223,9 @@ authRouter.post('/nonce', nonceRateLimit, (req: Request, res: Response) => {
  * Verifies a signed nonce via ed25519 and returns a JWT.
  * The wallet must cryptographically prove ownership by signing the nonce message.
  */
-authRouter.post('/verify', (req: Request, res: Response) => {
+authRouter.post('/verify', async (req: Request, res: Response) => {
   const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown'
-  if (!checkVerifyRateLimit(ip)) {
+  if (!(await checkVerifyRateLimit(ip))) {
     res.status(429).json({ error: 'too many verify attempts — try again later' })
     return
   }
@@ -246,11 +248,11 @@ authRouter.post('/verify', (req: Request, res: Response) => {
     return
   }
 
-  const pending = pendingNonces.get(nonce)
+  const pending = await pendingNonces.get(nonce)
 
   if (!pending || pending.wallet !== wallet || pending.expires < Date.now()) {
     // Always clean up — prevents probing expired entries
-    pendingNonces.delete(nonce)
+    await pendingNonces.delete(nonce)
     res.status(401).json({ error: 'invalid or expired nonce' })
     return
   }
@@ -259,14 +261,14 @@ authRouter.post('/verify', (req: Request, res: Response) => {
   try {
     const publicKeyBytes = decodePublicKey(wallet)
     if (publicKeyBytes.length !== 32) {
-      pendingNonces.delete(nonce)
+      await pendingNonces.delete(nonce)
       res.status(401).json({ error: 'invalid wallet address: expected 32-byte ed25519 public key' })
       return
     }
 
     const signatureBytes = decodeSignature(signature)
     if (signatureBytes.length !== 64) {
-      pendingNonces.delete(nonce)
+      await pendingNonces.delete(nonce)
       res.status(401).json({ error: 'invalid signature: expected 64-byte ed25519 signature' })
       return
     }
@@ -279,18 +281,18 @@ authRouter.post('/verify', (req: Request, res: Response) => {
       // bytes to OUR nonce + an allowed domain before trusting the signature.
       const decoded = decodeBase64ToBytes(signedMessage)
       if (!decoded) {
-        pendingNonces.delete(nonce)
+        await pendingNonces.delete(nonce)
         res.status(401).json({ error: 'invalid signedMessage encoding' })
         return
       }
       const messageText = new TextDecoder('utf-8', { fatal: false }).decode(decoded)
       if (!siwsMessageStartsWithAllowedDomain(messageText)) {
-        pendingNonces.delete(nonce)
+        await pendingNonces.delete(nonce)
         res.status(401).json({ error: 'signedMessage domain not in allow-list' })
         return
       }
       if (!messageText.includes(`Nonce: ${nonce}`)) {
-        pendingNonces.delete(nonce)
+        await pendingNonces.delete(nonce)
         res.status(401).json({ error: 'signedMessage does not bind to nonce' })
         return
       }
@@ -304,18 +306,18 @@ authRouter.post('/verify', (req: Request, res: Response) => {
 
     const valid = ed25519.verify(signatureBytes, messageBytes, publicKeyBytes)
     if (!valid) {
-      pendingNonces.delete(nonce)
+      await pendingNonces.delete(nonce)
       res.status(401).json({ error: 'signature verification failed' })
       return
     }
   } catch {
-    pendingNonces.delete(nonce)
+    await pendingNonces.delete(nonce)
     res.status(401).json({ error: 'signature verification failed' })
     return
   }
 
   // One-time use — consume before responding
-  pendingNonces.delete(nonce)
+  await pendingNonces.delete(nonce)
 
   const allowed = authorizedWalletsSet()
   const isAdmin = allowed.size > 0 && allowed.has(wallet)
@@ -375,15 +377,15 @@ authRouter.post('/refresh', (req: Request, res: Response) => {
 // ─── SSE Ticket Exchange ─────────────────────────────────────────────────────
 // Short-lived one-time tickets for SSE connections (avoids JWT in URL)
 
-const SSE_TICKET_TTL = 30_000 // 30 seconds
-const sseTickets = new Map<string, { wallet: string; expires: number }>()
+const SSE_TICKET_TTL_SECONDS = 30
+const sseTickets = createStore<{ wallet: string; expires: number }>('sseTickets', { maxSize: 10_000 })
 
 /**
  * POST /auth/sse-ticket
  * Exchanges a valid JWT for a short-lived, one-time SSE connection ticket.
  * The ticket is a random string (not a JWT), safe to appear in URLs.
  */
-authRouter.post('/sse-ticket', (req: Request, res: Response) => {
+authRouter.post('/sse-ticket', async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined
 
@@ -395,15 +397,12 @@ authRouter.post('/sse-ticket', (req: Request, res: Response) => {
   try {
     const decoded = jwt.verify(token, getSecret(), { algorithms: ['HS256'] }) as { wallet: string }
     const ticket = crypto.randomBytes(32).toString('hex')
-    sseTickets.set(ticket, { wallet: decoded.wallet, expires: Date.now() + SSE_TICKET_TTL })
-
-    // Cap ticket store — evict oldest entry on overflow
-    if (sseTickets.size > 10_000) {
-      const oldest = sseTickets.keys().next().value
-      if (oldest) sseTickets.delete(oldest)
-    }
-
-    res.json({ ticket, expiresIn: SSE_TICKET_TTL / 1000 })
+    await sseTickets.set(
+      ticket,
+      { wallet: decoded.wallet, expires: Date.now() + SSE_TICKET_TTL_SECONDS * 1000 },
+      SSE_TICKET_TTL_SECONDS,
+    )
+    res.json({ ticket, expiresIn: SSE_TICKET_TTL_SECONDS })
   } catch {
     res.status(401).json({ error: 'invalid or expired token' })
   }
@@ -413,13 +412,13 @@ authRouter.post('/sse-ticket', (req: Request, res: Response) => {
  * Validate and consume an SSE ticket. Returns the wallet if valid, null otherwise.
  * Tickets are one-time use — deleted after first validation.
  */
-export function consumeSseTicket(ticket: string): string | null {
-  const entry = sseTickets.get(ticket)
+export async function consumeSseTicket(ticket: string): Promise<string | null> {
+  const entry = await sseTickets.get(ticket)
   if (!entry || entry.expires < Date.now()) {
-    sseTickets.delete(ticket)
+    await sseTickets.delete(ticket)
     return null
   }
-  sseTickets.delete(ticket) // one-time use
+  await sseTickets.delete(ticket) // one-time use
   return entry.wallet
 }
 
@@ -435,11 +434,11 @@ export function consumeSseTicket(ticket: string): string | null {
  *
  * On success, attaches `wallet` to the request object and calls next().
  */
-export function verifyJwt(req: Request, res: Response, next: NextFunction): void {
+export async function verifyJwt(req: Request, res: Response, next: NextFunction): Promise<void> {
   // SSE ticket (preferred — no JWT in URL)
   const ticket = req.query.ticket as string | undefined
   if (ticket) {
-    const wallet = consumeSseTicket(ticket)
+    const wallet = await consumeSseTicket(ticket)
     if (!wallet) {
       res.status(401).json({ error: 'invalid or expired SSE ticket' })
       return
@@ -495,42 +494,10 @@ export function requireOwner(req: Request, res: Response, next: NextFunction): v
   next()
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Background cleanup — prevent unbounded nonce accumulation
-// ─────────────────────────────────────────────────────────────────────────────
-
-setInterval(() => {
-  const now = Date.now()
-  for (const [nonce, data] of pendingNonces) {
-    if (data.expires < now) pendingNonces.delete(nonce)
-  }
-}, 5 * 60 * 1000).unref()
-
-setInterval(() => {
-  const now = Date.now()
-  for (const [ip, entry] of verifyAttempts) {
-    if (entry.resetAt < now) verifyAttempts.delete(ip)
-  }
-}, 5 * 60 * 1000).unref()
-
-setInterval(() => {
-  const now = Date.now()
-  for (const [ticket, data] of sseTickets) {
-    if (data.expires < now) sseTickets.delete(ticket)
-  }
-}, 30_000).unref()
-
-setInterval(() => {
-  const now = Date.now()
-  for (const [ip, entry] of nonceAttempts) {
-    if (now - entry.firstAt > NONCE_RATE_LIMIT_WINDOW_MS) nonceAttempts.delete(ip)
-  }
-}, NONCE_RATE_LIMIT_WINDOW_MS).unref()
-
 /** Clear in-memory auth state (nonces, rate-limit counters, SSE tickets). Tests only. */
-export function _resetAuthStateForTests(): void {
-  pendingNonces.clear()
-  verifyAttempts.clear()
-  sseTickets.clear()
-  nonceAttempts.clear()
+export async function _resetAuthStateForTests(): Promise<void> {
+  await pendingNonces._clear()
+  await verifyAttempts._clear()
+  await sseTickets._clear()
+  await nonceAttempts._clear()
 }
