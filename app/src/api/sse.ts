@@ -4,7 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 /**
  * Exchange a JWT for a short-lived, one-time SSE ticket.
- * Falls back to null if the endpoint is unavailable (legacy server).
+ * Returns null if the endpoint is unavailable (legacy server) or rejects.
  */
 async function fetchSseTicket(jwt: string): Promise<string | null> {
   try {
@@ -24,20 +24,32 @@ async function fetchSseTicket(jwt: string): Promise<string | null> {
 }
 
 /**
- * Create an SSE EventSource using a short-lived ticket (preferred)
- * or falling back to raw JWT query param (legacy).
+ * Pure URL-picker for the SSE stream. Production must never put the raw
+ * JWT in a URL — query params leak into browser history, server access
+ * logs, and Referer headers. DEV keeps the JWT-in-URL fallback as a
+ * convenience for local development against an old server build that
+ * doesn't expose /api/auth/sse-ticket yet.
  */
+export function pickSseUrl(
+  token: string,
+  ticket: string | null,
+  baseUrl: string,
+  isDev: boolean,
+): string {
+  if (ticket) return `${baseUrl}/api/stream?ticket=${encodeURIComponent(ticket)}`
+  if (isDev) return `${baseUrl}/api/stream?token=${encodeURIComponent(token)}`
+  throw new Error(
+    'SSE ticket exchange failed; JWT-in-URL fallback is disabled in production builds',
+  )
+}
+
 export async function connectSSE(
   token: string,
   onEvent: SSEHandler,
-  onError?: (err: Event) => void
+  onError?: (err: Event) => void,
 ): Promise<EventSource> {
-  // Try ticket exchange first — keeps JWT out of URLs
   const ticket = await fetchSseTicket(token)
-
-  const url = ticket
-    ? `${API_URL}/api/stream?ticket=${encodeURIComponent(ticket)}`
-    : `${API_URL}/api/stream?token=${encodeURIComponent(token)}`
+  const url = pickSseUrl(token, ticket, API_URL, import.meta.env.DEV === true)
 
   const source = new EventSource(url)
   source.addEventListener('activity', onEvent)
