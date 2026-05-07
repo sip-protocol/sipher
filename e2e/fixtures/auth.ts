@@ -22,6 +22,20 @@ export interface LoginResult {
   token: string
   isAdmin: boolean
   wallet: string
+  expiresAt: number | null
+}
+
+function decodeJwtExp(token: string): number | null {
+  const parts = token.split('.')
+  if (parts.length !== 3) return null
+  try {
+    const padded = parts[1] + '='.repeat((4 - (parts[1].length % 4)) % 4)
+    const json = Buffer.from(padded.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8')
+    const payload = JSON.parse(json) as { exp?: number }
+    return typeof payload.exp === 'number' ? payload.exp : null
+  } catch {
+    return null
+  }
 }
 
 export async function mintAdminJwt(
@@ -59,5 +73,5 @@ export async function mintAdminJwt(
     token: string
     isAdmin: boolean
   }
-  return { token, isAdmin, wallet }
+  return { token, isAdmin, wallet, expiresAt: decodeJwtExp(token) }
 }

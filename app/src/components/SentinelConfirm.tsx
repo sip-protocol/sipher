@@ -1,19 +1,19 @@
 import { useState } from 'react'
+import { apiFetch } from '../api/client'
+import { useAuthState } from '../hooks/useAuthState'
+import { isAuthError } from '../lib/auth-errors'
 import ConfirmCard from './ConfirmCard'
-
-const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 interface Props {
   flagId: string
-  /** Owner JWT — endpoints require requireOwner middleware on the server. */
-  token: string
   action: string
   amount: string
   description?: string
   onResolved: (decision: 'resolve' | 'reject') => void
 }
 
-export default function SentinelConfirm({ flagId, token, action, amount, description, onResolved }: Props) {
+export default function SentinelConfirm({ flagId, action, amount, description, onResolved }: Props) {
+  const { token } = useAuthState()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,22 +23,18 @@ export default function SentinelConfirm({ flagId, token, action, amount, descrip
     setError(null)
     let success = false
     try {
-      const res = await fetch(`${API_URL}/api/sentinel/promise-gate/${encodeURIComponent(flagId)}/${verb}`, {
+      await apiFetch(`/api/sentinel/promise-gate/${encodeURIComponent(flagId)}/${verb}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        token: token ?? undefined,
       })
-      if (!res.ok) {
-        let message = `Action failed (${res.status})`
-        try {
-          const body = await res.json()
-          if (body?.error?.message) message = String(body.error.message)
-        } catch { /* fall back to status */ }
-        setError(message)
-        return
-      }
       success = true
-    } catch {
-      setError('Network error — try again')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Network error — try again'
+      // 401-class errors fire the global interceptor's session-expired toast;
+      // skip the inline display so the user sees one consistent message.
+      if (!isAuthError(message)) {
+        setError(message)
+      }
     } finally {
       setBusy(false)
     }

@@ -20,23 +20,25 @@ import { useAppStore } from './stores/app'
 import { useAuth } from './hooks/useAuth'
 import { useSSE } from './hooks/useSSE'
 import { useNetworkConfigStore, fetchNetworkConfig } from './lib/networkConfig'
+import { ToastProvider } from './providers/ToastProvider'
+import { AuthSyncProvider } from './providers/AuthSyncProvider'
 
 function AppShell() {
   const activeView = useAppStore((s) => s.activeView)
   const { token, isAdmin } = useAuth()
-  const { events } = useSSE(token)
+  const { events } = useSSE()
   const beta = useNetworkConfigStore((s) => s.config?.beta ?? false)
 
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
-        return <DashboardView events={events} token={token} />
+        return <DashboardView events={events} />
       case 'vault':
-        return <VaultView token={token} />
+        return <VaultView />
       case 'herald':
-        return isAdmin ? <HeraldView token={token} /> : <DashboardView events={events} token={token} />
+        return isAdmin ? <HeraldView token={token} /> : <DashboardView events={events} />
       case 'squad':
-        return isAdmin ? <SquadView token={token} /> : <DashboardView events={events} token={token} />
+        return isAdmin ? <SquadView token={token} /> : <DashboardView events={events} />
       case 'chat':
         return (
           <div className="lg:hidden h-full">
@@ -44,7 +46,7 @@ function AppShell() {
           </div>
         )
       default:
-        return <DashboardView events={events} token={token} />
+        return <DashboardView events={events} />
     }
   }
 
@@ -105,7 +107,11 @@ export default function App() {
     <ConnectionProvider endpoint={config.publicRpcUrl}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          <AppShell />
+          <ToastProvider>
+            <AuthSyncProvider>
+              <AppShell />
+            </AuthSyncProvider>
+          </ToastProvider>
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>

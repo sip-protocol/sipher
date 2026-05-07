@@ -1,5 +1,3 @@
-import { useWallet } from '@solana/wallet-adapter-react'
-import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import {
   ChartBar,
   Vault,
@@ -8,9 +6,10 @@ import {
   ChatCircle,
 } from '@phosphor-icons/react'
 import { useAppStore, type View } from '../stores/app'
-import { useAuth } from '../hooks/useAuth'
+import { useAuthState } from '../hooks/useAuthState'
+import { useToast } from '../providers/ToastProvider'
 import AgentDot from './AgentDot'
-import { truncateAddress } from '../lib/format'
+import { WalletDropdown } from './WalletDropdown'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 
 interface Tab {
@@ -30,9 +29,8 @@ const TABS: Tab[] = [
 ]
 
 export default function Header() {
-  const { publicKey, connected } = useWallet()
-  const { setVisible } = useWalletModal()
-  const { isAuthenticated, authenticate, isAdmin } = useAuth()
+  const { status, publicKey, authenticate, disconnect, isAdmin } = useAuthState()
+  const { show: showToast } = useToast()
   const activeView = useAppStore((s) => s.activeView)
   const setActiveView = useAppStore((s) => s.setActiveView)
   const network = useNetworkConfigStore((s) => s.config?.network ?? 'mainnet')
@@ -41,6 +39,24 @@ export default function Header() {
     if (t.adminOnly && !isAdmin) return false
     return true
   })
+
+  const handleConnectOrSignIn = () => {
+    authenticate().catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Sign-in failed'
+      showToast({ message, kind: 'error' })
+    })
+  }
+
+  const handleCopy = async () => {
+    if (!publicKey) return
+    await navigator.clipboard.writeText(publicKey)
+    showToast({ message: 'Address copied', kind: 'success', durationMs: 3000 })
+  }
+
+  const handleDisconnect = async () => {
+    await disconnect()
+    showToast({ message: 'Disconnected', kind: 'info', durationMs: 3000 })
+  }
 
   return (
     <header className="hidden md:flex h-12 border-b border-border items-center justify-between px-4 bg-bg shrink-0 z-10">
@@ -81,23 +97,24 @@ export default function Header() {
           {network}
         </span>
 
-        {connected && publicKey ? (
+        {status === 'authed' && publicKey ? (
+          <WalletDropdown
+            address={publicKey}
+            onCopy={handleCopy}
+            onReSignIn={handleConnectOrSignIn}
+            onDisconnect={handleDisconnect}
+          />
+        ) : status === 'expired' ? (
           <button
-            onClick={isAuthenticated ? undefined : authenticate}
-            className="flex items-center gap-2 bg-card border border-border px-2.5 py-1 rounded-lg hover:bg-elevated transition-colors"
+            onClick={handleConnectOrSignIn}
+            title="Session expired — sign in to continue"
+            className="bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-lg text-[11px] text-amber-400 font-medium hover:bg-amber-500/20 transition-colors"
           >
-            <span className="text-[11px] font-mono text-text-secondary">
-              {truncateAddress(publicKey.toBase58())}
-            </span>
-            <div className="w-5 h-5 rounded-full bg-accent flex items-center justify-center">
-              <span className="text-[9px] font-bold text-white">
-                {publicKey.toBase58()[0]}
-              </span>
-            </div>
+            Re-sign in
           </button>
         ) : (
           <button
-            onClick={() => setVisible(true)}
+            onClick={handleConnectOrSignIn}
             className="bg-accent/10 border border-accent/20 px-3 py-1 rounded-lg text-[11px] text-accent font-medium hover:bg-accent/20 transition-colors"
           >
             Connect

@@ -4,6 +4,27 @@ import userEvent from '@testing-library/user-event'
 import { useAppStore } from '../../stores/app'
 import VaultView from '../VaultView'
 
+vi.mock('../../hooks/useAuthState', async () => {
+  const { useAppStore: store } = await vi.importActual<
+    typeof import('../../stores/app')
+  >('../../stores/app')
+  return {
+    useAuthState: () => {
+      const t = store.getState().token
+      return {
+        status: t ? ('authed' as const) : ('unauthed' as const),
+        token: t,
+        expiresAt: null,
+        isAdmin: store.getState().isAdmin,
+        publicKey: null,
+        authenticate: () => Promise.resolve(),
+        disconnect: () => Promise.resolve(),
+        error: null,
+      }
+    },
+  }
+})
+
 describe('VaultView Deposit/Withdraw flow', () => {
   beforeEach(() => {
     useAppStore.setState({
@@ -26,13 +47,13 @@ describe('VaultView Deposit/Withdraw flow', () => {
   })
 
   it('shows Deposit and Withdraw buttons initially', async () => {
-    render(<VaultView token="test-token" />)
+    render(<VaultView />)
     expect(await screen.findByRole('button', { name: /deposit/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /withdraw/i })).toBeInTheDocument()
   })
 
   it('opens AmountForm on Deposit click', async () => {
-    render(<VaultView token="test-token" />)
+    render(<VaultView />)
     await userEvent.click(await screen.findByRole('button', { name: /deposit/i }))
     expect(screen.getByText(/deposit amount/i)).toBeInTheDocument()
   })
@@ -40,7 +61,7 @@ describe('VaultView Deposit/Withdraw flow', () => {
   it('moves through 3-step flow and calls seedChat on confirm', async () => {
     const seedChat = vi.fn()
     useAppStore.setState({ seedChat })
-    render(<VaultView token="test-token" />)
+    render(<VaultView />)
     await userEvent.click(await screen.findByRole('button', { name: /deposit/i }))
     await userEvent.type(screen.getByRole('spinbutton'), '1')
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))

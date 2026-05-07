@@ -8,7 +8,7 @@ import {
 import { apiFetch } from '../api/client'
 import { useAppStore } from '../stores/app'
 import { type ActivityEvent } from '../hooks/useSSE'
-import { useIsAdmin } from '../hooks/useIsAdmin'
+import { useAuthState } from '../hooks/useAuthState'
 import AdminOnly from '../components/AdminOnly'
 import MetricCard from '../components/MetricCard'
 import ActivityEntry from '../components/ActivityEntry'
@@ -58,14 +58,8 @@ function parseDetail(detail: unknown): Record<string, unknown> {
   return (detail as Record<string, unknown>) ?? {}
 }
 
-export default function DashboardView({
-  events,
-  token,
-}: {
-  events: ActivityEvent[]
-  token: string | null
-}) {
-  const isAdmin = useIsAdmin()
+export default function DashboardView({ events }: { events: ActivityEvent[] }) {
+  const { token, isAdmin } = useAuthState()
   const seedChat = useAppStore((s) => s.seedChat)
   const [vault, setVault] = useState<VaultData | null>(null)
   const [health, setHealth] = useState<HealthData | null>(null)
@@ -80,14 +74,12 @@ export default function DashboardView({
   const fetchPrivacyScore = useCallback(async (signal?: AbortSignal) => {
     if (!wallet || !token) return
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/privacy/score`, {
+      const json = await apiFetch<{ data: PrivacyData }>('/v1/privacy/score', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        token,
         body: JSON.stringify({ address: wallet, limit: 100 }),
         signal,
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json()
       setPrivacyData(json.data)
       setPrivacyError(null)
     } catch (err) {
