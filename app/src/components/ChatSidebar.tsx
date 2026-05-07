@@ -1,18 +1,23 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { PaperPlaneTilt, CircleNotch, Wrench } from '@phosphor-icons/react'
 import { useAppStore, type ChatMessage } from '../stores/app'
+import { useAuthState } from '../hooks/useAuthState'
+import { useToast } from '../providers/ToastProvider'
 import { sanitizeArgs } from '../lib/sanitize-args'
 import ToolTimeline from './ToolTimeline'
 import SentinelConfirm from './SentinelConfirm'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
+const AUTH_ERROR_PATTERN = /401|expired|invalid token|unauthori[sz]ed/i
+
 interface Props {
   fullScreen?: boolean
 }
 
 export default function ChatSidebar({ fullScreen }: Props) {
-  const token = useAppStore((s) => s.token)
+  const { token } = useAuthState()
+  const { show: showToast } = useToast()
   const messages = useAppStore((s) => s.messages)
   const chatLoading = useAppStore((s) => s.chatLoading)
   const addMessage = useAppStore((s) => s.addMessage)
@@ -114,14 +119,19 @@ export default function ChatSidebar({ fullScreen }: Props) {
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
-      appendToLast(msg || 'Connection failed')
+      const msg = err instanceof Error ? err.message : 'Connection failed'
+      // 401-class errors flow through the global apiFetch interceptor's
+      // session-expired toast; suppress here so we don't double-notify or
+      // paint the raw token-error text into the assistant's bubble.
+      if (!AUTH_ERROR_PATTERN.test(msg)) {
+        showToast({ message: msg, kind: 'error', durationMs: 6000 })
+      }
     } finally {
       finishStreaming()
       setChatLoading(false)
       setActiveTool(null)
     }
-  }, [input, token, chatLoading, messages, addMessage, appendToLast, finishStreaming, setChatLoading, appendTool, completeTool])
+  }, [input, token, chatLoading, messages, addMessage, appendToLast, finishStreaming, setChatLoading, appendTool, completeTool, showToast])
 
   // Consume seedChat prompt on mount/change
   useEffect(() => {
