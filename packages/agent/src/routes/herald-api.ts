@@ -43,7 +43,11 @@ heraldRouter.patch('/queue/:id', (req: Request, res: Response): void => {
   try {
     const updated = updateContent(id, parsed.data.content)
     if (oldItem) {
-      const wallet = (req as unknown as Record<string, unknown>).wallet as string
+      const wallet = req.wallet
+      if (!wallet) {
+        res.status(500).json({ error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
+        return
+      }
       guardianBus.emit({
         source: 'herald',
         type: 'herald:edited',
@@ -82,7 +86,11 @@ heraldRouter.post('/approve/:id', (req: Request, res: Response) => {
     return
   }
 
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const wallet = req.wallet
+  if (!wallet) {
+    res.status(500).json({ error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
+    return
+  }
 
   switch (action) {
     case 'approve':

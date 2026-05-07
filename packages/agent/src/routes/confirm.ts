@@ -26,7 +26,11 @@ confirmRouter.post('/:id', (req: Request, res: Response) => {
     return
   }
 
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const wallet = req.wallet
+  if (!wallet) {
+    res.status(500).json({ error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
+    return
+  }
   if (entry.wallet !== wallet) {
     res.status(403).json({ error: 'confirmation belongs to a different wallet' })
     return

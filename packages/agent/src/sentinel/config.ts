@@ -112,9 +112,15 @@ export interface SentinelConfig {
 }
 
 function parseMode(raw: string | undefined): SentinelMode {
-  if (raw === 'advisory' || raw === 'off') return raw
-  return 'yolo'
+  if (raw === 'yolo') return 'yolo'
+  if (raw === 'off') return 'off'
+  // 'advisory' is the safe default for both unset and unknown values —
+  // an operator dropping the env var should NOT silently flip SENTINEL
+  // into autonomous fund-moving mode.
+  return 'advisory'
 }
+
+let _yoloWarnEmitted = false
 
 function parseScope(raw: string | undefined): PreflightScope {
   if (raw === 'critical-only' || raw === 'never') return raw
@@ -128,6 +134,13 @@ function parseScope(raw: string | undefined): PreflightScope {
  * @see docs/sentinel/config.md
  */
 export function getSentinelConfig(): SentinelConfig {
+  const mode = parseMode(process.env.SENTINEL_MODE)
+  if (mode === 'yolo' && !_yoloWarnEmitted) {
+    _yoloWarnEmitted = true
+    console.warn(
+      "[sentinel] SENTINEL_MODE=yolo — autonomous fund-moving operations enabled. Confirm this is intentional.",
+    )
+  }
   return {
     scanInterval: Number(process.env.SENTINEL_SCAN_INTERVAL ?? '60000'),
     activeScanInterval: Number(process.env.SENTINEL_ACTIVE_SCAN_INTERVAL ?? '15000'),
@@ -137,7 +150,7 @@ export function getSentinelConfig(): SentinelConfig {
     maxRpcPerWallet: 5,
     maxWalletsPerCycle: 20,
     backoffMax: 600_000,
-    mode: parseMode(process.env.SENTINEL_MODE),
+    mode,
     preflightScope: parseScope(process.env.SENTINEL_PREFLIGHT_SCOPE),
     preflightSkipAmount: Number(process.env.SENTINEL_PREFLIGHT_SKIP_AMOUNT ?? '0.1'),
     blacklistAutonomy: process.env.SENTINEL_BLACKLIST_AUTONOMY !== 'false',

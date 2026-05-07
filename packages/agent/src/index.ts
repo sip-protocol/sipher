@@ -22,6 +22,7 @@ import { SentinelCore } from './sentinel/core.js'
 import { SentinelAdapter } from './sentinel/adapter.js'
 import { restorePendingActions, registerActionExecutor } from './sentinel/circuit-breaker.js'
 import { setSentinelAssessor } from './sentinel/preflight-gate.js'
+import { FUND_MOVING_TOOLS } from './sentinel/preflight-rules.js'
 import { performVaultRefund, assertVaultRefundWired } from './sentinel/vault-refund.js'
 import { sentinelPublicRouter, sentinelAdminRouter } from './routes/sentinel-api.js'
 import { getSentinelConfig } from './sentinel/config.js'
@@ -129,6 +130,16 @@ setInterval(() => {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const app = express()
+
+// Trust proxy: required so req.ip resolves to the client X-Forwarded-For
+// value behind nginx instead of nginx's IP. Without this, per-IP rate
+// limiters degrade into single global counters. Default 1 hop = nginx; set
+// TRUST_PROXY=0 for local dev without a reverse proxy, or higher for
+// multi-hop topologies.
+const trustProxy = Number.parseInt(process.env.TRUST_PROXY ?? '1', 10)
+app.set('trust proxy', trustProxy)
+console.log(`[agent] trust proxy = ${trustProxy} (set TRUST_PROXY env var to override)`)
+
 app.use(express.json({ limit: '1mb' }))
 
 // ─── CORS — only needed for dev/test (in prod the agent serves the app statically)
@@ -195,7 +206,11 @@ app.use('/api/sentinel', verifyJwt, requireOwner, sentinelAdminRouter)
 
 // Activity stream (per-wallet history from DB) — JWT required
 app.get('/api/activity', verifyJwt, (req: Request, res: Response) => {
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const wallet = req.wallet
+  if (!wallet) {
+    res.status(500).json({ error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
+    return
+  }
   const activity = getActivity(wallet)
   res.json({ activity })
 })
@@ -234,18 +249,22 @@ app.post('/api/chat/stream', verifyJwt, async (req, res) => {
 
 // ─── Tool execution endpoint (for direct tool calls from the UI) ────────────
 
-// Fund-moving tools blocked from direct execution — must go through /api/command confirmation flow
-const BLOCKED_TOOLS = new Set(['send', 'deposit', 'refund', 'sweep', 'consolidate', 'swap', 'splitSend', 'scheduleSend', 'drip', 'recurring'])
-
+// Fund-moving tools blocked from direct execution — must go through /api/command
+// confirmation flow. Single source of truth lives in preflight-rules.ts so the
+// SENTINEL preflight gate and this guard never drift.
 app.post('/api/tools/:name', verifyJwt, async (req, res) => {
   const name = req.params.name as string
 
-  if (BLOCKED_TOOLS.has(name)) {
+  if (FUND_MOVING_TOOLS.has(name)) {
     res.status(403).json({ success: false, error: `tool '${name}' requires confirmation flow — use /api/command instead` })
     return
   }
 
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const wallet = req.wallet
+  if (!wallet) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
+    return
+  }
   const input = { ...req.body, wallet }
 
   try {

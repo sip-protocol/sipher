@@ -1,5 +1,6 @@
 import type { AnthropicTool } from '../../pi/tool-adapter.js'
 import { Connection, PublicKey } from '@solana/web3.js'
+import { loadNetworkConfig } from '../../config/network.js'
 
 // Reference: docs/sentinel/tools.md
 
@@ -30,8 +31,7 @@ export const getDepositStatusTool: AnthropicTool = {
 export async function executeGetDepositStatus(
   params: GetDepositStatusParams,
 ): Promise<GetDepositStatusResult> {
-  const rpc = process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
-  const conn = new Connection(rpc, 'confirmed')
+  const conn = new Connection(loadNetworkConfig().rpcUrl, 'confirmed')
   const acct = await conn.getAccountInfo(new PublicKey(params.pda))
   if (!acct) {
     return { status: 'refunded', amount: null, createdAt: null, expiresAt: null }

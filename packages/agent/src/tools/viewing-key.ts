@@ -3,6 +3,7 @@ import { generateViewingKey, deriveViewingKey } from '@sip-protocol/sdk'
 import { sha256 } from '@noble/hashes/sha256'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import { createConnection } from '@sipher/sdk'
+import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Viewing Key tool — Generate, export, and verify viewing keys
@@ -182,7 +183,7 @@ export async function executeViewingKey(params: ViewingKeyParams): Promise<Viewi
     }
 
     case 'verify': {
-      const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+      const network = loadNetworkConfig().clusterName
       const connection = createConnection(network)
       const tx = await connection.getParsedTransaction(
         params.txSignature!,

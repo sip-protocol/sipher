@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { mockSolanaRpc } from './fixtures/mocks'
+import { mockSolanaRpc, mockPrivacyScore } from './fixtures/mocks'
 
 const AUTH_STATE = 'e2e/fixtures/storageState.json'
 
@@ -13,6 +13,7 @@ test('vault view renders', async ({ page }) => {
   })
 
   await mockSolanaRpc(page)
+  await mockPrivacyScore(page)
   await page.goto('/')
   await page.getByRole('button', { name: /vault/i }).first().click()
   await expect(page.locator('[data-testid="vault-view"]')).toBeVisible()

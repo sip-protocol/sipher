@@ -3,6 +3,7 @@ import { PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { createConnection, WSOL_MINT, USDC_MINT, USDT_MINT } from '@sipher/sdk'
 import { getActivity } from '../db.js'
+import { loadNetworkConfig } from '../config/network.js'
 
 export const vaultRouter = Router()
 
@@ -34,8 +35,12 @@ interface TokenBalance {
  * Requires verifyJwt middleware upstream — wallet is attached to req by it.
  */
 vaultRouter.get('/', async (req: Request, res: Response) => {
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
-  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const wallet = req.wallet
+  if (!wallet) {
+    res.status(500).json({ error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
+    return
+  }
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
 
   let solBalance = 0

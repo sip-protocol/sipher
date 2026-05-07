@@ -151,22 +151,12 @@ describe('executeGetOnChainSignatures — service interaction', () => {
     )
   })
 
-  it('uses default mainnet RPC when SOLANA_RPC_URL is unset', async () => {
+  it('uses loadNetworkConfig().rpcUrl for the connection', async () => {
+    // Test env (vitest.config.ts) → SIPHER_NETWORK=devnet + Helius test key.
     await executeGetOnChainSignatures({ address: VALID_TARGET_ADDRESS })
 
     expect(mockConnectionCtor).toHaveBeenCalledWith(
-      'https://api.mainnet-beta.solana.com',
-      'confirmed',
-    )
-  })
-
-  it('honors SOLANA_RPC_URL when set', async () => {
-    process.env.SOLANA_RPC_URL = 'https://api.devnet.solana.com'
-
-    await executeGetOnChainSignatures({ address: VALID_TARGET_ADDRESS })
-
-    expect(mockConnectionCtor).toHaveBeenCalledWith(
-      'https://api.devnet.solana.com',
+      expect.stringContaining('helius-rpc.com'),
       'confirmed',
     )
   })

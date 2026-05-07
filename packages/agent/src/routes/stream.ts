@@ -13,7 +13,11 @@ function sseEventName(type: string): string {
 }
 
 export function streamHandler(req: Request, res: Response): void {
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const wallet = req.wallet
+  if (!wallet) {
+    res.status(500).json({ error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
+    return
+  }
 
   // SSE headers
   res.setHeader('Content-Type', 'text/event-stream')

@@ -3,9 +3,19 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 describe('circuit breaker', () => {
   beforeEach(() => {
     process.env.DB_PATH = ':memory:'
+    // Tests assert the execution path (executor runs, status flips to
+    // 'executed', etc.). With SENTINEL_MODE defaulting to 'advisory' (B16),
+    // gate-3 in circuit-breaker would cancel refunds with reason
+    // 'mode-change'. Pin to 'yolo' here so the circuit breaker actually
+    // runs the executor — that's the surface these tests cover.
+    process.env.SENTINEL_MODE = 'yolo'
     vi.resetModules()  // ensure each test gets fresh module instances
   })
-  afterEach(() => { delete process.env.DB_PATH; vi.useRealTimers() })
+  afterEach(() => {
+    delete process.env.DB_PATH
+    delete process.env.SENTINEL_MODE
+    vi.useRealTimers()
+  })
 
   async function freshDb() {
     const { closeDb, getDb } = await import('../../src/db.js')

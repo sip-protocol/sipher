@@ -6,6 +6,7 @@ import {
   resolveTokenMint,
 } from '@sipher/sdk'
 import type { VaultEvent } from '@sipher/sdk'
+import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // History tool — Transaction history from on-chain vault events
@@ -92,7 +93,7 @@ export async function executeHistory(params: HistoryParams): Promise<HistoryTool
     }
   }
 
-  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
   const { events, hasMore } = await getVaultHistory(
     connection,

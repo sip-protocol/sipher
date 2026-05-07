@@ -6,6 +6,7 @@ import {
   fetchDepositRecord,
   createConnection,
 } from '@sipher/sdk'
+import { loadNetworkConfig } from '../config/network.js'
 
 /**
  * Load a Solana keypair from a JSON file (standard CLI format: [u8; 64]).
@@ -34,7 +35,7 @@ export async function performVaultRefund(
     throw new Error('SENTINEL_AUTHORITY_KEYPAIR env not set — cannot sign authority refund')
   }
   const authority = loadKeypairFromFile(keypairPath)
-  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
 
   // Fetch deposit record to get depositor + tokenMint

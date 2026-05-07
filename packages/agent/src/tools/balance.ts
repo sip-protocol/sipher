@@ -7,6 +7,7 @@ import {
   getTokenDecimals,
   fromBaseUnits,
 } from '@sipher/sdk'
+import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Balance tool — Check vault balance for a depositor
@@ -75,7 +76,7 @@ export async function executeBalance(params: BalanceParams): Promise<BalanceTool
     throw new Error(`Invalid wallet address: ${params.wallet}`)
   }
 
-  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
   const vaultBalance = await getVaultBalance(connection, depositor, tokenMint)
 

@@ -46,9 +46,9 @@ function signMessage(message: string, privateKey: Uint8Array): string {
 
 const { authRouter, verifyJwt, _resetAuthStateForTests } = await import('../../src/routes/auth.js')
 
-beforeEach(() => {
+beforeEach(async () => {
   process.env.JWT_SECRET = JWT_SECRET
-  _resetAuthStateForTests()
+  await _resetAuthStateForTests()
 })
 
 afterEach(() => {
@@ -57,11 +57,14 @@ afterEach(() => {
 
 function createApp() {
   const app = express()
+  // Mirror prod: trust proxy so req.ip honours X-Forwarded-For (per-IP
+  // rate limiter assertions depend on this).
+  app.set('trust proxy', 1)
   app.use(express.json())
   app.use('/auth', authRouter)
   // Protected test endpoint
   app.get('/protected', verifyJwt, (req, res) => {
-    res.json({ wallet: (req as unknown as Record<string, unknown>).wallet })
+    res.json({ wallet: req.wallet })
   })
   return app
 }
@@ -73,9 +76,10 @@ function createApp() {
 describe('POST /auth/nonce', () => {
   it('returns nonce and message for valid wallet', async () => {
     const app = createApp()
+    const { wallet } = generateTestWallet()
     const res = await supertest(app)
       .post('/auth/nonce')
-      .send({ wallet: 'wallet123abc' })
+      .send({ wallet })
     expect(res.status).toBe(200)
     expect(res.body.nonce).toBeDefined()
     expect(typeof res.body.nonce).toBe('string')
@@ -89,7 +93,7 @@ describe('POST /auth/nonce', () => {
       .post('/auth/nonce')
       .send({})
     expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/wallet/i)
+    expect(res.body.error?.code).toBe('VALIDATION_FAILED')
   })
 
   it('rejects non-string wallet', async () => {
@@ -98,16 +102,102 @@ describe('POST /auth/nonce', () => {
       .post('/auth/nonce')
       .send({ wallet: 12345 })
     expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/wallet/i)
+    expect(res.body.error?.code).toBe('VALIDATION_FAILED')
+    expect(res.body.error?.message).toMatch(/wallet/i)
   })
 
   it('generates unique nonces per request', async () => {
     const app = createApp()
+    const { wallet } = generateTestWallet()
     const [r1, r2] = await Promise.all([
-      supertest(app).post('/auth/nonce').send({ wallet: 'wallet123' }),
-      supertest(app).post('/auth/nonce').send({ wallet: 'wallet123' }),
+      supertest(app).post('/auth/nonce').send({ wallet }),
+      supertest(app).post('/auth/nonce').send({ wallet }),
     ])
     expect(r1.body.nonce).not.toBe(r2.body.nonce)
+  })
+
+  describe('input validation', () => {
+    it('rejects wallet longer than 64 chars', async () => {
+      const app = createApp()
+      const res = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet: 'A'.repeat(65) })
+      expect(res.status).toBe(400)
+      expect(res.body.error?.code).toBe('VALIDATION_FAILED')
+    })
+
+    it('rejects wallet with non-base58 chars', async () => {
+      const app = createApp()
+      const res = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet: 'has spaces and !@#' })
+      expect(res.status).toBe(400)
+      expect(res.body.error?.code).toBe('VALIDATION_FAILED')
+    })
+
+    it('rejects wallet shorter than 32 chars', async () => {
+      const app = createApp()
+      const res = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet: 'A'.repeat(31) })
+      expect(res.status).toBe(400)
+      expect(res.body.error?.code).toBe('VALIDATION_FAILED')
+    })
+
+    it('accepts valid base58 Solana pubkey (32-44 chars)', async () => {
+      const app = createApp()
+      const res = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr' })
+      expect(res.status).toBe(200)
+      expect(res.body.nonce).toBeDefined()
+    })
+
+    it('rejects wallet containing the forbidden base58 character "l"', async () => {
+      const app = createApp()
+      // 32-char string with lowercase 'l' (Bitcoin/Solana base58 omits 0OIl)
+      const res = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet: 'l'.repeat(32) })
+      expect(res.status).toBe(400)
+      expect(res.body.error?.code).toBe('VALIDATION_FAILED')
+    })
+  })
+
+  describe('per-IP rate limit', () => {
+    it('returns 429 after 5 requests/min from same IP', async () => {
+      const app = createApp()
+      const { wallet } = generateTestWallet()
+      for (let i = 0; i < 5; i++) {
+        const res = await supertest(app)
+          .post('/auth/nonce')
+          .set('X-Forwarded-For', '1.2.3.4')
+          .send({ wallet })
+        expect(res.status).toBe(200)
+      }
+      const sixth = await supertest(app)
+        .post('/auth/nonce')
+        .set('X-Forwarded-For', '1.2.3.4')
+        .send({ wallet })
+      expect(sixth.status).toBe(429)
+      expect(sixth.body.error?.code).toBe('RATE_LIMITED')
+    })
+
+    it('different IP gets an independent budget', async () => {
+      const app = createApp()
+      const { wallet } = generateTestWallet()
+      for (let i = 0; i < 5; i++) {
+        await supertest(app)
+          .post('/auth/nonce')
+          .set('X-Forwarded-For', '1.2.3.4')
+          .send({ wallet })
+      }
+      const fromOtherIp = await supertest(app)
+        .post('/auth/nonce')
+        .set('X-Forwarded-For', '5.6.7.8')
+        .send({ wallet })
+      expect(fromOtherIp.status).toBe(200)
+    })
   })
 })
 
@@ -277,6 +367,237 @@ describe('POST /auth/verify', () => {
       .post('/auth/verify')
       .send({ wallet, nonce, signature })
     expect(res.status).toBe(401)
+  })
+
+  describe('SIWS one-popup (signedMessage field)', () => {
+    function buildSiwsMessage(domain: string, wallet: string, nonce: string): string {
+      return `${domain} wants you to sign in with your Solana account:\n${wallet}\n\nNonce: ${nonce}\nIssued At: 2026-05-07T00:00:00Z`
+    }
+
+    it('accepts SIWS signedMessage and verifies the actual signed bytes', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce } = nonceRes.body
+
+      const siws = buildSiwsMessage('sipher.sip-protocol.org', wallet, nonce)
+      const messageBytes = new TextEncoder().encode(siws)
+      const sigBytes = ed25519.sign(messageBytes, privateKey)
+      const signature = encodeBase58(sigBytes)
+      const signedMessage = Buffer.from(messageBytes).toString('base64')
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage })
+      expect(res.status).toBe(200)
+      expect(res.body.token).toBeDefined()
+    })
+
+    it('rejects signedMessage that does not bind to the issued nonce', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce } = nonceRes.body
+
+      // Sign a message with a DIFFERENT nonce — attacker reuses an old SIWS msg
+      const siws = buildSiwsMessage('sipher.sip-protocol.org', wallet, 'forged-nonce-not-real')
+      const messageBytes = new TextEncoder().encode(siws)
+      const sigBytes = ed25519.sign(messageBytes, privateKey)
+      const signature = encodeBase58(sigBytes)
+      const signedMessage = Buffer.from(messageBytes).toString('base64')
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage })
+      expect(res.status).toBe(401)
+    })
+
+    it('rejects signedMessage from a domain not in the allow-list', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce } = nonceRes.body
+
+      const siws = buildSiwsMessage('evil.example.com', wallet, nonce)
+      const messageBytes = new TextEncoder().encode(siws)
+      const sigBytes = ed25519.sign(messageBytes, privateKey)
+      const signature = encodeBase58(sigBytes)
+      const signedMessage = Buffer.from(messageBytes).toString('base64')
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage })
+      expect(res.status).toBe(401)
+    })
+
+    it('rejects signedMessage that prefix-matches but is not the allowed domain', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce } = nonceRes.body
+
+      // Attacker registers a domain that prefix-matches "localhost" via "localhost.attacker.com".
+      // Allow-list entry "localhost" must NOT match this.
+      const siws = buildSiwsMessage('localhost.attacker.com', wallet, nonce)
+      const messageBytes = new TextEncoder().encode(siws)
+      const sigBytes = ed25519.sign(messageBytes, privateKey)
+      const signature = encodeBase58(sigBytes)
+      const signedMessage = Buffer.from(messageBytes).toString('base64')
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage })
+      expect(res.status).toBe(401)
+    })
+
+    it('rejects signedMessage whose signature does not match the wallet pubkey', async () => {
+      const app = createApp()
+      const { wallet } = generateTestWallet()
+      const attacker = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce } = nonceRes.body
+
+      // Attacker signs the SIWS bytes with their own key but claims victim's wallet
+      const siws = buildSiwsMessage('sipher.sip-protocol.org', wallet, nonce)
+      const messageBytes = new TextEncoder().encode(siws)
+      const sigBytes = ed25519.sign(messageBytes, attacker.privateKey)
+      const signature = encodeBase58(sigBytes)
+      const signedMessage = Buffer.from(messageBytes).toString('base64')
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage })
+      expect(res.status).toBe(401)
+    })
+
+    it('rejects malformed base64 signedMessage', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce, message } = nonceRes.body
+      const signature = signMessage(message, privateKey)
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage: 'not-valid-base64-!!!@#$' })
+      expect(res.status).toBe(401)
+    })
+
+    it('legacy signMessage path still works when signedMessage is absent', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce, message } = nonceRes.body
+      const signature = signMessage(message, privateKey)
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature })
+      expect(res.status).toBe(200)
+      expect(res.body.token).toBeDefined()
+    })
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/refresh
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('POST /auth/refresh', () => {
+  it('returns a fresh JWT when current token is within 5min of expiry', async () => {
+    const app = createApp()
+    const wallet = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+    const oldToken = jwt.sign({ wallet, isAdmin: false }, JWT_SECRET, { expiresIn: '4m' })
+
+    const res = await supertest(app)
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${oldToken}`)
+      .send()
+    expect(res.status).toBe(200)
+    expect(typeof res.body.token).toBe('string')
+    expect(res.body.expiresIn).toBeDefined()
+
+    // Refresh must preserve the wallet + isAdmin claims
+    const decoded = jwt.verify(res.body.token, JWT_SECRET) as { wallet: string; isAdmin: boolean }
+    expect(decoded.wallet).toBe(wallet)
+    expect(decoded.isAdmin).toBe(false)
+  })
+
+  it('returns 425 TOO_EARLY when current token has more than 5min remaining', async () => {
+    const app = createApp()
+    const wallet = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+    const newToken = jwt.sign({ wallet, isAdmin: false }, JWT_SECRET, { expiresIn: '20m' })
+
+    const res = await supertest(app)
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${newToken}`)
+      .send()
+    expect(res.status).toBe(425)
+    expect(res.body.error?.code).toBe('TOO_EARLY')
+  })
+
+  it('returns 401 INVALID_TOKEN when current token is expired', async () => {
+    const app = createApp()
+    const wallet = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+    const expiredToken = jwt.sign({ wallet, isAdmin: false }, JWT_SECRET, { expiresIn: '-1s' })
+
+    const res = await supertest(app)
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${expiredToken}`)
+      .send()
+    expect(res.status).toBe(401)
+    expect(res.body.error?.code).toBe('INVALID_TOKEN')
+  })
+
+  it('returns 401 INVALID_TOKEN when token signed with wrong secret', async () => {
+    const app = createApp()
+    const wallet = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+    const badToken = jwt.sign({ wallet, isAdmin: false }, 'a-different-secret-16-chars', { expiresIn: '4m' })
+
+    const res = await supertest(app)
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${badToken}`)
+      .send()
+    expect(res.status).toBe(401)
+    expect(res.body.error?.code).toBe('INVALID_TOKEN')
+  })
+
+  it('returns 401 UNAUTHENTICATED when no Authorization header is sent', async () => {
+    const app = createApp()
+    const res = await supertest(app).post('/auth/refresh').send()
+    expect(res.status).toBe(401)
+    expect(res.body.error?.code).toBe('UNAUTHENTICATED')
+  })
+
+  it('returns 401 UNAUTHENTICATED when Authorization header is malformed', async () => {
+    const app = createApp()
+    const res = await supertest(app)
+      .post('/auth/refresh')
+      .set('Authorization', 'NotBearer some-token')
+      .send()
+    expect(res.status).toBe(401)
+    expect(res.body.error?.code).toBe('UNAUTHENTICATED')
   })
 })
 
