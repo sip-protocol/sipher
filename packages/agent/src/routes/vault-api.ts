@@ -34,7 +34,11 @@ interface TokenBalance {
  * Requires verifyJwt middleware upstream — wallet is attached to req by it.
  */
 vaultRouter.get('/', async (req: Request, res: Response) => {
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const wallet = req.wallet
+  if (!wallet) {
+    res.status(500).json({ error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
+    return
+  }
   const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
   const connection = createConnection(network)
 

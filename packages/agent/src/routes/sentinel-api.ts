@@ -101,7 +101,7 @@ sentinelAdminRouter.post('/blacklist', (req: Request, res: Response) => {
     sendSentinelError(res, 'VALIDATION_FAILED', 'address, reason, severity required')
     return
   }
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string | undefined
+  const wallet = req.wallet
   const id = insertBlacklist({
     address, reason, severity,
     addedBy: wallet ? `admin:${wallet}` : 'admin',
@@ -119,10 +119,9 @@ sentinelAdminRouter.post('/blacklist', (req: Request, res: Response) => {
  * @see docs/sentinel/rest-api.md#delete-apisentinelblacklistid
  */
 sentinelAdminRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
-  const w = (req as unknown as Record<string, unknown>).wallet
-  const wallet = (typeof w === 'string' ? w : undefined)
+  const wallet = req.wallet
   const reason = (req.body?.reason as string) ?? 'manual removal'
-  const by = typeof wallet === 'string' ? `admin:${wallet}` : 'admin'
+  const by = wallet ? `admin:${wallet}` : 'admin'
   const id = (typeof req.params.id === 'string' ? req.params.id : String(req.params.id))
   softRemoveBlacklist(id, by, reason)
   res.json({ success: true })
@@ -140,9 +139,8 @@ sentinelAdminRouter.delete('/blacklist/:id', (req: Request, res: Response) => {
  */
 sentinelAdminRouter.post('/circuit-breaker/:id/cancel', (req: Request, res: Response) => {
   const reason = (req.body?.reason as string) ?? 'manual cancel'
-  const w = (req as unknown as Record<string, unknown>).wallet
-  const wallet = (typeof w === 'string' ? w : undefined)
-  const by = typeof wallet === 'string' ? `user:${wallet}` : 'admin'
+  const wallet = req.wallet
+  const by = wallet ? `user:${wallet}` : 'admin'
   const id = (typeof req.params.id === 'string' ? req.params.id : String(req.params.id))
   const ok = cancelCircuitBreakerAction(id, by, reason)
   if (!ok) {

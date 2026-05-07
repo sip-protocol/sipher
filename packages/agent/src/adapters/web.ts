@@ -53,10 +53,15 @@ function chunkToSSE(chunk: ResponseChunk): Record<string, unknown> {
 }
 
 /**
- * Extract the wallet address set by JWT middleware.
+ * Extract the wallet address set by JWT middleware. Throws if absent
+ * (catches middleware-order bugs that would otherwise be silent NPEs).
  */
 function getWallet(req: Request): string {
-  return (req as unknown as Record<string, unknown>).wallet as string
+  const wallet = req.wallet
+  if (!wallet) {
+    throw new Error('getWallet called before verifyJwt middleware attached req.wallet')
+  }
+  return wallet
 }
 
 /**

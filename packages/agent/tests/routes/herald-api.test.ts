@@ -29,6 +29,13 @@ const { heraldRouter } = await import('../../src/routes/herald-api.js')
 function createApp() {
   const app = express()
   app.use(express.json())
+  // Stub verifyJwt: production attaches req.wallet from a decoded JWT.
+  // Unit tests mount the router directly, so we attach a fixed test wallet
+  // to match the middleware contract.
+  app.use((req, _res, next) => {
+    req.wallet = 'test-wallet'
+    next()
+  })
   app.use('/api/herald', heraldRouter)
   return app
 }

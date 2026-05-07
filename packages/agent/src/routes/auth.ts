@@ -272,7 +272,7 @@ export function verifyJwt(req: Request, res: Response, next: NextFunction): void
       res.status(401).json({ error: 'invalid or expired SSE ticket' })
       return
     }
-    ;(req as unknown as Record<string, unknown>).wallet = wallet
+    req.wallet = wallet
     next()
     return
   }
@@ -290,7 +290,7 @@ export function verifyJwt(req: Request, res: Response, next: NextFunction): void
 
   try {
     const decoded = jwt.verify(token, getSecret(), { algorithms: ['HS256'] }) as { wallet: string }
-    ;(req as unknown as Record<string, unknown>).wallet = decoded.wallet
+    req.wallet = decoded.wallet
     next()
   } catch {
     res.status(401).json({ error: 'invalid or expired token' })
@@ -302,7 +302,11 @@ export function verifyJwt(req: Request, res: Response, next: NextFunction): void
  * Must be placed AFTER verifyJwt in the middleware chain.
  */
 export function requireOwner(req: Request, res: Response, next: NextFunction): void {
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const wallet = req.wallet
+  if (!wallet) {
+    res.status(500).json({ error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
+    return
+  }
   const allowed = (process.env.AUTHORIZED_WALLETS ?? '').split(',').map(w => w.trim()).filter(Boolean)
 
   // If no wallets configured, deny all — fail closed

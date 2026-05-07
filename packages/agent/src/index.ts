@@ -195,7 +195,11 @@ app.use('/api/sentinel', verifyJwt, requireOwner, sentinelAdminRouter)
 
 // Activity stream (per-wallet history from DB) — JWT required
 app.get('/api/activity', verifyJwt, (req: Request, res: Response) => {
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const wallet = req.wallet
+  if (!wallet) {
+    res.status(500).json({ error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
+    return
+  }
   const activity = getActivity(wallet)
   res.json({ activity })
 })
@@ -245,7 +249,11 @@ app.post('/api/tools/:name', verifyJwt, async (req, res) => {
     return
   }
 
-  const wallet = (req as unknown as Record<string, unknown>).wallet as string
+  const wallet = req.wallet
+  if (!wallet) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
+    return
+  }
   const input = { ...req.body, wallet }
 
   try {
