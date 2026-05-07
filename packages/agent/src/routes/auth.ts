@@ -8,7 +8,10 @@ import { ed25519 } from '@noble/curves/ed25519'
 // ─────────────────────────────────────────────────────────────────────────────
 
 const NONCE_TTL = 5 * 60 * 1000 // 5 minutes
-const JWT_EXPIRY = '1h'
+// JWT lifetime. 24h default keeps users from re-signing every hour during
+// normal browsing; 1h in tests preserves existing TTL-shape assertions.
+// Operator can override via env (e.g. shorten to '4h' for higher security).
+const JWT_EXPIRY = process.env.JWT_EXPIRY ?? (process.env.NODE_ENV === 'test' ? '1h' : '24h')
 
 // Solana wallet base58 shape: 32-44 characters, Bitcoin/Solana base58 alphabet
 // (digits 1-9 + uppercase A-Z minus I, O + lowercase a-z minus l).
