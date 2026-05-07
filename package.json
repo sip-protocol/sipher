@@ -82,5 +82,12 @@
     "openclaw",
     "rest-api"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "bufferutil",
+      "utf-8-validate"
+    ]
+  }
 }
