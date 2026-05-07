@@ -22,6 +22,7 @@ import { SentinelCore } from './sentinel/core.js'
 import { SentinelAdapter } from './sentinel/adapter.js'
 import { restorePendingActions, registerActionExecutor } from './sentinel/circuit-breaker.js'
 import { setSentinelAssessor } from './sentinel/preflight-gate.js'
+import { FUND_MOVING_TOOLS } from './sentinel/preflight-rules.js'
 import { performVaultRefund, assertVaultRefundWired } from './sentinel/vault-refund.js'
 import { sentinelPublicRouter, sentinelAdminRouter } from './routes/sentinel-api.js'
 import { getSentinelConfig } from './sentinel/config.js'
@@ -248,13 +249,13 @@ app.post('/api/chat/stream', verifyJwt, async (req, res) => {
 
 // ─── Tool execution endpoint (for direct tool calls from the UI) ────────────
 
-// Fund-moving tools blocked from direct execution — must go through /api/command confirmation flow
-const BLOCKED_TOOLS = new Set(['send', 'deposit', 'refund', 'sweep', 'consolidate', 'swap', 'splitSend', 'scheduleSend', 'drip', 'recurring'])
-
+// Fund-moving tools blocked from direct execution — must go through /api/command
+// confirmation flow. Single source of truth lives in preflight-rules.ts so the
+// SENTINEL preflight gate and this guard never drift.
 app.post('/api/tools/:name', verifyJwt, async (req, res) => {
   const name = req.params.name as string
 
-  if (BLOCKED_TOOLS.has(name)) {
+  if (FUND_MOVING_TOOLS.has(name)) {
     res.status(403).json({ success: false, error: `tool '${name}' requires confirmation flow — use /api/command instead` })
     return
   }

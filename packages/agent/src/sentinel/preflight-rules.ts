@@ -1,7 +1,7 @@
 import { getDb, getActiveBlacklistEntry } from '../db.js'
 import { getSentinelConfig } from './config.js'
 
-const FUND_MOVING_TOOLS = new Set([
+export const FUND_MOVING_TOOLS: ReadonlySet<string> = new Set([
   'send', 'deposit', 'swap', 'sweep', 'consolidate',
   'splitSend', 'scheduleSend', 'drip', 'recurring', 'refund',
 ])
