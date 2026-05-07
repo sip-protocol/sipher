@@ -152,6 +152,33 @@ describe('AuthSyncProvider — status machine', () => {
     expect(screen.getByTestId('isAdmin').textContent).toBe('yes')
   })
 
+  it('preserves auth on initial mount when wallet has not connected yet (autoConnect race)', () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const validToken = makeJwtForTest({ wallet: 'W', exp: futureExp })
+
+    // Persisted token is hydrated by Zustand before wallet-adapter has a
+    // chance to autoConnect. `connected` is false on first render — but
+    // we have NOT seen a connected→disconnected transition, so the auto-
+    // clear effect must NOT fire.
+    mockedUseWallet.mockReturnValue({
+      connected: false,
+      publicKey: null,
+      wallet: null,
+      signMessage: undefined,
+      disconnect: vi.fn(),
+    })
+    useAppStore.setState({ token: validToken, isAdmin: false, expiresAt: futureExp }, false)
+
+    render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+
+    expect(useAppStore.getState().token).toBe(validToken)
+    expect(useAppStore.getState().expiresAt).toBe(futureExp)
+  })
+
   it('clears auth automatically when wallet disconnects externally', () => {
     const futureExp = Math.floor(Date.now() / 1000) + 3600
     const validToken = makeJwtForTest({ wallet: 'W', exp: futureExp })

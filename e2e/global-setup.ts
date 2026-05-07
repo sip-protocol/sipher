@@ -18,14 +18,17 @@ export default async function globalSetup(): Promise<void> {
     )
   }
 
-  const { token, isAdmin, wallet } = await mintAdminJwt(keypairPath, BACKEND_BASE)
+  const { token, isAdmin, wallet, expiresAt } = await mintAdminJwt(keypairPath, BACKEND_BASE)
   if (!isAdmin) {
     throw new Error(`Minted JWT for ${wallet} is not admin. Check AUTHORIZED_WALLETS env.`)
   }
 
+  // Match the persist version + shape used by app/src/stores/app.ts. Older
+  // versions are nuked by the v0->v1 migrate, which clears the token and
+  // forces a fresh sign-in — that breaks the authenticated specs.
   const zustandPayload = {
-    state: { token, isAdmin },
-    version: 0,
+    state: { token, isAdmin, expiresAt },
+    version: 1,
   }
 
   const storageState = {

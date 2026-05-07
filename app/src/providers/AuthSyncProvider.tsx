@@ -42,6 +42,12 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [authenticating, setAuthenticating] = useState(false)
   const lastWalletRef = useRef<string | null>(null)
+  // Tracks whether the wallet was ever connected during this provider's
+  // lifetime. We only treat `connected: false` as an external-disconnect
+  // signal AFTER we've seen `connected: true` at least once — otherwise the
+  // initial mount race (Zustand hydrates the persisted token before Phantom's
+  // autoConnect resolves) would clear auth on every page load.
+  const wasConnectedRef = useRef(false)
   const authenticateRef = useRef<() => Promise<void>>(() => Promise.resolve())
 
   // Track wallet identity across renders; clear auth when the wallet changes.
@@ -73,10 +79,19 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
   // Disconnect in their Phantom extension, locks their hardware wallet,
   // browser wipes wallet-adapter state, etc.). The other reconciliation
   // effects only fire when `connected` is true, so they can't catch this.
+  //
+  // Gated on wasConnectedRef so that the initial-mount race where Zustand
+  // hydrates the persisted token before wallet-adapter's autoConnect
+  // resolves doesn't trigger a phantom clear.
   useEffect(() => {
-    if (!connected && (token !== null || isAdmin)) {
+    if (connected) {
+      wasConnectedRef.current = true
+      return
+    }
+    if (wasConnectedRef.current && (token !== null || isAdmin)) {
       clearAuth()
       lastWalletRef.current = null
+      wasConnectedRef.current = false
     }
   }, [connected, token, isAdmin, clearAuth])
 
