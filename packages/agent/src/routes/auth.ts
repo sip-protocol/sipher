@@ -44,6 +44,27 @@ function decodeBase64ToBytes(input: string): Uint8Array | null {
   }
 }
 
+// AUTHORIZED_WALLETS allowlist — cached parse with env-mtime invalidation.
+// Production: env never changes after boot → one parse, all subsequent
+// requests hit the cache. Tests that mutate process.env.AUTHORIZED_WALLETS
+// per-test still see the new value because the cache reparses on env-string
+// drift (no test-helper export needed).
+let _cachedAuthEnv: string | undefined
+let _cachedAuthSet = new Set<string>()
+
+function authorizedWalletsSet(): Set<string> {
+  const cur = process.env.AUTHORIZED_WALLETS
+  if (cur !== _cachedAuthEnv) {
+    _cachedAuthEnv = cur
+    _cachedAuthSet = new Set(
+      (cur ?? '').split(',').map((w) => w.trim()).filter(Boolean)
+    )
+  }
+  return _cachedAuthSet
+}
+
+console.log(`[agent] AUTHORIZED_WALLETS: ${authorizedWalletsSet().size} entries`)
+
 // In-memory store: nonce → { wallet, expires }
 const pendingNonces = new Map<string, { wallet: string; expires: number }>()
 
@@ -296,8 +317,8 @@ authRouter.post('/verify', (req: Request, res: Response) => {
   // One-time use — consume before responding
   pendingNonces.delete(nonce)
 
-  const allowed = (process.env.AUTHORIZED_WALLETS ?? '').split(',').map((w) => w.trim()).filter(Boolean)
-  const isAdmin = allowed.length > 0 && allowed.includes(wallet)
+  const allowed = authorizedWalletsSet()
+  const isAdmin = allowed.size > 0 && allowed.has(wallet)
 
   const token = jwt.sign({ wallet }, getSecret(), { expiresIn: JWT_EXPIRY, algorithm: 'HS256' })
   res.json({ token, expiresIn: JWT_EXPIRY, isAdmin })
@@ -458,15 +479,15 @@ export function requireOwner(req: Request, res: Response, next: NextFunction): v
     res.status(500).json({ error: { code: 'INTERNAL', message: 'JWT middleware did not attach wallet' } })
     return
   }
-  const allowed = (process.env.AUTHORIZED_WALLETS ?? '').split(',').map(w => w.trim()).filter(Boolean)
+  const allowed = authorizedWalletsSet()
 
   // If no wallets configured, deny all — fail closed
-  if (allowed.length === 0) {
+  if (allowed.size === 0) {
     res.status(403).json({ error: 'no authorized wallets configured' })
     return
   }
 
-  if (!allowed.includes(wallet)) {
+  if (!allowed.has(wallet)) {
     res.status(403).json({ error: 'wallet not authorized for admin operations' })
     return
   }
