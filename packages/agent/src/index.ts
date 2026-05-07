@@ -215,11 +215,9 @@ app.get('/api/activity', verifyJwt, (req: Request, res: Response) => {
   res.json({ activity })
 })
 
-// Serve web chat UI (static files from app/dist)
-// In production: packages/agent/dist/ -> ../../../app/dist
-// Resolved via __dirname so it works regardless of cwd
-const webRoot = path.resolve(__dirname, '../../../app/dist')
-app.use(express.static(webRoot))
+// FE is served by Vercel at sipher.sip-protocol.org. Backend
+// is API-only at api.sipher.sip-protocol.org. CORS_ORIGINS env
+// gates which Vercel preview/prod origins can call us.
 
 // ─── Chat endpoint ──────────────────────────────────────────────────────────
 
