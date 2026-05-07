@@ -7,21 +7,26 @@ import {
 } from '../db.js'
 import { renderLoginPage, renderDashboardPage } from '../views/admin-page.js'
 import type { DashboardStats } from '../views/admin-page.js'
+import { createStore } from '../state/ephemeral.js'
 
 export const adminRouter = Router()
 
-const adminTokens = new Map<string, number>() // token → expiresAt
+// token → expiresAt epoch-ms. Backed by the centralized ephemeral store —
+// the value type is a plain number so it round-trips through any future
+// Redis backend without surgery.
+const adminTokens = createStore<number>('adminTokens', { maxSize: 1_000 })
 const COOKIE_NAME = 'sipher_admin'
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+const TWENTY_FOUR_HOURS_SECONDS = 24 * 60 * 60
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function isValidAdminToken(token: string): boolean {
-  const expiresAt = adminTokens.get(token)
+async function isValidAdminToken(token: string): Promise<boolean> {
+  const expiresAt = await adminTokens.get(token)
   if (!expiresAt || expiresAt < Date.now()) {
-    adminTokens.delete(token)
+    await adminTokens.delete(token)
     return false
   }
   return true
@@ -42,13 +47,13 @@ function getCookie(req: { headers: { cookie?: string } }, name: string): string 
   return match ? match.split('=')[1].trim() : null
 }
 
-function requireAuth(
+async function requireAuth(
   req: { headers: { cookie?: string } },
   res: { status: (code: number) => { json: (body: unknown) => void } },
   next: () => void,
-): void {
+): Promise<void> {
   const token = getCookie(req, COOKIE_NAME)
-  if (!token || !isValidAdminToken(token)) {
+  if (!token || !(await isValidAdminToken(token))) {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
@@ -71,23 +76,23 @@ function buildStats(): DashboardStats {
 // Public routes (no auth required)
 // ─────────────────────────────────────────────────────────────────────────────
 
-adminRouter.get('/', (req, res) => {
+adminRouter.get('/', async (req, res) => {
   const token = getCookie(req, COOKIE_NAME)
-  if (token && adminTokens.has(token)) {
+  if (token && (await isValidAdminToken(token))) {
     res.redirect('/admin/dashboard')
     return
   }
   res.type('html').send(renderLoginPage())
 })
 
-adminRouter.post('/login', (req, res) => {
+adminRouter.post('/login', async (req, res) => {
   const { password } = req.body
   if (!password || !checkPassword(password)) {
     res.status(401).type('html').send(renderLoginPage('Invalid password'))
     return
   }
   const token = randomBytes(32).toString('hex')
-  adminTokens.set(token, Date.now() + TWENTY_FOUR_HOURS)
+  await adminTokens.set(token, Date.now() + TWENTY_FOUR_HOURS, TWENTY_FOUR_HOURS_SECONDS)
   res.setHeader(
     'Set-Cookie',
     `${COOKIE_NAME}=${token}; Path=/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=${TWENTY_FOUR_HOURS / 1000}`,
@@ -95,9 +100,9 @@ adminRouter.post('/login', (req, res) => {
   res.redirect('/admin/dashboard')
 })
 
-adminRouter.post('/logout', (req, res) => {
+adminRouter.post('/logout', async (req, res) => {
   const token = getCookie(req, COOKIE_NAME)
-  if (token) adminTokens.delete(token)
+  if (token) await adminTokens.delete(token)
   res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/admin; HttpOnly; Max-Age=0`)
   res.redirect('/admin/')
 })
@@ -116,13 +121,5 @@ adminRouter.get('/api/stats', requireAuth as any, (_req, res) => {
   ;(res as any).json(stats)
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Background cleanup — expire stale admin tokens
-// ─────────────────────────────────────────────────────────────────────────────
-
-setInterval(() => {
-  const now = Date.now()
-  for (const [token, expiresAt] of adminTokens) {
-    if (expiresAt < now) adminTokens.delete(token)
-  }
-}, 60 * 60 * 1000).unref()
+// Background cleanup is centralized in the ephemeral store (sweep loop +
+// lazy expiration on get); no per-map setInterval needed.
