@@ -4,6 +4,7 @@ import {
   scanForPayments,
   fromBaseUnits,
 } from '@sipher/sdk'
+import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scan tool — Scan for incoming stealth payments
@@ -99,7 +100,7 @@ export async function executeScan(params: ScanParams): Promise<ScanToolResult> {
     throw new Error(`Spending key must be 32 bytes (64 hex chars), got ${spendingPrivateKey.length} bytes`)
   }
 
-  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
 
   const result = await scanForPayments({

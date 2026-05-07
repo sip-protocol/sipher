@@ -9,6 +9,7 @@ import {
   fromBaseUnits,
   SIPHER_VAULT_PROGRAM_ID,
 } from '@sipher/sdk'
+import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Refund tool — Withdraw available balance back to depositor
@@ -93,7 +94,7 @@ export async function executeRefund(params: RefundParams): Promise<RefundToolRes
   }
 
   const depositorTokenAccount = await getAssociatedTokenAddress(tokenMint, depositor)
-  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
 
   const result = await buildRefundTx(

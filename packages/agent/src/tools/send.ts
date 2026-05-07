@@ -19,6 +19,7 @@ import {
   getVaultConfig,
   DEFAULT_FEE_BPS,
 } from '@sipher/sdk'
+import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Private Send tool — Withdraw from vault to a stealth address
@@ -100,7 +101,7 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
   }
 
   const token = params.token.toUpperCase()
-  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
 
   // Fetch live fee_bps from on-chain config

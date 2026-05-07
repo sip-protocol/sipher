@@ -8,6 +8,7 @@ import {
 import type { ScanParams } from '@sipher/sdk'
 import { type Detection, detectUnclaimedPayment, detectBalanceChange } from './detector.js'
 import { getSentinelConfig } from './config.js'
+import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -83,8 +84,7 @@ export async function scanWallet(
   let rpcCalls = 0
 
   // Build connection — local only, no RPC call consumed
-  const envNetwork = process.env.SOLANA_NETWORK ?? 'mainnet-beta'
-  const network = (envNetwork === 'devnet' ? 'devnet' : 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
 
   // ── Step 1: Vault balance ──────────────────────────────────────────────────

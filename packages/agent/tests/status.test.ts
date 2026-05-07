@@ -114,29 +114,11 @@ describe('executeStatus — config not found', () => {
 })
 
 describe('executeStatus — service interaction', () => {
-  it('respects SOLANA_NETWORK env var', async () => {
-    const original = process.env.SOLANA_NETWORK
-    process.env.SOLANA_NETWORK = 'devnet'
-    try {
-      mockGetVaultConfig.mockResolvedValueOnce(makeVaultConfig())
-      await executeStatus()
-      expect(mockCreateConnection).toHaveBeenCalledWith('devnet')
-    } finally {
-      if (original !== undefined) process.env.SOLANA_NETWORK = original
-      else delete process.env.SOLANA_NETWORK
-    }
-  })
-
-  it('defaults to mainnet-beta when SOLANA_NETWORK unset', async () => {
-    const original = process.env.SOLANA_NETWORK
-    delete process.env.SOLANA_NETWORK
-    try {
-      mockGetVaultConfig.mockResolvedValueOnce(makeVaultConfig())
-      await executeStatus()
-      expect(mockCreateConnection).toHaveBeenCalledWith('mainnet-beta')
-    } finally {
-      if (original !== undefined) process.env.SOLANA_NETWORK = original
-    }
+  it('uses cluster name from loadNetworkConfig (SIPHER_NETWORK=devnet in test env)', async () => {
+    mockGetVaultConfig.mockResolvedValueOnce(makeVaultConfig())
+    await executeStatus()
+    // vitest.config.ts sets SIPHER_NETWORK=devnet globally → clusterName === 'devnet'
+    expect(mockCreateConnection).toHaveBeenCalledWith('devnet')
   })
 
   it('propagates getVaultConfig errors', async () => {

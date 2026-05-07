@@ -6,6 +6,7 @@ import {
   DEFAULT_FEE_BPS,
   DEFAULT_REFUND_TIMEOUT,
 } from '@sipher/sdk'
+import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Status tool — Read-only vault status from on-chain VaultConfig PDA
@@ -42,7 +43,7 @@ export const statusTool: AnthropicTool = {
 }
 
 export async function executeStatus(): Promise<StatusToolResult> {
-  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
   const config = await getVaultConfig(connection)
 

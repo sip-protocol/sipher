@@ -1,6 +1,7 @@
 import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { createScheduledOp, getOrCreateSession } from '../db.js'
 import { createConnection, scanForPayments } from '@sipher/sdk'
+import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // consolidate tool — Merge multiple unclaimed stealth balances with staggered
@@ -60,7 +61,7 @@ export async function executeConsolidate(
     throw new Error('Spending key is required for claiming')
   }
 
-  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
 
   // Parse hex keys → Uint8Array (strip optional 0x prefix)

@@ -2,6 +2,7 @@ import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { PublicKey } from '@solana/web3.js'
 import { createConnection } from '@sipher/sdk'
 import { classifyAddress } from '../data/known-addresses.js'
+import { loadNetworkConfig } from '../config/network.js'
 
 export interface PrivacyScoreParams {
   wallet: string
@@ -54,7 +55,7 @@ export async function executePrivacyScore(
   }
 
   const limit = Math.min(Math.max(params.limit ?? 50, 1), 200)
-  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
 
   let walletPubkey: PublicKey

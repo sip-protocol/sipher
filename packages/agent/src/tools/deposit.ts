@@ -9,6 +9,7 @@ import {
   toBaseUnits,
   SIPHER_VAULT_PROGRAM_ID,
 } from '@sipher/sdk'
+import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Deposit tool — Fund the Sipher privacy vault
@@ -111,7 +112,7 @@ export async function executeDeposit(params: DepositParams): Promise<DepositTool
   }
 
   const depositorTokenAccount = await getAssociatedTokenAddress(tokenMint, depositor)
-  const network = (process.env.SOLANA_NETWORK ?? 'mainnet-beta') as 'devnet' | 'mainnet-beta'
+  const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
 
   const result = await buildDepositTx(
