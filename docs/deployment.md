@@ -4,7 +4,7 @@ Production deployment reference for Sipher on the SIP Protocol VPS.
 
 ## Overview
 
-Sipher runs as a Docker container (`sipher` + `sipher-redis`) behind nginx at [sipher.sip-protocol.org](https://sipher.sip-protocol.org). Deployment is GitOps: GitHub Actions builds on push to `main`, publishes to GHCR, then SSHes into the VPS and recreates the container.
+Sipher's API runs as a Docker container (`sipher` + `sipher-redis`) behind nginx at [api.sipher.sip-protocol.org](https://api.sipher.sip-protocol.org). The frontend is hosted on Vercel at [sipher.sip-protocol.org](https://sipher.sip-protocol.org) and consumes the API cross-origin (CORS allowlist gated). Deployment is GitOps: GitHub Actions builds on push to `main`, publishes to GHCR, then SSHes into the VPS and recreates the container. Vercel auto-deploys on push to `main` and on PR open (preview URLs at `*-sipher.vercel.app`).
 
 ## VPS Layout
 
@@ -40,7 +40,7 @@ SSH access: `ssh sip` (the `sipher` container runs under the `sip` user, there i
 | `RPC_PROVIDER` | `generic` | `helius` / `quicknode` / `triton` / `generic` |
 | `SIPHER_MODEL` | `anthropic/claude-sonnet-4.6` | Default SIPHER LLM model ID (provider `openrouter` hard-coded in `packages/agent/src/pi/provider.ts`) |
 | `SOLANA_NETWORK` | `mainnet-beta` | `mainnet-beta` / `devnet` |
-| `CORS_ORIGINS` | SIP domains | Comma-separated allowlist |
+| `CORS_ORIGINS` | `https://sipher.sip-protocol.org` | Comma-separated allowlist of explicit origins. Vercel preview URLs matching `*-sipher.vercel.app` are accepted in code, not env. |
 | `RATE_LIMIT_MAX` | `100` | Requests per window |
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window (ms) |
 | `JUPITER_API_URL` | `https://lite-api.jup.ag` | Jupiter DEX endpoint |

@@ -26,7 +26,7 @@ hidden amounts, and compliance viewing keys across 17 chains.**
 [![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)]()
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**Colosseum Agent Hackathon** | Agent #274 | [Live API](https://sipher.sip-protocol.org) | [Live Demo](https://sipher.sip-protocol.org/v1/demo) | [API Docs](https://sipher.sip-protocol.org/docs) | [Skill File](https://sipher.sip-protocol.org/skill.md)
+**Colosseum Agent Hackathon** | Agent #274 | [Live App](https://sipher.sip-protocol.org) | [Live API](https://api.sipher.sip-protocol.org) | [Live Demo](https://api.sipher.sip-protocol.org/v1/demo) | [API Docs](https://api.sipher.sip-protocol.org/docs) | [Skill File](https://api.sipher.sip-protocol.org/skill.md)
 
 </div>
 
@@ -161,7 +161,7 @@ No setup, no SDK, no wallet. Just `curl`.
 **Step 1 — Generate a stealth meta-address (recipient side):**
 
 ```bash
-curl -s -X POST https://sipher.sip-protocol.org/v1/stealth/generate \
+curl -s -X POST https://api.sipher.sip-protocol.org/v1/stealth/generate \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-key" \
   -d '{"chain": "solana"}' | jq '.data.metaAddress'
@@ -172,7 +172,7 @@ Returns spending + viewing public keys (base58 for Solana). Share these with the
 **Step 2 — Derive a one-time stealth address (sender side):**
 
 ```bash
-curl -s -X POST https://sipher.sip-protocol.org/v1/stealth/derive \
+curl -s -X POST https://api.sipher.sip-protocol.org/v1/stealth/derive \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-key" \
   -d '{
@@ -189,7 +189,7 @@ Returns an unlinkable one-time address. No one can connect it to the recipient.
 **Step 3 — Build a shielded transfer:**
 
 ```bash
-curl -s -X POST https://sipher.sip-protocol.org/v1/transfer/shield \
+curl -s -X POST https://api.sipher.sip-protocol.org/v1/transfer/shield \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-key" \
   -d '{
@@ -209,7 +209,7 @@ Returns an unsigned transaction + Pedersen commitment. Sign and submit to Solana
 **Or see everything at once (no API key needed):**
 
 ```bash
-curl -s https://sipher.sip-protocol.org/v1/demo | jq '.data.summary'
+curl -s https://api.sipher.sip-protocol.org/v1/demo | jq '.data.summary'
 ```
 
 ---
@@ -219,7 +219,7 @@ curl -s https://sipher.sip-protocol.org/v1/demo | jq '.data.summary'
 25 real cryptographic operations executing live — no mocks, no fakes:
 
 ```bash
-curl https://sipher.sip-protocol.org/v1/demo | jq '.data.summary'
+curl https://api.sipher.sip-protocol.org/v1/demo | jq '.data.summary'
 ```
 
 ```json
@@ -341,7 +341,7 @@ Sipher isn't a human tool with an API bolted on. Every design decision prioritiz
 
 | Pillar | How Sipher Delivers |
 |--------|-------------------|
-| **Discovery** | [`/skill.md`](https://sipher.sip-protocol.org/skill.md) — OpenClaw-compatible skill file. Agents discover, parse, and use all 66 endpoints without human configuration. Self-describing API at `/`, error catalog at `/v1/errors`, full schema at `/v1/openapi.json`. |
+| **Discovery** | [`/skill.md`](https://api.sipher.sip-protocol.org/skill.md) — OpenClaw-compatible skill file. Agents discover, parse, and use all 66 endpoints without human configuration. Self-describing API at `/`, error catalog at `/v1/errors`, full schema at `/v1/openapi.json`. |
 | **Integration** | Pure REST + JSON. No browser, no OAuth, no cookies. 4 auto-generated SDKs (TypeScript, Python, Rust, Go). API key auth via `X-API-Key` header — the simplest auth pattern for agents. |
 | **Autonomy** | [`privacy-demo-agent.ts`](scripts/privacy-demo-agent.ts) runs 20 steps across 34 endpoints with zero human intervention. Sessions (`X-Session-Id`) maintain state across multi-step workflows. No CAPTCHA, no manual verification. |
 | **Reliability** | 11+ mutation endpoints support `Idempotency-Key` for safe retries. Structured error responses with machine-readable codes and retry guidance. Agents can reason about failures, not parse HTML error pages. |
@@ -371,7 +371,7 @@ class SipherStealthGenerate extends StructuredTool {
   schema = z.object({ chain: z.string().optional() })
 
   async _call({ chain }: { chain?: string }) {
-    const res = await fetch('https://sipher.sip-protocol.org/v1/stealth/generate', {
+    const res = await fetch('https://api.sipher.sip-protocol.org/v1/stealth/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-API-Key': process.env.SIPHER_KEY! },
       body: JSON.stringify({ chain: chain || 'solana' }),
@@ -483,7 +483,7 @@ curl -X POST http://localhost:5006/v1/viewing-key/generate \
 ### Live Demo (no auth):
 
 ```bash
-curl https://sipher.sip-protocol.org/v1/demo | jq .
+curl https://api.sipher.sip-protocol.org/v1/demo | jq .
 ```
 
 ---
@@ -508,7 +508,7 @@ Sipher is powered by the full SIP Protocol SDK — not a thin wrapper:
 
 ## 🔌 API Endpoints (66 total)
 
-**Base URL:** `https://sipher.sip-protocol.org` | **Auth:** `X-API-Key` header | **Docs:** [`/docs`](https://sipher.sip-protocol.org/docs)
+**Base URL:** `https://api.sipher.sip-protocol.org` | **Auth:** `X-API-Key` header | **Docs:** [`/docs`](https://api.sipher.sip-protocol.org/docs)
 
 All responses follow: `{ success: boolean, data?: T, error?: { code, message, details? } }`
 
@@ -533,7 +533,7 @@ All responses follow: `{ success: boolean, data?: T, error?: { code, message, de
 | **Privacy** | 1 | `/v1/privacy/score` | Wallet privacy analysis (0-100) |
 | **SENTINEL** | 8 | `/v1/sentinel/assess`, `/blacklist`, `/pending`, `/decisions`, `/status` | Risk assessment + threat detection (public + admin) |
 
-Full interactive reference: [`/docs`](https://sipher.sip-protocol.org/docs) | OpenClaw skill: [`/skill.md`](https://sipher.sip-protocol.org/skill.md)
+Full interactive reference: [`/docs`](https://api.sipher.sip-protocol.org/docs) | OpenClaw skill: [`/skill.md`](https://api.sipher.sip-protocol.org/skill.md)
 
 ---
 
@@ -758,8 +758,8 @@ See [`docs/superpowers/specs/2026-04-18-test-infrastructure-design.md`](docs/sup
 | **AI** | Pi SDK (@mariozechner/pi-agent-core + pi-ai) via OpenRouter (AgentCore + SentinelCore) |
 | **Testing** | Vitest + Supertest |
 | **Docs** | OpenAPI 3.1 + Swagger UI |
-| **Deploy** | Docker + GHCR + GitHub Actions |
-| **Domain** | sipher.sip-protocol.org |
+| **Deploy** | Vercel (FE) + Docker + GHCR + GitHub Actions (BE) |
+| **Domains** | sipher.sip-protocol.org (FE on Vercel) · api.sipher.sip-protocol.org (BE on VPS) |
 
 ---
 
@@ -833,6 +833,6 @@ MIT — see [LICENSE](LICENSE)
 
 *Your agent's wallet is a public diary. Sipher closes the book.*
 
-[Live Demo](https://sipher.sip-protocol.org/v1/demo) · [API Docs](https://sipher.sip-protocol.org/docs) · [Skill File](https://sipher.sip-protocol.org/skill.md) · [Report Bug](https://github.com/sip-protocol/sipher/issues)
+[Live Demo](https://api.sipher.sip-protocol.org/v1/demo) · [API Docs](https://api.sipher.sip-protocol.org/docs) · [Skill File](https://api.sipher.sip-protocol.org/skill.md) · [Report Bug](https://github.com/sip-protocol/sipher/issues)
 
 </div>
