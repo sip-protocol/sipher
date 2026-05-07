@@ -13,9 +13,6 @@ data/
 .superpowers/
 .worktrees/
 
-# Vercel project link (created by `vercel link`, stays local)
-.vercel/
-
 # Playwright / RTL
 playwright-report/
 test-results/
@@ -27,3 +24,4 @@ e2e/test.db-journal
 # SENTINEL spec-capture artifacts (transient)
 e2e/sentinel-capture/
 .env.spec
+.vercel

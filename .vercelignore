@@ -1,19 +1,20 @@
-# Vercel only deploys app/. Everything else stays on VPS.
-packages/
+# Vercel only builds @sipher/app. Exclude paths that aren't needed
+# for the FE build: backend code, contracts, e2e fixtures, data files.
+# Keep packages/ + pnpm-workspace.yaml + pnpm-lock.yaml + patches/ so
+# pnpm install can resolve the workspace correctly with --filter.
+
 contracts/
 programs/
-docs/
-e2e/
-scripts/
 sdks/
+e2e/
+docs/
+scripts/
 src/
+data/
 *.log
 *.sqlite
-data/
+*.sqlite-journal
+*.tsbuildinfo
 node_modules/
-
-# Allow lockfile + workspace config so pnpm can resolve in build
-!pnpm-lock.yaml
-!pnpm-workspace.yaml
-!package.json
-!app/
+.env
+.env.local
