@@ -33,6 +33,30 @@ function checkVerifyRateLimit(ip: string): boolean {
   return entry.count <= VERIFY_RATE_LIMIT
 }
 
+// Per-IP rate limiter for /nonce (anonymous endpoint — without this, one
+// attacker can fill pendingNonces and DoS legitimate sign-ins, even after
+// the input-validation cap).
+const nonceAttempts = new Map<string, { count: number; firstAt: number }>()
+const NONCE_RATE_LIMIT_MAX = 5
+const NONCE_RATE_LIMIT_WINDOW_MS = 60_000
+
+function nonceRateLimit(req: Request, res: Response, next: NextFunction): void {
+  const ip = req.ip ?? 'unknown'
+  const now = Date.now()
+  const entry = nonceAttempts.get(ip)
+  if (!entry || now - entry.firstAt > NONCE_RATE_LIMIT_WINDOW_MS) {
+    nonceAttempts.set(ip, { count: 1, firstAt: now })
+    next()
+    return
+  }
+  if (entry.count >= NONCE_RATE_LIMIT_MAX) {
+    res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many nonce requests, slow down' } })
+    return
+  }
+  entry.count += 1
+  next()
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,7 +135,7 @@ export const authRouter = Router()
  * POST /auth/nonce
  * Issues a one-time nonce tied to a wallet address.
  */
-authRouter.post('/nonce', (req: Request, res: Response) => {
+authRouter.post('/nonce', nonceRateLimit, (req: Request, res: Response) => {
   const { wallet } = req.body as { wallet?: unknown }
 
   // Shape validation — reject non-strings, oversize input, non-base58 strings.
@@ -363,9 +387,17 @@ setInterval(() => {
   }
 }, 30_000).unref()
 
+setInterval(() => {
+  const now = Date.now()
+  for (const [ip, entry] of nonceAttempts) {
+    if (now - entry.firstAt > NONCE_RATE_LIMIT_WINDOW_MS) nonceAttempts.delete(ip)
+  }
+}, NONCE_RATE_LIMIT_WINDOW_MS).unref()
+
 /** Clear in-memory auth state (nonces, rate-limit counters, SSE tickets). Tests only. */
 export function _resetAuthStateForTests(): void {
   pendingNonces.clear()
   verifyAttempts.clear()
   sseTickets.clear()
+  nonceAttempts.clear()
 }

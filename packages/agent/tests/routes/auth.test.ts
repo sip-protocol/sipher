@@ -57,11 +57,14 @@ afterEach(() => {
 
 function createApp() {
   const app = express()
+  // Mirror prod: trust proxy so req.ip honours X-Forwarded-For (per-IP
+  // rate limiter assertions depend on this).
+  app.set('trust proxy', 1)
   app.use(express.json())
   app.use('/auth', authRouter)
   // Protected test endpoint
   app.get('/protected', verifyJwt, (req, res) => {
-    res.json({ wallet: (req as unknown as Record<string, unknown>).wallet })
+    res.json({ wallet: req.wallet })
   })
   return app
 }
@@ -158,6 +161,42 @@ describe('POST /auth/nonce', () => {
         .send({ wallet: 'l'.repeat(32) })
       expect(res.status).toBe(400)
       expect(res.body.error?.code).toBe('VALIDATION_FAILED')
+    })
+  })
+
+  describe('per-IP rate limit', () => {
+    it('returns 429 after 5 requests/min from same IP', async () => {
+      const app = createApp()
+      const { wallet } = generateTestWallet()
+      for (let i = 0; i < 5; i++) {
+        const res = await supertest(app)
+          .post('/auth/nonce')
+          .set('X-Forwarded-For', '1.2.3.4')
+          .send({ wallet })
+        expect(res.status).toBe(200)
+      }
+      const sixth = await supertest(app)
+        .post('/auth/nonce')
+        .set('X-Forwarded-For', '1.2.3.4')
+        .send({ wallet })
+      expect(sixth.status).toBe(429)
+      expect(sixth.body.error?.code).toBe('RATE_LIMITED')
+    })
+
+    it('different IP gets an independent budget', async () => {
+      const app = createApp()
+      const { wallet } = generateTestWallet()
+      for (let i = 0; i < 5; i++) {
+        await supertest(app)
+          .post('/auth/nonce')
+          .set('X-Forwarded-For', '1.2.3.4')
+          .send({ wallet })
+      }
+      const fromOtherIp = await supertest(app)
+        .post('/auth/nonce')
+        .set('X-Forwarded-For', '5.6.7.8')
+        .send({ wallet })
+      expect(fromOtherIp.status).toBe(200)
     })
   })
 })
