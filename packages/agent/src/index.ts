@@ -129,6 +129,16 @@ setInterval(() => {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const app = express()
+
+// Trust proxy: required so req.ip resolves to the client X-Forwarded-For
+// value behind nginx instead of nginx's IP. Without this, per-IP rate
+// limiters degrade into single global counters. Default 1 hop = nginx; set
+// TRUST_PROXY=0 for local dev without a reverse proxy, or higher for
+// multi-hop topologies.
+const trustProxy = Number.parseInt(process.env.TRUST_PROXY ?? '1', 10)
+app.set('trust proxy', trustProxy)
+console.log(`[agent] trust proxy = ${trustProxy} (set TRUST_PROXY env var to override)`)
+
 app.use(express.json({ limit: '1mb' }))
 
 // ─── CORS — only needed for dev/test (in prod the agent serves the app statically)
