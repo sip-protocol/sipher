@@ -1,0 +1,19 @@
+# Vercel only deploys app/. Everything else stays on VPS.
+packages/
+contracts/
+programs/
+docs/
+e2e/
+scripts/
+sdks/
+src/
+*.log
+*.sqlite
+data/
+node_modules/
+
+# Allow lockfile + workspace config so pnpm can resolve in build
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!package.json
+!app/
