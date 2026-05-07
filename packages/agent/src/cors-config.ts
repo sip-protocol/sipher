@@ -20,6 +20,12 @@ export function buildCorsMiddleware(corsOriginsEnv: string): RequestHandler | nu
   if (allowedOrigins.length === 0) return null
 
   return (req: Request, res: Response, next: NextFunction): void => {
+    // Set Vary: Origin unconditionally so any shared cache (Cloudflare, CDN,
+    // intermediary proxy) keys the response by the Origin request header and
+    // never serves a cached ACAO from one origin to a request from another.
+    // Required by the Fetch spec when the response varies by Origin.
+    res.setHeader('Vary', 'Origin')
+
     const origin = req.headers.origin
 
     if (origin) {
@@ -35,6 +41,9 @@ export function buildCorsMiddleware(corsOriginsEnv: string): RequestHandler | nu
     }
 
     if (req.method === 'OPTIONS') {
+      // Cache the preflight result for 24h so browsers don't re-handshake on
+      // every request. Matches the cors npm package default.
+      res.setHeader('Access-Control-Max-Age', '86400')
       res.status(204).end()
       return
     }
