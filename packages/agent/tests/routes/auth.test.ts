@@ -368,6 +368,156 @@ describe('POST /auth/verify', () => {
       .send({ wallet, nonce, signature })
     expect(res.status).toBe(401)
   })
+
+  describe('SIWS one-popup (signedMessage field)', () => {
+    function buildSiwsMessage(domain: string, wallet: string, nonce: string): string {
+      return `${domain} wants you to sign in with your Solana account:\n${wallet}\n\nNonce: ${nonce}\nIssued At: 2026-05-07T00:00:00Z`
+    }
+
+    it('accepts SIWS signedMessage and verifies the actual signed bytes', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce } = nonceRes.body
+
+      const siws = buildSiwsMessage('sipher.sip-protocol.org', wallet, nonce)
+      const messageBytes = new TextEncoder().encode(siws)
+      const sigBytes = ed25519.sign(messageBytes, privateKey)
+      const signature = encodeBase58(sigBytes)
+      const signedMessage = Buffer.from(messageBytes).toString('base64')
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage })
+      expect(res.status).toBe(200)
+      expect(res.body.token).toBeDefined()
+    })
+
+    it('rejects signedMessage that does not bind to the issued nonce', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce } = nonceRes.body
+
+      // Sign a message with a DIFFERENT nonce — attacker reuses an old SIWS msg
+      const siws = buildSiwsMessage('sipher.sip-protocol.org', wallet, 'forged-nonce-not-real')
+      const messageBytes = new TextEncoder().encode(siws)
+      const sigBytes = ed25519.sign(messageBytes, privateKey)
+      const signature = encodeBase58(sigBytes)
+      const signedMessage = Buffer.from(messageBytes).toString('base64')
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage })
+      expect(res.status).toBe(401)
+    })
+
+    it('rejects signedMessage from a domain not in the allow-list', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce } = nonceRes.body
+
+      const siws = buildSiwsMessage('evil.example.com', wallet, nonce)
+      const messageBytes = new TextEncoder().encode(siws)
+      const sigBytes = ed25519.sign(messageBytes, privateKey)
+      const signature = encodeBase58(sigBytes)
+      const signedMessage = Buffer.from(messageBytes).toString('base64')
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage })
+      expect(res.status).toBe(401)
+    })
+
+    it('rejects signedMessage that prefix-matches but is not the allowed domain', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce } = nonceRes.body
+
+      // Attacker registers a domain that prefix-matches "localhost" via "localhost.attacker.com".
+      // Allow-list entry "localhost" must NOT match this.
+      const siws = buildSiwsMessage('localhost.attacker.com', wallet, nonce)
+      const messageBytes = new TextEncoder().encode(siws)
+      const sigBytes = ed25519.sign(messageBytes, privateKey)
+      const signature = encodeBase58(sigBytes)
+      const signedMessage = Buffer.from(messageBytes).toString('base64')
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage })
+      expect(res.status).toBe(401)
+    })
+
+    it('rejects signedMessage whose signature does not match the wallet pubkey', async () => {
+      const app = createApp()
+      const { wallet } = generateTestWallet()
+      const attacker = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce } = nonceRes.body
+
+      // Attacker signs the SIWS bytes with their own key but claims victim's wallet
+      const siws = buildSiwsMessage('sipher.sip-protocol.org', wallet, nonce)
+      const messageBytes = new TextEncoder().encode(siws)
+      const sigBytes = ed25519.sign(messageBytes, attacker.privateKey)
+      const signature = encodeBase58(sigBytes)
+      const signedMessage = Buffer.from(messageBytes).toString('base64')
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage })
+      expect(res.status).toBe(401)
+    })
+
+    it('rejects malformed base64 signedMessage', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce, message } = nonceRes.body
+      const signature = signMessage(message, privateKey)
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature, signedMessage: 'not-valid-base64-!!!@#$' })
+      expect(res.status).toBe(401)
+    })
+
+    it('legacy signMessage path still works when signedMessage is absent', async () => {
+      const app = createApp()
+      const { privateKey, wallet } = generateTestWallet()
+
+      const nonceRes = await supertest(app)
+        .post('/auth/nonce')
+        .send({ wallet })
+      const { nonce, message } = nonceRes.body
+      const signature = signMessage(message, privateKey)
+
+      const res = await supertest(app)
+        .post('/auth/verify')
+        .send({ wallet, nonce, signature })
+      expect(res.status).toBe(200)
+      expect(res.body.token).toBeDefined()
+    })
+  })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

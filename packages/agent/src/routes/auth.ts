@@ -11,11 +11,38 @@ const NONCE_TTL = 5 * 60 * 1000 // 5 minutes
 // JWT lifetime. 24h default keeps users from re-signing every hour during
 // normal browsing; 1h in tests preserves existing TTL-shape assertions.
 // Operator can override via env (e.g. shorten to '4h' for higher security).
-const JWT_EXPIRY = process.env.JWT_EXPIRY ?? (process.env.NODE_ENV === 'test' ? '1h' : '24h')
+// Type-cast at module load: jwt.sign's expiresIn is `number | StringValue`
+// (an `ms`-style template literal) rather than plain `string`, and the env
+// var is plain `string | undefined`. Validation is operator-trust here —
+// jwt.sign throws at runtime on malformed values.
+const JWT_EXPIRY = (process.env.JWT_EXPIRY ?? (process.env.NODE_ENV === 'test' ? '1h' : '24h')) as jwt.SignOptions['expiresIn']
 
 // Solana wallet base58 shape: 32-44 characters, Bitcoin/Solana base58 alphabet
 // (digits 1-9 + uppercase A-Z minus I, O + lowercase a-z minus l).
 const BASE58_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
+
+// SIWS message domain allow-list. The first line of a SIWS-shaped signedMessage
+// is `${domain} wants you to sign in...` — we require ${domain} to be one of
+// these entries followed by a space or colon (so `localhost.attacker.com` does
+// not match an allow-list entry of `localhost`).
+const SIWS_ALLOWED_DOMAINS = ((): string[] => {
+  const env = process.env.SIPHER_ALLOWED_DOMAINS
+  if (env) return env.split(',').map((d) => d.trim()).filter(Boolean)
+  return ['sipher.sip-protocol.org', 'localhost']
+})()
+
+function siwsMessageStartsWithAllowedDomain(messageText: string): boolean {
+  return SIWS_ALLOWED_DOMAINS.some((d) => messageText.startsWith(`${d} `) || messageText.startsWith(`${d}:`))
+}
+
+function decodeBase64ToBytes(input: string): Uint8Array | null {
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(input)) return null
+  try {
+    return new Uint8Array(Buffer.from(input, 'base64'))
+  } catch {
+    return null
+  }
+}
 
 // In-memory store: nonce → { wallet, expires }
 const pendingNonces = new Map<string, { wallet: string; expires: number }>()
@@ -180,10 +207,17 @@ authRouter.post('/verify', (req: Request, res: Response) => {
     return
   }
 
-  const { wallet, nonce, signature } = req.body as {
+  const { wallet, nonce, signature, signedMessage } = req.body as {
     wallet?: string
     nonce?: string
     signature?: string
+    /**
+     * Optional base64-encoded raw bytes the wallet actually signed. Set when
+     * the wallet supports the SIWS Wallet-Standard feature (one popup combines
+     * connect + sign-in). When absent, the server falls back to reconstructing
+     * the legacy `signMessage()`-style nonce string and verifying against that.
+     */
+    signedMessage?: string
   }
 
   if (!wallet || !nonce || !signature) {
@@ -216,9 +250,36 @@ authRouter.post('/verify', (req: Request, res: Response) => {
       return
     }
 
-    // The message the wallet signed (must match what /nonce returns)
-    const message = `sipher.sip-protocol.org wants you to sign in.\n\nNonce: ${nonce}`
-    const messageBytes = new TextEncoder().encode(message)
+    let messageBytes: Uint8Array
+    if (typeof signedMessage === 'string' && signedMessage.length > 0) {
+      // SIWS path — verify the actual bytes the wallet signed (we cannot
+      // reconstruct them, since the SIWS message format includes per-wallet
+      // fields like Issued At, Domain, Statement, etc.). Bind the signed
+      // bytes to OUR nonce + an allowed domain before trusting the signature.
+      const decoded = decodeBase64ToBytes(signedMessage)
+      if (!decoded) {
+        pendingNonces.delete(nonce)
+        res.status(401).json({ error: 'invalid signedMessage encoding' })
+        return
+      }
+      const messageText = new TextDecoder('utf-8', { fatal: false }).decode(decoded)
+      if (!siwsMessageStartsWithAllowedDomain(messageText)) {
+        pendingNonces.delete(nonce)
+        res.status(401).json({ error: 'signedMessage domain not in allow-list' })
+        return
+      }
+      if (!messageText.includes(`Nonce: ${nonce}`)) {
+        pendingNonces.delete(nonce)
+        res.status(401).json({ error: 'signedMessage does not bind to nonce' })
+        return
+      }
+      messageBytes = decoded
+    } else {
+      // Legacy signMessage() path — reconstruct the nonce string the wallet
+      // signed via its signMessage(bytes) primitive.
+      const message = `sipher.sip-protocol.org wants you to sign in.\n\nNonce: ${nonce}`
+      messageBytes = new TextEncoder().encode(message)
+    }
 
     const valid = ed25519.verify(signatureBytes, messageBytes, publicKeyBytes)
     if (!valid) {
