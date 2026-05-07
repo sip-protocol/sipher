@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { mockPrivacyScore } from './fixtures/mocks'
 
 const AUTH_STATE = 'e2e/fixtures/storageState.json'
 
@@ -36,6 +37,7 @@ test.describe('chat sidebar', () => {
           body,
         })
       })
+      await mockPrivacyScore(page)
 
       const errors: string[] = []
       page.on('pageerror', (err) => errors.push(err.message))

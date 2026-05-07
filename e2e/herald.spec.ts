@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { mockPrivacyScore } from './fixtures/mocks'
 
 const AUTH_STATE = 'e2e/fixtures/storageState.json'
 
@@ -21,6 +22,7 @@ test('herald view renders with admin budget visible', async ({ page }) => {
       },
     })
   })
+  await mockPrivacyScore(page)
 
   await page.goto('/')
   await page.getByRole('button', { name: /herald/i }).first().click()
