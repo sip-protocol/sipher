@@ -22,8 +22,10 @@ export async function mockSolanaRpc(page: Page): Promise<void> {
 // that CI does not build. Without this mock, DashboardView's privacy-score
 // fetch fires once /api/vault returns the wallet field and the browser logs
 // a 404 — which the "renders without errors" smoke specs assert against.
-// Stub a minimal valid PrivacyData envelope so the FE's catch path doesn't
-// trip and the network layer stays quiet.
+// The factors map MUST include addressReuse / amountPatterns /
+// timingCorrelation / counterpartyExposure since DashboardView destructures
+// those keys without optional-chaining; an empty {} crashes the render and
+// the chat input detaches mid-test.
 export async function mockPrivacyScore(page: Page): Promise<void> {
   await page.route('**/v1/privacy/score', async (route: Route) => {
     await route.fulfill({
@@ -31,7 +33,12 @@ export async function mockPrivacyScore(page: Page): Promise<void> {
         data: {
           score: 0,
           grade: 'N/A',
-          factors: {},
+          factors: {
+            addressReuse: { score: 0, detail: '' },
+            amountPatterns: { score: 0, detail: '' },
+            timingCorrelation: { score: 0, detail: '' },
+            counterpartyExposure: { score: 0, detail: '' },
+          },
           recommendations: [],
           transactionsAnalyzed: 0,
         },
