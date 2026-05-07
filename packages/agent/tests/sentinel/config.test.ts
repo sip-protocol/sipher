@@ -58,21 +58,23 @@ describe('getSentinelConfig', () => {
     expect(config.threatCheckEnabled).toBe(true)
   })
 
-  it('returns default mode=yolo when SENTINEL_MODE unset', () => {
+  it('returns default mode=advisory when SENTINEL_MODE unset (fail-safe)', () => {
     delete process.env.SENTINEL_MODE
-    expect(getSentinelConfig().mode).toBe('yolo')
+    expect(getSentinelConfig().mode).toBe('advisory')
   })
 
-  it('accepts mode=advisory and mode=off', () => {
+  it('accepts mode=advisory, mode=off, and mode=yolo', () => {
     process.env.SENTINEL_MODE = 'advisory'
     expect(getSentinelConfig().mode).toBe('advisory')
     process.env.SENTINEL_MODE = 'off'
     expect(getSentinelConfig().mode).toBe('off')
+    process.env.SENTINEL_MODE = 'yolo'
+    expect(getSentinelConfig().mode).toBe('yolo')
   })
 
-  it('falls back to yolo on unknown mode value', () => {
+  it('falls back to advisory on unknown mode value', () => {
     process.env.SENTINEL_MODE = 'chaos'
-    expect(getSentinelConfig().mode).toBe('yolo')
+    expect(getSentinelConfig().mode).toBe('advisory')
   })
 
   it('returns default preflight knobs', () => {

@@ -223,7 +223,9 @@ describe('executeTool onPause callback', () => {
 
   it('does NOT invoke onPause when mode !== advisory (yolo allows silently)', async () => {
     await freshDb()
-    // SENTINEL_MODE unset → defaults to 'yolo'
+    // Pin SENTINEL_MODE=yolo here — after B16 the default is 'advisory' which
+    // would invoke onPause; this test deliberately covers the yolo path.
+    process.env.SENTINEL_MODE = 'yolo'
     const { setSentinelAssessor } = await import('../../src/sentinel/preflight-gate.js')
     setSentinelAssessor(vi.fn().mockResolvedValue({
       risk: 'medium',
