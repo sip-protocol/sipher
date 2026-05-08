@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import { PublicKey } from '@solana/web3.js'
+import { toBaseUnits } from '@sipher/sdk'
 import { validateRequest } from '../middleware/validation.js'
 import { getConnection } from '../services/solana.js'
 
@@ -172,16 +173,14 @@ const KNOWN_PROGRAMS = new Set([
   'mv3ekLzLbnVPNxjSKvqBpU3ZeZXPQdEC3bp5MDEBG68', // Marinade
 ])
 
+// Decimals lookup for the 3 tokens the projection accepts. We keep this local
+// (rather than calling SDK's `getTokenDecimals(mint)`) so that the spec's
+// `INVALID_TOKEN` rejection covers anything that isn't SOL / USDC / USDT —
+// `resolveTokenMint` would happily accept arbitrary base58 mints.
 const TOKEN_DECIMALS: Record<string, number> = {
   SOL: 9,
   USDC: 6,
   USDT: 6,
-}
-
-function projectedAmountToBase(amount: number, token: string): bigint {
-  const decimals = TOKEN_DECIMALS[token]
-  if (decimals === undefined) throw new Error(`Unknown token: ${token}`)
-  return BigInt(Math.round(amount * 10 ** decimals))
 }
 
 // ─── Route ──────────────────────────────────────────────────────────────────
@@ -306,16 +305,21 @@ router.post(
         if (
           typeof req.body.projectedAmount !== 'number' ||
           !Number.isFinite(req.body.projectedAmount) ||
-          req.body.projectedAmount <= 0
+          req.body.projectedAmount <= 0 ||
+          req.body.projectedAmount > Number.MAX_SAFE_INTEGER
         ) {
           res.status(400).json({
             success: false,
-            error: { code: 'INVALID_PROJECTED_AMOUNT', message: 'projectedAmount must be > 0' },
+            error: {
+              code: 'INVALID_PROJECTED_AMOUNT',
+              message: 'projectedAmount must be a finite number in (0, Number.MAX_SAFE_INTEGER]',
+            },
           })
           return
         }
 
-        const projectedToken = req.body.projectedToken ?? 'SOL'
+        // Match `vault-deposit-tx` parity: accept `'sol'`, `'SOL'`, etc.
+        const projectedToken = (req.body.projectedToken ?? 'SOL').toUpperCase()
         if (!(projectedToken in TOKEN_DECIMALS)) {
           res.status(400).json({
             success: false,
@@ -324,7 +328,10 @@ router.post(
           return
         }
 
-        const projectedBaseUnits = projectedAmountToBase(req.body.projectedAmount, projectedToken)
+        const projectedBaseUnits = toBaseUnits(
+          req.body.projectedAmount,
+          TOKEN_DECIMALS[projectedToken]
+        )
 
         // Append a synthetic shielded deposit record to the analysis input.
         // Fresh stealth destination: 44-char base58 placeholder that will
