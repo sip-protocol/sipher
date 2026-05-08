@@ -33,6 +33,7 @@ export default function Header() {
   const { show: showToast } = useToast()
   const activeView = useAppStore((s) => s.activeView)
   const setActiveView = useAppStore((s) => s.setActiveView)
+  const setChatSheetOpen = useAppStore((s) => s.setChatSheetOpen)
   const network = useNetworkConfigStore((s) => s.config?.network ?? 'mainnet')
 
   const visibleTabs = TABS.filter((t) => {
@@ -59,12 +60,16 @@ export default function Header() {
   }
 
   return (
-    <header className="hidden md:flex h-12 border-b border-border items-center justify-between px-4 bg-bg shrink-0 z-10">
-      <div className="flex items-center gap-1">
-        <span className="font-semibold text-[13px] tracking-widest uppercase text-text mr-4">
-          Sipher
+    <header className="hidden md:flex h-12 border-b border-line items-center justify-between px-4 bg-bg shrink-0 z-sticky">
+      <div className="flex items-center gap-3">
+        <span
+          className="font-semibold text-sm text-text"
+          style={{ letterSpacing: 'var(--tracking-mega)' }}
+        >
+          SIPHER
         </span>
-        <nav className="flex items-center">
+        <span className="text-2xs text-text-muted font-mono uppercase">{network}</span>
+        <nav className="flex items-center ml-3">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon
             const active = activeView === tab.id
@@ -73,9 +78,9 @@ export default function Header() {
                 key={tab.id}
                 onClick={() => setActiveView(tab.id)}
                 className={[
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors',
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                   tab.tabletOnly ? 'lg:hidden' : '',
-                  active ? 'text-text bg-elevated' : 'text-text-muted hover:text-text-secondary',
+                  active ? 'text-text bg-glass-2' : 'text-text-muted hover:text-text-secondary',
                 ].join(' ')}
               >
                 <Icon size={14} weight={active ? 'fill' : 'regular'} />
@@ -87,15 +92,20 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setChatSheetOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-text-secondary border border-line rounded-md hover:border-line-2 hover:text-text transition-colors"
+        >
+          <ChatCircle size={14} />
+          Ask SIPHER
+        </button>
+
         <div className="flex items-center gap-1.5">
           <AgentDot agent="sipher" size={5} />
           <AgentDot agent="herald" size={5} />
           <AgentDot agent="sentinel" size={5} />
         </div>
-
-        <span className="text-[10px] font-mono text-text-muted bg-elevated px-1.5 py-0.5 rounded">
-          {network}
-        </span>
 
         {status === 'authed' && publicKey ? (
           <WalletDropdown
