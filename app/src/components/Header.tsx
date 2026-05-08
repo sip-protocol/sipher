@@ -76,7 +76,9 @@ export default function Header() {
         <nav className="flex items-center ml-3">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon
-            const active = activeView === tab.id
+            const active =
+              activeView === tab.id ||
+              (tab.id === 'vault' && activeView === 'deposit')
             return (
               <button
                 key={tab.id}
