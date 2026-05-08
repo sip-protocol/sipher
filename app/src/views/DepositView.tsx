@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
@@ -23,6 +23,26 @@ interface VaultData {
   balances: { sol: number; tokens: TokenBalance[]; status: string }
 }
 
+interface VaultPosition {
+  mint: string
+  symbol: string
+  balance: string
+  balanceUiAmount: number
+  lockedAmount: string
+  decimals: number
+  lastDepositAt: number
+  refundableAt: number
+  cooldownActive: boolean
+  depositRecordAddress: string
+}
+
+interface PositionsResponse {
+  positions: VaultPosition[]
+  network: string
+  available: boolean
+  reason?: string
+}
+
 interface DepositTxResponse {
   serializedTx: string
   depositRecordAddress?: string
@@ -45,15 +65,29 @@ export default function DepositView() {
   const [pendingAsset, setPendingAsset] = useState('SOL')
   const [error, setError] = useState<string | null>(null)
   const [signature, setSignature] = useState<string | undefined>()
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { signAndBroadcast, status, reset } = useTransactionSigner()
 
   useEffect(() => {
     if (!token || isMainnet) return
-    apiFetch<VaultData>('/api/vault', { token })
-      .then(setVaultData)
+    const controller = new AbortController()
+    apiFetch<VaultData>('/api/vault', { token, signal: controller.signal })
+      .then((data) => {
+        if (!controller.signal.aborted) setVaultData(data)
+      })
       .catch(() => null)
+    apiFetch<PositionsResponse>('/api/vault/positions', { token, signal: controller.signal }).catch(
+      () => null,
+    )
+    return () => controller.abort()
   }, [token, isMainnet])
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current)
+    }
+  }, [])
 
   const maxByAsset: Record<string, number> = {
     SOL: vaultData?.balances.sol ?? 0,
@@ -79,7 +113,10 @@ export default function DepositView() {
           return
         }
         setSignature(result.signature)
-        setTimeout(() => setActiveView('vault'), DEPOSIT_SUCCESS_REDIRECT_MS)
+        redirectTimerRef.current = setTimeout(
+          () => setActiveView('vault'),
+          DEPOSIT_SUCCESS_REDIRECT_MS,
+        )
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')
       }
@@ -109,15 +146,22 @@ export default function DepositView() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex flex-col gap-3">
-          <DepositForm
-            onSubmit={handleSubmit}
-            maxByAsset={maxByAsset}
-            disabled={isSubmitting}
-            status={status}
-            signature={signature}
-          />
+          <fieldset disabled={isSubmitting} className="contents">
+            <DepositForm
+              onSubmit={handleSubmit}
+              maxByAsset={maxByAsset}
+              disabled={isSubmitting}
+              status={status}
+              signature={signature}
+            />
+          </fieldset>
           {error && (
-            <Card variant="default" className="p-3 border border-danger">
+            <Card
+              variant="default"
+              className="p-3 border border-danger"
+              role="alert"
+              aria-live="assertive"
+            >
               <p className="text-xs text-danger mb-2">{error}</p>
               <button
                 type="button"
