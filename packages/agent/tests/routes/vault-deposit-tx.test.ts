@@ -70,6 +70,7 @@ describe('POST /api/vault/deposit-tx', () => {
       network: 'devnet',
     })
     expect(typeof res.body.feeBps).toBe('number')
+    expect(executeDeposit).toHaveBeenCalledWith({ amount: 1.5, token: 'SOL', wallet: TEST_WALLET })
   })
 
   it('returns 400 INVALID_AMOUNT when amount <= 0', async () => {
@@ -121,5 +122,36 @@ describe('POST /api/vault/deposit-tx', () => {
     expect(res.status).toBe(500)
     expect(res.body.error.code).toBe('INTERNAL')
     expect(res.body.error.message).toMatch(/SDK boom/)
+  })
+
+  it('normalizes lowercase token to uppercase before calling executeDeposit', async () => {
+    vi.mocked(executeDeposit).mockResolvedValueOnce({
+      action: 'deposit',
+      amount: 0.5,
+      token: 'SOL',
+      wallet: TEST_WALLET,
+      status: 'awaiting_signature',
+      message: 'ok',
+      serializedTx: 'BASE64SERIALIZED',
+      details: {
+        vaultProgram: 'S1Phr5rmDfkZTyLXzH5qUHeiqZS3Uf517SQzRbU4kHB',
+        depositRecordAddress: 'DEPOSITRECORDPDA',
+        vaultTokenAddress: 'VAULTTOKENPDA',
+        amountBaseUnits: '500000000',
+        estimatedFee: '~5000 lamports (tx fee)',
+        note: 'Funds enter the shared anonymity pool.',
+      },
+    })
+
+    const res = await supertest(createApp())
+      .post('/api/vault/deposit-tx')
+      .send({ amount: 0.5, token: 'sol' })
+
+    expect(res.status).toBe(200)
+    expect(executeDeposit).toHaveBeenCalledWith({
+      amount: 0.5,
+      token: 'SOL',
+      wallet: TEST_WALLET,
+    })
   })
 })
