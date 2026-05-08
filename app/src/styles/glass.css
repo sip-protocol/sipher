@@ -1,0 +1,43 @@
+.glass-1 {
+  background: var(--color-glass-1);
+  backdrop-filter: var(--backdrop-glass);
+  -webkit-backdrop-filter: var(--backdrop-glass);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.glass-2 {
+  background: var(--color-glass-2);
+  backdrop-filter: var(--backdrop-glass-dense);
+  -webkit-backdrop-filter: var(--backdrop-glass-dense);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-lg);
+}
+
+.glass-strong {
+  background: var(--color-glass-strong);
+  backdrop-filter: var(--backdrop-glass-modal);
+  -webkit-backdrop-filter: var(--backdrop-glass-modal);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+}
+
+.glass-sheen {
+  position: relative;
+}
+
+.glass-sheen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-card-sheen);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glass-sheen > * {
+  position: relative;
+  z-index: 1;
+}

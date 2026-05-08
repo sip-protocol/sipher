@@ -1,0 +1,27 @@
+@keyframes pulse-bloom {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes gauge-fill {
+  0% { stroke-dashoffset: 100%; }
+  100% { stroke-dashoffset: var(--target-offset); }
+}
+
+@keyframes drawer-slide-in {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(0); }
+}
+
+.animate-pulse-bloom {
+  animation: pulse-bloom var(--duration-pulse) var(--ease-in-out) infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer var(--duration-bloom) var(--ease-linear) infinite;
+}
