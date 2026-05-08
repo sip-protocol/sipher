@@ -6,6 +6,7 @@ import { PrivacyScoreCard } from '../components/PrivacyScoreCard'
 import { ActivityStreamTable, type ActivityRow } from '../components/ActivityStreamTable'
 import { PrivacyGraph } from '../components/PrivacyGraph'
 import { ShieldedVolumeCard } from '../components/ShieldedVolumeCard'
+import { MultiChainVaultGrid } from '../components/MultiChainVaultGrid'
 
 interface VaultData {
   wallet: string
@@ -131,6 +132,8 @@ export default function DashboardView({ events }: { events: ActivityEvent[] }) {
           <ShieldedVolumeCard />
         </div>
       </div>
+
+      <MultiChainVaultGrid />
 
       <ActivityStreamTable rows={allRows} />
     </div>

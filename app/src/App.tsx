@@ -17,6 +17,7 @@ import VaultView from './views/VaultView'
 import HeraldView from './views/HeraldView'
 import SquadView from './views/SquadView'
 import PrivacyReportView from './views/PrivacyReportView'
+import ChainsView from './views/ChainsView'
 import { useAppStore } from './stores/app'
 import { useAuth } from './hooks/useAuth'
 import { useSSE } from './hooks/useSSE'
@@ -44,6 +45,8 @@ function AppShell() {
         return isAdmin ? <SquadView token={token} /> : <DashboardView events={events} />
       case 'privacyReport':
         return <PrivacyReportView />
+      case 'chains':
+        return <ChainsView />
       case 'chat':
         return (
           <div className="lg:hidden h-full">

@@ -4,6 +4,7 @@ import {
   Broadcast,
   UsersThree,
   ChatCircle,
+  GlobeHemisphereWest,
 } from '@phosphor-icons/react'
 import { useAppStore, type View } from '../stores/app'
 import { useAuthState } from '../hooks/useAuthState'
@@ -24,6 +25,7 @@ interface Tab {
 const TABS: Tab[] = [
   { id: 'dashboard', label: 'Dashboard', icon: ChartBar },
   { id: 'vault', label: 'Vault', icon: Vault },
+  { id: 'chains', label: 'Chains', icon: GlobeHemisphereWest },
   { id: 'chat', label: 'Chat', icon: ChatCircle, tabletOnly: true },
   { id: 'herald', label: 'Herald', icon: Broadcast, adminOnly: true },
   { id: 'squad', label: 'Squad', icon: UsersThree, adminOnly: true },
