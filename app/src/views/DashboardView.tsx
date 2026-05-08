@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiFetch } from '../api/client'
 import { type ActivityEvent } from '../hooks/useSSE'
 import { useAuthState } from '../hooks/useAuthState'
-import { Card } from '../components/ui/Card'
 import { PrivacyScoreCard } from '../components/PrivacyScoreCard'
 import { ActivityStreamTable, type ActivityRow } from '../components/ActivityStreamTable'
+import { PrivacyGraph } from '../components/PrivacyGraph'
+import { ShieldedVolumeCard } from '../components/ShieldedVolumeCard'
 
 interface VaultData {
   wallet: string
@@ -120,21 +121,14 @@ export default function DashboardView({ events }: { events: ActivityEvent[] }) {
 
   return (
     <div data-testid="dashboard-view" className="space-y-6 p-6">
+      <PrivacyGraph />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <PrivacyScoreCard data={privacyData} delta={4} />
         </div>
         <div>
-          <Card variant="default" className="p-6 h-full flex flex-col justify-center items-center">
-            <span
-              className="text-2xs text-text-muted"
-              style={{ letterSpacing: 'var(--tracking-widest)' }}
-            >
-              SHIELDED VOLUME · 24H
-            </span>
-            <span className="text-4xl font-mono text-text mt-2">—</span>
-            <span className="text-xs text-text-muted mt-1">aggregator endpoint lands in PR 4</span>
-          </Card>
+          <ShieldedVolumeCard />
         </div>
       </div>
 
