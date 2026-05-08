@@ -49,6 +49,9 @@ interface AppState {
   setChatOpen: (open: boolean) => void
   pendingPrompt: string | null
   consumePendingPrompt: () => string | null
+
+  chatSheetOpen: boolean
+  setChatSheetOpen: (open: boolean) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -122,6 +125,9 @@ export const useAppStore = create<AppState>()(
         set({ pendingPrompt: null })
         return p
       },
+
+      chatSheetOpen: false,
+      setChatSheetOpen: (chatSheetOpen) => set({ chatSheetOpen }),
     }),
     {
       name: 'sipher-auth',
