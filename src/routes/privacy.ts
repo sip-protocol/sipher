@@ -1,7 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import { PublicKey } from '@solana/web3.js'
-import { toBaseUnits } from '@sipher/sdk'
 import { validateRequest } from '../middleware/validation.js'
 import { getConnection } from '../services/solana.js'
 
@@ -181,6 +180,17 @@ const TOKEN_DECIMALS: Record<string, number> = {
   SOL: 9,
   USDC: 6,
   USDT: 6,
+}
+
+// Inlined from `@sipher/sdk` (packages/sdk/src/tokens.ts) so the v1 mode-2 root
+// app's `tsc --noEmit` does not require the workspace SDK as a typed import.
+// String-math implementation avoids float precision loss that
+// `BigInt(Math.round(amount * 10 ** decimals))` would introduce for amounts
+// near `Number.MAX_SAFE_INTEGER` or with many fractional digits.
+function toBaseUnits(amount: number, decimals: number): bigint {
+  const [whole, frac = ''] = amount.toString().split('.')
+  const padded = frac.padEnd(decimals, '0').slice(0, decimals)
+  return BigInt(whole + padded)
 }
 
 // ─── Route ──────────────────────────────────────────────────────────────────
