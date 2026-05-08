@@ -42,7 +42,9 @@ export default function BottomNav() {
       <nav className="flex md:hidden border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]">
         {TABS.map((tab) => {
           const Icon = tab.icon
-          const active = activeView === tab.id
+          const active =
+            activeView === tab.id ||
+            (tab.id === 'vault' && activeView === 'deposit')
           return (
             <button
               key={tab.id}
