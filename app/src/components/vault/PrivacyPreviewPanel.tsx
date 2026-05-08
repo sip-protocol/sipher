@@ -82,6 +82,7 @@ export function PrivacyPreviewPanel({
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      abortRef.current?.abort()
     }
   }, [address, projectedAmount, projectedToken, debounceMs, token])
 

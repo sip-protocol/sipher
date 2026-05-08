@@ -151,4 +151,42 @@ describe('PrivacyPreviewPanel', () => {
       expect(screen.getByText(/no prior history/i)).toBeInTheDocument()
     })
   })
+
+  it('aborts in-flight fetch when unmounted before fetch resolves', async () => {
+    // Make apiFetch hang indefinitely and reject only when its signal aborts —
+    // this lets us unmount mid-flight and assert the cleanup contract: the
+    // controller stored in abortRef MUST be aborted on unmount, otherwise
+    // setData would fire on a torn-down component.
+    ;(apiFetch as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      (_path: string, opts?: RequestInit & { token?: string }) =>
+        new Promise((_resolve, reject) => {
+          opts?.signal?.addEventListener('abort', () => {
+            const err = new Error('aborted')
+            err.name = 'AbortError'
+            reject(err)
+          })
+        })
+    )
+
+    const { unmount } = render(
+      <PrivacyPreviewPanel
+        address="C1phr...85N"
+        projectedAmount={1}
+        projectedToken="SOL"
+        debounceMs={0}
+      />
+    )
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledTimes(1)
+    })
+
+    const callArgs = (apiFetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    const opts = callArgs[1] as RequestInit
+    expect(opts.signal?.aborted).toBe(false)
+
+    unmount()
+
+    expect(opts.signal?.aborted).toBe(true)
+  })
 })
