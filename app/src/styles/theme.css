@@ -1,45 +1,189 @@
 @import 'tailwindcss';
+@import './tokens.css';
+@import './glass.css';
+@import './animations.css';
 
 @theme {
-  /* Backgrounds */
-  --color-bg: #111113;
+  /* Color — backgrounds */
+  --color-bg: var(--color-bg);
+  --color-bg-1: var(--color-bg-1);
+  --color-bg-2: var(--color-bg-2);
+  --color-bg-3: var(--color-bg-3);
+  --color-bg-4: var(--color-bg-4);
+
+  /* Color — surfaces */
+  --color-glass-1: var(--color-glass-1);
+  --color-glass-2: var(--color-glass-2);
+  --color-glass-3: var(--color-glass-3);
+  --color-glass-strong: var(--color-glass-strong);
+
+  /* Color — hairlines */
+  --color-line: var(--color-line);
+  --color-line-2: var(--color-line-2);
+  --color-line-strong: var(--color-line-strong);
+  --color-line-accent: var(--color-line-accent);
+
+  /* Color — text */
+  --color-text: var(--color-text);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-dim: var(--color-text-dim);
+  --color-text-inverse: var(--color-text-inverse);
+
+  /* Color — brand */
+  --color-accent: var(--color-accent);
+  --color-accent-hi: var(--color-accent-hi);
+  --color-accent-lo: var(--color-accent-lo);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-accent-glow: var(--color-accent-glow);
+  --color-cyan: var(--color-cyan);
+  --color-cyan-hi: var(--color-cyan-hi);
+  --color-cyan-lo: var(--color-cyan-lo);
+  --color-cyan-soft: var(--color-cyan-soft);
+  --color-cyan-glow: var(--color-cyan-glow);
+
+  /* Color — status */
+  --color-success: var(--color-success);
+  --color-success-soft: var(--color-success-soft);
+  --color-warning: var(--color-warning);
+  --color-warning-soft: var(--color-warning-soft);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+  --color-info: var(--color-info);
+  --color-info-soft: var(--color-info-soft);
+
+  /* Color — agent identity */
+  --color-sipher: var(--color-sipher);
+  --color-herald: var(--color-herald);
+  --color-sentinel: var(--color-sentinel);
+  --color-courier: var(--color-courier);
+
+  /* Typography */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-display: var(--font-display);
+  --text-2xs: var(--text-2xs);
+  --text-xs: var(--text-xs);
+  --text-sm: var(--text-sm);
+  --text-base: var(--text-base);
+  --text-md: var(--text-md);
+  --text-lg: var(--text-lg);
+  --text-xl: var(--text-xl);
+  --text-2xl: var(--text-2xl);
+  --text-3xl: var(--text-3xl);
+  --text-4xl: var(--text-4xl);
+  --text-5xl: var(--text-5xl);
+  --text-6xl: var(--text-6xl);
+  --tracking-tight: var(--tracking-tight);
+  --tracking-normal: var(--tracking-normal);
+  --tracking-wide: var(--tracking-wide);
+  --tracking-wider: var(--tracking-wider);
+  --tracking-widest: var(--tracking-widest);
+  --tracking-mega: var(--tracking-mega);
+  --leading-none: var(--leading-none);
+  --leading-tight: var(--leading-tight);
+  --leading-snug: var(--leading-snug);
+  --leading-normal: var(--leading-normal);
+  --leading-relaxed: var(--leading-relaxed);
+
+  /* Radius */
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-3xl: var(--radius-3xl);
+  --radius-pill: var(--radius-pill);
+  --radius-full: var(--radius-full);
+
+  /* Shadow + glow */
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+  --shadow-glow-accent-sm: var(--glow-accent-sm);
+  --shadow-glow-accent-md: var(--glow-accent-md);
+  --shadow-glow-accent-lg: var(--glow-accent-lg);
+  --shadow-glow-cyan-md: var(--glow-cyan-md);
+  --shadow-glow-success: var(--glow-success);
+  --shadow-glow-warning: var(--glow-warning);
+  --shadow-glow-danger: var(--glow-danger);
+  --shadow-glow-focus-ring: var(--glow-focus-ring);
+  --shadow-glow-focus-ring-cyan: var(--glow-focus-ring-cyan);
+
+  /* Animation — easings */
+  --ease-spring: var(--ease-spring);
+  --ease-out-expo: var(--ease-out-expo);
+  --ease-out-back: var(--ease-out-back);
+
+  /* Tailwind 4 native @theme namespaces stop here.
+     z-index and transition-duration utilities are NOT in the recognized
+     `--{namespace}-*` set, so they are declared via @utility further below. */
+
+  /* Legacy aliases — preserved verbatim for zero visual regression in PR 1.
+     Existing components reference bg-card / bg-elevated / border-border /
+     bg-green / bg-red / bg-yellow utilities derived from these tokens.
+     Each restyle PR (PR 2-8) migrates its components to the new naming
+     (bg-bg-2 / bg-bg-3 / border-line / bg-success / bg-danger / bg-warning).
+     Once all callers migrate, this block disappears. */
   --color-card: #161618;
   --color-elevated: #1E1E22;
   --color-border: #232326;
-
-  /* Text hierarchy */
-  --color-text: #E4E4E7;
-  --color-text-secondary: #A1A1AA;
-  --color-text-muted: #71717A;
-  --color-text-dim: #52525B;
-
-  /* Brand */
-  --color-accent: #7C3AED;
-
-  /* Status */
   --color-green: #22C55E;
-  --color-yellow: #F59E0B;
   --color-red: #EF4444;
+  --color-yellow: #F59E0B;
+}
 
-  /* Agent identity */
-  --color-sipher: #10B981;
-  --color-herald: #3B82F6;
-  --color-sentinel: #F59E0B;
-  --color-courier: #8B5CF6;
-
-  --radius-lg: 8px;
+/* Base resets */
+:root {
+  color-scheme: dark;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
 }
 
 body {
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  margin: 0;
-  min-height: 100dvh;
+  background: var(--color-bg);
+  background-image: var(--gradient-bloom);
+  background-attachment: fixed;
+  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  margin: 0;
   overscroll-behavior-y: none;
 }
 
-.font-mono {
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--glow-focus-ring);
+  border-radius: var(--radius-sm);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Custom utilities for design-system tokens that Tailwind 4 does not map
+   natively from @theme. Each emits exactly when the class is referenced
+   in source, same scanning model as built-in utilities. */
+@utility z-base { z-index: var(--z-base); }
+@utility z-raised { z-index: var(--z-raised); }
+@utility z-sticky { z-index: var(--z-sticky); }
+@utility z-overlay { z-index: var(--z-overlay); }
+@utility z-modal { z-index: var(--z-modal); }
+@utility z-toast { z-index: var(--z-toast); }
+@utility z-tooltip { z-index: var(--z-tooltip); }
+
+@utility duration-instant { transition-duration: var(--duration-instant); }
+@utility duration-fast { transition-duration: var(--duration-fast); }
+@utility duration-base { transition-duration: var(--duration-base); }
+@utility duration-slow { transition-duration: var(--duration-slow); }
+@utility duration-slower { transition-duration: var(--duration-slower); }

@@ -1,0 +1,301 @@
+:root {
+  /* ──────────────────────────────────────────────────────────────
+     COLOR — BACKGROUND LAYERS
+     Stacked from furthest (page) to nearest (raised surface).
+     ────────────────────────────────────────────────────────────── */
+  --color-bg:               #0A0A0F;   /* page — near-black with violet bias */
+  --color-bg-1:             #111118;   /* base panels, sticky chrome */
+  --color-bg-2:             #161620;   /* card resting */
+  --color-bg-3:             #1C1C28;   /* card hover, raised */
+  --color-bg-4:             #232334;   /* popovers, command palette */
+
+  /* SURFACE — translucent (sit on top of bg w/ backdrop-blur) */
+  --color-glass-1:          rgba(255, 255, 255, 0.025);
+  --color-glass-2:          rgba(255, 255, 255, 0.045);
+  --color-glass-3:          rgba(255, 255, 255, 0.075);
+  --color-glass-strong:     rgba(255, 255, 255, 0.12);
+
+  /* HAIRLINES */
+  --color-line:             rgba(255, 255, 255, 0.06);
+  --color-line-2:           rgba(255, 255, 255, 0.10);
+  --color-line-strong:      rgba(255, 255, 255, 0.16);
+  --color-line-accent:      rgba(124, 58, 237, 0.35);
+
+  /* ──────────────────────────────────────────────────────────────
+     COLOR — TEXT HIERARCHY
+     ────────────────────────────────────────────────────────────── */
+  --color-text:             #F4F4F8;   /* primary */
+  --color-text-secondary:   #B4B4C2;   /* body secondary */
+  --color-text-muted:       #7A7A8C;   /* labels, helper */
+  --color-text-dim:         #4F4F60;   /* dividers in text, captions */
+  --color-text-inverse:     #0A0A0F;   /* on accent fills */
+
+  /* ──────────────────────────────────────────────────────────────
+     COLOR — BRAND ACCENTS
+     Primary = neon violet. Secondary = electric cyan.
+     ────────────────────────────────────────────────────────────── */
+  --color-accent:           #7C3AED;   /* violet 600 — primary brand */
+  --color-accent-hi:        #A78BFA;   /* violet 400 — hover, focus */
+  --color-accent-lo:        #5B21B6;   /* violet 800 — pressed */
+  --color-accent-soft:      rgba(124, 58, 237, 0.18);
+  --color-accent-glow:      rgba(124, 58, 237, 0.55);
+
+  --color-cyan:             #22D3EE;   /* cyan 400 — secondary brand */
+  --color-cyan-hi:          #67E8F9;   /* cyan 300 */
+  --color-cyan-lo:          #0891B2;   /* cyan 600 */
+  --color-cyan-soft:        rgba(34, 211, 238, 0.18);
+  --color-cyan-glow:        rgba(34, 211, 238, 0.50);
+
+  /* ──────────────────────────────────────────────────────────────
+     COLOR — STATUS
+     ────────────────────────────────────────────────────────────── */
+  --color-success:          #22C55E;
+  --color-success-soft:     rgba(34, 197, 94, 0.16);
+  --color-success-glow:     rgba(34, 197, 94, 0.45);
+
+  --color-warning:          #F59E0B;
+  --color-warning-soft:     rgba(245, 158, 11, 0.16);
+  --color-warning-glow:     rgba(245, 158, 11, 0.45);
+
+  --color-danger:           #EF4444;
+  --color-danger-soft:      rgba(239, 68, 68, 0.16);
+  --color-danger-glow:      rgba(239, 68, 68, 0.45);
+
+  --color-info:             #3B82F6;
+  --color-info-soft:        rgba(59, 130, 246, 0.16);
+  --color-info-glow:        rgba(59, 130, 246, 0.45);
+
+  /* ──────────────────────────────────────────────────────────────
+     COLOR — AGENT IDENTITY
+     ────────────────────────────────────────────────────────────── */
+  --color-sipher:           #10B981;   /* lead — emerald */
+  --color-herald:           #3B82F6;   /* x agent — blue */
+  --color-sentinel:         #F59E0B;   /* monitor — amber */
+  --color-courier:          #8B5CF6;   /* executor — violet */
+
+  /* ──────────────────────────────────────────────────────────────
+     COLOR — PRIVACY GRADE
+     A→F gradient, used by gauge + score factor bars.
+     ────────────────────────────────────────────────────────────── */
+  --color-grade-a:          #22C55E;
+  --color-grade-b:          #84CC16;
+  --color-grade-c:          #FACC15;
+  --color-grade-d:          #FB923C;
+  --color-grade-f:          #EF4444;
+
+  /* ──────────────────────────────────────────────────────────────
+     GRADIENTS
+     Cyan→Violet is the signature. Use linear for fills, conic for
+     gauges, radial for ambient bloom.
+     ────────────────────────────────────────────────────────────── */
+  --gradient-brand:         linear-gradient(135deg, #22D3EE 0%, #7C3AED 100%);
+  --gradient-brand-vert:    linear-gradient(180deg, #22D3EE 0%, #7C3AED 100%);
+  --gradient-brand-soft:    linear-gradient(135deg, rgba(34,211,238,0.20) 0%, rgba(124,58,237,0.20) 100%);
+
+  --gradient-cta:           linear-gradient(180deg, #8B5CF6 0%, #6D28D9 100%);
+  --gradient-cta-hover:     linear-gradient(180deg, #A78BFA 0%, #7C3AED 100%);
+  --gradient-cta-pressed:   linear-gradient(180deg, #6D28D9 0%, #4C1D95 100%);
+
+  --gradient-progress:      linear-gradient(90deg, #22D3EE 0%, #7C3AED 100%);
+  --gradient-progress-success: linear-gradient(90deg, #10B981 0%, #22D3EE 100%);
+
+  --gradient-gauge:         conic-gradient(from -90deg, #22D3EE 0%, #7C3AED 100%);
+  --gradient-gauge-track:   conic-gradient(from -90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.06) 100%);
+
+  --gradient-bloom:
+    radial-gradient(1200px 700px at 85% -10%, rgba(124, 58, 237, 0.18), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(34, 211, 238, 0.14), transparent 60%),
+    radial-gradient(600px 400px at 50% 50%, rgba(16, 185, 129, 0.06), transparent 70%);
+
+  --gradient-card-sheen:    linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 50%, rgba(255,255,255,0) 100%);
+  --gradient-hairline:      linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+
+  /* ──────────────────────────────────────────────────────────────
+     TYPOGRAPHY
+     ────────────────────────────────────────────────────────────── */
+  --font-sans:              'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:              'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-display:           'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* font-size — modular scale, base 14 */
+  --text-2xs:               10px;
+  --text-xs:                11px;
+  --text-sm:                12px;
+  --text-base:              14px;
+  --text-md:                15px;
+  --text-lg:                17px;
+  --text-xl:                20px;
+  --text-2xl:               24px;
+  --text-3xl:               32px;
+  --text-4xl:               44px;
+  --text-5xl:               60px;
+  --text-6xl:               84px;   /* hero numerals (gauge value) */
+
+  /* font-weight */
+  --weight-regular:         400;
+  --weight-medium:          500;
+  --weight-semibold:        600;
+  --weight-bold:            700;
+
+  /* letter-spacing */
+  --tracking-tight:         -0.02em;
+  --tracking-normal:        0;
+  --tracking-wide:          0.04em;
+  --tracking-wider:         0.08em;
+  --tracking-widest:        0.16em;   /* eyebrow labels */
+  --tracking-mega:          0.22em;   /* SIPHER wordmark */
+
+  /* line-height */
+  --leading-none:           1;
+  --leading-tight:          1.15;
+  --leading-snug:           1.35;
+  --leading-normal:         1.5;
+  --leading-relaxed:        1.65;
+
+  /* ──────────────────────────────────────────────────────────────
+     SPACING — 4px base
+     ────────────────────────────────────────────────────────────── */
+  --space-0:                0px;
+  --space-px:               1px;
+  --space-0-5:              2px;
+  --space-1:                4px;
+  --space-1-5:              6px;
+  --space-2:                8px;
+  --space-2-5:              10px;
+  --space-3:                12px;
+  --space-4:                16px;
+  --space-5:                20px;
+  --space-6:                24px;
+  --space-7:                28px;
+  --space-8:                32px;
+  --space-10:               40px;
+  --space-12:               48px;
+  --space-14:               56px;
+  --space-16:               64px;
+  --space-20:               80px;
+  --space-24:               96px;
+
+  /* ──────────────────────────────────────────────────────────────
+     BORDER RADIUS
+     ────────────────────────────────────────────────────────────── */
+  --radius-none:            0;
+  --radius-xs:              3px;     /* tags, chips */
+  --radius-sm:              5px;     /* small buttons */
+  --radius-md:              7px;     /* inputs */
+  --radius-lg:              10px;    /* cards, panels */
+  --radius-xl:              14px;    /* hero cards, modals */
+  --radius-2xl:             20px;    /* drawer sheets */
+  --radius-3xl:             28px;    /* showcase blocks */
+  --radius-pill:            999px;   /* pills, dot indicators */
+  --radius-full:            9999px;  /* circular */
+
+  /* ──────────────────────────────────────────────────────────────
+     BLUR — for glass/backdrop layers
+     ────────────────────────────────────────────────────────────── */
+  --blur-none:              0;
+  --blur-xs:                4px;
+  --blur-sm:                8px;
+  --blur-md:                14px;    /* default glass */
+  --blur-lg:                22px;    /* dense glass (chrome) */
+  --blur-xl:                32px;    /* command palette overlay */
+  --blur-2xl:               48px;    /* hero gauge backdrop */
+
+  /* saturation pairs to use with blur in backdrop-filter */
+  --backdrop-glass:         blur(14px) saturate(140%);
+  --backdrop-glass-dense:   blur(22px) saturate(160%);
+  --backdrop-glass-modal:   blur(32px) saturate(180%);
+
+  /* ──────────────────────────────────────────────────────────────
+     SHADOWS — elevation
+     ────────────────────────────────────────────────────────────── */
+  --shadow-xs:              0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-sm:              0 2px 6px rgba(0, 0, 0, 0.32);
+  --shadow-md:              0 6px 16px -4px rgba(0, 0, 0, 0.45);
+  --shadow-lg:              0 14px 32px -8px rgba(0, 0, 0, 0.55);
+  --shadow-xl:              0 28px 56px -12px rgba(0, 0, 0, 0.65);
+  --shadow-2xl:             0 40px 80px -16px rgba(0, 0, 0, 0.75);
+  --shadow-inset:           inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-inset-strong:    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+
+  /* ──────────────────────────────────────────────────────────────
+     GLOW — neon recipes
+     Use as box-shadow. Layered: inset hairline + outer halo.
+     ────────────────────────────────────────────────────────────── */
+  --glow-accent-sm:
+    0 0 0 1px rgba(124, 58, 237, 0.20) inset,
+    0 4px 12px -4px rgba(124, 58, 237, 0.40);
+
+  --glow-accent-md:                            /* default CTA glow */
+    0 0 0 1px rgba(124, 58, 237, 0.25) inset,
+    0 8px 24px -8px rgba(124, 58, 237, 0.55),
+    0 2px 8px -2px rgba(124, 58, 237, 0.35);
+
+  --glow-accent-lg:                            /* Shield SOL primary CTA */
+    0 0 0 1px rgba(124, 58, 237, 0.30) inset,
+    0 0 24px rgba(124, 58, 237, 0.30),
+    0 12px 32px -8px rgba(124, 58, 237, 0.65),
+    0 4px 12px -2px rgba(34, 211, 238, 0.25);
+
+  --glow-cyan-md:
+    0 0 0 1px rgba(34, 211, 238, 0.25) inset,
+    0 8px 24px -8px rgba(34, 211, 238, 0.55);
+
+  --glow-success:           0 0 16px -4px rgba(34, 197, 94, 0.55);
+  --glow-warning:           0 0 16px -4px rgba(245, 158, 11, 0.55);
+  --glow-danger:            0 0 16px -4px rgba(239, 68, 68, 0.55);
+
+  --glow-focus-ring:        0 0 0 4px rgba(124, 58, 237, 0.22);
+  --glow-focus-ring-cyan:   0 0 0 4px rgba(34, 211, 238, 0.22);
+
+  /* drop-shadow flavors (for filter:, e.g. on conic gauges) */
+  --drop-glow-accent:       drop-shadow(0 0 18px rgba(124, 58, 237, 0.45));
+  --drop-glow-cyan:         drop-shadow(0 0 18px rgba(34, 211, 238, 0.45));
+
+  /* ──────────────────────────────────────────────────────────────
+     ANIMATION — durations + easings
+     ────────────────────────────────────────────────────────────── */
+  --duration-instant:       60ms;
+  --duration-fast:          120ms;
+  --duration-base:          200ms;
+  --duration-slow:          320ms;
+  --duration-slower:        500ms;
+  --duration-pulse:         2000ms;
+  --duration-bloom:         8000ms;
+
+  /* easings */
+  --ease-linear:            linear;
+  --ease-in:                cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:               cubic-bezier(0, 0, 0.2, 1);          /* default UI motion */
+  --ease-in-out:            cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out-expo:          cubic-bezier(0.16, 1, 0.3, 1);       /* drawer/sheet open */
+  --ease-out-back:          cubic-bezier(0.34, 1.56, 0.64, 1);   /* dot grid pop */
+  --ease-spring:            cubic-bezier(0.5, 1.5, 0.5, 1);      /* gauge fill */
+  --ease-anticipate:        cubic-bezier(0.68, -0.6, 0.32, 1.6);
+
+  /* ──────────────────────────────────────────────────────────────
+     LAYOUT — z-index, breakpoints, container widths
+     ────────────────────────────────────────────────────────────── */
+  --z-base:                 0;
+  --z-raised:               10;
+  --z-sticky:               20;
+  --z-overlay:              40;
+  --z-modal:                50;
+  --z-toast:                60;
+  --z-tooltip:              70;
+
+  --bp-sm:                  640px;
+  --bp-md:                  768px;
+  --bp-lg:                  1024px;
+  --bp-xl:                  1280px;
+  --bp-2xl:                 1536px;
+
+  --container-app:          1440px;
+  --container-readable:     720px;
+
+  /* nav rail / sidebar widths */
+  --width-sidebar:          240px;
+  --width-sidebar-collapsed:64px;
+  --width-chat-rail:        360px;
+  --height-header:          56px;
+  --height-header-mobile:   48px;
+}
