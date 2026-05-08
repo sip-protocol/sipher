@@ -19,6 +19,7 @@
     "@tailwindcss/vite": "^4.2.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "reactflow": "^11.11.4",
     "tailwindcss": "^4.2.2",
     "zustand": "^5.0.12"
   },
