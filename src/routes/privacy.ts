@@ -11,6 +11,11 @@ const router = Router()
 const scoreSchema = z.object({
   address: z.string().min(32).max(44),
   limit: z.number().int().min(10).max(500).default(100),
+  // projectedAmount + projectedToken are validated explicitly in the handler
+  // (NOT via zod) so that the error codes (INVALID_PROJECTED_AMOUNT, INVALID_TOKEN)
+  // match the spec envelope rather than zod's default schema-error shape.
+  projectedAmount: z.number().optional(),
+  projectedToken: z.string().optional(),
 })
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -167,6 +172,18 @@ const KNOWN_PROGRAMS = new Set([
   'mv3ekLzLbnVPNxjSKvqBpU3ZeZXPQdEC3bp5MDEBG68', // Marinade
 ])
 
+const TOKEN_DECIMALS: Record<string, number> = {
+  SOL: 9,
+  USDC: 6,
+  USDT: 6,
+}
+
+function projectedAmountToBase(amount: number, token: string): bigint {
+  const decimals = TOKEN_DECIMALS[token]
+  if (decimals === undefined) throw new Error(`Unknown token: ${token}`)
+  return BigInt(Math.round(amount * 10 ** decimals))
+}
+
 // ─── Route ──────────────────────────────────────────────────────────────────
 
 router.post(
@@ -264,6 +281,100 @@ router.post(
         recommendations.push('Maintain good privacy hygiene by using stealth addresses regularly')
       }
 
+      // ─── Projected score (optional) ─────────────────────────────────────
+      // When the client passes `projectedAmount` (and optionally `projectedToken`),
+      // re-run the four analyzers over the existing on-chain history augmented
+      // with one synthetic shielded deposit. The response then includes a
+      // `projected` block plus `delta` so the UI can show "your score WILL
+      // become X if you deposit Y."
+      let projectedBlock:
+        | {
+            score: number
+            grade: string
+            factors: Record<string, { score: number; detail: string }>
+            delta: {
+              score: number
+              addressReuse: number
+              amountPatterns: number
+              timingCorrelation: number
+              counterpartyExposure: number
+            }
+          }
+        | undefined
+
+      if (req.body.projectedAmount !== undefined) {
+        if (
+          typeof req.body.projectedAmount !== 'number' ||
+          !Number.isFinite(req.body.projectedAmount) ||
+          req.body.projectedAmount <= 0
+        ) {
+          res.status(400).json({
+            success: false,
+            error: { code: 'INVALID_PROJECTED_AMOUNT', message: 'projectedAmount must be > 0' },
+          })
+          return
+        }
+
+        const projectedToken = req.body.projectedToken ?? 'SOL'
+        if (!(projectedToken in TOKEN_DECIMALS)) {
+          res.status(400).json({
+            success: false,
+            error: { code: 'INVALID_TOKEN', message: 'projectedToken must be SOL, USDC, or USDT' },
+          })
+          return
+        }
+
+        const projectedBaseUnits = projectedAmountToBase(req.body.projectedAmount, projectedToken)
+
+        // Append a synthetic shielded deposit record to the analysis input.
+        // Fresh stealth destination: 44-char base58 placeholder that will
+        // never collide with a real address (all '1' = leading zero bytes).
+        const SYNTHETIC_STEALTH_ADDR = '1' + '1'.repeat(43)
+        const synthTxData = [
+          ...txData,
+          { to: new Set<string>([SYNTHETIC_STEALTH_ADDR]), from: address },
+        ]
+        const synthAmounts = [...amounts, projectedBaseUnits]
+        const synthTimestamps = [...timestamps, Math.floor(Date.now() / 1000)]
+
+        const pAddressReuse = analyzeAddressReuse(synthTxData, address)
+        const pAmountPatterns = analyzeAmountPatterns(synthAmounts)
+        const pTimingCorrelation = analyzeTimingCorrelation(synthTimestamps)
+        const pCounterpartyExposure = analyzeCounterpartyExposure(synthTxData, KNOWN_PROGRAMS)
+
+        const pFactors = {
+          addressReuse: pAddressReuse,
+          amountPatterns: pAmountPatterns,
+          timingCorrelation: pTimingCorrelation,
+          counterpartyExposure: pCounterpartyExposure,
+        }
+        const pTotalWeight = Object.values(pFactors).reduce((sum, f) => sum + f.weight, 0)
+        const pWeighted = Object.values(pFactors).reduce((sum, f) => sum + f.score * f.weight, 0)
+        const pScore = Math.round(pWeighted / pTotalWeight)
+        const pGrade = computeGrade(pScore)
+
+        projectedBlock = {
+          score: pScore,
+          grade: pGrade,
+          factors: {
+            addressReuse: { score: pAddressReuse.score, detail: pAddressReuse.detail },
+            amountPatterns: { score: pAmountPatterns.score, detail: pAmountPatterns.detail },
+            timingCorrelation: { score: pTimingCorrelation.score, detail: pTimingCorrelation.detail },
+            counterpartyExposure: {
+              score: pCounterpartyExposure.score,
+              detail: pCounterpartyExposure.detail,
+            },
+          },
+          delta: {
+            score: pScore - score,
+            addressReuse: pAddressReuse.score - addressReuse.score,
+            amountPatterns: pAmountPatterns.score - amountPatterns.score,
+            timingCorrelation: pTimingCorrelation.score - timingCorrelation.score,
+            counterpartyExposure: pCounterpartyExposure.score - counterpartyExposure.score,
+          },
+        }
+      }
+
       res.json({
         success: true,
         data: {
@@ -278,6 +389,7 @@ router.post(
             counterpartyExposure: { score: counterpartyExposure.score, detail: counterpartyExposure.detail },
           },
           recommendations,
+          ...(projectedBlock ? { projected: projectedBlock } : {}),
         },
       })
     } catch (err) {
