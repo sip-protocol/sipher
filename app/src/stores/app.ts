@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-export type View = 'dashboard' | 'vault' | 'herald' | 'squad' | 'chat'
+export type View = 'dashboard' | 'vault' | 'herald' | 'squad' | 'chat' | 'privacyReport'
 export type ToolStatus = 'running' | 'success' | 'error'
 
 export interface ToolCall {

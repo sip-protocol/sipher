@@ -11,6 +11,7 @@ import { useToast } from '../providers/ToastProvider'
 import AgentDot from './AgentDot'
 import { WalletDropdown } from './WalletDropdown'
 import { useNetworkConfigStore } from '../lib/networkConfig'
+import { TickerBar } from './ui/TickerBar'
 
 interface Tab {
   id: View
@@ -69,6 +70,7 @@ export default function Header() {
           SIPHER
         </span>
         <span className="text-2xs text-text-muted font-mono uppercase">{network}</span>
+        <TickerBar />
         <nav className="flex items-center ml-3">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon
