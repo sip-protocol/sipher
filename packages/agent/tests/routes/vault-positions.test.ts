@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import express, { type Request, type Response, type NextFunction } from 'express'
 import supertest from 'supertest'
 import { PublicKey } from '@solana/web3.js'
@@ -13,12 +13,18 @@ vi.mock('@sipher/sdk', async () => {
   const actual = await vi.importActual<typeof import('@sipher/sdk')>('@sipher/sdk')
   return {
     ...actual,
-    fetchDepositRecord: vi.fn(),
+    getVaultBalance: vi.fn(),
     createConnection: vi.fn(() => ({})),
   }
 })
 
-import { fetchDepositRecord, deriveDepositRecordPDA, WSOL_MINT, SIPHER_VAULT_PROGRAM_ID } from '@sipher/sdk'
+import {
+  getVaultBalance,
+  deriveDepositRecordPDA,
+  WSOL_MINT,
+  SIPHER_VAULT_PROGRAM_ID,
+  DEFAULT_REFUND_TIMEOUT,
+} from '@sipher/sdk'
 import { loadNetworkConfig } from '../../src/config/network.js'
 import { vaultPositionsRouter } from '../../src/routes/vault-positions.js'
 
@@ -44,17 +50,34 @@ const [SOL_DEPOSIT_PDA] = deriveDepositRecordPDA(
   SIPHER_VAULT_PROGRAM_ID
 )
 
+/** Build a "no record" VaultBalance — what getVaultBalance returns when the PDA has no on-chain account. */
+function emptyBalance(mint: PublicKey) {
+  return {
+    depositor: new PublicKey(TEST_WALLET),
+    tokenMint: mint,
+    balance: 0n,
+    lockedAmount: 0n,
+    available: 0n,
+    cumulativeVolume: 0n,
+    lastDepositAt: 0,
+    exists: false,
+  }
+}
+
 beforeEach(() => {
-  vi.mocked(fetchDepositRecord).mockReset()
+  vi.mocked(getVaultBalance).mockReset()
   vi.mocked(loadNetworkConfig).mockReturnValue({ clusterName: 'devnet' } as ReturnType<typeof loadNetworkConfig>)
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('GET /api/vault/positions', () => {
   it('returns empty positions when no records exist', async () => {
-    // Real SDK throws "DepositRecord not found at <pda>" when the account does not exist.
-    // Route swallows this per-mint as "no deposit for this token".
-    vi.mocked(fetchDepositRecord).mockRejectedValue(
-      new Error('DepositRecord not found at SomePDA')
+    // getVaultBalance returns exists=false (never throws) when the PDA has no account.
+    vi.mocked(getVaultBalance).mockImplementation(async (_conn, _depositor, mint) =>
+      emptyBalance(mint)
     )
 
     const res = await supertest(createApp()).get('/api/vault/positions')
@@ -68,19 +91,20 @@ describe('GET /api/vault/positions', () => {
   })
 
   it('returns one row per non-zero deposit_record', async () => {
-    vi.mocked(fetchDepositRecord).mockImplementation(async (_conn, pda) => {
-      if (pda.toBase58() === SOL_DEPOSIT_PDA.toBase58()) {
+    vi.mocked(getVaultBalance).mockImplementation(async (_conn, depositor, mint) => {
+      if (mint.toBase58() === WSOL_MINT.toBase58()) {
         return {
-          depositor: new PublicKey(TEST_WALLET),
-          tokenMint: new PublicKey(SOL_MINT),
+          depositor,
+          tokenMint: mint,
           balance: 2_500_000_000n,
           lockedAmount: 0n,
+          available: 2_500_000_000n,
           cumulativeVolume: 2_500_000_000n,
           lastDepositAt: 1715000000,
-          bump: 255,
+          exists: true,
         }
       }
-      throw new Error('DepositRecord not found at OtherPDA')
+      return emptyBalance(mint)
     })
 
     const res = await supertest(createApp()).get('/api/vault/positions')
@@ -103,15 +127,18 @@ describe('GET /api/vault/positions', () => {
   })
 
   it('skips records with zero balance', async () => {
-    vi.mocked(fetchDepositRecord).mockResolvedValue({
-      depositor: new PublicKey(TEST_WALLET),
-      tokenMint: new PublicKey(SOL_MINT),
+    // exists=true but balance=0 — possible after a full refund leaves the PDA closed/reopened
+    // or after the data structure is initialised with no funds. Either way, route should skip.
+    vi.mocked(getVaultBalance).mockImplementation(async (_conn, depositor, mint) => ({
+      depositor,
+      tokenMint: mint,
       balance: 0n,
       lockedAmount: 0n,
+      available: 0n,
       cumulativeVolume: 0n,
       lastDepositAt: 0,
-      bump: 255,
-    })
+      exists: true,
+    }))
 
     const res = await supertest(createApp()).get('/api/vault/positions')
     expect(res.body.positions).toEqual([])
@@ -132,8 +159,8 @@ describe('GET /api/vault/positions', () => {
   })
 
   it('returns available:false with rpc_unavailable when fetch throws', async () => {
-    // Real RPC error (NOT a "not found" message) — bubbles to outer catch.
-    vi.mocked(fetchDepositRecord).mockRejectedValue(new Error('rpc dead'))
+    // Real RPC error bubbles to outer catch (getVaultBalance only throws on RPC failure now).
+    vi.mocked(getVaultBalance).mockRejectedValue(new Error('rpc dead'))
 
     const res = await supertest(createApp()).get('/api/vault/positions')
 
@@ -145,18 +172,89 @@ describe('GET /api/vault/positions', () => {
     })
   })
 
-  it('passes the deposit-record PDA (not the depositor or mint) to fetchDepositRecord', async () => {
-    // Test contract pinning (Task 2 review I-1/I-2 lesson):
-    // assert what the SDK was called with, not just that it was called.
-    vi.mocked(fetchDepositRecord).mockRejectedValue(
-      new Error('DepositRecord not found at X')
+  it('passes the depositor + mint (not the deposit-record PDA) to getVaultBalance', async () => {
+    // Test contract pinning: getVaultBalance derives the PDA internally,
+    // so we assert the route passes (depositor, mint) — NOT the PDA.
+    vi.mocked(getVaultBalance).mockImplementation(async (_conn, _depositor, mint) =>
+      emptyBalance(mint)
     )
 
     await supertest(createApp()).get('/api/vault/positions')
 
-    expect(fetchDepositRecord).toHaveBeenCalled()
-    // First call's second arg should be the SOL deposit-record PDA (not the depositor).
-    const firstCallArgs = vi.mocked(fetchDepositRecord).mock.calls[0]
-    expect(firstCallArgs[1].toBase58()).toBe(SOL_DEPOSIT_PDA.toBase58())
+    expect(getVaultBalance).toHaveBeenCalled()
+    const firstCallArgs = vi.mocked(getVaultBalance).mock.calls[0]
+    expect(firstCallArgs[1].toBase58()).toBe(TEST_WALLET) // depositor
+    expect(firstCallArgs[2].toBase58()).toBe(WSOL_MINT.toBase58()) // first mint = SOL
+  })
+
+  it('returns 401 envelope when JWT middleware did not attach req.wallet', async () => {
+    const res = await supertest(createApp(null)).get('/api/vault/positions')
+
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHENTICATED')
+  })
+
+  it('returns 400 INVALID_WALLET when wallet is not a valid base58 pubkey', async () => {
+    const res = await supertest(createApp('not_a_valid_base58!!')).get('/api/vault/positions')
+
+    expect(res.status).toBe(400)
+    expect(res.body.error.code).toBe('INVALID_WALLET')
+  })
+
+  it('reports cooldownActive=true when lastDepositAt is recent (within DEFAULT_REFUND_TIMEOUT)', async () => {
+    const fixedNowSeconds = 1_800_000_000
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(fixedNowSeconds * 1000))
+
+    vi.mocked(getVaultBalance).mockImplementation(async (_conn, depositor, mint) => {
+      if (mint.toBase58() === WSOL_MINT.toBase58()) {
+        return {
+          depositor,
+          tokenMint: mint,
+          balance: 1_000_000_000n,
+          lockedAmount: 0n,
+          available: 1_000_000_000n,
+          cumulativeVolume: 1_000_000_000n,
+          lastDepositAt: fixedNowSeconds - 100, // 100s ago — well inside cooldown
+          exists: true,
+        }
+      }
+      return emptyBalance(mint)
+    })
+
+    const res = await supertest(createApp()).get('/api/vault/positions')
+
+    expect(res.status).toBe(200)
+    expect(res.body.positions).toHaveLength(1)
+    expect(res.body.positions[0].cooldownActive).toBe(true)
+    expect(res.body.positions[0].refundableAt).toBe(fixedNowSeconds - 100 + DEFAULT_REFUND_TIMEOUT)
+  })
+
+  it('reports cooldownActive=false when lastDepositAt is older than DEFAULT_REFUND_TIMEOUT', async () => {
+    const fixedNowSeconds = 1_800_000_000
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(fixedNowSeconds * 1000))
+
+    vi.mocked(getVaultBalance).mockImplementation(async (_conn, depositor, mint) => {
+      if (mint.toBase58() === WSOL_MINT.toBase58()) {
+        return {
+          depositor,
+          tokenMint: mint,
+          balance: 1_000_000_000n,
+          lockedAmount: 0n,
+          available: 1_000_000_000n,
+          cumulativeVolume: 1_000_000_000n,
+          lastDepositAt: fixedNowSeconds - DEFAULT_REFUND_TIMEOUT - 1, // just past cooldown
+          exists: true,
+        }
+      }
+      return emptyBalance(mint)
+    })
+
+    const res = await supertest(createApp()).get('/api/vault/positions')
+
+    expect(res.status).toBe(200)
+    expect(res.body.positions).toHaveLength(1)
+    expect(res.body.positions[0].cooldownActive).toBe(false)
   })
 })

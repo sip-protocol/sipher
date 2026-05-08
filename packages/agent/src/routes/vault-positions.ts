@@ -4,14 +4,13 @@ import {
   WSOL_MINT,
   USDC_MINT,
   USDT_MINT,
-  fetchDepositRecord,
+  getVaultBalance,
   deriveDepositRecordPDA,
   createConnection,
   SIPHER_VAULT_PROGRAM_ID,
+  DEFAULT_REFUND_TIMEOUT,
 } from '@sipher/sdk'
 import { loadNetworkConfig } from '../config/network.js'
-
-const REFUND_TIMEOUT_SECONDS = 86400 // matches sipher_vault devnet config
 
 const KNOWN_MINTS: { mint: PublicKey; symbol: string; decimals: number }[] = [
   { mint: WSOL_MINT, symbol: 'SOL', decimals: 9 },
@@ -30,14 +29,6 @@ interface Position {
   refundableAt: number
   cooldownActive: boolean
   depositRecordAddress: string
-}
-
-/** SDK throws this exact message prefix when a DepositRecord PDA has no on-chain account. */
-const NOT_FOUND_PREFIX = 'DepositRecord not found'
-
-function isAccountNotFound(err: unknown): boolean {
-  if (!(err instanceof Error)) return false
-  return err.message.startsWith(NOT_FOUND_PREFIX)
 }
 
 export const vaultPositionsRouter = Router()
@@ -78,29 +69,21 @@ vaultPositionsRouter.get('/positions', async (req: Request, res: Response) => {
 
   try {
     for (const { mint, symbol, decimals } of KNOWN_MINTS) {
+      const balance = await getVaultBalance(connection, depositor, mint, SIPHER_VAULT_PROGRAM_ID)
+
+      if (!balance.exists || balance.balance === 0n) continue
+
       const [pda] = deriveDepositRecordPDA(depositor, mint, SIPHER_VAULT_PROGRAM_ID)
-
-      let record
-      try {
-        record = await fetchDepositRecord(connection, pda)
-      } catch (err) {
-        if (isAccountNotFound(err)) continue // no deposit for this mint — normal
-        throw err // real RPC error — bubble to outer catch
-      }
-
-      if (!record || record.balance === 0n) continue
-
-      const lastDepositAt = Number(record.lastDepositAt)
-      const refundableAt = lastDepositAt + REFUND_TIMEOUT_SECONDS
+      const refundableAt = balance.lastDepositAt + DEFAULT_REFUND_TIMEOUT
 
       positions.push({
         mint: mint.toBase58(),
         symbol,
-        balance: record.balance.toString(),
-        balanceUiAmount: Number(record.balance) / 10 ** decimals,
-        lockedAmount: record.lockedAmount.toString(),
+        balance: balance.balance.toString(),
+        balanceUiAmount: Number(balance.balance) / 10 ** decimals,
+        lockedAmount: balance.lockedAmount.toString(),
         decimals,
-        lastDepositAt,
+        lastDepositAt: balance.lastDepositAt,
         refundableAt,
         cooldownActive: nowSeconds < refundableAt,
         depositRecordAddress: pda.toBase58(),
