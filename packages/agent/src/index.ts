@@ -27,6 +27,8 @@ import { performVaultRefund, assertVaultRefundWired } from './sentinel/vault-ref
 import { sentinelPublicRouter, sentinelAdminRouter } from './routes/sentinel-api.js'
 import { getSentinelConfig } from './sentinel/config.js'
 import { configRouter } from './routes/config.js'
+import { chainsRouter } from './routes/chains.js'
+import { stealthIndexRouter } from './routes/stealth-index.js'
 import { buildCorsMiddleware } from './cors-config.js'
 import { loadNetworkConfig } from './config/network.js'
 import {
@@ -168,6 +170,9 @@ app.use('/api/auth', authRouter)
 // Public network metadata (read by UI before auth) — never returns RPC URL or API key
 app.use('/api/config', configRouter)
 
+// Public chain registry + TVL aggregator (read by UI Shielded Volume + Chains views)
+app.use('/api/chains', chainsRouter)
+
 // Activity SSE stream — JWT required (EventSource passes ?token=)
 app.get('/api/stream', verifyJwt, streamHandler)
 
@@ -195,6 +200,9 @@ app.use('/api/herald', verifyJwt, requireOwner, heraldRouter)
 // SENTINEL decision log + status + query — JWT required (public) or JWT + owner (admin)
 app.use('/api/sentinel', verifyJwt, sentinelPublicRouter)
 app.use('/api/sentinel', verifyJwt, requireOwner, sentinelAdminRouter)
+
+// Stealth address tree (per-wallet) — JWT required, used by Dashboard PrivacyGraph
+app.use('/api/stealth', verifyJwt, stealthIndexRouter)
 
 // Activity stream (per-wallet history from DB) — JWT required
 app.get('/api/activity', verifyJwt, (req: Request, res: Response) => {
