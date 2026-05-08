@@ -3,11 +3,20 @@ import { mockPrivacyScore } from './fixtures/mocks'
 
 const AUTH_STATE = 'e2e/fixtures/storageState.json'
 
-test.describe('chat sidebar', () => {
+test.describe('Ask SIPHER sheet', () => {
   test.describe('unauthenticated', () => {
     test.use({ storageState: { cookies: [], origins: [] } })
 
-    test('input is disabled and shows connect-wallet placeholder', async ({ page }) => {
+    test('Ask SIPHER opens the sheet; Escape closes it', async ({ page }) => {
+      await page.goto('/')
+      await expect(page.getByRole('dialog', { name: /ask sipher/i })).toHaveCount(0)
+      await page.getByRole('button', { name: /ask sipher/i }).click()
+      await expect(page.getByRole('dialog', { name: /ask sipher/i })).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(page.getByRole('dialog', { name: /ask sipher/i })).toHaveCount(0)
+    })
+
+    test('chat input is disabled inside the sheet when unauthenticated', async ({ page }) => {
       const errors: string[] = []
       page.on('pageerror', (err) => errors.push(err.message))
       page.on('console', (msg) => {
@@ -15,6 +24,7 @@ test.describe('chat sidebar', () => {
       })
 
       await page.goto('/')
+      await page.getByRole('button', { name: /ask sipher/i }).click()
       const input = page.getByPlaceholder('Connect wallet first')
       await expect(input).toBeVisible()
       await expect(input).toBeDisabled()
@@ -46,6 +56,7 @@ test.describe('chat sidebar', () => {
       })
 
       await page.goto('/')
+      await page.getByRole('button', { name: /ask sipher/i }).click()
       const input = page.getByPlaceholder('Message SIPHER...')
       await expect(input).toBeEnabled()
       await input.fill('hi')

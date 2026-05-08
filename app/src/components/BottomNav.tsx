@@ -39,7 +39,7 @@ export default function BottomNav() {
 
   return (
     <>
-      <nav className="flex md:hidden border-t border-border bg-bg pb-[env(safe-area-inset-bottom)]">
+      <nav className="flex md:hidden border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]">
         {TABS.map((tab) => {
           const Icon = tab.icon
           const active = activeView === tab.id
@@ -52,7 +52,7 @@ export default function BottomNav() {
               }`}
             >
               <Icon size={20} weight={active ? 'fill' : 'regular'} />
-              <span className="text-[10px] font-medium tracking-wide">{tab.label}</span>
+              <span className="text-2xs font-medium tracking-wide">{tab.label}</span>
             </button>
           )
         })}
@@ -63,20 +63,20 @@ export default function BottomNav() {
           }`}
         >
           <DotsThree size={20} weight="bold" />
-          <span className="text-[10px] font-medium tracking-wide">More</span>
+          <span className="text-2xs font-medium tracking-wide">More</span>
         </button>
       </nav>
 
       {moreOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 md:hidden"
+          className="fixed inset-0 z-modal bg-black/60 md:hidden"
           onClick={() => setMoreOpen(false)}
         >
           <div
-            className="absolute bottom-0 inset-x-0 bg-card border-t border-border rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+            className="glass-strong absolute bottom-0 inset-x-0 rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-8 h-1 bg-border rounded-full mx-auto mb-4" />
+            <div className="w-8 h-1 bg-line-2 rounded-full mx-auto mb-4" />
             <div className="flex flex-col gap-1">
               {isAdmin && (
                 <>
@@ -85,7 +85,7 @@ export default function BottomNav() {
                       setActiveView('herald')
                       setMoreOpen(false)
                     }}
-                    className="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-elevated transition-colors"
+                    className="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-glass-2 transition-colors"
                   >
                     <Broadcast size={20} />
                     <span className="text-sm font-medium">Herald</span>
@@ -95,17 +95,17 @@ export default function BottomNav() {
                       setActiveView('squad')
                       setMoreOpen(false)
                     }}
-                    className="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-elevated transition-colors"
+                    className="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-glass-2 transition-colors"
                   >
                     <UsersThree size={20} />
                     <span className="text-sm font-medium">Squad</span>
                   </button>
-                  <div className="border-t border-border my-1" />
+                  <div className="border-t border-line my-1" />
                 </>
               )}
               <button
                 onClick={handleDisconnect}
-                className="flex items-center gap-3 px-3 py-3 rounded-lg text-red hover:bg-red/10 transition-colors"
+                className="flex items-center gap-3 px-3 py-3 rounded-lg text-danger hover:bg-danger-soft transition-colors"
               >
                 <SignOut size={20} />
                 <span className="text-sm font-medium">Disconnect Wallet</span>

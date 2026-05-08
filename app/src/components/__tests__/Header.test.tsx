@@ -54,7 +54,7 @@ beforeEach(() => {
   Object.assign(navigator, {
     clipboard: { writeText: mockClipboardWrite.mockResolvedValue(undefined) },
   })
-  useAppStore.setState({ activeView: 'dashboard' }, false)
+  useAppStore.setState({ activeView: 'dashboard', chatSheetOpen: false }, false)
   setAuth({ status: 'unauthed', publicKey: null, isAdmin: false })
 })
 
@@ -109,6 +109,30 @@ describe('Header — auth pill', () => {
     fireEvent.click(screen.getByText('Copy address'))
     await Promise.resolve()
     expect(mockClipboardWrite).toHaveBeenCalledWith(FULL)
+  })
+})
+
+describe('Header — wordmark + Ask SIPHER trigger', () => {
+  it('renders the SIPHER wordmark', () => {
+    render(<Header />)
+    expect(screen.getByText('SIPHER')).toBeInTheDocument()
+  })
+
+  it('exposes Ask SIPHER trigger button', () => {
+    render(<Header />)
+    expect(screen.getByRole('button', { name: /ask sipher/i })).toBeInTheDocument()
+  })
+
+  it('Ask SIPHER click opens chat sheet via store', () => {
+    render(<Header />)
+    expect(useAppStore.getState().chatSheetOpen).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: /ask sipher/i }))
+    expect(useAppStore.getState().chatSheetOpen).toBe(true)
+  })
+
+  it('renders the active network identifier', () => {
+    render(<Header />)
+    expect(screen.getByText('devnet')).toBeInTheDocument()
   })
 })
 

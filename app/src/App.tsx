@@ -11,6 +11,7 @@ import Header from './components/Header'
 import BottomNav from './components/BottomNav'
 import ChatSidebar from './components/ChatSidebar'
 import { BetaBanner } from './components/BetaBanner'
+import { Sheet } from './components/ui/Sheet'
 import DashboardView from './views/DashboardView'
 import VaultView from './views/VaultView'
 import HeraldView from './views/HeraldView'
@@ -24,6 +25,8 @@ import { AuthSyncProvider } from './providers/AuthSyncProvider'
 
 function AppShell() {
   const activeView = useAppStore((s) => s.activeView)
+  const chatSheetOpen = useAppStore((s) => s.chatSheetOpen)
+  const setChatSheetOpen = useAppStore((s) => s.setChatSheetOpen)
   const { token, isAdmin } = useAuth()
   const { events } = useSSE()
   const beta = useNetworkConfigStore((s) => s.config?.beta ?? false)
@@ -58,14 +61,17 @@ function AppShell() {
         <main className="flex-1 overflow-y-auto px-4 py-5 lg:px-6">
           {renderView()}
         </main>
-
-        {/* Desktop persistent chat sidebar */}
-        <aside className="hidden lg:flex w-[300px] border-l border-border shrink-0">
-          <ChatSidebar />
-        </aside>
       </div>
 
       <BottomNav />
+
+      <Sheet
+        open={chatSheetOpen}
+        onClose={() => setChatSheetOpen(false)}
+        ariaLabel="Ask SIPHER"
+      >
+        <ChatSidebar />
+      </Sheet>
     </div>
   )
 }
