@@ -27,6 +27,7 @@ import { performVaultRefund, assertVaultRefundWired } from './sentinel/vault-ref
 import { sentinelPublicRouter, sentinelAdminRouter } from './routes/sentinel-api.js'
 import { getSentinelConfig } from './sentinel/config.js'
 import { configRouter } from './routes/config.js'
+import { chainsRouter } from './routes/chains.js'
 import { buildCorsMiddleware } from './cors-config.js'
 import { loadNetworkConfig } from './config/network.js'
 import {
@@ -167,6 +168,9 @@ app.use('/api/auth', authRouter)
 
 // Public network metadata (read by UI before auth) — never returns RPC URL or API key
 app.use('/api/config', configRouter)
+
+// Public chain registry + TVL aggregator (read by UI Shielded Volume + Chains views)
+app.use('/api/chains', chainsRouter)
 
 // Activity SSE stream — JWT required (EventSource passes ?token=)
 app.get('/api/stream', verifyJwt, streamHandler)
