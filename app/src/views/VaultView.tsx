@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
-import { useAppStore, type View } from '../stores/app'
+import { useAppStore } from '../stores/app'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 import { Card } from '../components/ui/Card'
 import { HashCell } from '../components/ui/HashCell'
@@ -84,8 +84,6 @@ export default function VaultView() {
         positions={positions}
         stealthTree={stealthTree}
         loading={loading}
-        onWithdraw={() => setActiveView('withdraw' as View)}
-        disabled={isMainnet}
       />
       <UnshieldedWalletPanel
         wallet={vault?.wallet ?? ''}
@@ -101,14 +99,10 @@ function ShieldedVaultPanel({
   positions,
   stealthTree,
   loading,
-  onWithdraw,
-  disabled,
 }: {
   positions: Position[]
   stealthTree: StealthNode[]
   loading: boolean
-  onWithdraw: () => void
-  disabled: boolean
 }) {
   const totalSol = positions.find((p) => p.symbol === 'SOL')?.balanceUiAmount ?? 0
   const hasPositions = positions.length > 0
@@ -137,10 +131,9 @@ function ShieldedVaultPanel({
       <StealthAddressList positions={positions} stealthTree={stealthTree} loading={loading} />
       <button
         type="button"
-        onClick={onWithdraw}
-        disabled={disabled || !hasPositions}
-        className="self-start border border-line rounded-md px-3 py-1.5 text-xs hover:border-line-2 disabled:opacity-40 disabled:cursor-not-allowed"
-        title={disabled ? 'Devnet only — switch network' : ''}
+        disabled
+        className="self-start border border-line rounded-md px-3 py-1.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+        title="Coming soon — refund flow ships in PR 6b"
       >
         Withdraw
       </button>
@@ -176,7 +169,7 @@ function UnshieldedWalletPanel({
       <button
         type="button"
         onClick={onDeposit}
-        disabled={disabled || sol <= 0}
+        disabled={disabled}
         className="self-start text-xs px-3 py-1.5 rounded-md text-bg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
         style={{ background: 'linear-gradient(90deg, var(--color-cyan), var(--color-violet))' }}
         title={disabled ? 'Devnet only — switch network' : ''}

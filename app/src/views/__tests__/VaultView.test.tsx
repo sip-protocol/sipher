@@ -141,18 +141,21 @@ describe('VaultView (split-panel)', () => {
     expect(setActiveView).toHaveBeenCalledWith('deposit')
   })
 
-  it('Withdraw CTA disabled when no positions', async () => {
+  it('Withdraw CTA always disabled (PR 6b ships withdraw flow)', async () => {
     mockThreeFetches()
     render(<VaultView />)
     const withdrawBtn = await screen.findByRole('button', { name: /withdraw/i })
     expect(withdrawBtn).toBeDisabled()
+    expect(withdrawBtn).toHaveAttribute('title', expect.stringMatching(/coming soon/i))
   })
 
-  it('Withdraw CTA enabled when positions exist (devnet)', async () => {
+  it('Withdraw CTA stays disabled even when positions exist', async () => {
     mockThreeFetches(populatedPositions)
     render(<VaultView />)
     const withdrawBtn = await screen.findByRole('button', { name: /withdraw/i })
-    await waitFor(() => expect(withdrawBtn).not.toBeDisabled())
+    expect(withdrawBtn).toBeDisabled()
+    fireEvent.click(withdrawBtn)
+    expect(setActiveView).not.toHaveBeenCalledWith('withdraw')
   })
 
   it('Shield to vault CTA disabled on mainnet', async () => {
