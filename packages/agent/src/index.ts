@@ -13,6 +13,7 @@ import { createWebAdapter } from './adapters/web.js'
 import { confirmRouter } from './routes/confirm.js'
 import { vaultRouter } from './routes/vault-api.js'
 import { vaultDepositTxRouter } from './routes/vault-deposit-tx.js'
+import { vaultPositionsRouter } from './routes/vault-positions.js'
 import { squadRouter, isKillSwitchActive } from './routes/squad-api.js'
 import { heraldRouter } from './routes/herald-api.js'
 import { guardianBus } from './coordination/event-bus.js'
@@ -194,6 +195,9 @@ app.use('/api/vault', verifyJwt, vaultRouter)
 
 // Vault deposit-tx builder — JWT required (PR 6a)
 app.use('/api/vault', verifyJwt, vaultDepositTxRouter)
+
+// Vault positions list (deposit_records by mint) — JWT required (PR 6a)
+app.use('/api/vault', verifyJwt, vaultPositionsRouter)
 
 // Squad dashboard + kill switch — JWT + owner required
 app.use('/api/squad', verifyJwt, requireOwner, squadRouter)
