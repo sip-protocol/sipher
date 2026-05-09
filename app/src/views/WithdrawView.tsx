@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
@@ -29,10 +29,13 @@ export default function WithdrawView() {
   const network = useNetworkConfigStore((s) => s.config?.network ?? '')
   const isMainnet = network === 'mainnet'
 
+  // Vault deposit_record PDA is per (wallet, mint), so positions[] is one row per mint
+  // and the symbol-keyed status/signature/error maps are 1:1 with the rendered rows.
   const [positions, setPositions] = useState<Position[]>([])
   const [statusByToken, setStatusByToken] = useState<Record<string, SignStatus>>({})
   const [signaturesByToken, setSignaturesByToken] = useState<Record<string, string>>({})
   const [errorByToken, setErrorByToken] = useState<Record<string, string>>({})
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { signAndBroadcast } = useTransactionSigner()
 
@@ -59,6 +62,12 @@ export default function WithdrawView() {
     return () => controller.abort()
   }, [token, isMainnet, refresh])
 
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+    }
+  }, [])
+
   const handleRefund = useCallback(
     async (tokenSymbol: string) => {
       setErrorByToken((s) => ({ ...s, [tokenSymbol]: '' }))
@@ -77,12 +86,14 @@ export default function WithdrawView() {
           return
         }
         setStatusByToken((s) => ({ ...s, [tokenSymbol]: 'confirmed' }))
-        if (result.signature) {
-          setSignaturesByToken((s) => ({ ...s, [tokenSymbol]: result.signature! }))
+        const sig = result.signature
+        if (sig) {
+          setSignaturesByToken((s) => ({ ...s, [tokenSymbol]: sig }))
         }
         // Refresh positions a moment after confirmation so the closed deposit
         // record drops out of the list.
-        setTimeout(() => refresh(), 1500)
+        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+        refreshTimerRef.current = setTimeout(() => refresh(), 1500)
       } catch (err) {
         setStatusByToken((s) => ({ ...s, [tokenSymbol]: 'error' }))
         setErrorByToken((s) => ({
