@@ -141,21 +141,28 @@ describe('VaultView (split-panel)', () => {
     expect(setActiveView).toHaveBeenCalledWith('deposit')
   })
 
-  it('Withdraw CTA always disabled (PR 6b ships withdraw flow)', async () => {
+  it('Withdraw CTA routes to withdraw view', async () => {
+    mockThreeFetches()
+    render(<VaultView />)
+    const withdrawBtn = await screen.findByRole('button', { name: /withdraw/i })
+    fireEvent.click(withdrawBtn)
+    expect(setActiveView).toHaveBeenCalledWith('withdraw')
+  })
+
+  it('Withdraw CTA still routes when positions exist', async () => {
+    mockThreeFetches(populatedPositions)
+    render(<VaultView />)
+    const withdrawBtn = await screen.findByRole('button', { name: /withdraw/i })
+    fireEvent.click(withdrawBtn)
+    expect(setActiveView).toHaveBeenCalledWith('withdraw')
+  })
+
+  it('Withdraw CTA disabled on mainnet', async () => {
+    networkValue = 'mainnet'
     mockThreeFetches()
     render(<VaultView />)
     const withdrawBtn = await screen.findByRole('button', { name: /withdraw/i })
     expect(withdrawBtn).toBeDisabled()
-    expect(withdrawBtn).toHaveAttribute('title', expect.stringMatching(/coming soon/i))
-  })
-
-  it('Withdraw CTA stays disabled even when positions exist', async () => {
-    mockThreeFetches(populatedPositions)
-    render(<VaultView />)
-    const withdrawBtn = await screen.findByRole('button', { name: /withdraw/i })
-    expect(withdrawBtn).toBeDisabled()
-    fireEvent.click(withdrawBtn)
-    expect(setActiveView).not.toHaveBeenCalledWith('withdraw')
   })
 
   it('Shield to vault CTA disabled on mainnet', async () => {

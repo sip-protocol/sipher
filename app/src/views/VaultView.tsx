@@ -84,6 +84,8 @@ export default function VaultView() {
         positions={positions}
         stealthTree={stealthTree}
         loading={loading}
+        onWithdraw={() => setActiveView('withdraw')}
+        disabled={isMainnet}
       />
       <UnshieldedWalletPanel
         wallet={vault?.wallet ?? ''}
@@ -99,10 +101,14 @@ function ShieldedVaultPanel({
   positions,
   stealthTree,
   loading,
+  onWithdraw,
+  disabled,
 }: {
   positions: Position[]
   stealthTree: StealthNode[]
   loading: boolean
+  onWithdraw: () => void
+  disabled: boolean
 }) {
   const totalSol = positions.find((p) => p.symbol === 'SOL')?.balanceUiAmount ?? 0
   const hasPositions = positions.length > 0
@@ -131,9 +137,10 @@ function ShieldedVaultPanel({
       <StealthAddressList positions={positions} stealthTree={stealthTree} loading={loading} />
       <button
         type="button"
-        disabled
-        className="self-start border border-line rounded-md px-3 py-1.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
-        title="Coming soon — refund flow ships in PR 6b"
+        onClick={onWithdraw}
+        disabled={disabled}
+        className="self-start border border-line rounded-md px-3 py-1.5 text-xs hover:border-line-2 disabled:opacity-40 disabled:cursor-not-allowed"
+        title={disabled ? 'Devnet only — switch network' : ''}
       >
         Withdraw
       </button>
