@@ -53,14 +53,29 @@ describe('StealthAddressBackup', () => {
 
   it('renders count chip + Download button when addresses exist', async () => {
     apiFetchMock.mockResolvedValueOnce({
+      tree: [
+        { index: 0, derivationPath: 'm/0', stealthAddress: '0xabc', parentIndex: null, createdAt: '' },
+        { index: 1, derivationPath: 'm/1', stealthAddress: '0xdef', parentIndex: 0, createdAt: '' },
+      ],
+      rootWallet: 'wallet',
+    })
+    render(<StealthAddressBackup />)
+    await waitFor(() => {
+      expect(screen.getByText('2 addresses')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /download encrypted backup/i })).toBeInTheDocument()
+  })
+
+  it('renders singular "1 address" copy when exactly one stealth address exists', async () => {
+    apiFetchMock.mockResolvedValueOnce({
       tree: [{ index: 0, derivationPath: 'm/0', stealthAddress: '0xabc', parentIndex: null, createdAt: '' }],
       rootWallet: 'wallet',
     })
     render(<StealthAddressBackup />)
     await waitFor(() => {
-      expect(screen.getByText(/1 addresses?/i)).toBeInTheDocument()
+      expect(screen.getByText('1 address')).toBeInTheDocument()
     })
-    expect(screen.getByRole('button', { name: /download encrypted backup/i })).toBeInTheDocument()
+    expect(screen.queryByText(/1 addresses/)).not.toBeInTheDocument()
   })
 
   it('encrypts + downloads on submit', async () => {
@@ -89,5 +104,26 @@ describe('StealthAddressBackup', () => {
     await waitFor(() => {
       expect(screen.getByText(/no stealth addresses yet/i)).toBeInTheDocument()
     })
+  })
+
+  it('surfaces encrypt error inside Sheet and keeps Sheet open for retry', async () => {
+    apiFetchMock.mockResolvedValueOnce({
+      tree: [{ index: 0, derivationPath: 'm/0', stealthAddress: '0xabc', parentIndex: null, createdAt: '' }],
+      rootWallet: 'wallet',
+    })
+    encryptMock.mockRejectedValueOnce(new Error('boom'))
+    render(<StealthAddressBackup />)
+    await waitFor(() => screen.getByRole('button', { name: /download encrypted backup/i }))
+    fireEvent.click(screen.getByRole('button', { name: /download encrypted backup/i }))
+    fireEvent.change(screen.getByLabelText(/^passphrase$/i), { target: { value: 'a-good-pw' } })
+    fireEvent.change(screen.getByLabelText(/confirm passphrase/i), { target: { value: 'a-good-pw' } })
+    fireEvent.click(screen.getByRole('button', { name: /^encrypt and download$/i }))
+    await waitFor(() => {
+      expect(screen.getByText('boom')).toBeInTheDocument()
+    })
+    // Sheet must stay open so user can retry without re-entering passphrase.
+    expect(screen.getByLabelText(/^passphrase$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/confirm passphrase/i)).toBeInTheDocument()
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled()
   })
 })

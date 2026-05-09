@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { apiFetch } from '../../api/client'
 import { useAuthState } from '../../hooks/useAuthState'
 import { Card } from '../ui/Card'
@@ -38,13 +38,12 @@ export function StealthAddressBackup() {
   const [passphrase, setPassphrase] = useState('')
   const [confirm, setConfirm] = useState('')
   const [encrypting, setEncrypting] = useState(false)
+  const [encryptError, setEncryptError] = useState<string | null>(null)
   const [retryNonce, setRetryNonce] = useState(0)
-  const aborterRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (!token) return
     const controller = new AbortController()
-    aborterRef.current = controller
     setLoading(true)
     setError(null)
     apiFetch<StealthIndexResponse>('/api/stealth/index', { token, signal: controller.signal })
@@ -69,6 +68,7 @@ export function StealthAddressBackup() {
     if (passphrase.length < 8) return
     if (passphrase !== confirm) return
     setEncrypting(true)
+    setEncryptError(null)
     try {
       const plaintext = new TextEncoder().encode(JSON.stringify(data))
       const blob = await encryptWithPassphrase(plaintext, passphrase)
@@ -78,6 +78,8 @@ export function StealthAddressBackup() {
       setSheetOpen(false)
       setPassphrase('')
       setConfirm('')
+    } catch (e: unknown) {
+      setEncryptError(e instanceof Error ? e.message : 'Encryption failed')
     } finally {
       setEncrypting(false)
     }
@@ -116,11 +118,14 @@ export function StealthAddressBackup() {
       {!loading && !error && count > 0 && (
         <>
           <div className="flex items-center gap-2">
-            <Chip tone="cyan">{count} addresses</Chip>
+            <Chip tone="cyan">{count} {count === 1 ? 'address' : 'addresses'}</Chip>
           </div>
           <button
             type="button"
-            onClick={() => setSheetOpen(true)}
+            onClick={() => {
+              setEncryptError(null)
+              setSheetOpen(true)
+            }}
             className="self-start text-xs px-3 py-1.5 rounded-md text-bg font-semibold"
             style={{ background: 'linear-gradient(90deg, var(--color-cyan), var(--color-violet))' }}
           >
@@ -131,7 +136,7 @@ export function StealthAddressBackup() {
 
       {sheetOpen && (
         <Sheet open onClose={() => setSheetOpen(false)} ariaLabel="Encrypt backup">
-          <div className="p-5 flex flex-col gap-3">
+          <div className="p-5 flex flex-col gap-4">
             <div
               className="text-2xs text-text-muted"
               style={{ letterSpacing: 'var(--tracking-widest)' }}
@@ -166,6 +171,9 @@ export function StealthAddressBackup() {
             )}
             {passphrase !== confirm && confirm.length > 0 && (
               <p className="text-xs text-danger">Passphrases do not match.</p>
+            )}
+            {encryptError && (
+              <p role="alert" className="text-xs text-danger">{encryptError}</p>
             )}
             <div className="flex justify-end gap-2">
               <button
