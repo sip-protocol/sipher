@@ -3198,8 +3198,14 @@ export function MultiChainVaultGrid() {
 
 ## PR 6 — Vault + Deposit + Withdraw Surfaces
 
-**Branch:** `feat/redesign-vault-flows` · **Worktree:** `.worktrees/feat-redesign-vault-flows/`
-**Goal:** Stealth-address-list view + amount-driven deposit/withdraw forms.
+> **✅ COMPLETE (2026-05-08 / 2026-05-09).** Shipped as two PRs against a more detailed sub-plan at [`docs/superpowers/plans/2026-05-08-pr6-vault-flows.md`](2026-05-08-pr6-vault-flows.md):
+> - **PR 6a — Deposit flow** (#183 → `af31179`): VaultView split-panel restyle, full DepositView, three backend routes (`POST /api/vault/deposit-tx`, `GET /api/vault/positions`, extended `POST /v1/privacy/score`), hybrid StealthAddressList, PrivacyPreviewPanel, BetaBanner devnet copy. +40 app tests, +28 agent tests.
+> - **PR 6b — Refund flow** (#184 → `d68c2ce`): WithdrawView with per-record refund rows, self-ticking CooldownChip, `POST /api/vault/refund-tx` REST adapter, real on-chain refund via `useTransactionSigner`, mainnet-disabled branch. +14 app tests, +6 agent tests.
+>
+> The 9-task breakdown below was the original sprint-level outline; the actual execution split refund into its own PR for shipping cadence and used the more detailed sub-plan. Both map to the same end-state: deposit + refund glass-neon surfaces live with real on-chain signing.
+
+**Branch:** `feat/redesign-vault-flows-deposit` (PR 6a) · `feat/redesign-vault-flows-withdraw` (PR 6b)
+**Goal:** Stealth-address-list view + amount-driven deposit/refund forms.
 
 ### PR 6 / Task 1: Extend `/api/vault` to return stealth address list
 
