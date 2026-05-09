@@ -78,7 +78,7 @@ export default function Header() {
             const Icon = tab.icon
             const active =
               activeView === tab.id ||
-              (tab.id === 'vault' && activeView === 'deposit')
+              (tab.id === 'vault' && (activeView === 'deposit' || activeView === 'withdraw'))
             return (
               <button
                 key={tab.id}

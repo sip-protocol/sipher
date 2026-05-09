@@ -15,6 +15,7 @@ import { Sheet } from './components/ui/Sheet'
 import DashboardView from './views/DashboardView'
 import VaultView from './views/VaultView'
 import DepositView from './views/DepositView'
+import WithdrawView from './views/WithdrawView'
 import HeraldView from './views/HeraldView'
 import SquadView from './views/SquadView'
 import PrivacyReportView from './views/PrivacyReportView'
@@ -42,6 +43,8 @@ function AppShell() {
         return <VaultView />
       case 'deposit':
         return <DepositView />
+      case 'withdraw':
+        return <WithdrawView />
       case 'herald':
         return isAdmin ? <HeraldView token={token} /> : <DashboardView events={events} />
       case 'squad':
