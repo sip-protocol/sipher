@@ -20,6 +20,8 @@ import HeraldView from './views/HeraldView'
 import SquadView from './views/SquadView'
 import PrivacyReportView from './views/PrivacyReportView'
 import ChainsView from './views/ChainsView'
+import KeysView from './views/KeysView'
+import SettingsView from './views/SettingsView'
 import { useAppStore } from './stores/app'
 import { useAuth } from './hooks/useAuth'
 import { useSSE } from './hooks/useSSE'
@@ -53,6 +55,10 @@ function AppShell() {
         return <PrivacyReportView />
       case 'chains':
         return <ChainsView />
+      case 'keys':
+        return <KeysView />
+      case 'settings':
+        return isAdmin ? <SettingsView /> : <DashboardView events={events} />
       case 'chat':
         return (
           <div className="lg:hidden h-full">
