@@ -76,4 +76,17 @@ describe('RefundList', () => {
     )
     expect(screen.getByText(/no active vault positions/i)).toBeInTheDocument()
   })
+
+  it('disables Refund and shows Signing badge when statusByToken[symbol] === signing', () => {
+    render(
+      <RefundList
+        records={[fakePosition]}
+        onRefund={vi.fn()}
+        statusByToken={{ SOL: 'signing' }}
+        signaturesByToken={{}}
+      />
+    )
+    expect(screen.getByRole('button', { name: /refund/i })).toBeDisabled()
+    expect(screen.getByText(/signing/i)).toBeInTheDocument()
+  })
 })
