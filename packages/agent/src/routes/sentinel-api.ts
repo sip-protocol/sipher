@@ -7,6 +7,7 @@ import { cancelCircuitBreakerAction } from '../sentinel/circuit-breaker.js'
 import { getSentinelAssessor } from '../sentinel/preflight-gate.js'
 import { getSentinelConfig } from '../sentinel/config.js'
 import { resolvePending, rejectPending } from '../sentinel/pending.js'
+import { FUND_MOVING_TOOLS } from '../sentinel/preflight-rules.js'
 import { sendSentinelError } from './sentinel-errors.js'
 
 // Reference: docs/sentinel/rest-api.md
@@ -161,6 +162,36 @@ sentinelAdminRouter.get('/decisions', (req: Request, res: Response) => {
   const limit = Number(String(req.query.limit ?? '50'))
   const source = (typeof req.query.source === 'string' ? req.query.source : undefined)
   res.json({ decisions: listDecisions({ limit, source }) })
+})
+
+/**
+ * Return the full SENTINEL operating config plus the fund-moving tool list.
+ * Read-only; admin-only because thresholds reveal SENTINEL heuristics.
+ *
+ * @auth verifyJwt + requireOwner
+ * @returns 200 SentinelConfig + { dailyCostUsd, fundMovingTools }
+ */
+sentinelAdminRouter.get('/config', (_req: Request, res: Response) => {
+  const config = getSentinelConfig()
+  res.json({
+    mode: config.mode,
+    preflightScope: config.preflightScope,
+    preflightSkipAmount: config.preflightSkipAmount,
+    largeTransferThreshold: config.largeTransferThreshold,
+    threatCheckEnabled: config.threatCheckEnabled,
+    blacklistAutonomy: config.blacklistAutonomy,
+    cancelWindowMs: config.cancelWindowMs,
+    rateLimitFundPerHour: config.rateLimitFundPerHour,
+    rateLimitBlacklistPerHour: config.rateLimitBlacklistPerHour,
+    scanInterval: config.scanInterval,
+    activeScanInterval: config.activeScanInterval,
+    autoRefundThreshold: config.autoRefundThreshold,
+    model: config.model,
+    dailyBudgetUsd: config.dailyBudgetUsd,
+    dailyCostUsd: dailyDecisionCostUsd(),
+    blockOnError: config.blockOnError,
+    fundMovingTools: Array.from(FUND_MOVING_TOOLS),
+  })
 })
 
 // ─── Promise-gate endpoints (pause/resume for advisory mode) ────────────────

@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Chip } from '../ui/Chip'
 
 interface CooldownChipProps {
-  refundableAt: number // unix seconds
+  refundableAt: number
   onElapsed?: () => void
 }
-
-const CHIP_BASE =
-  'inline-flex items-center gap-1.5 border rounded-pill px-2.5 py-1 text-xs font-medium tracking-wide uppercase'
 
 function formatRemaining(secondsRemaining: number): string {
   if (secondsRemaining <= 0) return 'Available now'
@@ -38,13 +36,13 @@ export function CooldownChip({ refundableAt, onElapsed }: CooldownChipProps) {
     return () => clearInterval(id)
   }, [refundableAt, elapsed, onElapsed])
 
-  const className = elapsed
-    ? `${CHIP_BASE} border-success/40 bg-success-soft text-success`
-    : `${CHIP_BASE} border-line text-text-muted`
-
   return (
-    <span role="status" aria-live="polite" className={className}>
+    <Chip
+      tone={elapsed ? 'success' : 'neutral'}
+      role="status"
+      aria-live="polite"
+    >
       {formatRemaining(remaining)}
-    </span>
+    </Chip>
   )
 }
