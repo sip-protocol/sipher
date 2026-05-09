@@ -1,4 +1,5 @@
 import { Card } from '../ui/Card'
+import { Chip } from '../ui/Chip'
 import { HashCell } from '../ui/HashCell'
 
 export interface Position {
@@ -27,12 +28,6 @@ interface StealthAddressListProps {
   stealthTree: StealthNode[]
   loading: boolean
 }
-
-// Chip styling mirrors TxStatusBadge's BADGE_BASE so non-interactive labels
-// stay visually consistent with the interactive Pill primitive without
-// borrowing its button semantics.
-const CHIP_BASE =
-  'inline-flex items-center gap-1.5 border rounded-pill px-2.5 py-1 text-xs font-medium tracking-wide uppercase'
 
 export function StealthAddressList({
   positions,
@@ -76,19 +71,13 @@ function PositionsSection({
               className="flex items-center justify-between text-xs font-mono"
             >
               <div className="flex items-center gap-2">
-                <span className={`${CHIP_BASE} border-cyan/40 bg-cyan-soft text-cyan-hi`}>
-                  {p.symbol}
-                </span>
+                <Chip tone="cyan">{p.symbol}</Chip>
                 <span className="text-text">{p.balanceUiAmount}</span>
               </div>
               {p.cooldownActive ? (
-                <span className={`${CHIP_BASE} border-line text-text-muted`}>Cooldown</span>
+                <Chip tone="neutral">Cooldown</Chip>
               ) : (
-                <span
-                  className={`${CHIP_BASE} border-success/40 bg-success-soft text-success`}
-                >
-                  Refundable
-                </span>
+                <Chip tone="success">Refundable</Chip>
               )}
             </div>
           ))}
@@ -132,11 +121,9 @@ function StealthTreeSection({
             </div>
           ))}
           {stealthTree.length === 1 && (
-            <span
-              className={`${CHIP_BASE} self-start mt-2 border-line text-text-muted`}
-            >
+            <Chip tone="neutral" className="self-start mt-2">
               M19 — Derived stealth tree expands when M19 ships
-            </span>
+            </Chip>
           )}
         </div>
       )}

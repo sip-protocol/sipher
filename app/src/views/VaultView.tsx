@@ -4,6 +4,7 @@ import { useAuthState } from '../hooks/useAuthState'
 import { useAppStore } from '../stores/app'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 import { Card } from '../components/ui/Card'
+import { Chip } from '../components/ui/Chip'
 import { HashCell } from '../components/ui/HashCell'
 import {
   StealthAddressList,
@@ -37,9 +38,6 @@ interface StealthIndexResponse {
   tree: StealthNode[]
   rootWallet: string
 }
-
-const CHIP_BASE =
-  'inline-flex items-center gap-1.5 border rounded-pill px-2.5 py-1 text-xs font-medium tracking-wide uppercase'
 
 export default function VaultView() {
   const { token } = useAuthState()
@@ -125,14 +123,10 @@ function ShieldedVaultPanel({
         <span className="text-sm text-text-muted">SOL</span>
       </div>
       <div className="flex flex-wrap gap-2">
-        <span className={`${CHIP_BASE} border-line text-text-muted`}>
-          {positions.length} positions
-        </span>
-        <span
-          className={`${CHIP_BASE} ${hasPositions ? 'border-success/40 bg-success-soft text-success' : 'border-line text-text-muted'}`}
-        >
+        <Chip tone="neutral">{positions.length} positions</Chip>
+        <Chip tone={hasPositions ? 'success' : 'neutral'}>
           {hasPositions ? 'Active' : 'Empty'}
-        </span>
+        </Chip>
       </div>
       <StealthAddressList positions={positions} stealthTree={stealthTree} loading={loading} />
       <button
