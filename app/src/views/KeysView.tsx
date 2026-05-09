@@ -3,8 +3,8 @@ import { ViewKeyCard } from '../components/keys/ViewKeyCard'
 import { StealthAddressBackup } from '../components/keys/StealthAddressBackup'
 
 export default function KeysView() {
-  const { isAuthenticated } = useAuthState()
-  if (!isAuthenticated) return null
+  const { status } = useAuthState()
+  if (status !== 'authed') return null
 
   return (
     <div className="flex flex-col gap-4">

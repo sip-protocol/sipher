@@ -19,7 +19,7 @@ describe('KeysView', () => {
     useAuthStateMock.mockReturnValue({
       publicKey: 'TestWallet1111111111111111111111111111111111',
       token: 'fake-jwt',
-      isAuthenticated: true,
+      status: 'authed',
       isAdmin: false,
     })
     render(<KeysView />)
@@ -31,7 +31,7 @@ describe('KeysView', () => {
     useAuthStateMock.mockReturnValue({
       publicKey: 'TestWallet1111111111111111111111111111111111',
       token: 'fake-jwt',
-      isAuthenticated: true,
+      status: 'authed',
       isAdmin: false,
     })
     const { container } = render(<KeysView />)
@@ -44,7 +44,7 @@ describe('KeysView', () => {
     useAuthStateMock.mockReturnValue({
       publicKey: null,
       token: null,
-      isAuthenticated: false,
+      status: 'unauthed',
       isAdmin: false,
     })
     const { container } = render(<KeysView />)
@@ -56,7 +56,7 @@ describe('KeysView', () => {
     useAuthStateMock.mockReturnValue({
       publicKey: 'TestWallet1111111111111111111111111111111111',
       token: 'fake-jwt',
-      isAuthenticated: true,
+      status: 'authed',
       isAdmin: false,
     })
     render(<KeysView />)
