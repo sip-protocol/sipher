@@ -1,0 +1,93 @@
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { StealthAddressBackup } from '../StealthAddressBackup'
+
+vi.mock('../../../hooks/useAuthState', () => ({
+  useAuthState: () => ({
+    publicKey: 'TestWallet1111111111111111111111111111111111',
+    token: 'fake-jwt',
+    isAuthenticated: true,
+    isAdmin: false,
+  }),
+}))
+
+const apiFetchMock = vi.fn()
+vi.mock('../../../api/client', () => ({
+  apiFetch: (path: string, opts?: unknown) => apiFetchMock(path, opts),
+}))
+
+const encryptMock = vi.fn(async (_plaintext: Uint8Array, _passphrase: string) => ({
+  v: 1, alg: 'xchacha20poly1305-pbkdf2sha256-310k',
+  salt: 'c2FsdA==', nonce: 'bm9uY2U=', ct: 'Y3Q=',
+}))
+vi.mock('../../../lib/crypto/passphrase-encrypt', () => ({
+  encryptWithPassphrase: (plaintext: Uint8Array, passphrase: string) =>
+    encryptMock(plaintext, passphrase),
+}))
+
+describe('StealthAddressBackup', () => {
+  beforeEach(() => {
+    apiFetchMock.mockReset()
+    encryptMock.mockClear()
+    HTMLAnchorElement.prototype.click = vi.fn()
+    // jsdom does not implement these; stub to keep download path inert.
+    Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:mock'),
+      revokeObjectURL: vi.fn(),
+    })
+  })
+
+  it('renders loading skeleton on mount', async () => {
+    apiFetchMock.mockReturnValue(new Promise(() => {})) // never resolves
+    render(<StealthAddressBackup />)
+    expect(screen.getByText(/loading/i)).toBeInTheDocument()
+  })
+
+  it('renders empty-state copy when /api/stealth/index returns 0 addresses', async () => {
+    apiFetchMock.mockResolvedValueOnce({ tree: [], rootWallet: '' })
+    render(<StealthAddressBackup />)
+    await waitFor(() => {
+      expect(screen.getByText(/no stealth addresses yet/i)).toBeInTheDocument()
+    })
+  })
+
+  it('renders count chip + Download button when addresses exist', async () => {
+    apiFetchMock.mockResolvedValueOnce({
+      tree: [{ index: 0, derivationPath: 'm/0', stealthAddress: '0xabc', parentIndex: null, createdAt: '' }],
+      rootWallet: 'wallet',
+    })
+    render(<StealthAddressBackup />)
+    await waitFor(() => {
+      expect(screen.getByText(/1 addresses?/i)).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /download encrypted backup/i })).toBeInTheDocument()
+  })
+
+  it('encrypts + downloads on submit', async () => {
+    apiFetchMock.mockResolvedValueOnce({
+      tree: [{ index: 0, derivationPath: 'm/0', stealthAddress: '0xabc', parentIndex: null, createdAt: '' }],
+      rootWallet: 'wallet',
+    })
+    render(<StealthAddressBackup />)
+    await waitFor(() => screen.getByRole('button', { name: /download encrypted backup/i }))
+    fireEvent.click(screen.getByRole('button', { name: /download encrypted backup/i }))
+    fireEvent.change(screen.getByLabelText(/^passphrase$/i), { target: { value: 'a-good-pw' } })
+    fireEvent.change(screen.getByLabelText(/confirm passphrase/i), { target: { value: 'a-good-pw' } })
+    fireEvent.click(screen.getByRole('button', { name: /^encrypt and download$/i }))
+    await waitFor(() => expect(encryptMock).toHaveBeenCalled())
+    expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled()
+  })
+
+  it('renders error banner on fetch failure with retry', async () => {
+    apiFetchMock.mockRejectedValueOnce(new Error('boom'))
+    render(<StealthAddressBackup />)
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    })
+    apiFetchMock.mockResolvedValueOnce({ tree: [], rootWallet: '' })
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/no stealth addresses yet/i)).toBeInTheDocument()
+    })
+  })
+})
