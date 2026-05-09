@@ -55,7 +55,9 @@
   /* Color — agent identity */
   --color-sipher: var(--color-sipher);
   --color-herald: var(--color-herald);
+  --color-herald-soft: var(--color-herald-soft);
   --color-sentinel: var(--color-sentinel);
+  --color-sentinel-soft: var(--color-sentinel-soft);
   --color-courier: var(--color-courier);
 
   /* Typography */

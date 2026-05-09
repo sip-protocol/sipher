@@ -70,7 +70,9 @@
      ────────────────────────────────────────────────────────────── */
   --color-sipher:           #10B981;   /* lead — emerald */
   --color-herald:           #3B82F6;   /* x agent — blue */
+  --color-herald-soft:      rgba(59, 130, 246, 0.16);
   --color-sentinel:         #F59E0B;   /* monitor — amber */
+  --color-sentinel-soft:    rgba(245, 158, 11, 0.16);
   --color-courier:          #8B5CF6;   /* executor — violet */
 
   /* ──────────────────────────────────────────────────────────────
