@@ -7,6 +7,8 @@ import {
   Broadcast,
   UsersThree,
   SignOut,
+  Key,
+  Gear,
 } from '@phosphor-icons/react'
 import { useAppStore, type View } from '../stores/app'
 import { useAuthState } from '../hooks/useAuthState'
@@ -80,8 +82,19 @@ export default function BottomNav() {
           >
             <div className="w-8 h-1 bg-line-2 rounded-full mx-auto mb-4" />
             <div className="flex flex-col gap-1">
+              <button
+                onClick={() => {
+                  setActiveView('keys')
+                  setMoreOpen(false)
+                }}
+                className="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-glass-2 transition-colors"
+              >
+                <Key size={20} />
+                <span className="text-sm font-medium">Keys</span>
+              </button>
               {isAdmin && (
                 <>
+                  <div className="border-t border-line my-1" />
                   <button
                     onClick={() => {
                       setActiveView('herald')
@@ -101,6 +114,16 @@ export default function BottomNav() {
                   >
                     <UsersThree size={20} />
                     <span className="text-sm font-medium">Squad</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveView('settings')
+                      setMoreOpen(false)
+                    }}
+                    className="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-glass-2 transition-colors"
+                  >
+                    <Gear size={20} />
+                    <span className="text-sm font-medium">Settings</span>
                   </button>
                   <div className="border-t border-line my-1" />
                 </>
