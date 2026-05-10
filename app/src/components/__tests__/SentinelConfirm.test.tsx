@@ -140,4 +140,22 @@ describe('SentinelConfirm', () => {
     expect(onResolved).not.toHaveBeenCalled()
     expect(await screen.findByText(/API error 500/)).toBeInTheDocument()
   })
+
+  it('shows error message in text-danger when API call fails', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response('<html>500</html>', { status: 500 })
+    ) as typeof fetch
+    render(
+      <SentinelConfirm
+        flagId="abc"
+        action="Send"
+        amount="5 SOL"
+        description="x"
+        onResolved={() => {}}
+      />
+    )
+    await userEvent.click(screen.getByRole('button', { name: /override & send/i }))
+    const errorEl = await screen.findByText(/API error 500/)
+    expect(errorEl.className).toMatch(/text-danger/)
+  })
 })

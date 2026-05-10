@@ -9,9 +9,7 @@ interface Props {
   onCancel: () => void
   variant?: Variant
   description?: string
-  // disables both buttons (e.g. while a parent dispatches a REST call)
   disabled?: boolean
-  // reserved for future countdown display; not currently consumed
   timeout?: number
 }
 
@@ -25,17 +23,17 @@ export default function ConfirmCard({
   disabled = false,
 }: Props) {
   const isWarning = variant === 'warning'
-  const borderClass = isWarning ? 'border-yellow/40' : 'border-elevated'
+  const borderClass = isWarning ? 'border-sentinel/40' : 'border-line'
   const primaryClass = isWarning
-    ? 'border-yellow/50 text-yellow hover:bg-yellow/10'
+    ? 'border-sentinel/50 text-sentinel hover:bg-sentinel-soft'
     : 'border-sipher/50 text-sipher hover:bg-sipher/10'
   const primaryLabel = isWarning ? 'Override & Send' : 'Confirm & Sign'
   const labelText = isWarning ? 'Risk Confirm' : 'Confirm Action'
 
   return (
-    <div className={`bg-card border ${borderClass} rounded-lg p-4 flex flex-col gap-3`}>
+    <div className={`bg-glass-1 border ${borderClass} rounded-lg p-4 flex flex-col gap-3`}>
       <div className="text-[12px] text-text-muted uppercase tracking-wide flex items-center gap-1">
-        {isWarning && <Warning size={12} weight="fill" className="text-yellow" aria-hidden="true" />}
+        {isWarning && <Warning size={12} weight="fill" className="text-sentinel" aria-hidden="true" />}
         <span>{labelText}</span>
       </div>
       <div className="text-[14px] text-text">{action}: {amount}</div>
@@ -53,7 +51,7 @@ export default function ConfirmCard({
         <button
           onClick={onCancel}
           disabled={disabled}
-          className="px-4 border border-elevated text-text-muted py-2 rounded-lg text-[12px] hover:text-text disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 border border-line text-text-muted py-2 rounded-lg text-[12px] hover:text-text disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Cancel
         </button>
