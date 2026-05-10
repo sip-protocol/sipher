@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { Card } from '../ui/Card'
 import { HashCell } from '../ui/HashCell'
+import { JargonTerm } from '../ui/JargonTerm'
 
 interface RoutePreviewCardProps {
   wallet: string
@@ -45,7 +46,11 @@ export function RoutePreviewCard({
           }
         />
         <div className="ml-3 text-text-muted">↓ {amountLabel}</div>
-        <Step n={2} label="Vault PDA" detail={<HashCell hash={vaultPda} />} />
+        <Step
+          n={2}
+          label={<JargonTerm term="Vault PDA">Vault PDA</JargonTerm>}
+          detail={<HashCell hash={vaultPda} />}
+        />
         <div className="ml-3 text-text-muted">↓</div>
         <Step
           n={3}
@@ -57,7 +62,7 @@ export function RoutePreviewCard({
   )
 }
 
-function Step({ n, label, detail }: { n: number; label: string; detail: ReactNode }) {
+function Step({ n, label, detail }: { n: number; label: ReactNode; detail: ReactNode }) {
   return (
     <div className="flex items-center gap-2">
       <span className="w-5 h-5 inline-flex items-center justify-center rounded-full border border-cyan text-cyan text-2xs">

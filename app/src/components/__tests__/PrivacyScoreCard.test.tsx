@@ -125,6 +125,14 @@ describe('PrivacyScoreCard', () => {
     expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
   })
 
+  it('wraps Privacy Score label in JargonTerm tooltip', () => {
+    renderCard({ data: fakeData })
+    const trigger = screen.getByText('PRIVACY SCORE').closest('button')
+    expect(trigger).not.toBeNull()
+    fireEvent.mouseEnter(trigger!)
+    expect(screen.getByRole('tooltip')).toHaveTextContent(/composite metric/i)
+  })
+
   it('dismisses Sheet teaser when Close button clicked', () => {
     useAuthStateMock.mockReturnValue({
       status: 'unauthed' as const,

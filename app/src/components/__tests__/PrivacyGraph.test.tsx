@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import { PrivacyGraph } from '../PrivacyGraph'
 import { onAuthClear } from '../../store/onAuthClear'
 
@@ -64,6 +64,21 @@ describe('PrivacyGraph', () => {
     ;(apiFetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('network'))
     render(<PrivacyGraph />)
     await waitFor(() => expect(screen.getByText(/0 addresses/)).toBeInTheDocument())
+  })
+
+  it('wraps Stealth Address Tree label in JargonTerm tooltip', async () => {
+    ;(apiFetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      tree: [],
+      rootWallet: '',
+    })
+    render(<PrivacyGraph />)
+    await waitFor(() => {
+      expect(screen.getByText(/0 addresses/)).toBeInTheDocument()
+    })
+    const trigger = screen.getByText('STEALTH ADDRESS TREE').closest('button')
+    expect(trigger).not.toBeNull()
+    fireEvent.mouseEnter(trigger!)
+    expect(screen.getByRole('tooltip')).toHaveTextContent(/one-time recipient/i)
   })
 
   it('clears the tree when onAuthClear.clearAll fires', async () => {

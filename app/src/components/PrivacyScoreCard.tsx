@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card } from './ui/Card'
 import { Gauge } from './ui/Gauge'
+import { JargonTerm } from './ui/JargonTerm'
 import { MetricBar } from './ui/MetricBar'
 import { Sheet } from './ui/Sheet'
 import { UnauthedEmptyState } from './ui/UnauthedEmptyState'
@@ -57,7 +58,7 @@ export function PrivacyScoreCard({ data, delta }: PrivacyScoreCardProps) {
                   className="text-2xs text-text-muted"
                   style={{ letterSpacing: 'var(--tracking-widest)' }}
                 >
-                  PRIVACY SCORE
+                  <JargonTerm term="Privacy Score">PRIVACY SCORE</JargonTerm>
                 </div>
                 <div className="text-base mt-1">
                   {delta != null && (

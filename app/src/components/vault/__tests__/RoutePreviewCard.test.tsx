@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { RoutePreviewCard } from '../RoutePreviewCard'
 
 describe('RoutePreviewCard', () => {
@@ -32,6 +32,14 @@ describe('RoutePreviewCard', () => {
       />
     )
     expect(screen.getByText('—')).toBeInTheDocument()
+  })
+
+  it('wraps Vault PDA label in JargonTerm tooltip', () => {
+    render(<RoutePreviewCard wallet="C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N" />)
+    const trigger = screen.getByText(/Vault PDA/).closest('button')
+    expect(trigger).not.toBeNull()
+    fireEvent.mouseEnter(trigger!)
+    expect(screen.getByRole('tooltip')).toHaveTextContent(/program-derived address/i)
   })
 
   it('renders em-dash placeholder when wallet is empty (no unlabelled Copy button)', () => {
