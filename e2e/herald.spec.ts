@@ -25,7 +25,10 @@ test('herald view renders with admin budget visible', async ({ page }) => {
   await mockPrivacyScore(page)
 
   await page.goto('/')
-  await page.getByRole('button', { name: /herald/i }).first().click()
+  // Herald moved from main nav into Header avatar dropdown (PR 8 D1).
+  // Open the user menu, then click the Herald menuitem.
+  await page.locator('button[aria-haspopup="menu"]').click()
+  await page.getByRole('menuitem', { name: /herald/i }).click()
   await expect(page.locator('[data-testid="herald-view"]')).toBeVisible()
   expect(errors).toEqual([])
 })
