@@ -9,7 +9,9 @@ interface Props {
   onCancel: () => void
   variant?: Variant
   description?: string
+  // disables both buttons (e.g. while a parent dispatches a REST call)
   disabled?: boolean
+  // reserved for future countdown display; not currently consumed
   timeout?: number
 }
 
