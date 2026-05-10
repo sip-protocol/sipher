@@ -206,8 +206,21 @@ Full architectural rationale: see [`docs/superpowers/specs/2026-05-07-glass-neon
 
 ## Endgame vision
 
-(content lands in Task 5)
+Sipher becomes the **universal privacy middleware** — the wallet humans reach for first, and the REST endpoint any agent, app, or service calls to add privacy to blockchain transactions.
+
+**Mental models:**
+- **Stripe for privacy** — dead-simple API, all complexity internal
+- **OpenRouter for privacy** — single API routing through multiple privacy backends (stealth-vault, denominated mixer, MPC, FHE)
+
+**Principles:** Wallet-first for humans · Agent-first for autonomous systems · Chain-agnostic · Backend-agnostic · Compliance-ready · Zero custody
+
+**Revenue path:** Tiered API keys (free/pro/enterprise) with metered billing per privacy operation. Wallet stays free, infrastructure pays the bills.
+
+**Moat:** Depth of SDK (38/38 phase milestones shipped, 497 REST + 905 agent tests), backend aggregation (5+ privacy backends + growing), agent-native design (22 SIPHER tools + 9 HERALD + 14 SENTINEL).
 
 ---
 
-(footer lands in Task 5)
+**Last Updated:** 2026-05-10
+**Live wallet:** [sipher.sip-protocol.org](https://sipher.sip-protocol.org)
+**API base:** [sipher-api.sip-protocol.org](https://sipher-api.sip-protocol.org)
+**Spec sources:** [`docs/superpowers/specs/`](docs/superpowers/specs/)
