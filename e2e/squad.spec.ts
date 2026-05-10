@@ -14,9 +14,10 @@ test('squad view renders', async ({ page }) => {
 
   await mockPrivacyScore(page)
   await page.goto('/')
+  await expect(page.getByText('SIPHER').first()).toBeVisible()
   // Squad moved from main nav into Header avatar dropdown (PR 8 D1).
-  // Open the user menu, then click the Squad menuitem.
-  await page.locator('button[aria-haspopup="menu"]').click()
+  // Open the user menu (address pill button) then click the Squad menuitem.
+  await page.getByRole('button', { name: /C1ph/i }).click()
   await page.getByRole('menuitem', { name: /squad/i }).click()
   await expect(page.locator('[data-testid="squad-view"]')).toBeVisible()
   expect(errors).toEqual([])
