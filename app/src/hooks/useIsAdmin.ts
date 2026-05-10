@@ -1,5 +1,5 @@
-import { useAppStore } from '../stores/app'
+import { useAuthState } from './useAuthState'
 
-export function useIsAdmin() {
-  return useAppStore((s) => s.isAdmin)
+export function useIsAdmin(): boolean {
+  return useAuthState().isAdmin
 }
