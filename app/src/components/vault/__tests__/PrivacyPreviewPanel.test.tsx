@@ -61,11 +61,11 @@ describe('PrivacyPreviewPanel', () => {
       />
     )
     await waitFor(() => {
-      expect(screen.getByText(/NOW/i)).toBeInTheDocument()
-      expect(screen.getByText(/PROJECTED/i)).toBeInTheDocument()
+      expect(screen.getByText('68')).toBeInTheDocument()
+      expect(screen.getByText('78')).toBeInTheDocument()
     })
-    expect(screen.getByText('68')).toBeInTheDocument()
-    expect(screen.getByText('78')).toBeInTheDocument()
+    expect(screen.getByText(/NOW/i)).toBeInTheDocument()
+    expect(screen.getByText(/PROJECTED/i)).toBeInTheDocument()
   })
 
   it('renders factor delta values with sign prefix', async () => {
