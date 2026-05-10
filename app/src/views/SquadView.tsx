@@ -235,17 +235,24 @@ export default function SquadView({ token }: { token: string | null }) {
     }
   }, [isAdmin, navigate])
 
-  const load = useCallback(() => {
+  const load = useCallback((signal?: AbortSignal) => {
     if (!token) return
     setError(null)
-    apiFetch<SquadRaw>('/api/squad', { token })
-      .then((raw) => setData(normalizeSquadData(raw)))
-      .catch((err: Error) => setError(err.message))
+    apiFetch<SquadRaw>('/api/squad', { token, signal })
+      .then((raw) => {
+        if (!signal?.aborted) setData(normalizeSquadData(raw))
+      })
+      .catch((err: Error) => {
+        if (err.name === 'AbortError') return
+        if (!signal?.aborted) setError(err.message)
+      })
   }, [token])
 
   useEffect(() => {
     if (!isAdmin) return
-    load()
+    const controller = new AbortController()
+    load(controller.signal)
+    return () => controller.abort()
   }, [isAdmin, load])
 
   if (!isAdmin) return null
