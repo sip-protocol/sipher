@@ -39,24 +39,18 @@ describe('HeraldView admin gating', () => {
   })
 
   it('redirects to dashboard when !isAdmin and renders null', () => {
-    vi.mocked(useAuthState).mockReturnValue({
-      status: 'authed',
-      token: 't',
-      publicKey: 'pk',
-      isAdmin: false,
-    } as ReturnType<typeof useAuthState>)
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: false }),
+    )
     const { container } = renderHerald()
     expect(navigateMock).toHaveBeenCalledWith('/')
     expect(container.firstChild).toBeNull()
   })
 
   it('does NOT redirect when isAdmin', async () => {
-    vi.mocked(useAuthState).mockReturnValue({
-      status: 'authed',
-      token: 't',
-      publicKey: 'pk',
-      isAdmin: true,
-    } as ReturnType<typeof useAuthState>)
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: true }),
+    )
     const { container } = renderHerald()
     await waitFor(() => {
       expect(container.firstChild).not.toBeNull()
@@ -67,12 +61,9 @@ describe('HeraldView admin gating', () => {
 
 describe('HeraldView budget bar colors', () => {
   beforeEach(() => {
-    vi.mocked(useAuthState).mockReturnValue({
-      status: 'authed',
-      token: 't',
-      publicKey: 'pk',
-      isAdmin: true,
-    } as ReturnType<typeof useAuthState>)
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: true }),
+    )
   })
 
   it('uses success-soft when budget < 80%', async () => {

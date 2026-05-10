@@ -13,14 +13,14 @@ function renderHerald(token = 'test-token') {
   )
 }
 
-vi.mock('../../hooks/useAuthState', () => ({
-  useAuthState: vi.fn(() => ({
-    status: 'authed',
-    token: 'test-token',
-    publicKey: 'pk',
-    isAdmin: true,
-  })),
-}))
+vi.mock('../../hooks/useAuthState', async () => {
+  const { makeFakeAuthState } = await import('../../test-utils/makeFakeAuthState')
+  return {
+    useAuthState: vi.fn(() =>
+      makeFakeAuthState({ status: 'authed', token: 'test-token', publicKey: 'pk', isAdmin: true }),
+    ),
+  }
+})
 
 describe('HeraldView Edit flow', () => {
   beforeEach(() => {

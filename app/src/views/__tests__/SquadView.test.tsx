@@ -19,6 +19,7 @@ vi.mock('../../api/client', () => ({
 
 import { useAuthState } from '../../hooks/useAuthState'
 import { apiFetch } from '../../api/client'
+import { makeFakeAuthState } from '../../test-utils/makeFakeAuthState'
 
 function renderSquad(token = 't') {
   return render(
@@ -35,24 +36,18 @@ describe('SquadView admin gating', () => {
   })
 
   it('redirects to dashboard when !isAdmin and renders null', () => {
-    vi.mocked(useAuthState).mockReturnValue({
-      status: 'authed',
-      token: 't',
-      publicKey: 'pk',
-      isAdmin: false,
-    } as ReturnType<typeof useAuthState>)
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: false }),
+    )
     const { container } = renderSquad()
     expect(navigateMock).toHaveBeenCalledWith('/')
     expect(container.firstChild).toBeNull()
   })
 
   it('does NOT redirect when isAdmin', async () => {
-    vi.mocked(useAuthState).mockReturnValue({
-      status: 'authed',
-      token: 't',
-      publicKey: 'pk',
-      isAdmin: true,
-    } as ReturnType<typeof useAuthState>)
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: true }),
+    )
     vi.mocked(apiFetch).mockResolvedValue({
       agents: [],
       stats: { toolCalls: 0, walletSessions: 0, xPosts: 0, xReplies: 0, blocksScanned: 0, alerts: 0 },
@@ -69,12 +64,9 @@ describe('SquadView admin gating', () => {
 
 describe('SquadView sentinel identity', () => {
   beforeEach(() => {
-    vi.mocked(useAuthState).mockReturnValue({
-      status: 'authed',
-      token: 't',
-      publicKey: 'pk',
-      isAdmin: true,
-    } as ReturnType<typeof useAuthState>)
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: true }),
+    )
     vi.mocked(apiFetch).mockResolvedValue({
       agents: [],
       stats: { toolCalls: 0, walletSessions: 0, xPosts: 0, xReplies: 0, blocksScanned: 0, alerts: 0 },
@@ -95,12 +87,9 @@ describe('SquadView sentinel identity', () => {
 
 describe('SquadView KillSwitch tones', () => {
   beforeEach(() => {
-    vi.mocked(useAuthState).mockReturnValue({
-      status: 'authed',
-      token: 't',
-      publicKey: 'pk',
-      isAdmin: true,
-    } as ReturnType<typeof useAuthState>)
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: true }),
+    )
   })
 
   it('uses success tones when killSwitch active', async () => {
@@ -136,12 +125,9 @@ describe('SquadView KillSwitch tones', () => {
 
 describe('SquadView AbortController', () => {
   beforeEach(() => {
-    vi.mocked(useAuthState).mockReturnValue({
-      status: 'authed',
-      token: 't',
-      publicKey: 'pk',
-      isAdmin: true,
-    } as ReturnType<typeof useAuthState>)
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: true }),
+    )
   })
 
   it('aborts in-flight /api/squad load on unmount', async () => {
