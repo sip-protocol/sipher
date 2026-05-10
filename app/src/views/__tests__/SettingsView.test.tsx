@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useNetworkConfigStore } from '../../lib/networkConfig'
+import { makeFakeAuthState } from '../../test-utils/makeFakeAuthState'
 
 const setActiveViewMock = vi.fn()
 vi.mock('../../stores/app', () => ({
@@ -58,9 +59,9 @@ describe('SettingsView', () => {
   })
 
   it('redirects non-admin to dashboard', async () => {
-    useAuthStateMock.mockReturnValue({
-      publicKey: 'X', token: 't', isAuthenticated: true, isAdmin: false,
-    })
+    useAuthStateMock.mockReturnValue(
+      makeFakeAuthState({ publicKey: 'X', token: 't', status: 'authed', isAdmin: false }),
+    )
     const { default: SettingsView } = await import('../SettingsView')
     render(<SettingsView />)
     await waitFor(() => {
@@ -69,9 +70,9 @@ describe('SettingsView', () => {
   })
 
   it('renders network chip from useNetworkConfigStore', async () => {
-    useAuthStateMock.mockReturnValue({
-      publicKey: 'X', token: 't', isAuthenticated: true, isAdmin: true,
-    })
+    useAuthStateMock.mockReturnValue(
+      makeFakeAuthState({ publicKey: 'X', token: 't', status: 'authed', isAdmin: true }),
+    )
     apiFetchMock.mockResolvedValue(sentinelConfigFixture)
     const { default: SettingsView } = await import('../SettingsView')
     render(<SettingsView />)
@@ -81,9 +82,9 @@ describe('SettingsView', () => {
   })
 
   it('renders SENTINEL mode chip with warning tone for advisory', async () => {
-    useAuthStateMock.mockReturnValue({
-      publicKey: 'X', token: 't', isAuthenticated: true, isAdmin: true,
-    })
+    useAuthStateMock.mockReturnValue(
+      makeFakeAuthState({ publicKey: 'X', token: 't', status: 'authed', isAdmin: true }),
+    )
     apiFetchMock.mockResolvedValue(sentinelConfigFixture)
     const { default: SettingsView } = await import('../SettingsView')
     render(<SettingsView />)
@@ -95,9 +96,9 @@ describe('SettingsView', () => {
   })
 
   it('renders all 10 fund-moving tools', async () => {
-    useAuthStateMock.mockReturnValue({
-      publicKey: 'X', token: 't', isAuthenticated: true, isAdmin: true,
-    })
+    useAuthStateMock.mockReturnValue(
+      makeFakeAuthState({ publicKey: 'X', token: 't', status: 'authed', isAdmin: true }),
+    )
     apiFetchMock.mockResolvedValue(sentinelConfigFixture)
     const { default: SettingsView } = await import('../SettingsView')
     render(<SettingsView />)
@@ -109,9 +110,9 @@ describe('SettingsView', () => {
   })
 
   it('renders dailyCostUsd / dailyBudgetUsd', async () => {
-    useAuthStateMock.mockReturnValue({
-      publicKey: 'X', token: 't', isAuthenticated: true, isAdmin: true,
-    })
+    useAuthStateMock.mockReturnValue(
+      makeFakeAuthState({ publicKey: 'X', token: 't', status: 'authed', isAdmin: true }),
+    )
     apiFetchMock.mockResolvedValue({ ...sentinelConfigFixture, dailyCostUsd: 1.23 })
     const { default: SettingsView } = await import('../SettingsView')
     render(<SettingsView />)
