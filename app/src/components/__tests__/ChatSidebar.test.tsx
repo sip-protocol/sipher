@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useAppStore } from '../../stores/app'
 import ChatSidebar from '../ChatSidebar'
+import { triggerAuthInterceptor } from '../../api/client'
 
 const mockToastShow = vi.fn(() => 'toast-id')
 const mockToastDismiss = vi.fn()
@@ -9,6 +10,16 @@ const mockToastDismiss = vi.fn()
 vi.mock('../../providers/ToastProvider', () => ({
   useToast: () => ({ show: mockToastShow, dismiss: mockToastDismiss }),
 }))
+
+vi.mock('../../api/client', async () => {
+  const actual = await vi.importActual<typeof import('../../api/client')>(
+    '../../api/client',
+  )
+  return {
+    ...actual,
+    triggerAuthInterceptor: vi.fn(),
+  }
+})
 
 vi.mock('../../hooks/useAuthState', async () => {
   const { useAppStore: store } = await vi.importActual<
@@ -47,6 +58,7 @@ describe('ChatSidebar', () => {
     resetStore()
     mockToastShow.mockClear()
     mockToastDismiss.mockClear()
+    vi.mocked(triggerAuthInterceptor).mockClear()
   })
 
   afterEach(() => {
@@ -171,5 +183,28 @@ describe('ChatSidebar', () => {
     })
     expect(mockToastShow).not.toHaveBeenCalled()
     expect(screen.queryByText(/invalid or expired token/)).not.toBeInTheDocument()
+  })
+
+  it('calls triggerAuthInterceptor when streaming fetch returns 401', async () => {
+    useAppStore.setState({ token: 'test-jwt', isAdmin: true })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: 'unauthorized' }), {
+          status: 401,
+          headers: { 'content-type': 'application/json' },
+        })
+      )
+    )
+
+    render(<ChatSidebar />)
+    const input = screen.getByPlaceholderText('Message SIPHER...') as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'hello' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(triggerAuthInterceptor).toHaveBeenCalledOnce()
+    })
   })
 })

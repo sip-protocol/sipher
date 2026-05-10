@@ -5,6 +5,7 @@ import { useAuthState } from '../hooks/useAuthState'
 import { useToast } from '../providers/ToastProvider'
 import { sanitizeArgs } from '../lib/sanitize-args'
 import { isAuthError } from '../lib/auth-errors'
+import { triggerAuthInterceptor } from '../api/client'
 import ToolTimeline from './ToolTimeline'
 import SentinelConfirm from './SentinelConfirm'
 
@@ -64,6 +65,14 @@ export default function ChatSidebar({ fullScreen }: Props) {
       })
 
       if (!res.ok) {
+        if (res.status === 401) {
+          triggerAuthInterceptor()
+          // Surface a neutral message — the global session-expired toast already
+          // tells the user what happened and offers a sign-in CTA. Returning
+          // here without throwing avoids painting the raw 401 body into the
+          // assistant bubble.
+          return
+        }
         const err = await res.json().catch(() => ({}))
         throw new Error((err as { error?: string }).error ?? `Error ${res.status}`)
       }
