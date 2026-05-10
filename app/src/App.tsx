@@ -1,10 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
-import {
-  PhantomWalletAdapter,
-  SolflareWalletAdapter,
-} from '@solana/wallet-adapter-wallets'
 import '@solana/wallet-adapter-react-ui/styles.css'
 
 import Header from './components/Header'
@@ -102,10 +98,12 @@ export default function App() {
     fetchNetworkConfig()
   }, [])
 
-  const wallets = useMemo(
-    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
-    [],
-  )
+  // Wallet Standard auto-discovers Phantom, Solflare, and other
+  // wallet-standard wallets the user has installed. Explicit adapter
+  // instantiation has been deprecated since
+  // @solana/wallet-adapter-wallets@0.19 and emits a console warning per
+  // page load — clearing it here.
+  const wallets = useMemo(() => [], [])
 
   if (error) {
     return (
