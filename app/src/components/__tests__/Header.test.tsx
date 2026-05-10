@@ -197,4 +197,13 @@ describe('Header — tabs', () => {
     const link = screen.getByRole('link', { name: /Vault/i })
     expect(link).toHaveAttribute('aria-current', 'page')
   })
+
+  it('does not highlight any tab on an unmatched path (404)', () => {
+    setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
+    renderHeader('/vault/abc')
+    expect(screen.getByRole('link', { name: /Dashboard/i })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: /Vault/i })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: /Chains/i })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: /Keys/i })).not.toHaveAttribute('aria-current')
+  })
 })

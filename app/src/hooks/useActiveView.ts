@@ -16,7 +16,7 @@ const PATH_TO_VIEW: Record<string, View> = {
   '/about': 'about',
 }
 
-export function useActiveView(): View {
+export function useActiveView(): View | null {
   const { pathname } = useLocation()
-  return PATH_TO_VIEW[pathname] ?? 'dashboard'
+  return PATH_TO_VIEW[pathname] ?? null
 }

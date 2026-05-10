@@ -48,8 +48,8 @@ describe('useActiveView', () => {
     expect(renderHook(() => useActiveView(), { wrapper: wrapper(['/about']) }).result.current).toBe('about')
   })
 
-  it('falls back to dashboard for unknown paths', () => {
-    expect(renderHook(() => useActiveView(), { wrapper: wrapper(['/unknown']) }).result.current).toBe('dashboard')
-    expect(renderHook(() => useActiveView(), { wrapper: wrapper(['/vault/abc']) }).result.current).toBe('dashboard')
+  it('returns null for unknown paths', () => {
+    expect(renderHook(() => useActiveView(), { wrapper: wrapper(['/unknown']) }).result.current).toBe(null)
+    expect(renderHook(() => useActiveView(), { wrapper: wrapper(['/vault/abc']) }).result.current).toBe(null)
   })
 })

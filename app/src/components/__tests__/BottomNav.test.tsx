@@ -134,4 +134,11 @@ describe('BottomNav', () => {
     const link = screen.getByRole('link', { name: /Vault/ })
     expect(link).toHaveAttribute('aria-current', 'page')
   })
+
+  it('does not highlight any tab on an unmatched path (404)', () => {
+    renderBottomNav('/vault/abc')
+    expect(screen.getByRole('link', { name: /Home/ })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: /Vault/ })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: /Chat/ })).not.toHaveAttribute('aria-current')
+  })
 })

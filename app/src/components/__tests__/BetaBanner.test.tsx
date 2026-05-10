@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { View } from '../../stores/app'
 
-let activeViewValue: View = 'dashboard'
+let activeViewValue: View | null = 'dashboard'
 let networkValue: string = 'devnet'
 
 vi.mock('../../hooks/useActiveView', () => ({
@@ -89,6 +89,13 @@ describe('BetaBanner', () => {
   it('does not show vault-devnet warning on devnet vault view', () => {
     activeViewValue = 'vault'
     networkValue = 'devnet'
+    render(<BetaBanner beta={false} />)
+    expect(screen.queryByText(/Sipher Vault is on devnet only/i)).not.toBeInTheDocument()
+  })
+
+  it('does not show vault-devnet warning on unmatched paths (activeView=null)', () => {
+    activeViewValue = null
+    networkValue = 'mainnet'
     render(<BetaBanner beta={false} />)
     expect(screen.queryByText(/Sipher Vault is on devnet only/i)).not.toBeInTheDocument()
   })
