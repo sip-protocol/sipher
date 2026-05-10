@@ -49,6 +49,7 @@ export function StealthAddressBackup() {
     setPassphrase('')
     setConfirm('')
     setEncryptError(null)
+    setEncrypting(false)
     setLoading(true)
   })
 
