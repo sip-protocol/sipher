@@ -23,7 +23,7 @@ import KeysView from './views/KeysView'
 import SettingsView from './views/SettingsView'
 import ChatView from './views/ChatView'
 import NotFoundView from './views/NotFoundView'
-import AboutPlaceholderView from './views/AboutPlaceholderView'
+import AboutView from './views/AboutView'
 import { useAppStore } from './stores/app'
 import { useAuth } from './hooks/useAuth'
 import { useSSE } from './hooks/useSSE'
@@ -58,7 +58,7 @@ function AppShell() {
             <Route path="/sentinel" element={<SquadView token={token} />} />
             <Route path="/settings" element={<SettingsView />} />
             <Route path="/privacy-report" element={<PrivacyReportView />} />
-            <Route path="/about" element={<AboutPlaceholderView />} />
+            <Route path="/about" element={<AboutView />} />
             <Route path="*" element={<NotFoundView />} />
           </Routes>
         </main>
