@@ -7,6 +7,7 @@ import { useOnAuthClear } from '../store/useOnAuthClear'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { HashCell } from '../components/ui/HashCell'
+import { UnauthedEmptyState } from '../components/ui/UnauthedEmptyState'
 import {
   StealthAddressList,
   type Position,
@@ -41,7 +42,7 @@ interface StealthIndexResponse {
 }
 
 export default function VaultView() {
-  const { token } = useAuthState()
+  const { token, status } = useAuthState()
   const setActiveView = useAppStore((s) => s.setActiveView)
   const network = useNetworkConfigStore((s) => s.config?.network ?? '')
   const isMainnet = network === 'mainnet'
@@ -83,6 +84,22 @@ export default function VaultView() {
     })
     return () => controller.abort()
   }, [token])
+
+  if (status !== 'authed') {
+    return (
+      <UnauthedEmptyState
+        title="Shielded Vault"
+        body={
+          <>
+            Privacy-preserving SOL + token vault on Solana. Stealth output addresses by default.
+            <br />
+            <strong>Connect a wallet to deposit.</strong>
+          </>
+        }
+        illustration={<RoutePreviewCard wallet="" />}
+      />
+    )
+  }
 
   return (
     <div data-testid="vault-view" className="grid grid-cols-1 md:grid-cols-2 gap-4">

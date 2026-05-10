@@ -9,17 +9,9 @@ vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
 }))
 
+const useAuthStateMock = vi.fn()
 vi.mock('../../hooks/useAuthState', () => ({
-  useAuthState: () => ({
-    status: 'authed' as const,
-    token: 'test-token',
-    expiresAt: null,
-    isAdmin: false,
-    publicKey: 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N',
-    authenticate: () => Promise.resolve(),
-    disconnect: () => Promise.resolve(),
-    error: null,
-  }),
+  useAuthState: () => useAuthStateMock(),
 }))
 
 vi.mock('../../stores/app', async () => {
@@ -104,6 +96,16 @@ beforeEach(() => {
   setActiveView.mockReset()
   networkValue = 'devnet'
   onAuthClear._resetForTests()
+  useAuthStateMock.mockReturnValue({
+    status: 'authed' as const,
+    token: 'test-token',
+    expiresAt: null,
+    isAdmin: false,
+    publicKey: 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N',
+    authenticate: () => Promise.resolve(),
+    disconnect: () => Promise.resolve(),
+    error: null,
+  })
 })
 
 function mockThreeFetches(positionsResponse: PositionsResponse = emptyPositions) {
@@ -185,5 +187,56 @@ describe('VaultView (split-panel)', () => {
     await waitFor(() => {
       expect(screen.getByText('0 positions')).toBeInTheDocument()
     })
+  })
+
+  it('renders UnauthedEmptyState when status is unauthed', () => {
+    useAuthStateMock.mockReturnValue({
+      status: 'unauthed' as const,
+      token: null,
+      publicKey: null,
+      isAdmin: false,
+      expiresAt: null,
+      authenticate: () => Promise.resolve(),
+      disconnect: () => Promise.resolve(),
+      error: null,
+    })
+    mockThreeFetches()
+    render(<VaultView />)
+    expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
+    expect(screen.queryByText(/SHIELDED VAULT/)).toBeNull()
+    expect(screen.queryByText(/UNSHIELDED WALLET/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /withdraw/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /shield to vault/i })).toBeNull()
+  })
+
+  it('renders UnauthedEmptyState when status is connecting', () => {
+    useAuthStateMock.mockReturnValue({
+      status: 'connecting' as const,
+      token: null,
+      publicKey: null,
+      isAdmin: false,
+      expiresAt: null,
+      authenticate: () => Promise.resolve(),
+      disconnect: () => Promise.resolve(),
+      error: null,
+    })
+    mockThreeFetches()
+    render(<VaultView />)
+    expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
+  })
+
+  it('does not fire fetches when unauthed', () => {
+    useAuthStateMock.mockReturnValue({
+      status: 'unauthed' as const,
+      token: null,
+      publicKey: null,
+      isAdmin: false,
+      expiresAt: null,
+      authenticate: () => Promise.resolve(),
+      disconnect: () => Promise.resolve(),
+      error: null,
+    })
+    render(<VaultView />)
+    expect(mockedFetch).not.toHaveBeenCalled()
   })
 })
