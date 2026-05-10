@@ -55,7 +55,7 @@ describe('useSSE', () => {
     await waitFor(() => expect(result.current.events).toHaveLength(0))
   })
 
-  it('clears events when the EventSource emits an error', async () => {
+  it('keeps events on transient EventSource error and only flips connected to false', async () => {
     let onMessageCb: ((e: MessageEvent) => void) | null = null
     const onerrorRef: { current: (() => void) | null } = { current: null }
 
@@ -73,6 +73,7 @@ describe('useSSE', () => {
 
     const { result } = renderHook(() => useSSE())
     await waitFor(() => expect(onMessageCb).not.toBeNull())
+    await waitFor(() => expect(result.current.connected).toBe(true))
 
     act(() => {
       onMessageCb?.({
@@ -88,9 +89,14 @@ describe('useSSE', () => {
     })
     await waitFor(() => expect(result.current.events).toHaveLength(1))
 
+    // Transient EventSource blip: connected flips false but events are NOT
+    // wiped — users keep seeing their activity feed across short network
+    // hiccups. Auth-clear (the test above) is the only path that drains
+    // events.
     act(() => {
       onerrorRef.current?.()
     })
-    await waitFor(() => expect(result.current.events).toHaveLength(0))
+    await waitFor(() => expect(result.current.connected).toBe(false))
+    expect(result.current.events).toHaveLength(1)
   })
 })
