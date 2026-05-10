@@ -181,6 +181,26 @@ describe('apiFetch network-error branch', () => {
     expect(handler).toHaveBeenCalledOnce()
     window.removeEventListener('sipher:network-recovered', handler)
   })
+
+  it('preserves AbortError name through the network-error catch wrapper', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      const e = new DOMException('aborted', 'AbortError')
+      throw e
+    })
+    const handler = vi.fn()
+    window.addEventListener('sipher:network-error', handler)
+    try {
+      await apiFetch('/whatever')
+      throw new Error('apiFetch should have thrown')
+    } catch (err) {
+      // AbortError must propagate as-is — 8+ callers in the app rely on
+      // `err.name === 'AbortError'` to distinguish user-cancelled requests
+      // from genuine failures. The new TypeError wrapper must NOT catch it.
+      expect((err as Error).name).toBe('AbortError')
+    }
+    expect(handler).not.toHaveBeenCalled()
+    window.removeEventListener('sipher:network-error', handler)
+  })
 })
 
 describe('triggerAuthInterceptor', () => {
