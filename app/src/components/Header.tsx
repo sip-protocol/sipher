@@ -12,7 +12,7 @@ import { useAppStore, type View } from '../stores/app'
 import { useAuthState } from '../hooks/useAuthState'
 import { useToast } from '../providers/ToastProvider'
 import AgentDot from './AgentDot'
-import { WalletDropdown } from './WalletDropdown'
+import { UserMenu } from './UserMenu'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 import { TickerBar } from './ui/TickerBar'
 
@@ -118,11 +118,13 @@ export default function Header() {
         </div>
 
         {status === 'authed' && publicKey ? (
-          <WalletDropdown
+          <UserMenu
             address={publicKey}
+            isAdmin={false}
             onCopy={handleCopy}
             onReSignIn={handleConnectOrSignIn}
             onDisconnect={handleDisconnect}
+            onNavigate={() => {}}
           />
         ) : status === 'expired' ? (
           <button

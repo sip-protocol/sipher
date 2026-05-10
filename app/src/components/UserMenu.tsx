@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Copy, ArrowsClockwise, Plug, CaretDown, Gear, Broadcast, UsersThree } from '@phosphor-icons/react'
 
-type AdminView = 'settings' | 'herald' | 'squad'
+export type AdminView = 'settings' | 'herald' | 'squad'
 
 interface Props {
   address: string
