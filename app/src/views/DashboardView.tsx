@@ -103,21 +103,34 @@ export default function DashboardView({ events }: { events: ActivityEvent[] }) {
 
   useEffect(() => {
     if (!token) return
-    apiFetch<VaultData>('/api/vault', { token }).then(setVault).catch(() => {})
-    apiFetch<{ activity: ActivityRecord[] }>('/api/activity', { token })
+    const controller = new AbortController()
+    apiFetch<VaultData>('/api/vault', { token, signal: controller.signal })
       .then((data) => {
-        setHistory(
-          (data.activity ?? []).map((a: ActivityRecord): ActivityRow => ({
-            id: a.id,
-            agent: a.agent,
-            type: a.type,
-            level: a.level,
-            data: parseDetail(a.detail),
-            timestamp: a.created_at,
-          })),
-        )
+        if (!controller.signal.aborted) setVault(data)
       })
-      .catch(() => {})
+      .catch((err: Error) => {
+        if (err.name === 'AbortError') return
+        // network errors fall through to null vault state
+      })
+    apiFetch<{ activity: ActivityRecord[] }>('/api/activity', { token, signal: controller.signal })
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          setHistory(
+            (data.activity ?? []).map((a: ActivityRecord): ActivityRow => ({
+              id: a.id,
+              agent: a.agent,
+              type: a.type,
+              level: a.level,
+              data: parseDetail(a.detail),
+              timestamp: a.created_at,
+            })),
+          )
+        }
+      })
+      .catch((err: Error) => {
+        if (err.name === 'AbortError') return
+      })
+    return () => controller.abort()
   }, [token])
 
   const allRows: ActivityRow[] = [
