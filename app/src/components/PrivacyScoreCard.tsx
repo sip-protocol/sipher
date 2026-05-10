@@ -1,10 +1,10 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card } from './ui/Card'
 import { Gauge } from './ui/Gauge'
 import { MetricBar } from './ui/MetricBar'
 import { Sheet } from './ui/Sheet'
 import { UnauthedEmptyState } from './ui/UnauthedEmptyState'
-import { useAppStore } from '../stores/app'
 import { useAuthState } from '../hooks/useAuthState'
 
 interface PrivacyData {
@@ -26,13 +26,13 @@ interface PrivacyScoreCardProps {
 }
 
 export function PrivacyScoreCard({ data, delta }: PrivacyScoreCardProps) {
-  const setActiveView = useAppStore((s) => s.setActiveView)
+  const navigate = useNavigate()
   const { status } = useAuthState()
   const [teaserOpen, setTeaserOpen] = useState(false)
 
   const handleViewReport = () => {
     if (status === 'authed') {
-      setActiveView('privacyReport')
+      navigate('/privacy-report')
     } else {
       setTeaserOpen(true)
     }
