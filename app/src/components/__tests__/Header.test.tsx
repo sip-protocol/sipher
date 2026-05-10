@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import Header from '../Header'
 import type { AuthState, AuthStatus } from '../../hooks/useAuthState'
 import { useAppStore } from '../../stores/app'
@@ -44,6 +45,14 @@ function setAuth(partial: Partial<AuthState> & { status: AuthStatus }) {
   }
 }
 
+function renderHeader(initialPath = '/') {
+  return render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <Header />
+    </MemoryRouter>,
+  )
+}
+
 beforeEach(() => {
   mockAuthenticate.mockReset()
   mockAuthenticate.mockResolvedValue(undefined)
@@ -54,47 +63,47 @@ beforeEach(() => {
   Object.assign(navigator, {
     clipboard: { writeText: mockClipboardWrite.mockResolvedValue(undefined) },
   })
-  useAppStore.setState({ activeView: 'dashboard', chatSheetOpen: false }, false)
+  useAppStore.setState({ chatSheetOpen: false }, false)
   setAuth({ status: 'unauthed', publicKey: null, isAdmin: false })
 })
 
 describe('Header — auth pill', () => {
   it('renders Connect button when unauthed', () => {
     setAuth({ status: 'unauthed', publicKey: null })
-    render(<Header />)
+    renderHeader()
     const btn = screen.getByRole('button', { name: 'Connect' })
     expect(btn).toBeInTheDocument()
   })
 
   it('Connect click calls authenticate', () => {
     setAuth({ status: 'unauthed', publicKey: null })
-    render(<Header />)
+    renderHeader()
     fireEvent.click(screen.getByRole('button', { name: 'Connect' }))
     expect(mockAuthenticate).toHaveBeenCalledTimes(1)
   })
 
   it('renders Re-sign in button when expired', () => {
     setAuth({ status: 'expired', publicKey: FULL })
-    render(<Header />)
+    renderHeader()
     expect(screen.getByRole('button', { name: /Re-sign in/i })).toBeInTheDocument()
   })
 
   it('Re-sign click calls authenticate', () => {
     setAuth({ status: 'expired', publicKey: FULL })
-    render(<Header />)
+    renderHeader()
     fireEvent.click(screen.getByRole('button', { name: /Re-sign in/i }))
     expect(mockAuthenticate).toHaveBeenCalledTimes(1)
   })
 
   it('renders UserMenu when authed with publicKey', () => {
     setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
-    render(<Header />)
+    renderHeader()
     expect(screen.getByRole('button', { name: /HciZ\.\.\.25En/ })).toBeInTheDocument()
   })
 
   it('UserMenu Disconnect calls disconnect + shows toast', async () => {
     setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
-    render(<Header />)
+    renderHeader()
     fireEvent.click(screen.getByRole('button', { name: /HciZ\.\.\.25En/ }))
     fireEvent.click(screen.getByText('Disconnect'))
     await Promise.resolve()
@@ -104,7 +113,7 @@ describe('Header — auth pill', () => {
 
   it('UserMenu Copy writes address to clipboard', async () => {
     setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
-    render(<Header />)
+    renderHeader()
     fireEvent.click(screen.getByRole('button', { name: /HciZ\.\.\.25En/ }))
     fireEvent.click(screen.getByText('Copy address'))
     await Promise.resolve()
@@ -114,24 +123,24 @@ describe('Header — auth pill', () => {
 
 describe('Header — wordmark + Ask SIPHER trigger', () => {
   it('renders the SIPHER wordmark', () => {
-    render(<Header />)
+    renderHeader()
     expect(screen.getByText('SIPHER')).toBeInTheDocument()
   })
 
   it('exposes Ask SIPHER trigger button', () => {
-    render(<Header />)
+    renderHeader()
     expect(screen.getByRole('button', { name: /ask sipher/i })).toBeInTheDocument()
   })
 
   it('Ask SIPHER click opens chat sheet via store', () => {
-    render(<Header />)
+    renderHeader()
     expect(useAppStore.getState().chatSheetOpen).toBe(false)
     fireEvent.click(screen.getByRole('button', { name: /ask sipher/i }))
     expect(useAppStore.getState().chatSheetOpen).toBe(true)
   })
 
   it('renders the active network identifier', () => {
-    render(<Header />)
+    renderHeader()
     expect(screen.getByText('devnet')).toBeInTheDocument()
   })
 })
@@ -139,27 +148,32 @@ describe('Header — wordmark + Ask SIPHER trigger', () => {
 describe('Header — tabs', () => {
   it('renders standard nav tabs for non-admin user', () => {
     setAuth({ status: 'authed', publicKey: FULL, token: 'tok', isAdmin: false })
-    render(<Header />)
-    expect(screen.getByRole('button', { name: /Dashboard/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Vault/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Herald$/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Squad$/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Settings$/ })).not.toBeInTheDocument()
+    renderHeader()
+    expect(screen.getByRole('link', { name: /Dashboard/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Vault/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Herald$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Squad$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Settings$/ })).not.toBeInTheDocument()
   })
 
   it('does NOT render herald/squad/settings tabs in nav for admin user', () => {
     setAuth({ status: 'authed', publicKey: FULL, token: 'tok', isAdmin: true })
-    render(<Header />)
+    renderHeader()
     // Admin views live in UserMenu dropdown, not in the main nav
-    expect(screen.queryByRole('button', { name: /^Herald$/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Squad$/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Settings$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Herald$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Squad$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Settings$/ })).not.toBeInTheDocument()
   })
 
-  it('clicking a tab calls setActiveView', () => {
+  it('Vault tab is a link to /vault', () => {
     setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
-    render(<Header />)
-    fireEvent.click(screen.getByRole('button', { name: /Vault/i }))
-    expect(useAppStore.getState().activeView).toBe('vault')
+    renderHeader()
+    expect(screen.getByRole('link', { name: /Vault/i })).toHaveAttribute('href', '/vault')
+  })
+
+  it('Dashboard tab is a link to /', () => {
+    setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
+    renderHeader()
+    expect(screen.getByRole('link', { name: /Dashboard/i })).toHaveAttribute('href', '/')
   })
 })

@@ -5,7 +5,9 @@ import {
   GlobeHemisphereWest,
   Key,
 } from '@phosphor-icons/react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAppStore, type View } from '../stores/app'
+import { useActiveView } from '../hooks/useActiveView'
 import { useAuthState } from '../hooks/useAuthState'
 import { useToast } from '../providers/ToastProvider'
 import AgentDot from './AgentDot'
@@ -28,11 +30,26 @@ const TABS: Tab[] = [
   { id: 'chat', label: 'Chat', icon: ChatCircle, tabletOnly: true },
 ]
 
+const VIEW_TO_PATH: Record<View, string> = {
+  dashboard: '/',
+  vault: '/vault',
+  chains: '/chains',
+  keys: '/keys',
+  chat: '/chat',
+  deposit: '/vault/deposit',
+  withdraw: '/vault/withdraw',
+  herald: '/herald',
+  squad: '/sentinel',
+  settings: '/settings',
+  privacyReport: '/privacy-report',
+  about: '/about',
+}
+
 export default function Header() {
   const { status, publicKey, authenticate, disconnect, isAdmin } = useAuthState()
   const { show: showToast } = useToast()
-  const activeView = useAppStore((s) => s.activeView)
-  const setActiveView = useAppStore((s) => s.setActiveView)
+  const activeView = useActiveView()
+  const navigate = useNavigate()
   const setChatSheetOpen = useAppStore((s) => s.setChatSheetOpen)
   const network = useNetworkConfigStore((s) => s.config?.network ?? 'mainnet')
 
@@ -55,7 +72,7 @@ export default function Header() {
   }
 
   const handleAdminNavigate = (view: AdminView) => {
-    setActiveView(view)
+    navigate(VIEW_TO_PATH[view])
   }
 
   return (
@@ -76,9 +93,9 @@ export default function Header() {
               activeView === tab.id ||
               (tab.id === 'vault' && (activeView === 'deposit' || activeView === 'withdraw'))
             return (
-              <button
+              <Link
                 key={tab.id}
-                onClick={() => setActiveView(tab.id)}
+                to={VIEW_TO_PATH[tab.id]}
                 className={[
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                   tab.tabletOnly ? 'lg:hidden' : '',
@@ -87,7 +104,7 @@ export default function Header() {
               >
                 <Icon size={14} weight={active ? 'fill' : 'regular'} />
                 {tab.label}
-              </button>
+              </Link>
             )
           })}
         </nav>
