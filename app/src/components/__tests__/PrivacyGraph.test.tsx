@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import { PrivacyGraph } from '../PrivacyGraph'
+import { onAuthClear } from '../../store/onAuthClear'
 
 vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
@@ -24,6 +25,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   ;(apiFetch as ReturnType<typeof vi.fn>).mockReset()
+  onAuthClear._resetForTests()
 })
 
 describe('PrivacyGraph', () => {
@@ -61,5 +63,30 @@ describe('PrivacyGraph', () => {
     ;(apiFetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('network'))
     render(<PrivacyGraph />)
     await waitFor(() => expect(screen.getByText(/0 addresses/)).toBeInTheDocument())
+  })
+
+  it('clears the tree when onAuthClear.clearAll fires', async () => {
+    ;(apiFetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      tree: [
+        {
+          index: 0,
+          derivationPath: 'm/0',
+          stealthAddress: 'X',
+          parentIndex: null,
+          createdAt: 't',
+        },
+      ],
+      rootWallet: 'W',
+    })
+    render(<PrivacyGraph />)
+    await waitFor(() => {
+      expect(screen.getByText('1 address')).toBeInTheDocument()
+    })
+
+    act(() => onAuthClear.clearAll())
+
+    await waitFor(() => {
+      expect(screen.getByText(/0 addresses/)).toBeInTheDocument()
+    })
   })
 })
