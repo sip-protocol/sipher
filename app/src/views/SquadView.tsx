@@ -3,6 +3,9 @@ import { apiFetch } from '../api/client'
 import { AGENTS, type AgentName } from '../lib/agents'
 import { WarningOctagon, ArrowRight, Power } from '@phosphor-icons/react'
 import AgentDot from '../components/AgentDot'
+import { Chip } from '../components/ui/Chip'
+import { useAuthState } from '../hooks/useAuthState'
+import { useAppStore } from '../stores/app'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -85,7 +88,7 @@ function AgentGrid({ agents }: { agents: AgentStatus[] }) {
         const agent = AGENTS[a.id]
         if (!agent) return null
         return (
-          <div key={a.id} className="bg-card border border-border rounded-lg p-3 flex flex-col gap-2">
+          <div key={a.id} className="bg-glass-1 border border-line rounded-lg p-3 flex flex-col gap-2">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-2">
                 <AgentDot agent={a.id} size={6} />
@@ -122,7 +125,7 @@ function StatsGrid({ stats }: { stats: TodayStats }) {
       </h3>
       <div className="grid grid-cols-2 gap-3">
         {items.map(({ value, label }) => (
-          <div key={label} className="bg-card border border-border rounded-lg p-3">
+          <div key={label} className="bg-glass-1 border border-line rounded-lg p-3">
             <div className="text-[22px] font-mono font-medium text-text leading-none mb-1">{value}</div>
             <div className="text-[10px] text-text-muted uppercase tracking-wide">{label}</div>
           </div>
@@ -158,7 +161,7 @@ function CoordLog({ entries }: { entries: CoordEntry[] }) {
                 {entry.codeSpan ? (
                   <>
                     {entry.description.split('  ')[0]}
-                    <span className="font-mono text-[12px] bg-elevated px-1 py-0.5 rounded border border-border">
+                    <span className="font-mono text-[12px] bg-glass-2 px-1 py-0.5 rounded border border-line">
                       {entry.codeSpan}
                     </span>
                     {entry.description.split('  ')[1]}
@@ -200,8 +203,8 @@ function KillSwitch({ token, active, onToggle }: { token: string | null; active:
         disabled={busy || !token}
         className={`w-full flex items-center justify-center gap-2 py-3.5 px-4 border rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
           active
-            ? 'border-green/30 text-green hover:bg-green/10'
-            : 'border-red/30 text-red hover:bg-red/10 hover:border-red'
+            ? 'border-success/30 text-success hover:bg-success-soft'
+            : 'border-danger/30 text-danger hover:bg-danger-soft hover:border-danger'
         }`}
       >
         {active ? <Power size={18} /> : <WarningOctagon size={18} />}
@@ -210,7 +213,7 @@ function KillSwitch({ token, active, onToggle }: { token: string | null; active:
         </span>
       </button>
       {error && (
-        <div className="mt-2 text-red text-xs font-mono bg-red/10 border border-red/20 rounded-lg px-3 py-2">
+        <div className="mt-2 text-danger text-xs font-mono bg-danger-soft border border-danger/20 rounded-lg px-3 py-2">
           {error}
         </div>
       )}
@@ -221,8 +224,16 @@ function KillSwitch({ token, active, onToggle }: { token: string | null; active:
 // ── Main view ─────────────────────────────────────────────────────────────────
 
 export default function SquadView({ token }: { token: string | null }) {
+  const { isAdmin } = useAuthState()
+  const setActiveView = useAppStore((s) => s.setActiveView)
   const [data, setData] = useState<SquadData | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setActiveView('dashboard')
+    }
+  }, [isAdmin, setActiveView])
 
   const load = useCallback(() => {
     if (!token) return
@@ -232,7 +243,12 @@ export default function SquadView({ token }: { token: string | null }) {
       .catch((err: Error) => setError(err.message))
   }, [token])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (!isAdmin) return
+    load()
+  }, [isAdmin, load])
+
+  if (!isAdmin) return null
 
   if (!data && !error) {
     return <div className="text-text-muted text-sm text-center py-20">Loading squad data...</div>
@@ -240,8 +256,12 @@ export default function SquadView({ token }: { token: string | null }) {
 
   return (
     <div data-testid="squad-view" className="flex flex-col gap-6">
+      <div className="flex items-center gap-2">
+        <Chip tone="sentinel">SENTINEL</Chip>
+        <span className="text-2xs text-text-muted tracking-widest uppercase">Operations</span>
+      </div>
       {error && (
-        <div className="text-text-muted text-xs font-mono bg-card border border-border rounded-lg px-3 py-2">
+        <div className="text-text-muted text-xs font-mono bg-glass-1 border border-line rounded-lg px-3 py-2">
           Live data unavailable — {error}
         </div>
       )}
