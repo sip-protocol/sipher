@@ -211,6 +211,23 @@ describe('VaultView (split-panel)', () => {
     expect(screen.queryByRole('button', { name: /shield to vault/i })).toBeNull()
   })
 
+  it('renders connect-wallet Banner above UnauthedEmptyState when unauthed', () => {
+    useAuthStateMock.mockReturnValue({
+      status: 'unauthed' as const,
+      token: null,
+      publicKey: null,
+      isAdmin: false,
+      expiresAt: null,
+      authenticate: () => Promise.resolve(),
+      disconnect: () => Promise.resolve(),
+      error: null,
+    })
+    mockThreeFetches()
+    renderVault()
+    const banner = screen.getByRole('status')
+    expect(banner).toHaveTextContent(/connected-wallet feature|connect your wallet/i)
+  })
+
   it('renders UnauthedEmptyState when status is connecting', () => {
     useAuthStateMock.mockReturnValue({
       status: 'connecting' as const,

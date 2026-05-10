@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Card } from './ui/Card'
+import { JargonTerm } from './ui/JargonTerm'
 import { NodeGraph, type GraphNode, type GraphEdge } from './ui/NodeGraph'
 import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
@@ -49,18 +50,24 @@ export function PrivacyGraph() {
     <Card variant="default" sheen className="p-6">
       <div className="flex items-center justify-between mb-4">
         <span
-          className="text-2xs text-text-muted"
+          className="text-2xs text-text-muted inline-flex items-center gap-1"
           style={{ letterSpacing: 'var(--tracking-widest)' }}
         >
-          PRIVACY GRAPH · STEALTH ADDRESS TREE
+          PRIVACY GRAPH ·{' '}
+          <JargonTerm term="Stealth Address Tree">STEALTH ADDRESS TREE</JargonTerm>
         </span>
         <span className="text-xs text-text-muted">
           {tree.length} {tree.length === 1 ? 'address' : 'addresses'}
         </span>
       </div>
       {tree.length === 0 ? (
-        <div className="h-[400px] flex items-center justify-center text-text-muted text-sm">
-          Connect a wallet to see your privacy graph.
+        <div className="h-[400px] flex flex-col items-center justify-center text-center px-6">
+          <p className="text-sm text-text-secondary">
+            Each node is a one-time stealth address.
+          </p>
+          <p className="text-xs text-text-muted mt-1">
+            Connect a wallet and send/receive shielded payments to populate.
+          </p>
         </div>
       ) : (
         <NodeGraph nodes={nodes} edges={edges} />

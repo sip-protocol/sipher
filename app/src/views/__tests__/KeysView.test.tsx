@@ -49,9 +49,21 @@ describe('KeysView', () => {
     })
     render(<KeysView />)
     expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
-    expect(screen.getByText(/stealth keys/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/stealth keys/i).length).toBeGreaterThan(0)
     expect(screen.queryByTestId('view-key-card')).toBeNull()
     expect(screen.queryByTestId('backup-card')).toBeNull()
+  })
+
+  it('renders connect-wallet Banner above UnauthedEmptyState when unauthed', () => {
+    useAuthStateMock.mockReturnValue({
+      publicKey: null,
+      token: null,
+      status: 'unauthed',
+      isAdmin: false,
+    })
+    render(<KeysView />)
+    const banner = screen.getByRole('status')
+    expect(banner).toHaveTextContent(/connected-wallet feature|connect your wallet/i)
   })
 
   it('does NOT render the section heading when unauthenticated', () => {
