@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { onAuthClear } from '../../store/onAuthClear'
 
 const setActiveView = vi.fn()
 let networkValue: 'devnet' | 'mainnet' = 'devnet'
@@ -102,6 +103,7 @@ beforeEach(() => {
   mockedFetch.mockReset()
   setActiveView.mockReset()
   networkValue = 'devnet'
+  onAuthClear._resetForTests()
 })
 
 function mockThreeFetches(positionsResponse: PositionsResponse = emptyPositions) {
@@ -171,5 +173,17 @@ describe('VaultView (split-panel)', () => {
     render(<VaultView />)
     const cta = await screen.findByRole('button', { name: /shield to vault/i })
     expect(cta).toBeDisabled()
+  })
+
+  it('clears vault, positions, and stealth tree on onAuthClear.clearAll', async () => {
+    mockThreeFetches(populatedPositions)
+    render(<VaultView />)
+    await waitFor(() => {
+      expect(screen.getByText('1 positions')).toBeInTheDocument()
+    })
+    act(() => onAuthClear.clearAll())
+    await waitFor(() => {
+      expect(screen.getByText('0 positions')).toBeInTheDocument()
+    })
   })
 })
