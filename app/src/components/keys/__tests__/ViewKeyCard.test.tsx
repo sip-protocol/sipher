@@ -10,14 +10,17 @@ vi.mock('../../../api/keys', () => ({
   })),
 }))
 
-vi.mock('../../../hooks/useAuthState', () => ({
-  useAuthState: () => ({
-    publicKey: 'TestWallet1111111111111111111111111111111111',
-    token: 'fake-jwt',
-    isAuthenticated: true,
-    isAdmin: false,
-  }),
-}))
+vi.mock('../../../hooks/useAuthState', async () => {
+  const { makeFakeAuthState } = await import('../../../test-utils/makeFakeAuthState')
+  return {
+    useAuthState: () => makeFakeAuthState({
+      publicKey: 'TestWallet1111111111111111111111111111111111',
+      token: 'fake-jwt',
+      status: 'authed',
+      isAdmin: false,
+    }),
+  }
+})
 
 describe('ViewKeyCard', () => {
   beforeEach(() => {
