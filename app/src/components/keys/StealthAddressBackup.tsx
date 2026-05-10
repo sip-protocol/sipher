@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../../api/client'
 import { useAuthState } from '../../hooks/useAuthState'
+import { useOnAuthClear } from '../../store/useOnAuthClear'
 import { Card } from '../ui/Card'
 import { Chip } from '../ui/Chip'
 import { Sheet } from '../ui/Sheet'
@@ -40,6 +41,17 @@ export function StealthAddressBackup() {
   const [encrypting, setEncrypting] = useState(false)
   const [encryptError, setEncryptError] = useState<string | null>(null)
   const [retryNonce, setRetryNonce] = useState(0)
+
+  useOnAuthClear(() => {
+    setData(null)
+    setError(null)
+    setSheetOpen(false)
+    setPassphrase('')
+    setConfirm('')
+    setEncryptError(null)
+    setEncrypting(false)
+    setLoading(true)
+  })
 
   useEffect(() => {
     if (!token) return

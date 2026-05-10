@@ -3,6 +3,7 @@ import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
 import { useAppStore } from '../stores/app'
 import { useNetworkConfigStore } from '../lib/networkConfig'
+import { useOnAuthClear } from '../store/useOnAuthClear'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { HashCell } from '../components/ui/HashCell'
@@ -49,6 +50,13 @@ export default function VaultView() {
   const [positions, setPositions] = useState<Position[]>([])
   const [stealthTree, setStealthTree] = useState<StealthNode[]>([])
   const [loading, setLoading] = useState(true)
+
+  useOnAuthClear(() => {
+    setVault(null)
+    setPositions([])
+    setStealthTree([])
+    setLoading(true)
+  })
 
   useEffect(() => {
     if (!token) return

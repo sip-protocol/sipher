@@ -3,6 +3,7 @@ import { Card } from './ui/Card'
 import { NodeGraph, type GraphNode, type GraphEdge } from './ui/NodeGraph'
 import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
+import { useOnAuthClear } from '../store/useOnAuthClear'
 
 interface StealthNode {
   index: number
@@ -15,6 +16,8 @@ interface StealthNode {
 export function PrivacyGraph() {
   const { token } = useAuthState()
   const [tree, setTree] = useState<StealthNode[]>([])
+
+  useOnAuthClear(() => setTree([]))
 
   useEffect(() => {
     if (!token) return

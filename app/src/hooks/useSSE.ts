@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { connectSSE } from '../api/sse'
 import { useAuthState } from './useAuthState'
+import { useOnAuthClear } from '../store/useOnAuthClear'
 
 export interface ActivityEvent {
   id: string
@@ -16,6 +17,13 @@ export function useSSE() {
   const [events, setEvents] = useState<ActivityEvent[]>([])
   const [connected, setConnected] = useState(false)
   const sourceRef = useRef<EventSource | null>(null)
+
+  useOnAuthClear(() => {
+    setEvents([])
+    setConnected(false)
+    sourceRef.current?.close()
+    sourceRef.current = null
+  })
 
   useEffect(() => {
     if (!token) { setConnected(false); return }
