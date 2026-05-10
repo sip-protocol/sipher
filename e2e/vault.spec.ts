@@ -5,7 +5,7 @@ const AUTH_STATE = 'e2e/fixtures/storageState.json'
 
 test.use({ storageState: AUTH_STATE })
 
-test('vault view renders', async ({ page }) => {
+test('vault unauthed empty state renders', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (err) => errors.push(err.message))
   page.on('console', (msg) => {
@@ -16,6 +16,9 @@ test('vault view renders', async ({ page }) => {
   await mockPrivacyScore(page)
   await page.goto('/')
   await page.getByRole('button', { name: /vault/i }).first().click()
-  await expect(page.locator('[data-testid="vault-view"]')).toBeVisible()
+  // E2E fixture persists JWT but does not connect a wallet adapter, so
+  // useAuthState() resolves to 'unauthed' and VaultView renders the
+  // UnauthedEmptyState marketing branch. See PR #230 / Tier 2 #190.
+  await expect(page.locator('[data-testid="unauthed-empty-state"]')).toBeVisible()
   expect(errors).toEqual([])
 })
