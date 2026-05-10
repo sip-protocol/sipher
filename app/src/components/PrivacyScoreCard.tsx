@@ -116,6 +116,13 @@ export function PrivacyScoreCard({ data, delta }: PrivacyScoreCardProps) {
             title="Privacy Score Report"
             body="Network analysis · surveillance score · personalized recommendations. Connect a wallet to view your full report."
           />
+          <button
+            type="button"
+            onClick={() => setTeaserOpen(false)}
+            className="self-start text-xs text-text-muted hover:text-text"
+          >
+            Close
+          </button>
         </div>
       </Sheet>
     </>

@@ -106,4 +106,22 @@ describe('PrivacyScoreCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /view report/i }))
     expect(useAppStore.getState().activeView).toBe('dashboard')
   })
+
+  it('dismisses Sheet teaser when Close button clicked', () => {
+    useAuthStateMock.mockReturnValue({
+      status: 'unauthed' as const,
+      token: null,
+      publicKey: null,
+      isAdmin: false,
+      expiresAt: null,
+      authenticate: () => Promise.resolve(),
+      disconnect: () => Promise.resolve(),
+      error: null,
+    })
+    render(<PrivacyScoreCard data={fakeData} />)
+    fireEvent.click(screen.getByRole('button', { name: /view report/i }))
+    expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
+    expect(screen.queryByTestId('unauthed-empty-state')).toBeNull()
+  })
 })
