@@ -23,6 +23,9 @@ test('squad view renders', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: /more/i }).click()
   await page.getByRole('button', { name: /^squad$/i }).click()
+  // BottomNav More-drawer admin items still trigger navigate() (not <Link>).
+  // The Squad route URL is /sentinel even though the View enum keeps 'squad'.
+  await expect(page).toHaveURL(/\/sentinel$/)
   await expect(page.locator('[data-testid="squad-view"]')).toBeVisible()
   expect(errors).toEqual([])
 })

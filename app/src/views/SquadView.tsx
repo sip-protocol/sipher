@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { AGENTS, type AgentName } from '../lib/agents'
 import { WarningOctagon, ArrowRight, Power } from '@phosphor-icons/react'
 import AgentDot from '../components/AgentDot'
 import { Chip } from '../components/ui/Chip'
 import { useAuthState } from '../hooks/useAuthState'
-import { useAppStore } from '../stores/app'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -225,15 +225,15 @@ function KillSwitch({ token, active, onToggle }: { token: string | null; active:
 
 export default function SquadView({ token }: { token: string | null }) {
   const { isAdmin } = useAuthState()
-  const setActiveView = useAppStore((s) => s.setActiveView)
+  const navigate = useNavigate()
   const [data, setData] = useState<SquadData | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isAdmin) {
-      setActiveView('dashboard')
+      navigate('/')
     }
-  }, [isAdmin, setActiveView])
+  }, [isAdmin, navigate])
 
   const load = useCallback(() => {
     if (!token) return

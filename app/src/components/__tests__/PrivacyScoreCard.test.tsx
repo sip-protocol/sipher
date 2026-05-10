@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { PrivacyScoreCard } from '../PrivacyScoreCard'
-import { useAppStore } from '../../stores/app'
+
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return { ...actual, useNavigate: () => navigateMock }
+})
 
 vi.mock('@solana/wallet-adapter-react-ui', () => ({
   useWalletModal: () => ({ setVisible: vi.fn(), visible: false }),
@@ -25,8 +31,16 @@ const fakeData = {
   transactionsAnalyzed: 1284,
 }
 
+function renderCard(props: { data: typeof fakeData | null; delta?: number }) {
+  return render(
+    <MemoryRouter>
+      <PrivacyScoreCard data={props.data} delta={props.delta} />
+    </MemoryRouter>,
+  )
+}
+
 beforeEach(() => {
-  useAppStore.setState({ activeView: 'dashboard' }, false)
+  navigateMock.mockReset()
   useAuthStateMock.mockReturnValue({
     status: 'authed' as const,
     token: 'test-token',
@@ -41,14 +55,14 @@ beforeEach(() => {
 
 describe('PrivacyScoreCard', () => {
   it('renders score 72, grade GOOD, and the +4 delta', () => {
-    render(<PrivacyScoreCard data={fakeData} delta={4} />)
+    renderCard({ data: fakeData, delta: 4 })
     expect(screen.getByText('72')).toBeInTheDocument()
     expect(screen.getByText('GOOD')).toBeInTheDocument()
     expect(screen.getByText('+4')).toBeInTheDocument()
   })
 
   it('renders all 4 factor MetricBars with their detail copy', () => {
-    render(<PrivacyScoreCard data={fakeData} />)
+    renderCard({ data: fakeData })
     expect(screen.getByText('Anonymity set')).toBeInTheDocument()
     expect(screen.getByText('1,284 active depositors')).toBeInTheDocument()
     expect(screen.getByText('Time decay')).toBeInTheDocument()
@@ -57,19 +71,19 @@ describe('PrivacyScoreCard', () => {
   })
 
   it('renders gauge at 0 with em-dash grade when data is null', () => {
-    render(<PrivacyScoreCard data={null} />)
+    renderCard({ data: null })
     expect(screen.getByText('0')).toBeInTheDocument()
     expect(screen.getByText('—')).toBeInTheDocument()
   })
 
-  it('View report button navigates to privacyReport view via store', () => {
-    render(<PrivacyScoreCard data={fakeData} />)
+  it('View report button navigates to /privacy-report when authed', () => {
+    renderCard({ data: fakeData })
     fireEvent.click(screen.getByRole('button', { name: /view report/i }))
-    expect(useAppStore.getState().activeView).toBe('privacyReport')
+    expect(navigateMock).toHaveBeenCalledWith('/privacy-report')
   })
 
   it('omits delta block when delta is undefined', () => {
-    render(<PrivacyScoreCard data={fakeData} />)
+    renderCard({ data: fakeData })
     expect(screen.queryByText(/vs last week/)).toBeInTheDocument()
     expect(screen.queryByText('+4')).not.toBeInTheDocument()
   })
@@ -85,13 +99,13 @@ describe('PrivacyScoreCard', () => {
       disconnect: () => Promise.resolve(),
       error: null,
     })
-    render(<PrivacyScoreCard data={fakeData} />)
+    renderCard({ data: fakeData })
     fireEvent.click(screen.getByRole('button', { name: /view report/i }))
     expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
     expect(screen.getByText(/privacy score report/i)).toBeInTheDocument()
   })
 
-  it('does NOT navigate to privacyReport when clicked unauthed', () => {
+  it('does NOT navigate to /privacy-report when clicked unauthed', () => {
     useAuthStateMock.mockReturnValue({
       status: 'unauthed' as const,
       token: null,
@@ -102,9 +116,9 @@ describe('PrivacyScoreCard', () => {
       disconnect: () => Promise.resolve(),
       error: null,
     })
-    render(<PrivacyScoreCard data={fakeData} />)
+    renderCard({ data: fakeData })
     fireEvent.click(screen.getByRole('button', { name: /view report/i }))
-    expect(useAppStore.getState().activeView).toBe('dashboard')
+    expect(navigateMock).not.toHaveBeenCalled()
     // Assert the alternative path actually fired (Sheet opened). Without this,
     // a future regression that drops `setTeaserOpen(true)` from handleViewReport
     // would silently still pass this test.
@@ -122,7 +136,7 @@ describe('PrivacyScoreCard', () => {
       disconnect: () => Promise.resolve(),
       error: null,
     })
-    render(<PrivacyScoreCard data={fakeData} />)
+    renderCard({ data: fakeData })
     fireEvent.click(screen.getByRole('button', { name: /view report/i }))
     expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /^close$/i }))

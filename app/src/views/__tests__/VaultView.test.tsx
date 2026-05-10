@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { onAuthClear } from '../../store/onAuthClear'
 
-const setActiveView = vi.fn()
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return { ...actual, useNavigate: () => navigateMock }
+})
+
 let networkValue: 'devnet' | 'mainnet' = 'devnet'
 
 vi.mock('../../api/client', () => ({
@@ -13,18 +19,6 @@ const useAuthStateMock = vi.fn()
 vi.mock('../../hooks/useAuthState', () => ({
   useAuthState: () => useAuthStateMock(),
 }))
-
-vi.mock('../../stores/app', async () => {
-  const actual = await vi.importActual<typeof import('../../stores/app')>('../../stores/app')
-  return {
-    ...actual,
-    useAppStore: Object.assign(
-      (selector: (s: { setActiveView: typeof setActiveView }) => unknown) =>
-        selector({ setActiveView }),
-      { getState: () => ({ setActiveView }) },
-    ),
-  }
-})
 
 vi.mock('../../lib/networkConfig', () => ({
   useNetworkConfigStore: <T,>(selector: (s: { config: { network: string } }) => T) =>
@@ -91,9 +85,17 @@ const populatedPositions: PositionsResponse = {
   network: 'devnet',
 }
 
+function renderVault() {
+  return render(
+    <MemoryRouter>
+      <VaultView />
+    </MemoryRouter>,
+  )
+}
+
 beforeEach(() => {
   mockedFetch.mockReset()
-  setActiveView.mockReset()
+  navigateMock.mockReset()
   networkValue = 'devnet'
   onAuthClear._resetForTests()
   useAuthStateMock.mockReturnValue({
@@ -120,7 +122,7 @@ function mockThreeFetches(positionsResponse: PositionsResponse = emptyPositions)
 describe('VaultView (split-panel)', () => {
   it('fires three parallel fetches on mount', async () => {
     mockThreeFetches()
-    render(<VaultView />)
+    renderVault()
     await waitFor(() => {
       expect(mockedFetch).toHaveBeenCalledWith('/api/vault', expect.anything())
       expect(mockedFetch).toHaveBeenCalledWith('/api/vault/positions', expect.anything())
@@ -130,41 +132,41 @@ describe('VaultView (split-panel)', () => {
 
   it('renders ShieldedVault and UnshieldedWallet panels', async () => {
     mockThreeFetches()
-    render(<VaultView />)
+    renderVault()
     await waitFor(() => {
       expect(screen.getByText(/SHIELDED VAULT/)).toBeInTheDocument()
       expect(screen.getByText(/UNSHIELDED WALLET/)).toBeInTheDocument()
     })
   })
 
-  it('Shield to vault CTA routes to deposit view', async () => {
+  it('Shield to vault CTA navigates to /vault/deposit', async () => {
     mockThreeFetches()
-    render(<VaultView />)
+    renderVault()
     const cta = await screen.findByRole('button', { name: /shield to vault/i })
     fireEvent.click(cta)
-    expect(setActiveView).toHaveBeenCalledWith('deposit')
+    expect(navigateMock).toHaveBeenCalledWith('/vault/deposit')
   })
 
-  it('Withdraw CTA routes to withdraw view', async () => {
+  it('Withdraw CTA navigates to /vault/withdraw', async () => {
     mockThreeFetches()
-    render(<VaultView />)
+    renderVault()
     const withdrawBtn = await screen.findByRole('button', { name: /withdraw/i })
     fireEvent.click(withdrawBtn)
-    expect(setActiveView).toHaveBeenCalledWith('withdraw')
+    expect(navigateMock).toHaveBeenCalledWith('/vault/withdraw')
   })
 
-  it('Withdraw CTA still routes when positions exist', async () => {
+  it('Withdraw CTA still navigates when positions exist', async () => {
     mockThreeFetches(populatedPositions)
-    render(<VaultView />)
+    renderVault()
     const withdrawBtn = await screen.findByRole('button', { name: /withdraw/i })
     fireEvent.click(withdrawBtn)
-    expect(setActiveView).toHaveBeenCalledWith('withdraw')
+    expect(navigateMock).toHaveBeenCalledWith('/vault/withdraw')
   })
 
   it('Withdraw CTA disabled on mainnet', async () => {
     networkValue = 'mainnet'
     mockThreeFetches()
-    render(<VaultView />)
+    renderVault()
     const withdrawBtn = await screen.findByRole('button', { name: /withdraw/i })
     expect(withdrawBtn).toBeDisabled()
   })
@@ -172,14 +174,14 @@ describe('VaultView (split-panel)', () => {
   it('Shield to vault CTA disabled on mainnet', async () => {
     networkValue = 'mainnet'
     mockThreeFetches()
-    render(<VaultView />)
+    renderVault()
     const cta = await screen.findByRole('button', { name: /shield to vault/i })
     expect(cta).toBeDisabled()
   })
 
   it('clears vault, positions, and stealth tree on onAuthClear.clearAll', async () => {
     mockThreeFetches(populatedPositions)
-    render(<VaultView />)
+    renderVault()
     await waitFor(() => {
       expect(screen.getByText('1 positions')).toBeInTheDocument()
     })
@@ -201,7 +203,7 @@ describe('VaultView (split-panel)', () => {
       error: null,
     })
     mockThreeFetches()
-    render(<VaultView />)
+    renderVault()
     expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
     expect(screen.queryByText(/SHIELDED VAULT/)).toBeNull()
     expect(screen.queryByText(/UNSHIELDED WALLET/)).toBeNull()
@@ -221,7 +223,7 @@ describe('VaultView (split-panel)', () => {
       error: null,
     })
     mockThreeFetches()
-    render(<VaultView />)
+    renderVault()
     expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
   })
 
@@ -236,7 +238,7 @@ describe('VaultView (split-panel)', () => {
       disconnect: () => Promise.resolve(),
       error: null,
     })
-    render(<VaultView />)
+    renderVault()
     expect(mockedFetch).not.toHaveBeenCalled()
   })
 })

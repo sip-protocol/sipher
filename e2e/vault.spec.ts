@@ -15,7 +15,10 @@ test('vault unauthed empty state renders', async ({ page }) => {
   await mockSolanaRpc(page)
   await mockPrivacyScore(page)
   await page.goto('/')
-  await page.getByRole('button', { name: /vault/i }).first().click()
+  await page.getByRole('link', { name: /vault/i }).first().click()
+  // After react-router migration, Vault tabs are <Link> elements (role=link)
+  // not <button>. URL changes to /vault on click.
+  await expect(page).toHaveURL(/\/vault$/)
   // E2E fixture persists JWT but does not connect a wallet adapter, so
   // useAuthState() resolves to 'unauthed' and VaultView renders the
   // UnauthedEmptyState marketing branch. See PR #230 / Tier 2 #190.

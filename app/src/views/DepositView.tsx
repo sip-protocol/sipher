@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
-import { useAppStore } from '../stores/app'
 import { useTransactionSigner } from '../hooks/useTransactionSigner'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 import { DepositForm } from '../components/vault/DepositForm'
 import { RoutePreviewCard } from '../components/vault/RoutePreviewCard'
 import { PrivacyPreviewPanel } from '../components/vault/PrivacyPreviewPanel'
 import { Card } from '../components/ui/Card'
+import { UnauthedEmptyState } from '../components/ui/UnauthedEmptyState'
 
 interface TokenBalance {
   mint: string
@@ -55,8 +56,8 @@ interface DepositTxResponse {
 const DEPOSIT_SUCCESS_REDIRECT_MS = 2000
 
 export default function DepositView() {
-  const { token } = useAuthState()
-  const setActiveView = useAppStore((s) => s.setActiveView)
+  const { token, status: authStatus } = useAuthState()
+  const navigate = useNavigate()
   const network = useNetworkConfigStore((s) => s.config?.network ?? '')
   const isMainnet = network === 'mainnet'
 
@@ -114,20 +115,29 @@ export default function DepositView() {
         }
         setSignature(result.signature)
         redirectTimerRef.current = setTimeout(
-          () => setActiveView('vault'),
+          () => navigate('/vault'),
           DEPOSIT_SUCCESS_REDIRECT_MS,
         )
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')
       }
     },
-    [signAndBroadcast, token, setActiveView],
+    [signAndBroadcast, token, navigate],
   )
+
+  if (authStatus !== 'authed') {
+    return (
+      <UnauthedEmptyState
+        title="Shielded Deposit"
+        body={<>Connect a wallet to deposit into the shielded vault.</>}
+      />
+    )
+  }
 
   if (isMainnet) {
     return (
       <div className="flex flex-col gap-4 max-w-3xl mx-auto">
-        <BackChip onClick={() => setActiveView('vault')} />
+        <BackChip onClick={() => navigate('/vault')} />
         <Card variant="default" className="p-6">
           <p className="text-sm text-text">
             Sipher Vault is on devnet only — switch network to deposit.
@@ -141,7 +151,7 @@ export default function DepositView() {
 
   return (
     <div className="flex flex-col gap-4 max-w-3xl mx-auto">
-      <BackChip onClick={() => setActiveView('vault')} />
+      <BackChip onClick={() => navigate('/vault')} />
       <h1 className="text-2xl font-semibold">Shield to vault</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

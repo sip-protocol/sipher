@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAppStore } from '../stores/app'
+import { useActiveView } from '../hooks/useActiveView'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 
 const STORAGE_KEY = 'sipher.beta-banner.dismissed'
@@ -10,13 +10,14 @@ export function BetaBanner({ beta }: { beta: boolean }) {
   const [dismissed, setDismissed] = useState<boolean>(
     () => sessionStorage.getItem(STORAGE_KEY) === 'true',
   )
-  const activeView = useAppStore((s) => s.activeView)
+  const activeView = useActiveView()
   const network = useNetworkConfigStore((s) => s.config?.network ?? '')
 
   // Vault flows are devnet-only — surface a non-dismissible banner whenever
   // the user is on a vault-related view but the active network is mainnet.
   // This trumps the generic beta banner so the constraint is unmissable.
-  const showVaultDevnetBanner = VAULT_VIEWS.has(activeView) && network === 'mainnet'
+  const showVaultDevnetBanner =
+    activeView !== null && VAULT_VIEWS.has(activeView) && network === 'mainnet'
 
   if (showVaultDevnetBanner) {
     return (

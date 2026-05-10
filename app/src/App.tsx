@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import '@solana/wallet-adapter-react-ui/styles.css'
@@ -19,6 +20,9 @@ import PrivacyReportView from './views/PrivacyReportView'
 import ChainsView from './views/ChainsView'
 import KeysView from './views/KeysView'
 import SettingsView from './views/SettingsView'
+import ChatView from './views/ChatView'
+import NotFoundView from './views/NotFoundView'
+import AboutPlaceholderView from './views/AboutPlaceholderView'
 import { useAppStore } from './stores/app'
 import { useAuth } from './hooks/useAuth'
 import { useSSE } from './hooks/useSSE'
@@ -27,45 +31,11 @@ import { ToastProvider } from './providers/ToastProvider'
 import { AuthSyncProvider } from './providers/AuthSyncProvider'
 
 function AppShell() {
-  const activeView = useAppStore((s) => s.activeView)
   const chatSheetOpen = useAppStore((s) => s.chatSheetOpen)
   const setChatSheetOpen = useAppStore((s) => s.setChatSheetOpen)
-  const { token, isAdmin } = useAuth()
+  const { token } = useAuth()
   const { events } = useSSE()
   const beta = useNetworkConfigStore((s) => s.config?.beta ?? false)
-
-  const renderView = () => {
-    switch (activeView) {
-      case 'dashboard':
-        return <DashboardView events={events} />
-      case 'vault':
-        return <VaultView />
-      case 'deposit':
-        return <DepositView />
-      case 'withdraw':
-        return <WithdrawView />
-      case 'herald':
-        return isAdmin ? <HeraldView token={token} /> : <DashboardView events={events} />
-      case 'squad':
-        return isAdmin ? <SquadView token={token} /> : <DashboardView events={events} />
-      case 'privacyReport':
-        return <PrivacyReportView />
-      case 'chains':
-        return <ChainsView />
-      case 'keys':
-        return <KeysView />
-      case 'settings':
-        return isAdmin ? <SettingsView /> : <DashboardView events={events} />
-      case 'chat':
-        return (
-          <div className="lg:hidden h-full">
-            <ChatSidebar fullScreen />
-          </div>
-        )
-      default:
-        return <DashboardView events={events} />
-    }
-  }
 
   return (
     <div className="flex flex-col h-dvh bg-bg">
@@ -75,7 +45,21 @@ function AppShell() {
 
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-y-auto px-4 py-5 lg:px-6">
-          {renderView()}
+          <Routes>
+            <Route path="/" element={<DashboardView events={events} />} />
+            <Route path="/vault" element={<VaultView />} />
+            <Route path="/vault/deposit" element={<DepositView />} />
+            <Route path="/vault/withdraw" element={<WithdrawView />} />
+            <Route path="/chains" element={<ChainsView />} />
+            <Route path="/keys" element={<KeysView />} />
+            <Route path="/chat" element={<ChatView />} />
+            <Route path="/herald" element={<HeraldView token={token} />} />
+            <Route path="/sentinel" element={<SquadView token={token} />} />
+            <Route path="/settings" element={<SettingsView />} />
+            <Route path="/privacy-report" element={<PrivacyReportView />} />
+            <Route path="/about" element={<AboutPlaceholderView />} />
+            <Route path="*" element={<NotFoundView />} />
+          </Routes>
         </main>
       </div>
 
@@ -127,16 +111,18 @@ export default function App() {
   }
 
   return (
-    <ConnectionProvider endpoint={config.publicRpcUrl}>
-      <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          <ToastProvider>
-            <AuthSyncProvider>
-              <AppShell />
-            </AuthSyncProvider>
-          </ToastProvider>
-        </WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
+    <BrowserRouter>
+      <ConnectionProvider endpoint={config.publicRpcUrl}>
+        <WalletProvider wallets={wallets} autoConnect>
+          <WalletModalProvider>
+            <ToastProvider>
+              <AuthSyncProvider>
+                <AppShell />
+              </AuthSyncProvider>
+            </ToastProvider>
+          </WalletModalProvider>
+        </WalletProvider>
+      </ConnectionProvider>
+    </BrowserRouter>
   )
 }

@@ -1,13 +1,14 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import { useNetworkConfigStore } from '../../lib/networkConfig'
 import { makeFakeAuthState } from '../../test-utils/makeFakeAuthState'
 
-const setActiveViewMock = vi.fn()
-vi.mock('../../stores/app', () => ({
-  useAppStore: (selector: (s: unknown) => unknown) =>
-    selector({ setActiveView: setActiveViewMock, activeView: 'settings' }),
-}))
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return { ...actual, useNavigate: () => navigateMock }
+})
 
 const useAuthStateMock = vi.fn()
 vi.mock('../../hooks/useAuthState', () => ({
@@ -39,10 +40,18 @@ const sentinelConfigFixture = {
   fundMovingTools: ['send', 'deposit', 'swap', 'sweep', 'consolidate', 'splitSend', 'scheduleSend', 'drip', 'recurring', 'refund'],
 }
 
+function renderSettings(SettingsView: React.ComponentType) {
+  return render(
+    <MemoryRouter>
+      <SettingsView />
+    </MemoryRouter>,
+  )
+}
+
 describe('SettingsView', () => {
   beforeEach(() => {
     apiFetchMock.mockReset()
-    setActiveViewMock.mockReset()
+    navigateMock.mockReset()
     useAuthStateMock.mockReset()
     useNetworkConfigStore.setState({
       config: {
@@ -63,9 +72,9 @@ describe('SettingsView', () => {
       makeFakeAuthState({ publicKey: 'X', token: 't', status: 'authed', isAdmin: false }),
     )
     const { default: SettingsView } = await import('../SettingsView')
-    render(<SettingsView />)
+    renderSettings(SettingsView)
     await waitFor(() => {
-      expect(setActiveViewMock).toHaveBeenCalledWith('dashboard')
+      expect(navigateMock).toHaveBeenCalledWith('/')
     })
   })
 
@@ -75,7 +84,7 @@ describe('SettingsView', () => {
     )
     apiFetchMock.mockResolvedValue(sentinelConfigFixture)
     const { default: SettingsView } = await import('../SettingsView')
-    render(<SettingsView />)
+    renderSettings(SettingsView)
     await waitFor(() => {
       expect(screen.getByText(/devnet/i)).toBeInTheDocument()
     })
@@ -87,7 +96,7 @@ describe('SettingsView', () => {
     )
     apiFetchMock.mockResolvedValue(sentinelConfigFixture)
     const { default: SettingsView } = await import('../SettingsView')
-    render(<SettingsView />)
+    renderSettings(SettingsView)
     await waitFor(() => {
       const chip = screen.getByText(/^advisory$/i)
       expect(chip).toBeInTheDocument()
@@ -101,7 +110,7 @@ describe('SettingsView', () => {
     )
     apiFetchMock.mockResolvedValue(sentinelConfigFixture)
     const { default: SettingsView } = await import('../SettingsView')
-    render(<SettingsView />)
+    renderSettings(SettingsView)
     await waitFor(() => {
       sentinelConfigFixture.fundMovingTools.forEach((tool) => {
         expect(screen.getByText(tool, { selector: 'span' })).toBeInTheDocument()
@@ -115,7 +124,7 @@ describe('SettingsView', () => {
     )
     apiFetchMock.mockResolvedValue({ ...sentinelConfigFixture, dailyCostUsd: 1.23 })
     const { default: SettingsView } = await import('../SettingsView')
-    render(<SettingsView />)
+    renderSettings(SettingsView)
     await waitFor(() => {
       expect(screen.getByText(/\$1\.23/)).toBeInTheDocument()
       expect(screen.getByText(/\$10/)).toBeInTheDocument()

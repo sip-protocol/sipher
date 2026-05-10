@@ -1,8 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { useAppStore } from '../../stores/app'
 import HeraldView from '../HeraldView'
+
+function renderHerald(token = 'test-token') {
+  return render(
+    <MemoryRouter>
+      <HeraldView token={token} />
+    </MemoryRouter>,
+  )
+}
 
 vi.mock('../../hooks/useAuthState', () => ({
   useAuthState: vi.fn(() => ({
@@ -36,7 +45,7 @@ describe('HeraldView Edit flow', () => {
   })
 
   it('toggles into edit mode and shows textarea on Edit click', async () => {
-    render(<HeraldView token="test-token" />)
+    renderHerald()
     await userEvent.click(screen.getByRole('button', { name: /^queue$/i }))
     await screen.findByText('old tweet')
     await userEvent.click(screen.getByRole('button', { name: /edit/i }))
@@ -45,7 +54,7 @@ describe('HeraldView Edit flow', () => {
   })
 
   it('saves the edit via PATCH and exits edit mode', async () => {
-    render(<HeraldView token="test-token" />)
+    renderHerald()
     await userEvent.click(screen.getByRole('button', { name: /^queue$/i }))
     await screen.findByText('old tweet')
     await userEvent.click(screen.getByRole('button', { name: /edit/i }))

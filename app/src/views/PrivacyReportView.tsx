@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
-import { useAppStore } from '../stores/app'
 import { Card } from '../components/ui/Card'
 import { Gauge } from '../components/ui/Gauge'
 import { MetricBar } from '../components/ui/MetricBar'
+import { UnauthedEmptyState } from '../components/ui/UnauthedEmptyState'
 
 interface PrivacyData {
   score: number
@@ -20,8 +21,8 @@ function humanizeFactorKey(key: string): string {
 }
 
 export default function PrivacyReportView() {
-  const setActiveView = useAppStore((s) => s.setActiveView)
-  const { token } = useAuthState()
+  const navigate = useNavigate()
+  const { token, status } = useAuthState()
   const [data, setData] = useState<PrivacyData | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,11 +43,25 @@ export default function PrivacyReportView() {
     return () => controller.abort()
   }, [token])
 
+  if (status !== 'authed') {
+    return (
+      <UnauthedEmptyState
+        title="Privacy Score Report"
+        body={
+          <>
+            Connect a wallet to view network analysis, surveillance score, and personalized
+            recommendations.
+          </>
+        }
+      />
+    )
+  }
+
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
       <button
         type="button"
-        onClick={() => setActiveView('dashboard')}
+        onClick={() => navigate('/')}
         className="flex items-center gap-2 text-sm text-text-muted hover:text-text transition-colors"
       >
         <ArrowLeft size={16} />

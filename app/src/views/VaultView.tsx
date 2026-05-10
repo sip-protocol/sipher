@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
-import { useAppStore } from '../stores/app'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 import { useOnAuthClear } from '../store/useOnAuthClear'
 import { Card } from '../components/ui/Card'
@@ -43,7 +43,7 @@ interface StealthIndexResponse {
 
 export default function VaultView() {
   const { token, status } = useAuthState()
-  const setActiveView = useAppStore((s) => s.setActiveView)
+  const navigate = useNavigate()
   const network = useNetworkConfigStore((s) => s.config?.network ?? '')
   const isMainnet = network === 'mainnet'
 
@@ -107,13 +107,13 @@ export default function VaultView() {
         positions={positions}
         stealthTree={stealthTree}
         loading={loading}
-        onWithdraw={() => setActiveView('withdraw')}
+        onWithdraw={() => navigate('/vault/withdraw')}
         disabled={isMainnet}
       />
       <UnshieldedWalletPanel
         wallet={vault?.wallet ?? ''}
         sol={vault?.balances.sol ?? 0}
-        onDeposit={() => setActiveView('deposit')}
+        onDeposit={() => navigate('/vault/deposit')}
         disabled={isMainnet}
       />
     </div>
