@@ -66,11 +66,11 @@ export default function ChatSidebar({ fullScreen }: Props) {
 
       if (!res.ok) {
         if (res.status === 401) {
+          // Drop the empty assistant placeholder so the user doesn't see a
+          // ghost bubble next to the session-expired toast. The toast (wired
+          // globally in AuthSyncProvider) carries the re-auth UX.
+          dismissMessage(assistantMsg.id)
           triggerAuthInterceptor()
-          // Surface a neutral message — the global session-expired toast already
-          // tells the user what happened and offers a sign-in CTA. Returning
-          // here without throwing avoids painting the raw 401 body into the
-          // assistant bubble.
           return
         }
         const err = await res.json().catch(() => ({}))
