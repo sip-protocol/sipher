@@ -37,7 +37,10 @@ export function useSSE() {
       if (cancelled) { source.close(); return }
       sourceRef.current = source
       setConnected(true)
-      source.onerror = () => setConnected(false)
+      source.onerror = () => {
+        setConnected(false)
+        setEvents([])
+      }
     }).catch(() => {
       setConnected(false)
     })

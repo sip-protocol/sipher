@@ -54,4 +54,43 @@ describe('useSSE', () => {
     act(() => onAuthClear.clearAll())
     await waitFor(() => expect(result.current.events).toHaveLength(0))
   })
+
+  it('clears events when the EventSource emits an error', async () => {
+    let onMessageCb: ((e: MessageEvent) => void) | null = null
+    const onerrorRef: { current: (() => void) | null } = { current: null }
+
+    ;(connectSSE as ReturnType<typeof vi.fn>).mockImplementation(
+      async (_token, onMessage) => {
+        onMessageCb = onMessage
+        const source = {
+          close: vi.fn(),
+          get onerror() { return onerrorRef.current },
+          set onerror(v: (() => void) | null) { onerrorRef.current = v },
+        }
+        return source as unknown as EventSource
+      },
+    )
+
+    const { result } = renderHook(() => useSSE())
+    await waitFor(() => expect(onMessageCb).not.toBeNull())
+
+    act(() => {
+      onMessageCb?.({
+        data: JSON.stringify({
+          id: '1',
+          agent: 'a',
+          type: 't',
+          level: 'info',
+          data: {},
+          timestamp: 'x',
+        }),
+      } as MessageEvent)
+    })
+    await waitFor(() => expect(result.current.events).toHaveLength(1))
+
+    act(() => {
+      onerrorRef.current?.()
+    })
+    await waitFor(() => expect(result.current.events).toHaveLength(0))
+  })
 })
