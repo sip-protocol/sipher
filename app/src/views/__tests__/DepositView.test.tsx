@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 
-const setActiveView = vi.fn()
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return { ...actual, useNavigate: () => navigateMock }
+})
+
 let networkValue: 'devnet' | 'mainnet' = 'devnet'
 
 vi.mock('../../api/client', () => ({
@@ -21,18 +27,6 @@ vi.mock('../../hooks/useAuthState', () => ({
   }),
 }))
 
-vi.mock('../../stores/app', async () => {
-  const actual = await vi.importActual<typeof import('../../stores/app')>('../../stores/app')
-  return {
-    ...actual,
-    useAppStore: Object.assign(
-      (selector: (s: { setActiveView: typeof setActiveView }) => unknown) =>
-        selector({ setActiveView }),
-      { getState: () => ({ setActiveView }) }
-    ),
-  }
-})
-
 vi.mock('../../hooks/useTransactionSigner', () => ({
   useTransactionSigner: () => ({
     signAndBroadcast: vi.fn().mockResolvedValue({ signature: 'CONFIRMED_SIG' }),
@@ -50,9 +44,17 @@ vi.mock('../../lib/networkConfig', () => ({
 import DepositView from '../DepositView'
 import { apiFetch } from '../../api/client'
 
+function renderDeposit() {
+  return render(
+    <MemoryRouter>
+      <DepositView />
+    </MemoryRouter>,
+  )
+}
+
 beforeEach(() => {
   ;(apiFetch as ReturnType<typeof vi.fn>).mockReset()
-  setActiveView.mockReset()
+  navigateMock.mockReset()
   networkValue = 'devnet'
 })
 
@@ -65,14 +67,14 @@ describe('DepositView', () => {
       })
       .mockResolvedValueOnce({ positions: [], available: true, network: 'devnet' })
 
-    render(<DepositView />)
+    renderDeposit()
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'SOL' })).toBeInTheDocument()
       expect(screen.getByPlaceholderText('0.0')).toBeInTheDocument()
     })
   })
 
-  it('renders Back to Vault chip that calls setActiveView("vault")', async () => {
+  it('renders Back to Vault chip that navigates to /vault', async () => {
     ;(apiFetch as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce({
         wallet: 'C1phr...85N',
@@ -80,15 +82,15 @@ describe('DepositView', () => {
       })
       .mockResolvedValueOnce({ positions: [], available: true, network: 'devnet' })
 
-    render(<DepositView />)
+    renderDeposit()
     const back = await screen.findByRole('button', { name: /back to vault/i })
     fireEvent.click(back)
-    expect(setActiveView).toHaveBeenCalledWith('vault')
+    expect(navigateMock).toHaveBeenCalledWith('/vault')
   })
 
   it('renders disabled state and banner copy when network is mainnet', async () => {
     networkValue = 'mainnet'
-    render(<DepositView />)
+    renderDeposit()
     expect(screen.getByText(/devnet only/i)).toBeInTheDocument()
     // Form should not be rendered on mainnet (no AssetSelector, no AmountForm)
     expect(screen.queryByPlaceholderText('0.0')).not.toBeInTheDocument()

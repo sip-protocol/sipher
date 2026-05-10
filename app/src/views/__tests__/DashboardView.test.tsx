@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import DashboardView from '../DashboardView'
 import { onAuthClear } from '../../store/onAuthClear'
 
@@ -84,7 +85,11 @@ beforeEach(() => {
 
 describe('DashboardView', () => {
   it('clears privacy data on auth-clear', async () => {
-    render(<DashboardView events={[]} />)
+    render(
+      <MemoryRouter>
+        <DashboardView events={[]} />
+      </MemoryRouter>,
+    )
 
     // Wait for privacy score data to render — MetricBar's "Anonymity set"
     // label only appears once `data` is non-null.

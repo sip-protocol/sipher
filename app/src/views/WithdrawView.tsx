@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
-import { useAppStore } from '../stores/app'
 import { useTransactionSigner } from '../hooks/useTransactionSigner'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 import { Card } from '../components/ui/Card'
@@ -25,7 +25,7 @@ interface RefundTxResponse {
 
 export default function WithdrawView() {
   const { token } = useAuthState()
-  const setActiveView = useAppStore((s) => s.setActiveView)
+  const navigate = useNavigate()
   const network = useNetworkConfigStore((s) => s.config?.network ?? '')
   const isMainnet = network === 'mainnet'
 
@@ -108,7 +108,7 @@ export default function WithdrawView() {
   if (isMainnet) {
     return (
       <div className="flex flex-col gap-4 max-w-3xl mx-auto">
-        <BackChip onClick={() => setActiveView('vault')} />
+        <BackChip onClick={() => navigate('/vault')} />
         <Card variant="default" className="p-6">
           <p className="text-sm text-text">
             Sipher Vault is on devnet only — switch network to withdraw.
@@ -120,7 +120,7 @@ export default function WithdrawView() {
 
   return (
     <div className="flex flex-col gap-4 max-w-3xl mx-auto">
-      <BackChip onClick={() => setActiveView('vault')} />
+      <BackChip onClick={() => navigate('/vault')} />
       <h1 className="text-2xl font-semibold">Refund from vault</h1>
       <p className="text-xs text-text-muted">
         Each refund returns the deposited balance to your wallet. The on-chain 24h cooldown is

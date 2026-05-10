@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 
-const setActiveView = vi.fn()
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return { ...actual, useNavigate: () => navigateMock }
+})
+
 const signAndBroadcast = vi.fn()
 let networkValue: 'devnet' | 'mainnet' = 'devnet'
 
@@ -21,18 +27,6 @@ vi.mock('../../hooks/useAuthState', () => ({
     error: null,
   }),
 }))
-
-vi.mock('../../stores/app', async () => {
-  const actual = await vi.importActual<typeof import('../../stores/app')>('../../stores/app')
-  return {
-    ...actual,
-    useAppStore: Object.assign(
-      (selector: (s: { setActiveView: typeof setActiveView }) => unknown) =>
-        selector({ setActiveView }),
-      { getState: () => ({ setActiveView }) },
-    ),
-  }
-})
 
 vi.mock('../../hooks/useTransactionSigner', () => ({
   useTransactionSigner: () => ({
@@ -71,9 +65,17 @@ const fakePosition = {
   depositRecordAddress: 'DEPOSITRECORDPDA',
 }
 
+function renderWithdraw() {
+  return render(
+    <MemoryRouter>
+      <WithdrawView />
+    </MemoryRouter>,
+  )
+}
+
 beforeEach(() => {
   mockedFetch.mockReset()
-  setActiveView.mockReset()
+  navigateMock.mockReset()
   signAndBroadcast.mockReset()
   networkValue = 'devnet'
 })
@@ -85,18 +87,18 @@ describe('WithdrawView', () => {
       available: true,
       network: 'devnet',
     })
-    render(<WithdrawView />)
+    renderWithdraw()
     await waitFor(() => {
       expect(screen.getByText('SOL')).toBeInTheDocument()
     })
   })
 
-  it('renders Back chip that calls setActiveView("vault")', async () => {
+  it('renders Back chip that navigates to /vault', async () => {
     mockedFetch.mockResolvedValueOnce({ positions: [], available: true, network: 'devnet' })
-    render(<WithdrawView />)
+    renderWithdraw()
     const back = await screen.findByRole('button', { name: /back to vault/i })
     fireEvent.click(back)
-    expect(setActiveView).toHaveBeenCalledWith('vault')
+    expect(navigateMock).toHaveBeenCalledWith('/vault')
   })
 
   it('clicking Refund calls /api/vault/refund-tx and signAndBroadcast', async () => {
@@ -109,7 +111,7 @@ describe('WithdrawView', () => {
     })
     signAndBroadcast.mockResolvedValueOnce({ signature: 'CONFIRMED_SIG' })
 
-    render(<WithdrawView />)
+    renderWithdraw()
     const refundBtn = await screen.findByRole('button', { name: /^refund$/i })
     fireEvent.click(refundBtn)
     await waitFor(() => {
@@ -123,7 +125,7 @@ describe('WithdrawView', () => {
 
   it('shows mainnet-disabled copy when network is mainnet', async () => {
     networkValue = 'mainnet'
-    render(<WithdrawView />)
+    renderWithdraw()
     expect(screen.getByText(/devnet only/i)).toBeInTheDocument()
     // RefundList should not render on mainnet
     expect(screen.queryByText('SOL')).not.toBeInTheDocument()

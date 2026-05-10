@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import PrivacyReportView from '../PrivacyReportView'
-import { useAppStore } from '../../stores/app'
+
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return { ...actual, useNavigate: () => navigateMock }
+})
 
 vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
@@ -26,15 +32,23 @@ const fakePayload = {
   },
 }
 
+function renderReport() {
+  return render(
+    <MemoryRouter>
+      <PrivacyReportView />
+    </MemoryRouter>,
+  )
+}
+
 beforeEach(() => {
   ;(apiFetch as ReturnType<typeof vi.fn>).mockReset()
-  useAppStore.setState({ activeView: 'privacyReport' }, false)
+  navigateMock.mockReset()
 })
 
 describe('PrivacyReportView', () => {
   it('renders the score gauge once data loads', async () => {
     ;(apiFetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(fakePayload)
-    render(<PrivacyReportView />)
+    renderReport()
     await waitFor(() => expect(screen.getByText('72')).toBeInTheDocument())
     expect(screen.getByText('GOOD')).toBeInTheDocument()
     expect(screen.getByText(/1,284 transactions analyzed/)).toBeInTheDocument()
@@ -42,7 +56,7 @@ describe('PrivacyReportView', () => {
 
   it('renders factor breakdown with humanized labels', async () => {
     ;(apiFetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(fakePayload)
-    render(<PrivacyReportView />)
+    renderReport()
     await waitFor(() => expect(screen.getByText('Address Reuse')).toBeInTheDocument())
     expect(screen.getByText('Amount Patterns')).toBeInTheDocument()
     expect(screen.getByText('reuse detail')).toBeInTheDocument()
@@ -50,27 +64,27 @@ describe('PrivacyReportView', () => {
 
   it('lists recommendations when present', async () => {
     ;(apiFetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(fakePayload)
-    render(<PrivacyReportView />)
+    renderReport()
     await waitFor(() => expect(screen.getByText(/Use a fresh address/)).toBeInTheDocument())
     expect(screen.getByText(/Wait 24h between deposits/)).toBeInTheDocument()
   })
 
-  it('Back button returns to Dashboard via store', () => {
+  it('Back button returns to Dashboard via navigate("/")', () => {
     ;(apiFetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(fakePayload)
-    render(<PrivacyReportView />)
+    renderReport()
     fireEvent.click(screen.getByRole('button', { name: /back to dashboard/i }))
-    expect(useAppStore.getState().activeView).toBe('dashboard')
+    expect(navigateMock).toHaveBeenCalledWith('/')
   })
 
   it('shows loading copy before data arrives', () => {
     ;(apiFetch as ReturnType<typeof vi.fn>).mockReturnValueOnce(new Promise(() => {}))
-    render(<PrivacyReportView />)
+    renderReport()
     expect(screen.getByText(/Loading privacy report/)).toBeInTheDocument()
   })
 
   it('shows error copy when fetch fails', async () => {
     ;(apiFetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('boom'))
-    render(<PrivacyReportView />)
+    renderReport()
     await waitFor(() => expect(screen.getByText('boom')).toBeInTheDocument())
   })
 })

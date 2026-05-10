@@ -1,17 +1,13 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import type { View } from '../../stores/app'
 
-let activeViewValue: string = 'dashboard'
+let activeViewValue: View = 'dashboard'
 let networkValue: string = 'devnet'
 
-vi.mock('../../stores/app', async () => {
-  const actual = await vi.importActual<typeof import('../../stores/app')>('../../stores/app')
-  return {
-    ...actual,
-    useAppStore: <T,>(selector: (s: { activeView: string }) => T) =>
-      selector({ activeView: activeViewValue }),
-  }
-})
+vi.mock('../../hooks/useActiveView', () => ({
+  useActiveView: () => activeViewValue,
+}))
 
 vi.mock('../../lib/networkConfig', () => ({
   useNetworkConfigStore: <T,>(selector: (s: { config: { network: string } | null }) => T) =>
