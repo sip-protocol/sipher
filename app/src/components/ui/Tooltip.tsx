@@ -1,4 +1,4 @@
-import { cloneElement, useId, useState, type ReactElement, type ReactNode } from 'react'
+import { cloneElement, useId, useState, type KeyboardEvent, type ReactElement, type ReactNode } from 'react'
 
 export interface TooltipProps {
   content: ReactNode
@@ -23,6 +23,9 @@ export function Tooltip({ content, children, side = 'top' }: TooltipProps) {
     onMouseLeave: () => setOpen(false),
     onFocus: () => setOpen(true),
     onBlur: () => setOpen(false),
+    onKeyDown: (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    },
   } as Record<string, unknown>)
 
   return (

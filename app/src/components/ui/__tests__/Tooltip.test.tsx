@@ -74,4 +74,16 @@ describe('Tooltip', () => {
     const tooltip = screen.getByRole('tooltip')
     expect(trigger).toHaveAttribute('aria-describedby', tooltip.id)
   })
+
+  it('hides tooltip on Escape key', () => {
+    render(
+      <Tooltip content="Helpful info">
+        <button>Trigger</button>
+      </Tooltip>,
+    )
+    fireEvent.focus(screen.getByRole('button'))
+    expect(screen.getByRole('tooltip')).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('button'), { key: 'Escape' })
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
 })
