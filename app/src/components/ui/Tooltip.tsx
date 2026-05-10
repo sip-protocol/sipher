@@ -23,6 +23,7 @@ export function Tooltip({ content, children, side = 'top' }: TooltipProps) {
     onMouseLeave: () => setOpen(false),
     onFocus: () => setOpen(true),
     onBlur: () => setOpen(false),
+    onClick: () => setOpen((o) => !o),
     onKeyDown: (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
     },

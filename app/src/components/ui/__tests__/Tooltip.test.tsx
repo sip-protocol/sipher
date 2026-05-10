@@ -86,4 +86,18 @@ describe('Tooltip', () => {
     fireEvent.keyDown(screen.getByRole('button'), { key: 'Escape' })
     expect(screen.queryByRole('tooltip')).toBeNull()
   })
+
+  it('toggles tooltip on click (touch + keyboard activation)', () => {
+    render(
+      <Tooltip content="Helpful info">
+        <button>Trigger</button>
+      </Tooltip>,
+    )
+    // open
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Helpful info')
+    // close
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
 })
