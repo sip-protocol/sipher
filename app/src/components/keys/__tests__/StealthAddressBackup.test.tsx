@@ -2,14 +2,17 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { StealthAddressBackup } from '../StealthAddressBackup'
 
-vi.mock('../../../hooks/useAuthState', () => ({
-  useAuthState: () => ({
-    publicKey: 'TestWallet1111111111111111111111111111111111',
-    token: 'fake-jwt',
-    isAuthenticated: true,
-    isAdmin: false,
-  }),
-}))
+vi.mock('../../../hooks/useAuthState', async () => {
+  const { makeFakeAuthState } = await import('../../../test-utils/makeFakeAuthState')
+  return {
+    useAuthState: () => makeFakeAuthState({
+      publicKey: 'TestWallet1111111111111111111111111111111111',
+      token: 'fake-jwt',
+      status: 'authed',
+      isAdmin: false,
+    }),
+  }
+})
 
 const apiFetchMock = vi.fn()
 vi.mock('../../../api/client', () => ({
