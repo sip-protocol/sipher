@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import HeraldView from '../HeraldView'
+import { makeFakeAuthState } from '../../test-utils/makeFakeAuthState'
 
 const navigateMock = vi.fn()
 vi.mock('react-router-dom', async () => {
@@ -38,24 +39,18 @@ describe('HeraldView admin gating', () => {
   })
 
   it('redirects to dashboard when !isAdmin and renders null', () => {
-    vi.mocked(useAuthState).mockReturnValue({
-      status: 'authed',
-      token: 't',
-      publicKey: 'pk',
-      isAdmin: false,
-    } as ReturnType<typeof useAuthState>)
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: false }),
+    )
     const { container } = renderHerald()
     expect(navigateMock).toHaveBeenCalledWith('/')
     expect(container.firstChild).toBeNull()
   })
 
   it('does NOT redirect when isAdmin', async () => {
-    vi.mocked(useAuthState).mockReturnValue({
-      status: 'authed',
-      token: 't',
-      publicKey: 'pk',
-      isAdmin: true,
-    } as ReturnType<typeof useAuthState>)
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: true }),
+    )
     const { container } = renderHerald()
     await waitFor(() => {
       expect(container.firstChild).not.toBeNull()
@@ -66,12 +61,9 @@ describe('HeraldView admin gating', () => {
 
 describe('HeraldView budget bar colors', () => {
   beforeEach(() => {
-    vi.mocked(useAuthState).mockReturnValue({
-      status: 'authed',
-      token: 't',
-      publicKey: 'pk',
-      isAdmin: true,
-    } as ReturnType<typeof useAuthState>)
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: true }),
+    )
   })
 
   it('uses success-soft when budget < 80%', async () => {
@@ -114,5 +106,35 @@ describe('HeraldView budget bar colors', () => {
     await waitFor(() => {
       expect(container.querySelector('[class*="bg-danger-soft"]')).toBeTruthy()
     })
+  })
+})
+
+describe('HeraldView AbortController', () => {
+  beforeEach(() => {
+    vi.mocked(useAuthState).mockReturnValue(
+      makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: true }),
+    )
+  })
+
+  it('aborts in-flight /api/herald load on unmount', async () => {
+    const { apiFetch } = await import('../../api/client')
+    let capturedSignal: AbortSignal | undefined
+    vi.mocked(apiFetch).mockImplementation((_path, opts) => {
+      capturedSignal = (opts as { signal?: AbortSignal } | undefined)?.signal
+      return new Promise(() => {}) // never resolves
+    })
+    const { unmount } = renderHerald()
+    await waitFor(() => expect(capturedSignal).toBeDefined())
+    expect(capturedSignal?.aborted).toBe(false)
+    unmount()
+    expect(capturedSignal?.aborted).toBe(true)
+  })
+
+  it('does not call apiFetch when token prop is empty even with isAdmin', async () => {
+    const { apiFetch } = await import('../../api/client')
+    vi.mocked(apiFetch).mockClear()
+    const { container } = renderHerald('')
+    expect(container.textContent).toMatch(/Connect your wallet to view HERALD activity/i)
+    expect(vi.mocked(apiFetch)).not.toHaveBeenCalled()
   })
 })

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
@@ -42,7 +42,6 @@ export default function SettingsView() {
   const network = useNetworkConfigStore((s) => s.config?.network)
   const [config, setConfig] = useState<SentinelConfigPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const aborterRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (!isAdmin) {
@@ -51,7 +50,6 @@ export default function SettingsView() {
     }
     if (!token) return
     const controller = new AbortController()
-    aborterRef.current = controller
     apiFetch<SentinelConfigPayload>('/api/sentinel/config', {
       token, signal: controller.signal,
     })

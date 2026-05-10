@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Calendar, X as XIcon } from '@phosphor-icons/react'
 import { apiFetch } from '../api/client'
@@ -410,34 +410,48 @@ export default function HeraldView({ token }: { token: string | null }) {
     }
   }, [isAdmin, navigate])
 
-  const load = useCallback(() => {
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
+
+  const load = useCallback((signal?: AbortSignal) => {
     if (!token) return
     setError(null)
-    apiFetch<HeraldData>('/api/herald', { token })
-      .then(setData)
-      .catch((err: Error) => setError(err.message))
+    apiFetch<HeraldData>('/api/herald', { token, signal })
+      .then((data) => {
+        if (!signal?.aborted) setData(data)
+      })
+      .catch((err: Error) => {
+        if (err.name === 'AbortError') return
+        if (!signal?.aborted) setError(err.message)
+      })
   }, [token])
 
   useEffect(() => {
     if (!isAdmin) return
-    load()
+    const controller = new AbortController()
+    load(controller.signal)
+    return () => controller.abort()
   }, [isAdmin, load])
 
   const handleApprove = async (id: string, action: 'approve' | 'reject') => {
+    if (!token) return
     await apiFetch(`/api/herald/approve/${id}`, {
       method: 'POST',
       body: JSON.stringify({ action }),
-      token: token!,
+      token,
     })
+    if (!mountedRef.current) return
     load()
   }
 
   const handleEditSave = async (id: string, content: string) => {
+    if (!token) return
     await apiFetch(`/api/herald/queue/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ content }),
-      token: token!,
+      token,
     })
+    if (!mountedRef.current) return
     load()
   }
 
