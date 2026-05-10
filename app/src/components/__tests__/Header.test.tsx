@@ -86,13 +86,13 @@ describe('Header — auth pill', () => {
     expect(mockAuthenticate).toHaveBeenCalledTimes(1)
   })
 
-  it('renders WalletDropdown when authed with publicKey', () => {
+  it('renders UserMenu when authed with publicKey', () => {
     setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
     render(<Header />)
     expect(screen.getByRole('button', { name: /HciZ\.\.\.25En/ })).toBeInTheDocument()
   })
 
-  it('WalletDropdown Disconnect calls disconnect + shows toast', async () => {
+  it('UserMenu Disconnect calls disconnect + shows toast', async () => {
     setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
     render(<Header />)
     fireEvent.click(screen.getByRole('button', { name: /HciZ\.\.\.25En/ }))
@@ -102,7 +102,7 @@ describe('Header — auth pill', () => {
     expect(mockDisconnect).toHaveBeenCalledTimes(1)
   })
 
-  it('WalletDropdown Copy writes address to clipboard', async () => {
+  it('UserMenu Copy writes address to clipboard', async () => {
     setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
     render(<Header />)
     fireEvent.click(screen.getByRole('button', { name: /HciZ\.\.\.25En/ }))
@@ -137,20 +137,23 @@ describe('Header — wordmark + Ask SIPHER trigger', () => {
 })
 
 describe('Header — tabs', () => {
-  it('hides admin-only tabs when isAdmin is false', () => {
+  it('renders standard nav tabs for non-admin user', () => {
     setAuth({ status: 'authed', publicKey: FULL, token: 'tok', isAdmin: false })
     render(<Header />)
     expect(screen.getByRole('button', { name: /Dashboard/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Vault/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Herald/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Squad/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Herald$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Squad$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Settings$/ })).not.toBeInTheDocument()
   })
 
-  it('shows admin-only tabs when isAdmin is true', () => {
+  it('does NOT render herald/squad/settings tabs in nav for admin user', () => {
     setAuth({ status: 'authed', publicKey: FULL, token: 'tok', isAdmin: true })
     render(<Header />)
-    expect(screen.getByRole('button', { name: /Herald/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Squad/i })).toBeInTheDocument()
+    // Admin views live in UserMenu dropdown, not in the main nav
+    expect(screen.queryByRole('button', { name: /^Herald$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Squad$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Settings$/ })).not.toBeInTheDocument()
   })
 
   it('clicking a tab calls setActiveView', () => {
