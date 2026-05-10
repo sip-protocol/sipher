@@ -133,3 +133,27 @@ describe('SquadView KillSwitch tones', () => {
     })
   })
 })
+
+describe('SquadView AbortController', () => {
+  beforeEach(() => {
+    vi.mocked(useAuthState).mockReturnValue({
+      status: 'authed',
+      token: 't',
+      publicKey: 'pk',
+      isAdmin: true,
+    } as ReturnType<typeof useAuthState>)
+  })
+
+  it('aborts in-flight /api/squad load on unmount', async () => {
+    let capturedSignal: AbortSignal | undefined
+    vi.mocked(apiFetch).mockImplementation((_path, opts) => {
+      capturedSignal = (opts as { signal?: AbortSignal } | undefined)?.signal
+      return new Promise(() => {}) // never resolves
+    })
+    const { unmount } = renderSquad()
+    await waitFor(() => expect(capturedSignal).toBeDefined())
+    expect(capturedSignal?.aborted).toBe(false)
+    unmount()
+    expect(capturedSignal?.aborted).toBe(true)
+  })
+})
