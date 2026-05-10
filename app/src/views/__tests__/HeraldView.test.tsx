@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import HeraldView from '../HeraldView'
 
-const setActiveViewMock = vi.fn()
-
-vi.mock('../../stores/app', () => ({
-  useAppStore: (selector: (s: unknown) => unknown) => selector({ setActiveView: setActiveViewMock }),
-}))
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return { ...actual, useNavigate: () => navigateMock }
+})
 
 vi.mock('../../hooks/useAuthState', () => ({
   useAuthState: vi.fn(),
@@ -23,9 +24,17 @@ vi.mock('../../api/client', () => ({
 
 import { useAuthState } from '../../hooks/useAuthState'
 
+function renderHerald(token = 't') {
+  return render(
+    <MemoryRouter>
+      <HeraldView token={token} />
+    </MemoryRouter>,
+  )
+}
+
 describe('HeraldView admin gating', () => {
   beforeEach(() => {
-    setActiveViewMock.mockClear()
+    navigateMock.mockClear()
   })
 
   it('redirects to dashboard when !isAdmin and renders null', () => {
@@ -35,8 +44,8 @@ describe('HeraldView admin gating', () => {
       publicKey: 'pk',
       isAdmin: false,
     } as ReturnType<typeof useAuthState>)
-    const { container } = render(<HeraldView token="t" />)
-    expect(setActiveViewMock).toHaveBeenCalledWith('dashboard')
+    const { container } = renderHerald()
+    expect(navigateMock).toHaveBeenCalledWith('/')
     expect(container.firstChild).toBeNull()
   })
 
@@ -47,11 +56,11 @@ describe('HeraldView admin gating', () => {
       publicKey: 'pk',
       isAdmin: true,
     } as ReturnType<typeof useAuthState>)
-    const { container } = render(<HeraldView token="t" />)
+    const { container } = renderHerald()
     await waitFor(() => {
       expect(container.firstChild).not.toBeNull()
     })
-    expect(setActiveViewMock).not.toHaveBeenCalled()
+    expect(navigateMock).not.toHaveBeenCalled()
   })
 })
 
@@ -73,7 +82,7 @@ describe('HeraldView budget bar colors', () => {
       dms: [],
       recentPosts: [],
     })
-    const { container } = render(<HeraldView token="t" />)
+    const { container } = renderHerald()
     await waitFor(() => {
       expect(container.querySelector('[class*="bg-success-soft"]')).toBeTruthy()
     })
@@ -87,7 +96,7 @@ describe('HeraldView budget bar colors', () => {
       dms: [],
       recentPosts: [],
     })
-    const { container } = render(<HeraldView token="t" />)
+    const { container } = renderHerald()
     await waitFor(() => {
       expect(container.querySelector('[class*="bg-warning-soft"]')).toBeTruthy()
     })
@@ -101,7 +110,7 @@ describe('HeraldView budget bar colors', () => {
       dms: [],
       recentPosts: [],
     })
-    const { container } = render(<HeraldView token="t" />)
+    const { container } = renderHerald()
     await waitFor(() => {
       expect(container.querySelector('[class*="bg-danger-soft"]')).toBeTruthy()
     })

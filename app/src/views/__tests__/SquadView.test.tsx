@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import SquadView from '../SquadView'
 
-const setActiveViewMock = vi.fn()
-
-vi.mock('../../stores/app', () => ({
-  useAppStore: (selector: (s: unknown) => unknown) => selector({ setActiveView: setActiveViewMock }),
-}))
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return { ...actual, useNavigate: () => navigateMock }
+})
 
 vi.mock('../../hooks/useAuthState', () => ({
   useAuthState: vi.fn(),
@@ -19,9 +20,17 @@ vi.mock('../../api/client', () => ({
 import { useAuthState } from '../../hooks/useAuthState'
 import { apiFetch } from '../../api/client'
 
+function renderSquad(token = 't') {
+  return render(
+    <MemoryRouter>
+      <SquadView token={token} />
+    </MemoryRouter>,
+  )
+}
+
 describe('SquadView admin gating', () => {
   beforeEach(() => {
-    setActiveViewMock.mockClear()
+    navigateMock.mockClear()
     vi.mocked(apiFetch).mockReset()
   })
 
@@ -32,8 +41,8 @@ describe('SquadView admin gating', () => {
       publicKey: 'pk',
       isAdmin: false,
     } as ReturnType<typeof useAuthState>)
-    const { container } = render(<SquadView token="t" />)
-    expect(setActiveViewMock).toHaveBeenCalledWith('dashboard')
+    const { container } = renderSquad()
+    expect(navigateMock).toHaveBeenCalledWith('/')
     expect(container.firstChild).toBeNull()
   })
 
@@ -50,11 +59,11 @@ describe('SquadView admin gating', () => {
       coordination: [],
       killSwitch: false,
     })
-    const { container } = render(<SquadView token="t" />)
+    const { container } = renderSquad()
     await waitFor(() => {
       expect(container.firstChild).not.toBeNull()
     })
-    expect(setActiveViewMock).not.toHaveBeenCalled()
+    expect(navigateMock).not.toHaveBeenCalled()
   })
 })
 
@@ -75,7 +84,7 @@ describe('SquadView sentinel identity', () => {
   })
 
   it('renders SENTINEL eyebrow chip', async () => {
-    const { container } = render(<SquadView token="t" />)
+    const { container } = renderSquad()
     await waitFor(() => {
       expect(screen.getByText('SENTINEL')).toBeInTheDocument()
     })
@@ -101,7 +110,7 @@ describe('SquadView KillSwitch tones', () => {
       coordination: [],
       killSwitch: true,
     })
-    render(<SquadView token="t" />)
+    renderSquad()
     await waitFor(() => {
       const btn = screen.getByRole('button', { name: /resume operations/i })
       expect(btn.className).toMatch(/border-success/)
@@ -116,7 +125,7 @@ describe('SquadView KillSwitch tones', () => {
       coordination: [],
       killSwitch: false,
     })
-    render(<SquadView token="t" />)
+    renderSquad()
     await waitFor(() => {
       const btn = screen.getByRole('button', { name: /pause all vault ops/i })
       expect(btn.className).toMatch(/border-danger/)

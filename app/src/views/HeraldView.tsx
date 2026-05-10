@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Calendar, X as XIcon } from '@phosphor-icons/react'
 import { apiFetch } from '../api/client'
 import { timeAgo } from '../lib/format'
 import { useAuthState } from '../hooks/useAuthState'
-import { useAppStore } from '../stores/app'
 
 type Tab = 'activity' | 'queue' | 'dms'
 
@@ -398,7 +398,7 @@ function DmsTab({ dms }: { dms: DmEntry[] }) {
 
 export default function HeraldView({ token }: { token: string | null }) {
   const { isAdmin } = useAuthState()
-  const setActiveView = useAppStore((s) => s.setActiveView)
+  const navigate = useNavigate()
 
   const [tab, setTab] = useState<Tab>('activity')
   const [data, setData] = useState<HeraldData | null>(null)
@@ -406,9 +406,9 @@ export default function HeraldView({ token }: { token: string | null }) {
 
   useEffect(() => {
     if (!isAdmin) {
-      setActiveView('dashboard')
+      navigate('/')
     }
-  }, [isAdmin, setActiveView])
+  }, [isAdmin, navigate])
 
   const load = useCallback(() => {
     if (!token) return

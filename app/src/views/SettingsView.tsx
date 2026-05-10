@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
-import { useAppStore } from '../stores/app'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 import { Card } from '../components/ui/Card'
 import { Chip, type ChipTone } from '../components/ui/Chip'
@@ -38,7 +38,7 @@ function networkTone(network: string): ChipTone {
 
 export default function SettingsView() {
   const { token, isAdmin } = useAuthState()
-  const setActiveView = useAppStore((s) => s.setActiveView)
+  const navigate = useNavigate()
   const network = useNetworkConfigStore((s) => s.config?.network)
   const [config, setConfig] = useState<SentinelConfigPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -46,7 +46,7 @@ export default function SettingsView() {
 
   useEffect(() => {
     if (!isAdmin) {
-      setActiveView('dashboard')
+      navigate('/')
       return
     }
     if (!token) return
@@ -64,7 +64,7 @@ export default function SettingsView() {
         }
       })
     return () => controller.abort()
-  }, [isAdmin, token, setActiveView])
+  }, [isAdmin, token, navigate])
 
   if (!isAdmin) return null
 
