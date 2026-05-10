@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { onAuthClear } from '../store/onAuthClear'
 
 export type View = 'dashboard' | 'vault' | 'herald' | 'squad' | 'chat' | 'privacyReport' | 'chains' | 'deposit' | 'withdraw' | 'keys' | 'settings'
 export type ToolStatus = 'running' | 'success' | 'error'
@@ -64,8 +65,10 @@ export const useAppStore = create<AppState>()(
       isAdmin: false,
       expiresAt: null,
       setAuth: (token, isAdmin, expiresAt = null) => set({ token, isAdmin, expiresAt }),
-      clearAuth: () =>
-        set({ token: null, isAdmin: false, expiresAt: null, messages: [], activeView: 'dashboard' }),
+      clearAuth: () => {
+        set({ token: null, isAdmin: false, expiresAt: null, messages: [], activeView: 'dashboard' })
+        onAuthClear.clearAll()
+      },
 
       messages: [],
       chatLoading: false,
