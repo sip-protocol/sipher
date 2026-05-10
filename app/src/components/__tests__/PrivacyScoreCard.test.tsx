@@ -105,6 +105,10 @@ describe('PrivacyScoreCard', () => {
     render(<PrivacyScoreCard data={fakeData} />)
     fireEvent.click(screen.getByRole('button', { name: /view report/i }))
     expect(useAppStore.getState().activeView).toBe('dashboard')
+    // Assert the alternative path actually fired (Sheet opened). Without this,
+    // a future regression that drops `setTeaserOpen(true)` from handleViewReport
+    // would silently still pass this test.
+    expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
   })
 
   it('dismisses Sheet teaser when Close button clicked', () => {
