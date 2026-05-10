@@ -1,6 +1,7 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { StealthAddressBackup } from '../StealthAddressBackup'
+import { onAuthClear } from '../../../store/onAuthClear'
 
 vi.mock('../../../hooks/useAuthState', async () => {
   const { makeFakeAuthState } = await import('../../../test-utils/makeFakeAuthState')
@@ -32,6 +33,7 @@ describe('StealthAddressBackup', () => {
   beforeEach(() => {
     apiFetchMock.mockReset()
     encryptMock.mockClear()
+    onAuthClear._resetForTests()
     HTMLAnchorElement.prototype.click = vi.fn()
     // jsdom does not implement these; stub to keep download path inert.
     Object.assign(URL, {
@@ -106,6 +108,23 @@ describe('StealthAddressBackup', () => {
     fireEvent.click(screen.getByRole('button', { name: /retry/i }))
     await waitFor(() => {
       expect(screen.getByText(/no stealth addresses yet/i)).toBeInTheDocument()
+    })
+  })
+
+  it('clears data state when onAuthClear.clearAll fires', async () => {
+    apiFetchMock.mockResolvedValueOnce({
+      tree: [
+        { index: 0, derivationPath: 'm/0', stealthAddress: '0xabc', parentIndex: null, createdAt: '' },
+      ],
+      rootWallet: 'wallet',
+    })
+    render(<StealthAddressBackup />)
+    await waitFor(() => {
+      expect(screen.getByText('1 address')).toBeInTheDocument()
+    })
+    act(() => onAuthClear.clearAll())
+    await waitFor(() => {
+      expect(screen.queryByText('1 address')).not.toBeInTheDocument()
     })
   })
 
