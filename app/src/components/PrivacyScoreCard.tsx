@@ -110,10 +110,13 @@ export function PrivacyScoreCard({ data, delta }: PrivacyScoreCardProps) {
         onClose={() => setTeaserOpen(false)}
         ariaLabel="Privacy Score Report"
       >
-        <UnauthedEmptyState
-          title="Privacy Score Report"
-          body="Network analysis · surveillance score · personalized recommendations. Connect a wallet to view your full report."
-        />
+        <div className="flex flex-col gap-4 p-2">
+          <UnauthedEmptyState
+            bare
+            title="Privacy Score Report"
+            body="Network analysis · surveillance score · personalized recommendations. Connect a wallet to view your full report."
+          />
+        </div>
       </Sheet>
     </>
   )

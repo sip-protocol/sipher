@@ -55,4 +55,21 @@ describe('UnauthedEmptyState', () => {
     )
     expect(screen.getByText('deposit')).toBeInTheDocument()
   })
+
+  it('renders without glass-strong chrome when bare prop is true', () => {
+    const { container } = render(
+      <UnauthedEmptyState bare title="X" body="Y" />,
+    )
+    expect(container.querySelector('.glass-strong')).toBeNull()
+    expect(container.querySelector('.rounded-2xl')).toBeNull()
+    // inner content still renders
+    expect(screen.getByText('X')).toBeInTheDocument()
+    expect(screen.getByText('Y')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /connect/i })).toBeInTheDocument()
+  })
+
+  it('keeps glass-strong chrome by default (bare is false)', () => {
+    const { container } = render(<UnauthedEmptyState title="X" body="Y" />)
+    expect(container.querySelector('.glass-strong')).not.toBeNull()
+  })
 })

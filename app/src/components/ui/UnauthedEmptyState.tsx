@@ -6,6 +6,13 @@ export interface UnauthedEmptyStateProps {
   body: ReactNode
   cta?: ReactNode
   illustration?: ReactNode
+  /**
+   * Drops the outer `glass-strong rounded-2xl p-8` chrome.
+   * Use when nesting inside another card/sheet that already has glass chrome
+   * (e.g. inside `<Sheet>` whose dialog container already applies `glass-strong`).
+   * Inner layout (illustration + title + body + cta) is preserved.
+   */
+  bare?: boolean
 }
 
 function DefaultConnectCTA() {
@@ -27,12 +34,14 @@ export function UnauthedEmptyState({
   body,
   cta,
   illustration,
+  bare = false,
 }: UnauthedEmptyStateProps) {
+  const containerClass = bare
+    ? 'flex flex-col items-start gap-4'
+    : 'glass-strong rounded-2xl p-8 flex flex-col items-start gap-4'
+
   return (
-    <div
-      data-testid="unauthed-empty-state"
-      className="glass-strong rounded-2xl p-8 flex flex-col items-start gap-4"
-    >
+    <div data-testid="unauthed-empty-state" className={containerClass}>
       {illustration && (
         <div data-testid="empty-state-illustration" className="w-full">
           {illustration}
