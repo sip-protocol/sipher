@@ -104,4 +104,31 @@ describe('DashboardView', () => {
       expect(screen.queryByText(/Anonymity set/i)).not.toBeInTheDocument()
     })
   })
+
+  it('aborts in-flight /api/vault and /api/activity on unmount', async () => {
+    const capturedSignals: AbortSignal[] = []
+    ;(apiFetch as ReturnType<typeof vi.fn>).mockImplementation((path: string, opts?: { signal?: AbortSignal }) => {
+      if (path === '/api/vault' || path === '/api/activity') {
+        if (opts?.signal) capturedSignals.push(opts.signal)
+        return new Promise(() => {}) // never resolves so the signal stays in flight
+      }
+      // privacy-score and chains paths still resolve so the rest of the view mounts cleanly
+      if (path === '/v1/privacy/score') return Promise.resolve(fakePrivacyScore)
+      if (path === '/api/chains') return Promise.resolve({ chains: [] })
+      if (path === '/api/chains/aggregate') {
+        return Promise.resolve({ totalTvlSol: 0, chainCount: 0, liveChainCount: 0, asOf: 't' })
+      }
+      if (path === '/api/stealth/index') return Promise.resolve({ tree: [], rootWallet: 'W' })
+      return Promise.reject(new Error('unexpected path: ' + path))
+    })
+    const { unmount } = render(
+      <MemoryRouter>
+        <DashboardView events={[]} />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(capturedSignals.length).toBe(2))
+    expect(capturedSignals.every((s) => s.aborted === false)).toBe(true)
+    unmount()
+    expect(capturedSignals.every((s) => s.aborted === true)).toBe(true)
+  })
 })
