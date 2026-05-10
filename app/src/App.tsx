@@ -7,6 +7,7 @@ import Header from './components/Header'
 import BottomNav from './components/BottomNav'
 import ChatSidebar from './components/ChatSidebar'
 import { BetaBanner } from './components/BetaBanner'
+import { NetworkBanner } from './components/NetworkBanner'
 import { Sheet } from './components/ui/Sheet'
 import DashboardView from './views/DashboardView'
 import VaultView from './views/VaultView'
@@ -69,6 +70,7 @@ function AppShell() {
   return (
     <div className="flex flex-col h-dvh bg-bg">
       <BetaBanner beta={beta} />
+      <NetworkBanner />
       <Header />
 
       <div className="flex-1 flex overflow-hidden">
