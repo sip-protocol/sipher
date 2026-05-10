@@ -1,18 +1,15 @@
 import {
   ChartBar,
   Vault,
-  Broadcast,
-  UsersThree,
   ChatCircle,
   GlobeHemisphereWest,
   Key,
-  Gear,
 } from '@phosphor-icons/react'
 import { useAppStore, type View } from '../stores/app'
 import { useAuthState } from '../hooks/useAuthState'
 import { useToast } from '../providers/ToastProvider'
 import AgentDot from './AgentDot'
-import { WalletDropdown } from './WalletDropdown'
+import { UserMenu, type AdminView } from './UserMenu'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 import { TickerBar } from './ui/TickerBar'
 
@@ -20,7 +17,6 @@ interface Tab {
   id: View
   label: string
   icon: React.ComponentType<{ size?: number; weight?: 'regular' | 'fill' }>
-  adminOnly?: boolean
   tabletOnly?: boolean
 }
 
@@ -30,9 +26,6 @@ const TABS: Tab[] = [
   { id: 'chains', label: 'Chains', icon: GlobeHemisphereWest },
   { id: 'keys', label: 'Keys', icon: Key },
   { id: 'chat', label: 'Chat', icon: ChatCircle, tabletOnly: true },
-  { id: 'herald', label: 'Herald', icon: Broadcast, adminOnly: true },
-  { id: 'squad', label: 'Squad', icon: UsersThree, adminOnly: true },
-  { id: 'settings', label: 'Settings', icon: Gear, adminOnly: true },
 ]
 
 export default function Header() {
@@ -42,11 +35,6 @@ export default function Header() {
   const setActiveView = useAppStore((s) => s.setActiveView)
   const setChatSheetOpen = useAppStore((s) => s.setChatSheetOpen)
   const network = useNetworkConfigStore((s) => s.config?.network ?? 'mainnet')
-
-  const visibleTabs = TABS.filter((t) => {
-    if (t.adminOnly && !isAdmin) return false
-    return true
-  })
 
   const handleConnectOrSignIn = () => {
     authenticate().catch((err: unknown) => {
@@ -66,6 +54,10 @@ export default function Header() {
     showToast({ message: 'Disconnected', kind: 'info', durationMs: 3000 })
   }
 
+  const handleAdminNavigate = (view: AdminView) => {
+    setActiveView(view)
+  }
+
   return (
     <header className="hidden md:flex h-12 border-b border-line items-center justify-between px-4 bg-bg shrink-0 z-sticky">
       <div className="flex items-center gap-3">
@@ -78,7 +70,7 @@ export default function Header() {
         <span className="text-2xs text-text-muted font-mono uppercase">{network}</span>
         <TickerBar />
         <nav className="flex items-center ml-3">
-          {visibleTabs.map((tab) => {
+          {TABS.map((tab) => {
             const Icon = tab.icon
             const active =
               activeView === tab.id ||
@@ -118,8 +110,10 @@ export default function Header() {
         </div>
 
         {status === 'authed' && publicKey ? (
-          <WalletDropdown
+          <UserMenu
             address={publicKey}
+            isAdmin={isAdmin}
+            onNavigate={handleAdminNavigate}
             onCopy={handleCopy}
             onReSignIn={handleConnectOrSignIn}
             onDisconnect={handleDisconnect}

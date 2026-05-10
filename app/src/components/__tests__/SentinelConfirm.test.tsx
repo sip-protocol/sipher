@@ -122,7 +122,7 @@ describe('SentinelConfirm', () => {
     expect(await screen.findByText('flag not found or expired')).toBeInTheDocument()
   })
 
-  it('falls back to status display when response body is not envelope-shaped', async () => {
+  it('falls back to status display when response body is not envelope-shaped, error rendered with text-danger', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       new Response('<html>500</html>', { status: 500 })
     ) as typeof fetch
@@ -138,6 +138,8 @@ describe('SentinelConfirm', () => {
     )
     await userEvent.click(screen.getByRole('button', { name: /override & send/i }))
     expect(onResolved).not.toHaveBeenCalled()
-    expect(await screen.findByText(/API error 500/)).toBeInTheDocument()
+    const errorEl = await screen.findByText(/API error 500/)
+    expect(errorEl).toBeInTheDocument()
+    expect(errorEl.className).toMatch(/text-danger/)
   })
 })

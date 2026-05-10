@@ -52,7 +52,7 @@ export default function SentinelConfirm({ flagId, action, amount, description, o
         onConfirm={() => dispatch('resolve')}
         onCancel={() => dispatch('reject')}
       />
-      {error && <div className="text-[12px] text-red px-1">{error}</div>}
+      {error && <div className="text-[12px] text-danger px-1">{error}</div>}
     </div>
   )
 }

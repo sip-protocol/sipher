@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { Calendar, X as XIcon } from '@phosphor-icons/react'
 import { apiFetch } from '../api/client'
 import { timeAgo } from '../lib/format'
+import { useAuthState } from '../hooks/useAuthState'
+import { useAppStore } from '../stores/app'
 
 type Tab = 'activity' | 'queue' | 'dms'
 
@@ -54,17 +56,17 @@ interface HeraldData {
 function BudgetBar({ budget }: { budget: BudgetInfo }) {
   const pct = Math.min(budget.percentage ?? (budget.spent / budget.limit) * 100, 100)
   const barColor =
-    pct >= 95 ? 'bg-red' :
-    pct >= 80 ? 'bg-yellow' :
-    'bg-green'
+    pct >= 95 ? 'bg-danger-soft' :
+    pct >= 80 ? 'bg-warning-soft' :
+    'bg-success-soft'
 
   const gateColor =
-    budget.gate === 'open' ? 'text-green' :
-    budget.gate === 'limited' ? 'text-yellow' :
-    'text-red'
+    budget.gate === 'open' ? 'text-success' :
+    budget.gate === 'limited' ? 'text-warning' :
+    'text-danger'
 
   return (
-    <div className="px-4 py-3 border-b border-border shrink-0">
+    <div className="px-4 py-3 border-b border-line shrink-0">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-text-muted font-medium uppercase tracking-wider">X API Budget</span>
@@ -77,7 +79,7 @@ function BudgetBar({ budget }: { budget: BudgetInfo }) {
           <span className="text-text-muted"> / ${budget.limit}</span>
         </div>
       </div>
-      <div className="w-full h-1 bg-card rounded-full overflow-hidden">
+      <div className="w-full h-1 bg-glass-1 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${barColor}`}
           style={{ width: `${pct}%` }}
@@ -94,7 +96,7 @@ function SubTabs({ active, onChange }: { active: Tab, onChange: (t: Tab) => void
     { id: 'dms', label: 'DMs' },
   ]
   return (
-    <div className="flex px-4 border-b border-border shrink-0">
+    <div className="flex px-4 border-b border-line shrink-0">
       {tabs.map(t => (
         <button
           key={t.id}
@@ -133,10 +135,10 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
                   <span className="text-xs font-medium text-text">Posted</span>
                   <span className="font-mono text-[10px] text-text-muted">{timeAgo(entry.timestamp)}</span>
                 </div>
-                <div className="bg-card border border-border rounded-lg p-3 flex flex-col gap-2">
+                <div className="bg-glass-1 border border-line rounded-lg p-3 flex flex-col gap-2">
                   <p className="text-sm text-text-secondary">{entry.content}</p>
                   {(entry.engagement || entry.tweetUrl) && (
-                    <div className="flex items-center justify-between border-t border-border pt-2 mt-1">
+                    <div className="flex items-center justify-between border-t border-line pt-2 mt-1">
                       {entry.engagement && (
                         <div className="flex items-center gap-3 font-mono text-[10px] text-text-muted">
                           <span>♥ {entry.engagement.likes}</span>
@@ -149,7 +151,7 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
                           href={entry.tweetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[10px] font-mono text-text-muted border border-border px-2 py-1 rounded bg-bg flex items-center gap-1 hover:text-text transition-colors"
+                          className="text-[10px] font-mono text-text-muted border border-line px-2 py-1 rounded bg-bg flex items-center gap-1 hover:text-text transition-colors"
                         >
                           View on X ↗
                         </a>
@@ -169,9 +171,9 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
                   )}
                   <span className="font-mono text-[10px] text-text-muted">{timeAgo(entry.timestamp)}</span>
                 </div>
-                <div className="bg-card border border-border rounded-lg p-3">
+                <div className="bg-glass-1 border border-line rounded-lg p-3">
                   {entry.content && (
-                    <div className="pl-2.5 border-l-2 border-border">
+                    <div className="pl-2.5 border-l-2 border-line">
                       <p className="text-[13px] text-text-muted italic">{entry.content}</p>
                     </div>
                   )}
@@ -181,7 +183,7 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
                         href={entry.tweetUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[10px] font-mono text-text-muted border border-border px-2 py-1 rounded bg-bg flex items-center gap-1 hover:text-text transition-colors"
+                        className="text-[10px] font-mono text-text-muted border border-line px-2 py-1 rounded bg-bg flex items-center gap-1 hover:text-text transition-colors"
                       >
                         View on X ↗
                       </a>
@@ -211,7 +213,7 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
                   <span className="text-xs font-medium text-text">DM Handled</span>
                   <span className="font-mono text-[10px] text-text-muted">{timeAgo(entry.timestamp)}</span>
                 </div>
-                <div className="bg-card border border-border border-dashed rounded-lg p-3">
+                <div className="bg-glass-1 border border-line border-dashed rounded-lg p-3">
                   {entry.replyTo && (
                     <><span className="font-mono text-xs text-herald">@{entry.replyTo}:</span>{' '}</>
                   )}
@@ -286,11 +288,11 @@ function QueueTab({
       {items.map((item) => {
         const isEditing = editingId === item.id
         return (
-          <div key={item.id} className="bg-card border border-border rounded-lg p-4 flex flex-col gap-3">
+          <div key={item.id} className="bg-glass-1 border border-line rounded-lg p-4 flex flex-col gap-3">
             {isEditing ? (
               <>
                 <textarea
-                  className="bg-elevated border border-border rounded-lg px-3 py-2 text-[13px] text-text font-mono resize-none focus:outline-none focus:border-accent/40"
+                  className="bg-glass-2 border border-line rounded-lg px-3 py-2 text-[13px] text-text font-mono resize-none focus:outline-none focus:border-accent/40"
                   rows={4}
                   value={editDraft}
                   maxLength={280}
@@ -302,14 +304,14 @@ function QueueTab({
                     <button
                       onClick={saveEdit}
                       disabled={saving || editDraft.trim().length === 0 || editDraft.length > 280}
-                      className="text-[11px] border border-green/40 text-green bg-green/10 px-3 py-1.5 rounded-lg font-medium hover:bg-green/20 disabled:opacity-50"
+                      className="text-[11px] border border-success/40 text-success bg-success/10 px-3 py-1.5 rounded-lg font-medium hover:bg-success/20 disabled:opacity-50"
                     >
                       {saving ? 'Saving...' : 'Save'}
                     </button>
                     <button
                       onClick={cancelEdit}
                       disabled={saving}
-                      className="text-[11px] border border-border text-text-secondary bg-bg px-3 py-1.5 rounded-lg hover:bg-border disabled:opacity-50"
+                      className="text-[11px] border border-line text-text-secondary bg-bg px-3 py-1.5 rounded-lg hover:bg-border disabled:opacity-50"
                     >
                       Cancel
                     </button>
@@ -327,21 +329,21 @@ function QueueTab({
                   <button
                     onClick={() => handleAction(item.id, 'approve')}
                     disabled={pending[item.id]}
-                    className="flex-1 text-[11px] border border-green/40 text-green bg-green/10 py-1.5 rounded-lg font-medium hover:bg-green/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 text-[11px] border border-success/40 text-success bg-success/10 py-1.5 rounded-lg font-medium hover:bg-success/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {pending[item.id] ? '...' : 'Approve'}
                   </button>
                   <button
                     onClick={() => beginEdit(item)}
                     disabled={pending[item.id]}
-                    className="px-4 text-[11px] border border-border text-text-secondary bg-bg py-1.5 rounded-lg hover:bg-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 text-[11px] border border-line text-text-secondary bg-bg py-1.5 rounded-lg hover:bg-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleAction(item.id, 'reject')}
                     disabled={pending[item.id]}
-                    className="px-3 border border-border text-text-muted bg-bg py-1.5 rounded-lg hover:text-red hover:border-red/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 border border-line text-text-muted bg-bg py-1.5 rounded-lg hover:text-danger hover:border-danger/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Reject"
                   >
                     <XIcon size={12} weight="bold" />
@@ -364,20 +366,20 @@ function DmsTab({ dms }: { dms: DmEntry[] }) {
   }
 
   return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
+    <div className="bg-glass-1 border border-line rounded-lg overflow-hidden">
       {dms.map((dm, i) => (
         <div
           key={dm.id}
-          className={`flex flex-col p-3 ${i < dms.length - 1 ? 'border-b border-border/50' : ''}`}
+          className={`flex flex-col p-3 ${i < dms.length - 1 ? 'border-b border-line/50' : ''}`}
         >
           <div className="flex justify-between mb-1">
             <span className="font-mono text-xs text-herald">@{dm.x_user_id ?? dm.username ?? 'unknown'}</span>
             {dm.resolution === 'resolved' ? (
-              <span className="text-[9px] text-green bg-green/10 px-1.5 py-0.5 rounded border border-green/20">
+              <span className="text-[9px] text-success bg-success/10 px-1.5 py-0.5 rounded border border-success/20">
                 Resolved
               </span>
             ) : (
-              <span className="text-[9px] text-yellow bg-yellow/10 px-1.5 py-0.5 rounded border border-yellow/20">
+              <span className="text-[9px] text-warning bg-warning/10 px-1.5 py-0.5 rounded border border-warning/20">
                 Actioned
               </span>
             )}
@@ -395,9 +397,18 @@ function DmsTab({ dms }: { dms: DmEntry[] }) {
 }
 
 export default function HeraldView({ token }: { token: string | null }) {
+  const { isAdmin } = useAuthState()
+  const setActiveView = useAppStore((s) => s.setActiveView)
+
   const [tab, setTab] = useState<Tab>('activity')
   const [data, setData] = useState<HeraldData | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setActiveView('dashboard')
+    }
+  }, [isAdmin, setActiveView])
 
   const load = useCallback(() => {
     if (!token) return
@@ -408,8 +419,9 @@ export default function HeraldView({ token }: { token: string | null }) {
   }, [token])
 
   useEffect(() => {
+    if (!isAdmin) return
     load()
-  }, [load])
+  }, [isAdmin, load])
 
   const handleApprove = async (id: string, action: 'approve' | 'reject') => {
     await apiFetch(`/api/herald/approve/${id}`, {
@@ -429,6 +441,8 @@ export default function HeraldView({ token }: { token: string | null }) {
     load()
   }
 
+  if (!isAdmin) return null
+
   if (!token) {
     return (
       <div className="text-text-muted text-sm text-center py-20">
@@ -446,7 +460,7 @@ export default function HeraldView({ token }: { token: string | null }) {
 
       <div className="flex-1 overflow-y-auto px-4 py-5">
         {error && (
-          <div className="text-red text-xs font-mono bg-red/10 border border-red/20 rounded-lg px-3 py-2 mb-4">
+          <div className="text-danger text-xs font-mono bg-danger/10 border border-danger/20 rounded-lg px-3 py-2 mb-4">
             {error}
           </div>
         )}

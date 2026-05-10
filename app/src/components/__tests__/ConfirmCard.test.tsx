@@ -38,4 +38,39 @@ describe('ConfirmCard', () => {
     expect(onConfirm).toHaveBeenCalledOnce()
     expect(onCancel).toHaveBeenCalledOnce()
   })
+
+  it('uses sentinel tones for warning variant', () => {
+    const { container } = render(
+      <ConfirmCard
+        variant="warning"
+        action="Send"
+        amount="5 SOL"
+        description="Address has 2 high-risk signals"
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />
+    )
+    const card = container.querySelector('[class*="border-sentinel"]')
+    expect(card).toBeTruthy()
+    const overrideBtn = screen.getByRole('button', { name: /override & send/i })
+    expect(overrideBtn.className).toMatch(/text-sentinel/)
+    expect(overrideBtn.className).toMatch(/border-sentinel/)
+    const icon = container.querySelector('svg[aria-hidden="true"]')
+    expect(icon).toBeTruthy()
+    expect(icon?.getAttribute('class') ?? '').toMatch(/text-sentinel/)
+  })
+
+  it('uses bg-glass-1 (not bg-card) for both variants', () => {
+    const { container: c1 } = render(
+      <ConfirmCard action="Send" amount="1 SOL" onConfirm={() => {}} onCancel={() => {}} />
+    )
+    expect(c1.querySelector('[class*="bg-glass-1"]')).toBeTruthy()
+    expect(c1.querySelector('[class*="bg-card"]')).toBeNull()
+
+    const { container: c2 } = render(
+      <ConfirmCard variant="warning" action="Send" amount="1 SOL" onConfirm={() => {}} onCancel={() => {}} />
+    )
+    expect(c2.querySelector('[class*="bg-glass-1"]')).toBeTruthy()
+    expect(c2.querySelector('[class*="bg-card"]')).toBeNull()
+  })
 })
