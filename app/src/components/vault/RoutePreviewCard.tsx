@@ -33,7 +33,17 @@ export function RoutePreviewCard({
         ROUTE PREVIEW
       </div>
       <div className="flex flex-col gap-2 font-mono text-xs">
-        <Step n={1} label="You" detail={<HashCell hash={wallet} />} />
+        <Step
+          n={1}
+          label="You"
+          detail={
+            wallet ? (
+              <HashCell hash={wallet} />
+            ) : (
+              <span className="text-text-muted">—</span>
+            )
+          }
+        />
         <div className="ml-3 text-text-muted">↓ {amountLabel}</div>
         <Step n={2} label="Vault PDA" detail={<HashCell hash={vaultPda} />} />
         <div className="ml-3 text-text-muted">↓</div>

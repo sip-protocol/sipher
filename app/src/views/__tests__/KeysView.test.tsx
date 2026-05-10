@@ -40,16 +40,29 @@ describe('KeysView', () => {
     expect(grid?.className).toMatch(/md:grid-cols-2/)
   })
 
-  it('renders nothing when unauthenticated', () => {
+  it('renders UnauthedEmptyState when unauthenticated', () => {
     useAuthStateMock.mockReturnValue({
       publicKey: null,
       token: null,
       status: 'unauthed',
       isAdmin: false,
     })
-    const { container } = render(<KeysView />)
-    expect(container.querySelector('[data-testid="keys-view"]')).toBeNull()
+    render(<KeysView />)
+    expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
+    expect(screen.getByText(/stealth keys/i)).toBeInTheDocument()
     expect(screen.queryByTestId('view-key-card')).toBeNull()
+    expect(screen.queryByTestId('backup-card')).toBeNull()
+  })
+
+  it('does NOT render the section heading when unauthenticated', () => {
+    useAuthStateMock.mockReturnValue({
+      publicKey: null,
+      token: null,
+      status: 'unauthed',
+      isAdmin: false,
+    })
+    render(<KeysView />)
+    expect(screen.queryByText(/viewing key management/i)).toBeNull()
   })
 
   it('renders the section heading', () => {

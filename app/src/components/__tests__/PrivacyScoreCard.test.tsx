@@ -1,7 +1,16 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { PrivacyScoreCard } from '../PrivacyScoreCard'
 import { useAppStore } from '../../stores/app'
+
+vi.mock('@solana/wallet-adapter-react-ui', () => ({
+  useWalletModal: () => ({ setVisible: vi.fn(), visible: false }),
+}))
+
+const useAuthStateMock = vi.fn()
+vi.mock('../../hooks/useAuthState', () => ({
+  useAuthState: () => useAuthStateMock(),
+}))
 
 const fakeData = {
   score: 72,
@@ -18,6 +27,16 @@ const fakeData = {
 
 beforeEach(() => {
   useAppStore.setState({ activeView: 'dashboard' }, false)
+  useAuthStateMock.mockReturnValue({
+    status: 'authed' as const,
+    token: 'test-token',
+    publicKey: 'TestWallet1111111111111111111111111111111111',
+    isAdmin: false,
+    expiresAt: null,
+    authenticate: () => Promise.resolve(),
+    disconnect: () => Promise.resolve(),
+    error: null,
+  })
 })
 
 describe('PrivacyScoreCard', () => {
@@ -53,5 +72,60 @@ describe('PrivacyScoreCard', () => {
     render(<PrivacyScoreCard data={fakeData} />)
     expect(screen.queryByText(/vs last week/)).toBeInTheDocument()
     expect(screen.queryByText('+4')).not.toBeInTheDocument()
+  })
+
+  it('opens Sheet teaser with UnauthedEmptyState when View report clicked unauthed', () => {
+    useAuthStateMock.mockReturnValue({
+      status: 'unauthed' as const,
+      token: null,
+      publicKey: null,
+      isAdmin: false,
+      expiresAt: null,
+      authenticate: () => Promise.resolve(),
+      disconnect: () => Promise.resolve(),
+      error: null,
+    })
+    render(<PrivacyScoreCard data={fakeData} />)
+    fireEvent.click(screen.getByRole('button', { name: /view report/i }))
+    expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
+    expect(screen.getByText(/privacy score report/i)).toBeInTheDocument()
+  })
+
+  it('does NOT navigate to privacyReport when clicked unauthed', () => {
+    useAuthStateMock.mockReturnValue({
+      status: 'unauthed' as const,
+      token: null,
+      publicKey: null,
+      isAdmin: false,
+      expiresAt: null,
+      authenticate: () => Promise.resolve(),
+      disconnect: () => Promise.resolve(),
+      error: null,
+    })
+    render(<PrivacyScoreCard data={fakeData} />)
+    fireEvent.click(screen.getByRole('button', { name: /view report/i }))
+    expect(useAppStore.getState().activeView).toBe('dashboard')
+    // Assert the alternative path actually fired (Sheet opened). Without this,
+    // a future regression that drops `setTeaserOpen(true)` from handleViewReport
+    // would silently still pass this test.
+    expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
+  })
+
+  it('dismisses Sheet teaser when Close button clicked', () => {
+    useAuthStateMock.mockReturnValue({
+      status: 'unauthed' as const,
+      token: null,
+      publicKey: null,
+      isAdmin: false,
+      expiresAt: null,
+      authenticate: () => Promise.resolve(),
+      disconnect: () => Promise.resolve(),
+      error: null,
+    })
+    render(<PrivacyScoreCard data={fakeData} />)
+    fireEvent.click(screen.getByRole('button', { name: /view report/i }))
+    expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
+    expect(screen.queryByTestId('unauthed-empty-state')).toBeNull()
   })
 })
