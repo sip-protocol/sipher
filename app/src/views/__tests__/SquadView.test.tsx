@@ -36,6 +36,26 @@ describe('SquadView admin gating', () => {
     expect(setActiveViewMock).toHaveBeenCalledWith('dashboard')
     expect(container.firstChild).toBeNull()
   })
+
+  it('does NOT redirect when isAdmin', async () => {
+    vi.mocked(useAuthState).mockReturnValue({
+      status: 'authed',
+      token: 't',
+      publicKey: 'pk',
+      isAdmin: true,
+    } as ReturnType<typeof useAuthState>)
+    vi.mocked(apiFetch).mockResolvedValue({
+      agents: [],
+      stats: { toolCalls: 0, walletSessions: 0, xPosts: 0, xReplies: 0, blocksScanned: 0, alerts: 0 },
+      coordination: [],
+      killSwitch: false,
+    })
+    const { container } = render(<SquadView token="t" />)
+    await waitFor(() => {
+      expect(container.firstChild).not.toBeNull()
+    })
+    expect(setActiveViewMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('SquadView sentinel identity', () => {
