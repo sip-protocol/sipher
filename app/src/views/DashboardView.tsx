@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiFetch } from '../api/client'
 import { type ActivityEvent } from '../hooks/useSSE'
 import { useAuthState } from '../hooks/useAuthState'
+import { useOnAuthClear } from '../store/useOnAuthClear'
 import { PrivacyScoreCard } from '../components/PrivacyScoreCard'
 import { ActivityStreamTable, type ActivityRow } from '../components/ActivityStreamTable'
 import { PrivacyGraph } from '../components/PrivacyGraph'
@@ -52,6 +53,17 @@ export default function DashboardView({ events }: { events: ActivityEvent[] }) {
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastProcessedEventId = useRef<string | null>(null)
   const wallet = vault?.wallet
+
+  useOnAuthClear(() => {
+    setVault(null)
+    setHistory([])
+    setPrivacyData(null)
+    if (refreshTimer.current) {
+      clearTimeout(refreshTimer.current)
+      refreshTimer.current = null
+    }
+    lastProcessedEventId.current = null
+  })
 
   const fetchPrivacyScore = useCallback(async (signal?: AbortSignal) => {
     if (!wallet || !token) return
