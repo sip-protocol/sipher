@@ -37,7 +37,8 @@ describe('PrivacyGraph', () => {
     render(<PrivacyGraph />)
     await waitFor(() => {
       expect(screen.getByText(/0 addresses/)).toBeInTheDocument()
-      expect(screen.getByText(/Connect a wallet to see your privacy graph/)).toBeInTheDocument()
+      expect(screen.getByText(/each node is a one-time stealth address/i)).toBeInTheDocument()
+      expect(screen.getByText(/connect a wallet and send\/receive shielded payments/i)).toBeInTheDocument()
     })
   })
 

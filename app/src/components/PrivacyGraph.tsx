@@ -59,8 +59,13 @@ export function PrivacyGraph() {
         </span>
       </div>
       {tree.length === 0 ? (
-        <div className="h-[400px] flex items-center justify-center text-text-muted text-sm">
-          Connect a wallet to see your privacy graph.
+        <div className="h-[400px] flex flex-col items-center justify-center text-center px-6">
+          <p className="text-sm text-text-secondary">
+            Each node is a one-time stealth address.
+          </p>
+          <p className="text-xs text-text-muted mt-1">
+            Connect a wallet and send/receive shielded payments to populate.
+          </p>
         </div>
       ) : (
         <NodeGraph nodes={nodes} edges={edges} />
