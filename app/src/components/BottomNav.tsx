@@ -10,7 +10,9 @@ import {
   Key,
   Gear,
 } from '@phosphor-icons/react'
-import { useAppStore, type View } from '../stores/app'
+import { Link, useNavigate } from 'react-router-dom'
+import { type View } from '../stores/app'
+import { useActiveView } from '../hooks/useActiveView'
 import { useAuthState } from '../hooks/useAuthState'
 import { useToast } from '../providers/ToastProvider'
 
@@ -26,9 +28,24 @@ const TABS: TabDef[] = [
   { id: 'chat', label: 'Chat', icon: ChatCircle },
 ]
 
+const VIEW_TO_PATH: Record<View, string> = {
+  dashboard: '/',
+  vault: '/vault',
+  chains: '/chains',
+  keys: '/keys',
+  chat: '/chat',
+  deposit: '/vault/deposit',
+  withdraw: '/vault/withdraw',
+  herald: '/herald',
+  squad: '/sentinel',
+  settings: '/settings',
+  privacyReport: '/privacy-report',
+  about: '/about',
+}
+
 export default function BottomNav() {
-  const activeView = useAppStore((s) => s.activeView)
-  const setActiveView = useAppStore((s) => s.setActiveView)
+  const activeView = useActiveView()
+  const navigate = useNavigate()
   const { isAdmin, disconnect } = useAuthState()
   const { show: showToast } = useToast()
   const [moreOpen, setMoreOpen] = useState(false)
@@ -48,16 +65,16 @@ export default function BottomNav() {
             activeView === tab.id ||
             (tab.id === 'vault' && (activeView === 'deposit' || activeView === 'withdraw'))
           return (
-            <button
+            <Link
               key={tab.id}
-              onClick={() => setActiveView(tab.id)}
+              to={VIEW_TO_PATH[tab.id]}
               className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-1 transition-colors ${
                 active ? 'text-text' : 'text-text-muted'
               }`}
             >
               <Icon size={20} weight={active ? 'fill' : 'regular'} />
               <span className="text-2xs font-medium tracking-wide">{tab.label}</span>
-            </button>
+            </Link>
           )
         })}
         <button
@@ -84,7 +101,7 @@ export default function BottomNav() {
             <div className="flex flex-col gap-1">
               <button
                 onClick={() => {
-                  setActiveView('keys')
+                  navigate(VIEW_TO_PATH.keys)
                   setMoreOpen(false)
                 }}
                 className="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-glass-2 transition-colors"
@@ -97,7 +114,7 @@ export default function BottomNav() {
                   <div className="border-t border-line my-1" />
                   <button
                     onClick={() => {
-                      setActiveView('herald')
+                      navigate(VIEW_TO_PATH.herald)
                       setMoreOpen(false)
                     }}
                     className="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-glass-2 transition-colors"
@@ -107,7 +124,7 @@ export default function BottomNav() {
                   </button>
                   <button
                     onClick={() => {
-                      setActiveView('squad')
+                      navigate(VIEW_TO_PATH.squad)
                       setMoreOpen(false)
                     }}
                     className="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-glass-2 transition-colors"
@@ -117,7 +134,7 @@ export default function BottomNav() {
                   </button>
                   <button
                     onClick={() => {
-                      setActiveView('settings')
+                      navigate(VIEW_TO_PATH.settings)
                       setMoreOpen(false)
                     }}
                     className="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-glass-2 transition-colors"
