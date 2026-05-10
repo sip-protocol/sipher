@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import PrivacyReportView from '../PrivacyReportView'
+import type { AuthState } from '../../hooks/useAuthState'
 
 const navigateMock = vi.fn()
 vi.mock('react-router-dom', async () => {
@@ -13,8 +14,19 @@ vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
 }))
 
+let currentAuth: AuthState = {
+  status: 'authed',
+  token: 'abc',
+  expiresAt: null,
+  isAdmin: false,
+  publicKey: 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N',
+  authenticate: () => Promise.resolve(),
+  disconnect: () => Promise.resolve(),
+  error: null,
+}
+
 vi.mock('../../hooks/useAuthState', () => ({
-  useAuthState: () => ({ token: 'abc', isAdmin: false }),
+  useAuthState: () => currentAuth,
 }))
 
 import { apiFetch } from '../../api/client'
@@ -43,6 +55,16 @@ function renderReport() {
 beforeEach(() => {
   ;(apiFetch as ReturnType<typeof vi.fn>).mockReset()
   navigateMock.mockReset()
+  currentAuth = {
+    status: 'authed',
+    token: 'abc',
+    expiresAt: null,
+    isAdmin: false,
+    publicKey: 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N',
+    authenticate: () => Promise.resolve(),
+    disconnect: () => Promise.resolve(),
+    error: null,
+  }
 })
 
 describe('PrivacyReportView', () => {
@@ -86,5 +108,19 @@ describe('PrivacyReportView', () => {
     ;(apiFetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('boom'))
     renderReport()
     await waitFor(() => expect(screen.getByText('boom')).toBeInTheDocument())
+  })
+
+  it('renders UnauthedEmptyState when status is unauthed', () => {
+    currentAuth = {
+      ...currentAuth,
+      status: 'unauthed',
+      token: null,
+      publicKey: null,
+    }
+    renderReport()
+    expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
+    expect(screen.getByText(/privacy score report/i)).toBeInTheDocument()
+    // Score gauge / loading copy must be absent when unauthed
+    expect(screen.queryByText(/Loading privacy report/)).not.toBeInTheDocument()
   })
 })

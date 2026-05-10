@@ -6,6 +6,7 @@ import { useAuthState } from '../hooks/useAuthState'
 import { Card } from '../components/ui/Card'
 import { Gauge } from '../components/ui/Gauge'
 import { MetricBar } from '../components/ui/MetricBar'
+import { UnauthedEmptyState } from '../components/ui/UnauthedEmptyState'
 
 interface PrivacyData {
   score: number
@@ -21,7 +22,7 @@ function humanizeFactorKey(key: string): string {
 
 export default function PrivacyReportView() {
   const navigate = useNavigate()
-  const { token } = useAuthState()
+  const { token, status } = useAuthState()
   const [data, setData] = useState<PrivacyData | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,6 +42,20 @@ export default function PrivacyReportView() {
       })
     return () => controller.abort()
   }, [token])
+
+  if (status !== 'authed') {
+    return (
+      <UnauthedEmptyState
+        title="Privacy Score Report"
+        body={
+          <>
+            Connect a wallet to view network analysis, surveillance score, and personalized
+            recommendations.
+          </>
+        }
+      />
+    )
+  }
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">

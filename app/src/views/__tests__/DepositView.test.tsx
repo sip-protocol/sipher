@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import type { AuthState } from '../../hooks/useAuthState'
 
 const navigateMock = vi.fn()
 vi.mock('react-router-dom', async () => {
@@ -14,17 +15,19 @@ vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
 }))
 
+let currentAuth: AuthState = {
+  status: 'authed',
+  token: 'test-token',
+  expiresAt: null,
+  isAdmin: false,
+  publicKey: 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N',
+  authenticate: () => Promise.resolve(),
+  disconnect: () => Promise.resolve(),
+  error: null,
+}
+
 vi.mock('../../hooks/useAuthState', () => ({
-  useAuthState: () => ({
-    status: 'authed' as const,
-    token: 'test-token',
-    expiresAt: null,
-    isAdmin: false,
-    publicKey: 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N',
-    authenticate: () => Promise.resolve(),
-    disconnect: () => Promise.resolve(),
-    error: null,
-  }),
+  useAuthState: () => currentAuth,
 }))
 
 vi.mock('../../hooks/useTransactionSigner', () => ({
@@ -56,6 +59,16 @@ beforeEach(() => {
   ;(apiFetch as ReturnType<typeof vi.fn>).mockReset()
   navigateMock.mockReset()
   networkValue = 'devnet'
+  currentAuth = {
+    status: 'authed',
+    token: 'test-token',
+    expiresAt: null,
+    isAdmin: false,
+    publicKey: 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N',
+    authenticate: () => Promise.resolve(),
+    disconnect: () => Promise.resolve(),
+    error: null,
+  }
 })
 
 describe('DepositView', () => {
@@ -93,6 +106,20 @@ describe('DepositView', () => {
     renderDeposit()
     expect(screen.getByText(/devnet only/i)).toBeInTheDocument()
     // Form should not be rendered on mainnet (no AssetSelector, no AmountForm)
+    expect(screen.queryByPlaceholderText('0.0')).not.toBeInTheDocument()
+  })
+
+  it('renders UnauthedEmptyState when status is unauthed', () => {
+    currentAuth = {
+      ...currentAuth,
+      status: 'unauthed',
+      token: null,
+      publicKey: null,
+    }
+    renderDeposit()
+    expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
+    expect(screen.getByText(/shielded deposit/i)).toBeInTheDocument()
+    // Deposit form must be absent when unauthed
     expect(screen.queryByPlaceholderText('0.0')).not.toBeInTheDocument()
   })
 })

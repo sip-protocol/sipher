@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import type { AuthState } from '../../hooks/useAuthState'
 
 const navigateMock = vi.fn()
 vi.mock('react-router-dom', async () => {
@@ -15,17 +16,19 @@ vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
 }))
 
+let currentAuth: AuthState = {
+  status: 'authed',
+  token: 'test-token',
+  expiresAt: null,
+  isAdmin: false,
+  publicKey: 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N',
+  authenticate: () => Promise.resolve(),
+  disconnect: () => Promise.resolve(),
+  error: null,
+}
+
 vi.mock('../../hooks/useAuthState', () => ({
-  useAuthState: () => ({
-    status: 'authed' as const,
-    token: 'test-token',
-    expiresAt: null,
-    isAdmin: false,
-    publicKey: 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N',
-    authenticate: () => Promise.resolve(),
-    disconnect: () => Promise.resolve(),
-    error: null,
-  }),
+  useAuthState: () => currentAuth,
 }))
 
 vi.mock('../../hooks/useTransactionSigner', () => ({
@@ -78,6 +81,16 @@ beforeEach(() => {
   navigateMock.mockReset()
   signAndBroadcast.mockReset()
   networkValue = 'devnet'
+  currentAuth = {
+    status: 'authed',
+    token: 'test-token',
+    expiresAt: null,
+    isAdmin: false,
+    publicKey: 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N',
+    authenticate: () => Promise.resolve(),
+    disconnect: () => Promise.resolve(),
+    error: null,
+  }
 })
 
 describe('WithdrawView', () => {
@@ -128,6 +141,20 @@ describe('WithdrawView', () => {
     renderWithdraw()
     expect(screen.getByText(/devnet only/i)).toBeInTheDocument()
     // RefundList should not render on mainnet
+    expect(screen.queryByText('SOL')).not.toBeInTheDocument()
+  })
+
+  it('renders UnauthedEmptyState when status is unauthed', () => {
+    currentAuth = {
+      ...currentAuth,
+      status: 'unauthed',
+      token: null,
+      publicKey: null,
+    }
+    renderWithdraw()
+    expect(screen.getByTestId('unauthed-empty-state')).toBeInTheDocument()
+    expect(screen.getByText(/shielded withdraw/i)).toBeInTheDocument()
+    // RefundList must be absent when unauthed
     expect(screen.queryByText('SOL')).not.toBeInTheDocument()
   })
 })

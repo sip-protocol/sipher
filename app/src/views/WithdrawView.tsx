@@ -6,6 +6,7 @@ import { useAuthState } from '../hooks/useAuthState'
 import { useTransactionSigner } from '../hooks/useTransactionSigner'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 import { Card } from '../components/ui/Card'
+import { UnauthedEmptyState } from '../components/ui/UnauthedEmptyState'
 import { RefundList } from '../components/vault/RefundList'
 import type { Position } from '../components/vault/StealthAddressList'
 import type { SignStatus } from '../hooks/useTransactionSigner'
@@ -24,7 +25,7 @@ interface RefundTxResponse {
 }
 
 export default function WithdrawView() {
-  const { token } = useAuthState()
+  const { token, status } = useAuthState()
   const navigate = useNavigate()
   const network = useNetworkConfigStore((s) => s.config?.network ?? '')
   const isMainnet = network === 'mainnet'
@@ -104,6 +105,15 @@ export default function WithdrawView() {
     },
     [signAndBroadcast, token, refresh],
   )
+
+  if (status !== 'authed') {
+    return (
+      <UnauthedEmptyState
+        title="Shielded Withdraw"
+        body={<>Connect a wallet to refund deposits and withdraw shielded balances.</>}
+      />
+    )
+  }
 
   if (isMainnet) {
     return (

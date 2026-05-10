@@ -9,6 +9,7 @@ import { DepositForm } from '../components/vault/DepositForm'
 import { RoutePreviewCard } from '../components/vault/RoutePreviewCard'
 import { PrivacyPreviewPanel } from '../components/vault/PrivacyPreviewPanel'
 import { Card } from '../components/ui/Card'
+import { UnauthedEmptyState } from '../components/ui/UnauthedEmptyState'
 
 interface TokenBalance {
   mint: string
@@ -55,7 +56,7 @@ interface DepositTxResponse {
 const DEPOSIT_SUCCESS_REDIRECT_MS = 2000
 
 export default function DepositView() {
-  const { token } = useAuthState()
+  const { token, status: authStatus } = useAuthState()
   const navigate = useNavigate()
   const network = useNetworkConfigStore((s) => s.config?.network ?? '')
   const isMainnet = network === 'mainnet'
@@ -123,6 +124,15 @@ export default function DepositView() {
     },
     [signAndBroadcast, token, navigate],
   )
+
+  if (authStatus !== 'authed') {
+    return (
+      <UnauthedEmptyState
+        title="Shielded Deposit"
+        body={<>Connect a wallet to deposit into the shielded vault.</>}
+      />
+    )
+  }
 
   if (isMainnet) {
     return (
