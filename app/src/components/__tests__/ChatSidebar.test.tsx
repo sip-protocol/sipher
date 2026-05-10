@@ -49,7 +49,6 @@ function resetStore() {
     messages: [],
     chatLoading: false,
     chatOpen: false,
-    activeView: 'dashboard',
   })
 }
 
