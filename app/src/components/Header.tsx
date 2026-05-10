@@ -96,6 +96,7 @@ export default function Header() {
               <Link
                 key={tab.id}
                 to={VIEW_TO_PATH[tab.id]}
+                aria-current={active ? 'page' : undefined}
                 className={[
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                   tab.tabletOnly ? 'lg:hidden' : '',

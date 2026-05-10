@@ -116,4 +116,22 @@ describe('BottomNav', () => {
     await Promise.resolve()
     expect(mockDisconnect).toHaveBeenCalledTimes(1)
   })
+
+  it('marks active link with aria-current="page"', () => {
+    renderBottomNav('/vault')
+    const link = screen.getByRole('link', { name: /Vault/ })
+    expect(link).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('does not mark inactive links with aria-current', () => {
+    renderBottomNav('/')
+    const link = screen.getByRole('link', { name: /Vault/ })
+    expect(link).not.toHaveAttribute('aria-current')
+  })
+
+  it('marks Vault link as active when on /vault/withdraw (sub-route)', () => {
+    renderBottomNav('/vault/withdraw')
+    const link = screen.getByRole('link', { name: /Vault/ })
+    expect(link).toHaveAttribute('aria-current', 'page')
+  })
 })

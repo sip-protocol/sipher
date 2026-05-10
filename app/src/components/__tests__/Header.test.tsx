@@ -176,4 +176,25 @@ describe('Header — tabs', () => {
     renderHeader()
     expect(screen.getByRole('link', { name: /Dashboard/i })).toHaveAttribute('href', '/')
   })
+
+  it('marks active link with aria-current="page"', () => {
+    setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
+    renderHeader('/vault')
+    const link = screen.getByRole('link', { name: /Vault/i })
+    expect(link).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('does not mark inactive links with aria-current', () => {
+    setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
+    renderHeader('/')
+    const link = screen.getByRole('link', { name: /Vault/i })
+    expect(link).not.toHaveAttribute('aria-current')
+  })
+
+  it('marks Vault link as active when on /vault/deposit (sub-route)', () => {
+    setAuth({ status: 'authed', publicKey: FULL, token: 'tok' })
+    renderHeader('/vault/deposit')
+    const link = screen.getByRole('link', { name: /Vault/i })
+    expect(link).toHaveAttribute('aria-current', 'page')
+  })
 })

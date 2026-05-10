@@ -68,6 +68,7 @@ export default function BottomNav() {
             <Link
               key={tab.id}
               to={VIEW_TO_PATH[tab.id]}
+              aria-current={active ? 'page' : undefined}
               className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-1 transition-colors ${
                 active ? 'text-text' : 'text-text-muted'
               }`}
