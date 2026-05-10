@@ -14,6 +14,32 @@ export function registerAuthInterceptor(handler: UnauthHandler | null) {
   authInterceptor = handler
 }
 
+/**
+ * Manually fire the registered auth interceptor. Used by code paths that
+ * bypass `apiFetch` — most notably ChatSidebar's streaming fetch, which
+ * cannot route through the interceptor branch in `apiFetch` because it
+ * needs the response body as a stream.
+ */
+export function triggerAuthInterceptor(): void {
+  if (!authInterceptor) return
+  try {
+    authInterceptor()
+  } catch {
+    // Mirror the 401 branch: an interceptor crash is best-effort UX and
+    // should not propagate. The caller already knows the request failed.
+  }
+}
+
+function emitNetworkError(): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('sipher:network-error'))
+}
+
+function emitNetworkRecovered(): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('sipher:network-recovered'))
+}
+
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit & { token?: string }
@@ -23,19 +49,28 @@ export async function apiFetch<T>(
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
-  const res = await fetch(`${BASE}${path}`, {
-    ...fetchOpts,
-    headers: { ...headers, ...(fetchOpts.headers as Record<string, string>) },
-  })
-  if (res.status === 401) {
-    if (authInterceptor) {
-      try {
-        authInterceptor()
-      } catch {
-        // Never let an interceptor crash propagate up — auth-loss UX is
-        // best-effort. The original request still throws below.
-      }
+  let res: Response
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      ...fetchOpts,
+      headers: { ...headers, ...(fetchOpts.headers as Record<string, string>) },
+    })
+  } catch (err) {
+    // Network-layer failure (offline, DNS, CORS preflight refusal): browsers
+    // throw `TypeError: Failed to fetch`. Surface to the global event bus so
+    // <NetworkBanner> can react; rethrow so callers still see the error.
+    if (err instanceof TypeError) {
+      emitNetworkError()
+      throw new Error('Network connection lost')
     }
+    throw err
+  }
+
+  // If we recovered from a prior network error, let the banner know.
+  emitNetworkRecovered()
+
+  if (res.status === 401) {
+    triggerAuthInterceptor()
     const body = await res.json().catch(() => ({}))
     const err = (body as { error?: { message?: string } | string }).error
     if (typeof err === 'string') throw new Error(err)
