@@ -6,6 +6,7 @@ import '@solana/wallet-adapter-react-ui/styles.css'
 
 import Header from './components/Header'
 import BottomNav from './components/BottomNav'
+import { Footer } from './components/Footer'
 import ChatSidebar from './components/ChatSidebar'
 import { BetaBanner } from './components/BetaBanner'
 import { NetworkBanner } from './components/NetworkBanner'
@@ -64,6 +65,7 @@ function AppShell() {
       </div>
 
       <BottomNav />
+      <Footer />
 
       <Sheet
         open={chatSheetOpen}
