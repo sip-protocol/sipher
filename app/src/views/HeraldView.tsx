@@ -419,8 +419,9 @@ export default function HeraldView({ token }: { token: string | null }) {
   }, [token])
 
   useEffect(() => {
+    if (!isAdmin) return
     load()
-  }, [load])
+  }, [isAdmin, load])
 
   const handleApprove = async (id: string, action: 'approve' | 'reject') => {
     await apiFetch(`/api/herald/approve/${id}`, {

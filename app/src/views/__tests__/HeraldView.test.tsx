@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import HeraldView from '../HeraldView'
 
 const setActiveViewMock = vi.fn()
@@ -40,7 +40,7 @@ describe('HeraldView admin gating', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('does NOT redirect when isAdmin', () => {
+  it('does NOT redirect when isAdmin', async () => {
     vi.mocked(useAuthState).mockReturnValue({
       status: 'authed',
       token: 't',
@@ -48,8 +48,10 @@ describe('HeraldView admin gating', () => {
       isAdmin: true,
     } as ReturnType<typeof useAuthState>)
     const { container } = render(<HeraldView token="t" />)
+    await waitFor(() => {
+      expect(container.firstChild).not.toBeNull()
+    })
     expect(setActiveViewMock).not.toHaveBeenCalled()
-    expect(container.firstChild).not.toBeNull()
   })
 })
 
@@ -72,9 +74,9 @@ describe('HeraldView budget bar colors', () => {
       recentPosts: [],
     })
     const { container } = render(<HeraldView token="t" />)
-    await new Promise((r) => setTimeout(r, 0))
-    const bar = container.querySelector('[class*="bg-success-soft"]')
-    expect(bar).toBeTruthy()
+    await waitFor(() => {
+      expect(container.querySelector('[class*="bg-success-soft"]')).toBeTruthy()
+    })
   })
 
   it('uses warning-soft when budget >= 80%', async () => {
@@ -86,9 +88,9 @@ describe('HeraldView budget bar colors', () => {
       recentPosts: [],
     })
     const { container } = render(<HeraldView token="t" />)
-    await new Promise((r) => setTimeout(r, 0))
-    const bar = container.querySelector('[class*="bg-warning-soft"]')
-    expect(bar).toBeTruthy()
+    await waitFor(() => {
+      expect(container.querySelector('[class*="bg-warning-soft"]')).toBeTruthy()
+    })
   })
 
   it('uses danger-soft when budget >= 95%', async () => {
@@ -100,8 +102,8 @@ describe('HeraldView budget bar colors', () => {
       recentPosts: [],
     })
     const { container } = render(<HeraldView token="t" />)
-    await new Promise((r) => setTimeout(r, 0))
-    const bar = container.querySelector('[class*="bg-danger-soft"]')
-    expect(bar).toBeTruthy()
+    await waitFor(() => {
+      expect(container.querySelector('[class*="bg-danger-soft"]')).toBeTruthy()
+    })
   })
 })
