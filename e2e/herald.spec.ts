@@ -34,6 +34,9 @@ test('herald view renders with admin budget visible', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: /more/i }).click()
   await page.getByRole('button', { name: /^herald$/i }).click()
+  // BottomNav More-drawer admin items still trigger navigate() (not <Link>)
+  // because they need to dismiss the drawer first. After click, URL is /herald.
+  await expect(page).toHaveURL(/\/herald$/)
   await expect(page.locator('[data-testid="herald-view"]')).toBeVisible()
   expect(errors).toEqual([])
 })
