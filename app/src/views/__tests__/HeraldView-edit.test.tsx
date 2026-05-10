@@ -4,6 +4,15 @@ import userEvent from '@testing-library/user-event'
 import { useAppStore } from '../../stores/app'
 import HeraldView from '../HeraldView'
 
+vi.mock('../../hooks/useAuthState', () => ({
+  useAuthState: vi.fn(() => ({
+    status: 'authed',
+    token: 'test-token',
+    publicKey: 'pk',
+    isAdmin: true,
+  })),
+}))
+
 describe('HeraldView Edit flow', () => {
   beforeEach(() => {
     useAppStore.setState({ token: 'test-token', isAdmin: true, messages: [], chatLoading: false })
