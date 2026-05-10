@@ -5,6 +5,7 @@ import { useAuthState } from '../hooks/useAuthState'
 import { useToast } from '../providers/ToastProvider'
 import { sanitizeArgs } from '../lib/sanitize-args'
 import { isAuthError } from '../lib/auth-errors'
+import { triggerAuthInterceptor } from '../api/client'
 import ToolTimeline from './ToolTimeline'
 import SentinelConfirm from './SentinelConfirm'
 
@@ -64,6 +65,14 @@ export default function ChatSidebar({ fullScreen }: Props) {
       })
 
       if (!res.ok) {
+        if (res.status === 401) {
+          // Drop the empty assistant placeholder so the user doesn't see a
+          // ghost bubble next to the session-expired toast. The toast (wired
+          // globally in AuthSyncProvider) carries the re-auth UX.
+          dismissMessage(assistantMsg.id)
+          triggerAuthInterceptor()
+          return
+        }
         const err = await res.json().catch(() => ({}))
         throw new Error((err as { error?: string }).error ?? `Error ${res.status}`)
       }

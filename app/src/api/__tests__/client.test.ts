@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { apiFetch, registerAuthInterceptor } from '../client'
+import { apiFetch, registerAuthInterceptor, triggerAuthInterceptor } from '../client'
 
 describe('apiFetch', () => {
   const originalFetch = global.fetch
@@ -139,5 +139,88 @@ describe('apiFetch', () => {
     })
     const result = await apiFetch('/test')
     expect(result).toBeUndefined()
+  })
+})
+
+describe('apiFetch network-error branch', () => {
+  let originalFetch: typeof globalThis.fetch
+  beforeEach(() => {
+    originalFetch = globalThis.fetch
+  })
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it('emits a network-error CustomEvent on TypeError: Failed to fetch', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+    const handler = vi.fn()
+    window.addEventListener('sipher:network-error', handler)
+    await expect(apiFetch('/whatever')).rejects.toThrow(/network/i)
+    expect(handler).toHaveBeenCalledOnce()
+    window.removeEventListener('sipher:network-error', handler)
+  })
+
+  it('does not emit network-error on a non-network failure (e.g. 500)', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: 'server boom' }), { status: 500 }),
+    )
+    const handler = vi.fn()
+    window.addEventListener('sipher:network-error', handler)
+    await expect(apiFetch('/whatever')).rejects.toThrow(/boom/)
+    expect(handler).not.toHaveBeenCalled()
+    window.removeEventListener('sipher:network-error', handler)
+  })
+
+  it('emits network-recovered on successful fetch', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    )
+    const handler = vi.fn()
+    window.addEventListener('sipher:network-recovered', handler)
+    await apiFetch('/whatever')
+    expect(handler).toHaveBeenCalledOnce()
+    window.removeEventListener('sipher:network-recovered', handler)
+  })
+
+  it('preserves AbortError name through the network-error catch wrapper', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      const e = new DOMException('aborted', 'AbortError')
+      throw e
+    })
+    const handler = vi.fn()
+    window.addEventListener('sipher:network-error', handler)
+    try {
+      await apiFetch('/whatever')
+      throw new Error('apiFetch should have thrown')
+    } catch (err) {
+      // AbortError must propagate as-is — 8+ callers in the app rely on
+      // `err.name === 'AbortError'` to distinguish user-cancelled requests
+      // from genuine failures. The new TypeError wrapper must NOT catch it.
+      expect((err as Error).name).toBe('AbortError')
+    }
+    expect(handler).not.toHaveBeenCalled()
+    window.removeEventListener('sipher:network-error', handler)
+  })
+})
+
+describe('triggerAuthInterceptor', () => {
+  it('invokes the registered auth interceptor exactly once', () => {
+    const handler = vi.fn()
+    registerAuthInterceptor(handler)
+    triggerAuthInterceptor()
+    expect(handler).toHaveBeenCalledOnce()
+    registerAuthInterceptor(null)
+  })
+
+  it('is a no-op when no interceptor is registered', () => {
+    registerAuthInterceptor(null)
+    expect(() => triggerAuthInterceptor()).not.toThrow()
+  })
+
+  it('swallows interceptor exceptions like the 401 path does', () => {
+    const handler = vi.fn(() => { throw new Error('boom') })
+    registerAuthInterceptor(handler)
+    expect(() => triggerAuthInterceptor()).not.toThrow()
+    registerAuthInterceptor(null)
   })
 })

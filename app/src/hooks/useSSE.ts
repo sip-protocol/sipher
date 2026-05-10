@@ -37,6 +37,13 @@ export function useSSE() {
       if (cancelled) { source.close(); return }
       sourceRef.current = source
       setConnected(true)
+      // EventSource fires onerror on every transient blip (1s WiFi hiccup,
+      // server hot-reload, browser-driven auto-reconnect). Wiping events on
+      // each one would clear the user's live activity feed mid-read. Keep
+      // events visible; users can see they're stale via the connected flag
+      // (and the upcoming <NetworkBanner> for offline state at the network
+      // layer). Auth-clear cleanup remains the single owner of "drain
+      // events" via useOnAuthClear above.
       source.onerror = () => setConnected(false)
     }).catch(() => {
       setConnected(false)

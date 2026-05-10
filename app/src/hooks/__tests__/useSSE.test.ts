@@ -54,4 +54,49 @@ describe('useSSE', () => {
     act(() => onAuthClear.clearAll())
     await waitFor(() => expect(result.current.events).toHaveLength(0))
   })
+
+  it('keeps events on transient EventSource error and only flips connected to false', async () => {
+    let onMessageCb: ((e: MessageEvent) => void) | null = null
+    const onerrorRef: { current: (() => void) | null } = { current: null }
+
+    ;(connectSSE as ReturnType<typeof vi.fn>).mockImplementation(
+      async (_token, onMessage) => {
+        onMessageCb = onMessage
+        const source = {
+          close: vi.fn(),
+          get onerror() { return onerrorRef.current },
+          set onerror(v: (() => void) | null) { onerrorRef.current = v },
+        }
+        return source as unknown as EventSource
+      },
+    )
+
+    const { result } = renderHook(() => useSSE())
+    await waitFor(() => expect(onMessageCb).not.toBeNull())
+    await waitFor(() => expect(result.current.connected).toBe(true))
+
+    act(() => {
+      onMessageCb?.({
+        data: JSON.stringify({
+          id: '1',
+          agent: 'a',
+          type: 't',
+          level: 'info',
+          data: {},
+          timestamp: 'x',
+        }),
+      } as MessageEvent)
+    })
+    await waitFor(() => expect(result.current.events).toHaveLength(1))
+
+    // Transient EventSource blip: connected flips false but events are NOT
+    // wiped — users keep seeing their activity feed across short network
+    // hiccups. Auth-clear (the test above) is the only path that drains
+    // events.
+    act(() => {
+      onerrorRef.current?.()
+    })
+    await waitFor(() => expect(result.current.connected).toBe(false))
+    expect(result.current.events).toHaveLength(1)
+  })
 })
