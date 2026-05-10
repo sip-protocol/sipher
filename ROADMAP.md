@@ -1,18 +1,84 @@
-# Sipher Roadmap — Privacy-as-a-Skill for Autonomous Agents
+# Sipher Roadmap
 
-## Endgame Vision
+> Privacy infrastructure for users and agents on Solana — wallet for humans, REST API for autonomous systems.
 
-Sipher becomes the **universal privacy middleware API** — the single REST endpoint any agent, app, or service calls to add privacy to blockchain transactions. "Stripe for privacy" — dead-simple API, all complexity internal.
+Sipher is the privacy layer between you and the blockchain. The wallet hides amounts, sender, and recipient. The REST API gives autonomous agents the same primitives. This roadmap covers both surfaces — what's live today, what ships next, and where Sipher is heading.
 
-**Principles:** Agent-first | Chain-agnostic | Backend-agnostic | Compliance-ready | Zero custody
+## Product roadmap
 
-**Revenue path:** Tiered API keys (free/pro/enterprise) with metered billing per privacy operation.
+> What you can do with Sipher today, and what's coming next.
 
-**Moat:** Depth of SDK (6,661+ tests), backend aggregation (6+ privacy backends), agent-native design.
+### Q2 2026 — Devnet beta (LIVE)
 
----
+<img alt="Sipher Dashboard hero with Privacy Graph and Privacy Score" src="docs/assets/roadmap/dashboard.png" />
 
-## Phase 1: Hackathon Polish (Feb 5-12) ✅
+- ✅ Stealth-address vault on Solana devnet (`sipher_vault` program: `S1Phr5rmDfkZTyLXzH5qUHeiqZS3Uf517SQzRbU4kHB`)
+- ✅ Privacy score + viewing keys (selective disclosure for compliance)
+- ✅ Multi-chain readiness — M18 testnets shipped (Sepolia, Arbitrum, Base, OP, Scroll, Linea, Mode)
+- ✅ Glass-neon UI launch (Vercel-hosted, design system at `app/src/components/ui/`)
+- ✅ Real Jupiter swaps with stealth output routing
+- ✅ SENTINEL security layer (LLM risk analyst, advisory mode live)
+
+### Q3 2026 — Path B activates (M19)
+
+<img alt="Sipher Vault stealth address list" src="docs/assets/roadmap/vault-stealth-list.png" />
+
+- 🎯 Mainnet vault deploy (`sipher_vault` → mainnet-beta with audited config)
+- 🎯 Denominated note mixer — Path B, second privacy backend, NOT replacement (see note below)
+- 🎯 Proof composition v1 (Halo2 + Kimchi research → SDK ProofProvider)
+- 🎯 Real privacy graph backend (replaces stub; full stealth-tree derivation via viewing keys)
+
+### Q4 2026 — Standard & ecosystem (M20-M21)
+
+- 🎯 Multi-language SDK (Python + Rust clients auto-generated from OpenAPI spec)
+- 🎯 SIP-EIP standard proposal (privacy primitives as EVM standard)
+- 🎯 Industry working group (Solana, NEAR, Ethereum, Zcash, Mina foundations)
+
+## Note on the denominated note mixer
+
+The Q2 2026 devnet beta launches with a redesigned UI that **reinterprets** two surfaces from the Tornado-Cash-style mental model:
+
+| Designer's original surface | Devnet beta interpretation | Why |
+|---|---|---|
+| Network atlas (mixer pool topology) | **Privacy graph** (stealth-tree of your addresses) | Stealth + viewing keys give per-address privacy without pooling. The graph visualizes the protection you already have. |
+| Denomination pools (0.1/1/10/100 SOL) | **Multi-chain vault grid** | Sipher's stealth-vault model supports any amount on any chain. Fixed pools are a constraint we don't need. |
+
+<img alt="Sipher Multi-chain vault grid showing supported chains and vault states" src="docs/assets/roadmap/multi-chain-grid.png" />
+
+**The literal denominated note mixer is not cancelled — it ships in Q3 2026 (M19) as a SECOND privacy backend, not a replacement.** Users will choose between stealth-vault (default) and note-mixer (opt-in for higher anonymity-set guarantees on specific denominations).
+
+**Why both?** Stealth addresses give any-amount privacy with viewing-key compliance — strongest UX, no fixed pools. Note mixers give cryptographic anonymity-set guarantees on standardized denominations — strongest theoretical privacy at the cost of UX. Sipher routes between them via the existing PrivacyBackendRegistry (see Phase 5 in the developer section).
+
+Full architectural rationale: see [`docs/superpowers/specs/2026-05-07-glass-neon-redesign-design.md`](docs/superpowers/specs/2026-05-07-glass-neon-redesign-design.md) sections "Locked Decision D1" and "Out of Scope".
+
+## Developer & integrator roadmap
+
+> REST API + SDK + agent capabilities
+
+### Q2 2026 — In progress
+
+- 🔄 **M18 close** — EVM L2 deployments (Blast, Mantle, zkSync Era), 1inch aggregator, Gelato gasless relayer
+- ✅ **SENTINEL advisory mode live on VPS** — LLM risk analyst gates fund-moving tools (PRs #149-#151)
+- ✅ **Devnet stealth scan tooling** — agent SDK exposes deposit/refund/withdraw flows
+- 🔄 **Sipher Agent SDK + UI** — adaptive Command Center dashboard
+
+### Q3 2026 — M19 (Path B activates)
+
+- 🎯 Proof composition v1 (Halo2 + Kimchi research → SDK ProofProvider)
+- 🎯 Denominated note mixer (Path B — second privacy backend in PrivacyBackendRegistry)
+- 🎯 Real stealth-tree backend (replaces `/api/stealth/index` stub)
+- 🎯 Mainnet vault audit + deploy
+
+### Q4 2026 — M20-M21
+
+- 🎯 Multi-language SDK (Python + Rust auto-generated from OpenAPI)
+- 🎯 SIP-EIP draft submitted to Ethereum standards process
+- 🎯 Industry working group convened (Solana / NEAR / Ethereum / Zcash / Mina)
+
+<details>
+<summary><strong>Shipped (Phases 1-7, 38/38 ✅)</strong> — 497 REST + 905 agent tests, 66 endpoints, 17 chains, 14 SENTINEL tools</summary>
+
+### Phase 1: Hackathon Polish (Feb 5-12) ✅
 
 > Fill critical gaps, make the demo bulletproof for Colosseum judges.
 
@@ -28,9 +94,7 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 
 **Outcome:** ~~39 → 65+ tests~~ **231 tests**, ~~13 → 16 endpoints~~ **70 endpoints**, full-flow demo script in repo.
 
----
-
-## Phase 2: Production Hardening (Feb-Mar 2026) ✅
+### Phase 2: Production Hardening (Feb-Mar 2026) ✅
 
 > Make Sipher reliable enough that agents depend on it in production.
 
@@ -46,9 +110,7 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 
 **Outcome:** Production-grade reliability, proper auth tiers, machine-readable error catalog. (7/7 complete)
 
----
-
-## Phase 3: Advanced Privacy Features (Mar-Apr 2026) ✅
+### Phase 3: Advanced Privacy Features (Mar-Apr 2026) ✅
 
 > Expose full SDK depth. This is where Sipher becomes irreplaceable.
 
@@ -64,9 +126,7 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 
 **Outcome:** Surveillance scoring (conversion tool), ZK proofs, C-SPL, webhooks — full privacy stack. (7/7 complete)
 
----
-
-## Phase 4: Multi-Chain Expansion (Apr-Jun 2026) ✅
+### Phase 4: Multi-Chain Expansion (Apr-Jun 2026) ✅
 
 > Extend beyond Solana. SDK already supports NEAR, Ethereum, Cosmos, Bitcoin, Move chains.
 
@@ -81,9 +141,7 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 
 **Outcome:** 6 chain families supported through unified API. (6/6 complete)
 
----
-
-## Phase 5: Privacy Backend Aggregation (Jun-Aug 2026) ✅
+### Phase 5: Privacy Backend Aggregation (Jun-Aug 2026) ✅
 
 > The "OpenRouter for privacy" moment. Single API routing through multiple privacy backends.
 
@@ -97,9 +155,7 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 
 **Outcome:** 5+ privacy backends routed through unified API. (5/5 complete)
 
----
-
-## Phase 6: Enterprise & Ecosystem (Aug-Dec 2026)
+### Phase 6: Enterprise & Ecosystem (Aug-Dec 2026)
 
 > Revenue generation, enterprise adoption, ecosystem growth.
 
@@ -114,9 +170,7 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 
 **Outcome:** Revenue stream, enterprise compliance, multi-language SDK, gas abstraction. (6/6 complete ✅)
 
----
-
-## Phase 7: SENTINEL Security Layer (Apr 2026) ✅
+### Phase 7: SENTINEL Security Layer (Apr 2026) ✅
 
 > Autonomous threat detection and risk governance for fund-moving actions.
 
@@ -134,9 +188,7 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 
 **Outcome:** Autonomous security layer — LLM risk analyst screens all fund-moving actions, operator-driven rollout, full audit trail. (9/9 complete ✅)
 
----
-
-## Summary
+### Summary
 
 | Phase | Theme | Issues | Timeline | Status |
 |-------|-------|--------|----------|--------|
@@ -150,6 +202,25 @@ Sipher becomes the **universal privacy middleware API** — the single REST endp
 
 **Progress: 38/38 issues complete** | **497 REST + 905 agent tests** | **66 endpoints** | **17 chains**
 
+</details>
+
+## Endgame vision
+
+Sipher becomes the **universal privacy middleware** — the wallet humans reach for first, and the REST endpoint any agent, app, or service calls to add privacy to blockchain transactions.
+
+**Mental models:**
+- **Stripe for privacy** — dead-simple API, all complexity internal
+- **OpenRouter for privacy** — single API routing through multiple privacy backends (stealth-vault, denominated mixer, MPC, FHE)
+
+**Principles:** Wallet-first for humans · Agent-first for autonomous systems · Chain-agnostic · Backend-agnostic · Compliance-ready · Zero custody
+
+**Revenue path:** Tiered API keys (free/pro/enterprise) with metered billing per privacy operation. Wallet stays free, infrastructure pays the bills.
+
+**Moat:** Depth of SDK (38/38 phase milestones shipped, 497 REST + 905 agent tests), backend aggregation (5+ privacy backends + growing), agent-native design (22 SIPHER tools + 9 HERALD + 14 SENTINEL).
+
 ---
 
-**Last Updated:** 2026-04-16
+**Last Updated:** 2026-05-10
+**Live wallet:** [sipher.sip-protocol.org](https://sipher.sip-protocol.org)
+**API base:** [sipher-api.sip-protocol.org](https://sipher-api.sip-protocol.org)
+**Spec sources:** [`docs/superpowers/specs/`](docs/superpowers/specs/)
