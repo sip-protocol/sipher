@@ -4,6 +4,7 @@ import { apiFetch } from '../api/client'
 import { useAuthState } from '../hooks/useAuthState'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 import { useOnAuthClear } from '../store/useOnAuthClear'
+import { Banner } from '../components/ui/Banner'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { HashCell } from '../components/ui/HashCell'
@@ -87,17 +88,22 @@ export default function VaultView() {
 
   if (status !== 'authed') {
     return (
-      <UnauthedEmptyState
-        title="Shielded Vault"
-        body={
-          <>
-            Privacy-preserving SOL + token vault on Solana. Stealth output addresses by default.
-            <br />
-            <strong>Connect a wallet to deposit.</strong>
-          </>
-        }
-        illustration={<RoutePreviewCard wallet="" />}
-      />
+      <div className="flex flex-col gap-4">
+        <Banner kind="info">
+          Vault is a connected-wallet feature. Connect your wallet to deposit, manage stealth keys, and view your shielded balance.
+        </Banner>
+        <UnauthedEmptyState
+          title="Shielded Vault"
+          body={
+            <>
+              Privacy-preserving SOL + token vault on Solana. Stealth output addresses by default.
+              <br />
+              <strong>Connect a wallet to deposit.</strong>
+            </>
+          }
+          illustration={<RoutePreviewCard wallet="" />}
+        />
+      </div>
     )
   }
 

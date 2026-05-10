@@ -1,4 +1,5 @@
 import { useAuthState } from '../hooks/useAuthState'
+import { Banner } from '../components/ui/Banner'
 import { UnauthedEmptyState } from '../components/ui/UnauthedEmptyState'
 import { ViewKeyCard } from '../components/keys/ViewKeyCard'
 import { StealthAddressBackup } from '../components/keys/StealthAddressBackup'
@@ -7,10 +8,15 @@ export default function KeysView() {
   const { status } = useAuthState()
   if (status !== 'authed') {
     return (
-      <UnauthedEmptyState
-        title="Stealth Keys"
-        body="Your spending and viewing keys are derived from your wallet. Connect to view, rotate, or back them up."
-      />
+      <div className="flex flex-col gap-4">
+        <Banner kind="info">
+          Stealth keys are a connected-wallet feature. Connect your wallet to view, rotate, or back them up.
+        </Banner>
+        <UnauthedEmptyState
+          title="Stealth Keys"
+          body="Your spending and viewing keys are derived from your wallet. Connect to view, rotate, or back them up."
+        />
+      </div>
     )
   }
 
