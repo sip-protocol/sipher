@@ -33,4 +33,14 @@ describe('RoutePreviewCard', () => {
     )
     expect(screen.getByText('—')).toBeInTheDocument()
   })
+
+  it('renders em-dash placeholder when wallet is empty (no unlabelled Copy button)', () => {
+    const { container } = render(<RoutePreviewCard wallet="" />)
+    // No focusable HashCell button with empty aria-label
+    expect(container.querySelector('button[aria-label="Copy "]')).toBeNull()
+    // Vault PDA HashCell is still rendered (default)
+    expect(
+      container.querySelector('button[aria-label*="CpL4qyHFJYkU5WKdcjTJUu52fYFzjrvHZo4fjPp9T76u"]'),
+    ).not.toBeNull()
+  })
 })
