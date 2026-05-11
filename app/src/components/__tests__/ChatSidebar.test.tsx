@@ -49,6 +49,32 @@ function resetStore() {
     messages: [],
     chatLoading: false,
     chatOpen: false,
+    unauthedRemaining: null,
+  })
+}
+
+// Build a Response-like object that mimics the SSE shape served by
+// /api/public/chat/stream, including the X-RateLimit-* headers the FE
+// reads to drive the countdown banner.
+function mockSseResponseWithRateLimitHeaders(remaining: number, body = 'Hi'): Response {
+  const encoder = new TextEncoder()
+  const sseBody = new ReadableStream({
+    start(controller) {
+      controller.enqueue(
+        encoder.encode(`data: ${JSON.stringify({ type: 'content_block_delta', text: body })}\n\n`)
+      )
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+      controller.close()
+    },
+  })
+  return new Response(sseBody, {
+    status: 200,
+    headers: {
+      'content-type': 'text/event-stream',
+      'X-RateLimit-Limit': '5',
+      'X-RateLimit-Remaining': String(remaining),
+      'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 3600),
+    },
   })
 }
 
@@ -64,10 +90,11 @@ describe('ChatSidebar', () => {
     vi.restoreAllMocks()
   })
 
-  it('shows connect-wallet placeholder and disables input when unauthenticated', () => {
+  it('shows unauthed educational placeholder and keeps input enabled (Wave 2b #218)', () => {
     render(<ChatSidebar />)
-    const input = screen.getByPlaceholderText('Connect wallet first')
-    expect(input).toBeDisabled()
+    const input = screen.getByPlaceholderText(/ask sipher about privacy/i)
+    // Unauthed users still get a free-message budget — input is interactive.
+    expect(input).not.toBeDisabled()
   })
 
   it('enables input when authenticated', () => {
@@ -214,6 +241,96 @@ describe('ChatSidebar', () => {
       const input = screen.getByLabelText('Ask SIPHER') as HTMLInputElement
       expect(input).toBeInTheDocument()
       expect(input.maxLength).toBe(4000)
+    })
+  })
+
+  describe('unauthed mode', () => {
+    beforeEach(() => {
+      // Default: 4 messages remaining after the click consumes one.
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockSseResponseWithRateLimitHeaders(4)))
+    })
+
+    it('renders 3 suggested questions in empty state', () => {
+      render(<ChatSidebar />)
+      expect(screen.getByText(/how does a stealth address work/i)).toBeInTheDocument()
+      expect(screen.getByText(/sipher and tornado cash/i)).toBeInTheDocument()
+      expect(screen.getByText(/viewing keys/i)).toBeInTheDocument()
+    })
+
+    it('clicking a suggested question pre-fills + sends', async () => {
+      render(<ChatSidebar />)
+      fireEvent.click(screen.getByText(/how does a stealth address work/i))
+      await waitFor(() => expect(global.fetch as ReturnType<typeof vi.fn>).toHaveBeenCalled())
+      const url = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]
+      expect(String(url)).toContain('/api/public/chat/stream')
+    })
+
+    it('banner shows "5 free messages — connect for unlimited" before any send', () => {
+      render(<ChatSidebar />)
+      expect(screen.getByText(/5 .*free messages/i)).toBeInTheDocument()
+    })
+
+    it('banner countdown updates from X-RateLimit-Remaining', async () => {
+      render(<ChatSidebar />)
+      fireEvent.click(screen.getByText(/how does a stealth address work/i))
+      await waitFor(() => {
+        expect(screen.getByText(/4 .*free messages/i)).toBeInTheDocument()
+      })
+    })
+
+    it('on remaining=0 after send, input disabled + button copy is "Connect wallet to continue"', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockSseResponseWithRateLimitHeaders(0)))
+      render(<ChatSidebar />)
+      fireEvent.click(screen.getByText(/how does a stealth address work/i))
+      await waitFor(() => {
+        const input = screen.getByLabelText(/ask sipher/i) as HTMLInputElement
+        expect(input.disabled).toBe(true)
+      })
+      expect(screen.getByText(/connect wallet to continue/i)).toBeInTheDocument()
+    })
+
+    it('on 429 response, input disabled + toast shown', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              error: {
+                code: 'RATE_LIMITED',
+                message: 'Daily free limit reached',
+                resetAt: Date.now() + 3600_000,
+              },
+            }),
+            {
+              status: 429,
+              headers: {
+                'content-type': 'application/json',
+                'X-RateLimit-Remaining': '0',
+                'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 3600),
+              },
+            }
+          )
+        )
+      )
+      render(<ChatSidebar />)
+      fireEvent.click(screen.getByText(/how does a stealth address work/i))
+      await waitFor(() => {
+        const input = screen.getByLabelText(/ask sipher/i) as HTMLInputElement
+        expect(input.disabled).toBe(true)
+      })
+      expect(mockToastShow).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: 'error' })
+      )
+    })
+
+    it('POST has NO Authorization header in unauthed mode', async () => {
+      render(<ChatSidebar />)
+      fireEvent.click(screen.getByText(/how does a stealth address work/i))
+      await waitFor(() => expect(global.fetch as ReturnType<typeof vi.fn>).toHaveBeenCalled())
+      const init = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit
+      const headers = (init.headers ?? {}) as Record<string, string>
+      expect(headers.Authorization).toBeUndefined()
+      expect(headers.authorization).toBeUndefined()
     })
   })
 })

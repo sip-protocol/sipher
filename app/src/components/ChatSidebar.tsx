@@ -11,6 +11,16 @@ import SentinelConfirm from './SentinelConfirm'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
+// Wave 2b #218 — educational prompts shown in the unauthed empty state.
+// RECTOR may polish copy at PR review; chips are click-to-send.
+const SUGGESTED_QUESTIONS: ReadonlyArray<string> = [
+  'How does a stealth address work?',
+  "What's the difference between SIPHER and Tornado Cash?",
+  'Why are viewing keys important for compliance?',
+]
+
+const UNAUTHED_FREE_CAP = 5
+
 interface Props {
   fullScreen?: boolean
 }
@@ -28,6 +38,10 @@ export default function ChatSidebar({ fullScreen }: Props) {
   const completeTool = useAppStore((s) => s.completeTool)
   const dismissMessage = useAppStore((s) => s.dismissMessage)
   const consumePendingPrompt = useAppStore((s) => s.consumePendingPrompt)
+  const unauthedRemaining = useAppStore((s) => s.unauthedRemaining)
+  const setUnauthedRemaining = useAppStore((s) => s.setUnauthedRemaining)
+
+  const mode: 'authed' | 'unauthed' = token ? 'authed' : 'unauthed'
 
   const [input, setInput] = useState('')
   const [activeTool, setActiveTool] = useState<string | null>(null)
@@ -38,9 +52,16 @@ export default function ChatSidebar({ fullScreen }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, chatLoading])
 
+  // Effective remaining count: null → CAP (no message sent yet this session),
+  // otherwise the clamped number from the last X-RateLimit-Remaining header.
+  const effectiveRemaining = unauthedRemaining ?? UNAUTHED_FREE_CAP
+  const unauthedBudgetExhausted = mode === 'unauthed' && effectiveRemaining <= 0
+
   const sendMessage = useCallback(async (overrideText?: string) => {
     const text = (overrideText ?? input).trim()
-    if (!text || !token || chatLoading) return
+    if (!text || chatLoading) return
+    if (mode === 'authed' && !token) return
+    if (mode === 'unauthed' && unauthedBudgetExhausted) return
 
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text }
     addMessage(userMsg)
@@ -58,14 +79,31 @@ export default function ChatSidebar({ fullScreen }: Props) {
 
     try {
       const allMessages = [...messages, userMsg].map((m) => ({ role: m.role, content: m.content }))
-      const res = await fetch(`${API_URL}/api/chat/stream`, {
+      const url = mode === 'authed'
+        ? `${API_URL}/api/chat/stream`
+        : `${API_URL}/api/public/chat/stream`
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (mode === 'authed' && token) headers.Authorization = `Bearer ${token}`
+
+      const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers,
         body: JSON.stringify({ messages: allMessages }),
       })
 
+      // In unauthed mode, every response (200 or 429) emits X-RateLimit-Remaining.
+      // Sync it before branching on res.ok so the banner stays truthful even
+      // on rate-limit errors.
+      if (mode === 'unauthed') {
+        const remainingHeader = res.headers.get('X-RateLimit-Remaining')
+        if (remainingHeader !== null) {
+          const parsed = Number.parseInt(remainingHeader, 10)
+          if (Number.isFinite(parsed)) setUnauthedRemaining(Math.max(0, parsed))
+        }
+      }
+
       if (!res.ok) {
-        if (res.status === 401) {
+        if (mode === 'authed' && res.status === 401) {
           // Drop the empty assistant placeholder so the user doesn't see a
           // ghost bubble next to the session-expired toast. The toast (wired
           // globally in AuthSyncProvider) carries the re-auth UX.
@@ -73,8 +111,34 @@ export default function ChatSidebar({ fullScreen }: Props) {
           triggerAuthInterceptor()
           return
         }
+
+        if (mode === 'unauthed' && res.status === 429) {
+          // 429 envelope from /api/public/chat/stream:
+          //   { error: { code, message, resetAt } }
+          dismissMessage(assistantMsg.id)
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: { code?: string; message?: string; resetAt?: number }
+          }
+          const resetAt = body.error?.resetAt
+          const resetClock = typeof resetAt === 'number'
+            ? new Date(resetAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : 'tomorrow'
+          showToast({
+            kind: 'error',
+            message: `Daily free limit reached. Resets at ${resetClock}.`,
+            durationMs: 6000,
+          })
+          setUnauthedRemaining(0)
+          return
+        }
+
         const err = await res.json().catch(() => ({}))
-        throw new Error((err as { error?: string }).error ?? `Error ${res.status}`)
+        const errMessage =
+          (err as { error?: { message?: string } | string }).error &&
+          typeof (err as { error?: { message?: string } | string }).error === 'object'
+            ? ((err as { error: { message?: string } }).error.message ?? `Error ${res.status}`)
+            : (((err as { error?: string }).error as string | undefined) ?? `Error ${res.status}`)
+        throw new Error(errMessage)
       }
       if (!res.body) throw new Error('No response body')
 
@@ -139,13 +203,45 @@ export default function ChatSidebar({ fullScreen }: Props) {
       setChatLoading(false)
       setActiveTool(null)
     }
-  }, [input, token, chatLoading, messages, addMessage, appendToLast, finishStreaming, setChatLoading, appendTool, completeTool, showToast])
+  }, [
+    input,
+    mode,
+    token,
+    chatLoading,
+    unauthedBudgetExhausted,
+    messages,
+    addMessage,
+    appendToLast,
+    finishStreaming,
+    setChatLoading,
+    appendTool,
+    completeTool,
+    dismissMessage,
+    showToast,
+    setUnauthedRemaining,
+  ])
 
-  // Consume seedChat prompt on mount/change
+  // Consume seedChat prompt on mount/change (authed only — unauthed mode
+  // never receives a pending prompt because deep-link CTAs require auth).
   useEffect(() => {
     const p = consumePendingPrompt()
     if (p && token) sendMessage(p)
   }, [consumePendingPrompt, sendMessage, token])
+
+  // ─── Compute view-state flags shared by render branches ────────────────────
+  const isAuthed = mode === 'authed'
+  const sendDisabled =
+    chatLoading ||
+    (isAuthed ? !input.trim() || !token : unauthedBudgetExhausted || !input.trim())
+  const inputDisabled =
+    chatLoading || (isAuthed ? !token : unauthedBudgetExhausted)
+  const placeholder = isAuthed
+    ? token
+      ? 'Message SIPHER...'
+      : 'Connect wallet first'
+    : unauthedBudgetExhausted
+      ? 'Connect wallet to continue'
+      : 'Ask SIPHER about privacy...'
 
   return (
     <div className={`flex flex-col bg-card ${fullScreen ? 'h-full' : 'h-full w-full'}`}>
@@ -164,8 +260,30 @@ export default function ChatSidebar({ fullScreen }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2.5">
-        {messages.length === 0 && (
-          <p className="text-text-muted text-sm text-center py-8">Ask SIPHER anything about your privacy.</p>
+        {messages.length === 0 && isAuthed && (
+          <p className="text-text-muted text-sm text-center py-8">
+            Ask SIPHER anything about your privacy.
+          </p>
+        )}
+        {messages.length === 0 && !isAuthed && (
+          <div className="py-6 flex flex-col gap-3">
+            <p className="text-text-muted text-sm text-center">
+              Ask SIPHER about privacy on Solana
+            </p>
+            <div className="flex flex-col gap-2">
+              {SUGGESTED_QUESTIONS.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => sendMessage(q)}
+                  disabled={chatLoading || unauthedBudgetExhausted}
+                  className="text-left bg-elevated border border-border rounded-lg px-3 py-2 text-[12px] text-text hover:border-accent/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
         {messages.filter((m) => !m.dismissed).map((msg) => {
           if (msg.role === 'system' && msg.kind === 'sentinel_pause' && token) {
@@ -205,6 +323,13 @@ export default function ChatSidebar({ fullScreen }: Props) {
       </div>
 
       <div className="px-3 py-3 border-t border-border shrink-0">
+        {!isAuthed && (
+          <div className="mb-2 text-[11px] text-text-muted text-center">
+            {effectiveRemaining > 0
+              ? `${effectiveRemaining} of ${UNAUTHED_FREE_CAP} free messages — connect wallet for unlimited`
+              : 'Connect wallet to continue'}
+          </div>
+        )}
         <div className="flex gap-2">
           <input
             ref={inputRef}
@@ -218,13 +343,13 @@ export default function ChatSidebar({ fullScreen }: Props) {
             }}
             aria-label="Ask SIPHER"
             maxLength={4000}
-            placeholder={token ? 'Message SIPHER...' : 'Connect wallet first'}
+            placeholder={placeholder}
             className="flex-1 bg-elevated border border-border rounded-lg px-3 py-2 text-[13px] text-text placeholder-text-muted focus:outline-none focus:border-accent/40 transition-colors"
-            disabled={!token || chatLoading}
+            disabled={inputDisabled}
           />
           <button
             onClick={() => sendMessage()}
-            disabled={!input.trim() || !token || chatLoading}
+            disabled={sendDisabled}
             className="bg-accent/15 border border-accent/20 rounded-lg px-3 py-2 text-accent hover:bg-accent/25 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Send"
           >
