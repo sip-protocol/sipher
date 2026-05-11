@@ -3,15 +3,22 @@ import { render, screen, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import DashboardView from '../DashboardView'
 import { onAuthClear } from '../../store/onAuthClear'
+import type { AuthState } from '../../hooks/useAuthState'
 
 vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
 }))
 
+let currentAuthOverrides: Partial<AuthState> = {
+  status: 'authed',
+  token: 'tok',
+  publicKey: 'W',
+}
+
 vi.mock('../../hooks/useAuthState', async () => {
   const { makeFakeAuthState } = await import('../../test-utils/makeFakeAuthState')
   return {
-    useAuthState: () => makeFakeAuthState({ status: 'authed', token: 'tok', publicKey: 'W' }),
+    useAuthState: () => makeFakeAuthState(currentAuthOverrides),
   }
 })
 
@@ -45,6 +52,7 @@ beforeAll(() => {
 beforeEach(() => {
   ;(apiFetch as ReturnType<typeof vi.fn>).mockReset()
   onAuthClear._resetForTests()
+  currentAuthOverrides = { status: 'authed', token: 'tok', publicKey: 'W' }
 
   // Path-based mock so the four fetches (vault, activity, privacy score,
   // chains, chain aggregate, stealth index) can resolve in any order.
@@ -149,5 +157,47 @@ describe('DashboardView', () => {
         'Multi-chain privacy command center for shielded transfers across 9+ chains.',
       )
     })
+  })
+})
+
+describe('DashboardView — unauthed tagline', () => {
+  it('renders the SIPHER tagline when status is unauthed', () => {
+    currentAuthOverrides = { status: 'unauthed', token: null, publicKey: null }
+    render(
+      <MemoryRouter>
+        <DashboardView events={[]} />
+      </MemoryRouter>,
+    )
+    expect(
+      screen.getByText(
+        /Multi-chain privacy command center for shielded transfers across 9\+ chains\./,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('does not render the tagline when status is authed', () => {
+    currentAuthOverrides = { status: 'authed', token: 'tok', publicKey: 'W' }
+    render(
+      <MemoryRouter>
+        <DashboardView events={[]} />
+      </MemoryRouter>,
+    )
+    expect(
+      screen.queryByText(/Multi-chain privacy command center/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders the tagline when status is expired (treated as not-authed)', () => {
+    // Spec D-E1-5: tagline gates on status !== 'authed'. Any non-authed
+    // state (unauthed / connecting / expired / error) surfaces the tagline.
+    currentAuthOverrides = { status: 'expired', token: null, publicKey: 'W' }
+    render(
+      <MemoryRouter>
+        <DashboardView events={[]} />
+      </MemoryRouter>,
+    )
+    expect(
+      screen.getByText(/Multi-chain privacy command center/),
+    ).toBeInTheDocument()
   })
 })
