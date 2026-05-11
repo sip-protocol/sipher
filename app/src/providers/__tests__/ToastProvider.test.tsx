@@ -105,7 +105,9 @@ describe('ToastProvider', () => {
       </ToastProvider>,
     )
     fireEvent.click(screen.getByText('Trigger'))
-    const toast = screen.getByText('Warn me').closest('[role="status"]')
+    // warn upgrades to role="alert" + aria-live="assertive" per Toast aria
+    // semantics; info/success keep role="status" + aria-live="polite".
+    const toast = screen.getByText('Warn me').closest('[role="alert"]')
     expect(toast).toHaveClass('bg-amber-950/90')
   })
 
