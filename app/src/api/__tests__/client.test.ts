@@ -201,6 +201,41 @@ describe('apiFetch network-error branch', () => {
     expect(handler).not.toHaveBeenCalled()
     window.removeEventListener('sipher:network-error', handler)
   })
+
+  it('does NOT emit network-error for non-network TypeErrors (e.g. JSON parse)', async () => {
+    // A TypeError thrown from a downstream codepath (e.g., `Cannot read
+    // properties of undefined`) is NOT a network failure and must not pollute
+    // the NetworkBanner. Lock: only the canonical browser network-error
+    // message strings trigger the network-error event.
+    globalThis.fetch = vi.fn().mockRejectedValue(
+      new TypeError('Cannot read properties of undefined (reading "foo")'),
+    )
+    const handler = vi.fn()
+    window.addEventListener('sipher:network-error', handler)
+    await expect(apiFetch('/whatever')).rejects.toThrow()
+    expect(handler).not.toHaveBeenCalled()
+    window.removeEventListener('sipher:network-error', handler)
+  })
+
+  it('emits network-error for Safari "Load failed" TypeError', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Load failed'))
+    const handler = vi.fn()
+    window.addEventListener('sipher:network-error', handler)
+    await expect(apiFetch('/whatever')).rejects.toThrow()
+    expect(handler).toHaveBeenCalledOnce()
+    window.removeEventListener('sipher:network-error', handler)
+  })
+
+  it('emits network-error for Firefox "NetworkError when attempting to fetch resource" TypeError', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(
+      new TypeError('NetworkError when attempting to fetch resource'),
+    )
+    const handler = vi.fn()
+    window.addEventListener('sipher:network-error', handler)
+    await expect(apiFetch('/whatever')).rejects.toThrow()
+    expect(handler).toHaveBeenCalledOnce()
+    window.removeEventListener('sipher:network-error', handler)
+  })
 })
 
 describe('triggerAuthInterceptor', () => {

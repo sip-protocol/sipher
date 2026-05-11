@@ -30,6 +30,15 @@ export function triggerAuthInterceptor(): void {
   }
 }
 
+// Canonical browser messages for actual network-layer fetch failures.
+// `fetch` throws a generic TypeError for many distinct codepaths (offline DNS,
+// CORS preflight refusal, a bug downstream of fetch itself); only the
+// browser-emitted "this request never reached the network" messages are
+// genuine network errors and should surface to <NetworkBanner>.
+// Sources: WHATWG fetch spec (Failed to fetch), Safari (Load failed), Firefox
+// (NetworkError when attempting to fetch resource).
+const NETWORK_ERROR_PATTERN = /^(Failed to fetch|Load failed|NetworkError when attempting to fetch resource)$/i
+
 function emitNetworkError(): void {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent('sipher:network-error'))
@@ -57,9 +66,11 @@ export async function apiFetch<T>(
     })
   } catch (err) {
     // Network-layer failure (offline, DNS, CORS preflight refusal): browsers
-    // throw `TypeError: Failed to fetch`. Surface to the global event bus so
-    // <NetworkBanner> can react; rethrow so callers still see the error.
-    if (err instanceof TypeError) {
+    // throw `TypeError` with one of the canonical messages tracked above.
+    // Other TypeErrors (e.g., `Cannot read property X of undefined` from a
+    // bug downstream of fetch) must NOT trigger the network banner — they
+    // surface as ordinary failures to the caller.
+    if (err instanceof TypeError && NETWORK_ERROR_PATTERN.test(err.message)) {
       emitNetworkError()
       throw new Error('Network connection lost')
     }
