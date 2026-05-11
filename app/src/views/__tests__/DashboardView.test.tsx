@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import DashboardView from '../DashboardView'
@@ -157,6 +157,44 @@ describe('DashboardView', () => {
         'Multi-chain privacy command center for shielded transfers across 9+ chains.',
       )
     })
+  })
+})
+
+describe('Unauthed activity teaser', () => {
+  beforeEach(() => {
+    // Fetch is consumed by <UnauthedActivityFeed /> when status !== 'authed'.
+    // Block resolution so the skeleton state is observable and the apiFetch
+    // mock (used by the authed path) stays the only data-source for the
+    // existing tests.
+    global.fetch = vi.fn().mockImplementation(() => new Promise(() => {}))
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('renders <UnauthedActivityFeed /> when status is unauthed', () => {
+    currentAuthOverrides = { status: 'unauthed', token: null, publicKey: null }
+    render(
+      <MemoryRouter>
+        <DashboardView events={[]} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByTestId('activity-feed-skeleton')).toBeInTheDocument()
+    expect(screen.queryByTestId('activity-stream-table')).toBeNull()
+  })
+
+  it('renders <ActivityStreamTable /> when authed (existing behavior)', async () => {
+    currentAuthOverrides = { status: 'authed', token: 'tok', publicKey: 'W' }
+    render(
+      <MemoryRouter>
+        <DashboardView events={[]} />
+      </MemoryRouter>,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('activity-stream-table')).toBeInTheDocument()
+    })
+    expect(screen.queryByTestId('activity-feed-skeleton')).toBeNull()
   })
 })
 

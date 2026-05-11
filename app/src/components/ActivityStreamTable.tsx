@@ -38,7 +38,7 @@ export function ActivityStreamTable({ rows }: ActivityStreamTableProps) {
   }, [rows, filter])
 
   return (
-    <Card variant="default" className="p-6">
+    <Card variant="default" className="p-6" data-testid="activity-stream-table">
       <div className="flex items-center justify-between mb-4">
         <h3
           className="text-2xs text-text-muted"
