@@ -42,9 +42,9 @@ describe('StealthAddressList', () => {
     expect(screen.getByText("m/0'")).toBeInTheDocument()
   })
 
-  it('renders M19 banner when stealthTree has only the root node', () => {
+  it('does not render M19 placeholder copy', () => {
     render(<StealthAddressList positions={[]} stealthTree={[fakeNode]} loading={false} />)
-    expect(screen.getByText(/M19/i)).toBeInTheDocument()
+    expect(screen.queryByText(/M19/i)).toBeNull()
   })
 
   it('renders empty-positions empty-state copy', () => {
