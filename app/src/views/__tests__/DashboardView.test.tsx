@@ -201,3 +201,29 @@ describe('DashboardView — unauthed tagline', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('Demo CTA (unauthed)', () => {
+  it('renders DemoCtaCard when status is unauthed', () => {
+    currentAuthOverrides = { status: 'unauthed', token: null, publicKey: null }
+    render(
+      <MemoryRouter>
+        <DashboardView events={[]} />
+      </MemoryRouter>,
+    )
+    expect(
+      screen.getByRole('link', { name: /view sample dashboard/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('does NOT render DemoCtaCard when status is authed', () => {
+    currentAuthOverrides = { status: 'authed', token: 'tok', publicKey: 'W' }
+    render(
+      <MemoryRouter>
+        <DashboardView events={[]} />
+      </MemoryRouter>,
+    )
+    expect(
+      screen.queryByRole('link', { name: /view sample dashboard/i }),
+    ).toBeNull()
+  })
+})

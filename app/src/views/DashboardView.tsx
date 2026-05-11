@@ -8,6 +8,7 @@ import { ActivityStreamTable, type ActivityRow } from '../components/ActivityStr
 import { PrivacyGraph } from '../components/PrivacyGraph'
 import { ShieldedVolumeCard } from '../components/ShieldedVolumeCard'
 import { MultiChainVaultGrid } from '../components/MultiChainVaultGrid'
+import DemoCtaCard from '../components/DemoCtaCard'
 
 interface VaultData {
   wallet: string
@@ -160,6 +161,7 @@ export default function DashboardView({ events }: { events: ActivityEvent[] }) {
             Multi-chain privacy command center for shielded transfers across 9+ chains.
           </p>
         )}
+        {status !== 'authed' && <DemoCtaCard />}
         <PrivacyGraph />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
