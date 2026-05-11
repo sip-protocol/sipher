@@ -21,6 +21,13 @@ export interface AuthState {
   error: string | null
 }
 
+/**
+ * Dedup window for the "Session expired" toast (#203). Concurrent 401s
+ * within this window emit only the first toast; the flag clears on a
+ * successful re-auth or once the timer fires.
+ */
+const SESSION_EXPIRED_DEDUP_MS = 30_000
+
 const AuthSyncContext = createContext<AuthState | null>(null)
 
 export function useAuthSyncContext(): AuthState {
@@ -49,6 +56,16 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
   // autoConnect resolves) would clear auth on every page load.
   const wasConnectedRef = useRef(false)
   const authenticateRef = useRef<() => Promise<void>>(() => Promise.resolve())
+  // Single-shot guard for the "Session expired" toast: when several in-flight
+  // requests all fail with 401 concurrently the registered interceptor fires
+  // once per failure, and without dedup the user gets a stack of identical
+  // toasts. The flag flips true on first emission and resets on either a
+  // successful re-auth (status transitions back to 'authed') or after a
+  // SESSION_EXPIRED_DEDUP_MS window. See #203.
+  const sessionExpiredToastShownRef = useRef(false)
+  const sessionExpiredToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
 
   // Track wallet identity across renders; clear auth when the wallet changes.
   useEffect(() => {
@@ -219,10 +236,21 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
 
   // Wire the global 401 interceptor: any apiFetch that returns 401 clears
   // the token and surfaces a "Session expired — Sign in" toast with a CTA
-  // that re-runs authenticate().
+  // that re-runs authenticate(). The toast is deduplicated via a
+  // single-shot ref so a burst of concurrent 401s does not stack toasts;
+  // the flag clears on next successful auth or after the dedup window.
   useEffect(() => {
     registerAuthInterceptor(() => {
       clearAuth()
+      if (sessionExpiredToastShownRef.current) return
+      sessionExpiredToastShownRef.current = true
+      if (sessionExpiredToastTimerRef.current) {
+        clearTimeout(sessionExpiredToastTimerRef.current)
+      }
+      sessionExpiredToastTimerRef.current = setTimeout(() => {
+        sessionExpiredToastShownRef.current = false
+        sessionExpiredToastTimerRef.current = null
+      }, SESSION_EXPIRED_DEDUP_MS)
       showToast({
         message: 'Session expired — please sign in again.',
         kind: 'warn',
@@ -238,8 +266,25 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
         },
       })
     })
-    return () => registerAuthInterceptor(null)
+    return () => {
+      registerAuthInterceptor(null)
+      if (sessionExpiredToastTimerRef.current) {
+        clearTimeout(sessionExpiredToastTimerRef.current)
+        sessionExpiredToastTimerRef.current = null
+      }
+    }
   }, [clearAuth, showToast])
+
+  // Reset the dedup guard whenever auth flips back to 'authed' — a fresh
+  // successful sign-in means the next expiry should surface a new toast.
+  useEffect(() => {
+    if (status !== 'authed') return
+    sessionExpiredToastShownRef.current = false
+    if (sessionExpiredToastTimerRef.current) {
+      clearTimeout(sessionExpiredToastTimerRef.current)
+      sessionExpiredToastTimerRef.current = null
+    }
+  }, [status])
 
   const value: AuthState = {
     status,
