@@ -30,8 +30,9 @@ test.describe('Ask SIPHER sheet', () => {
       await expect(input).toBeEnabled()
       // Free-message banner present before any send
       await expect(page.getByText(/5 .*free messages.*connect wallet/i)).toBeVisible()
-      // 3 educational suggested-question chips render in empty state
-      await expect(page.getByRole('button', { name: /stealth address/i })).toBeVisible()
+      // 3 educational suggested-question chips render in empty state (inside the sheet)
+      const sheet = page.getByRole('dialog', { name: /ask sipher/i })
+      await expect(sheet.getByRole('button', { name: /how does a stealth address/i })).toBeVisible()
       expect(errors).toEqual([])
     })
   })
