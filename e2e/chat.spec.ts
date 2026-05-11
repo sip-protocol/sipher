@@ -16,7 +16,7 @@ test.describe('Ask SIPHER sheet', () => {
       await expect(page.getByRole('dialog', { name: /ask sipher/i })).toHaveCount(0)
     })
 
-    test('chat input is disabled inside the sheet when unauthenticated', async ({ page }) => {
+    test('chat input is enabled with free-message UX when unauthenticated (#218)', async ({ page }) => {
       const errors: string[] = []
       page.on('pageerror', (err) => errors.push(err.message))
       page.on('console', (msg) => {
@@ -25,9 +25,13 @@ test.describe('Ask SIPHER sheet', () => {
 
       await page.goto('/')
       await page.getByRole('button', { name: /ask sipher/i }).click()
-      const input = page.getByPlaceholder('Connect wallet first')
+      const input = page.getByPlaceholder(/ask sipher about privacy/i)
       await expect(input).toBeVisible()
-      await expect(input).toBeDisabled()
+      await expect(input).toBeEnabled()
+      // Free-message banner present before any send
+      await expect(page.getByText(/5 .*free messages.*connect wallet/i)).toBeVisible()
+      // 3 educational suggested-question chips render in empty state
+      await expect(page.getByRole('button', { name: /stealth address/i })).toBeVisible()
       expect(errors).toEqual([])
     })
   })
