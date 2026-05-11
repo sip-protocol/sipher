@@ -92,6 +92,52 @@ describe('/api/public/activity-summary', () => {
     expect(res.status).toBe(429)
   })
 
+  // Regression: anonymization test catches extra KEYS but not malicious VALUES.
+  // If a future ingest path writes a wallet-probe string into `detail.chain`,
+  // the unauthed teaser would leak it. Whitelist guard must replace any
+  // unknown chain with the `solana` fallback.
+  it('replaces unknown chain values with solana fallback (defense against value injection)', async () => {
+    insertActivity({
+      agent: 'sipher',
+      level: 'info',
+      type: 'send.success',
+      title: 'malicious',
+      detail: JSON.stringify({
+        amount: 1,
+        chain: 'C1phr1nj3ct3d-wallet-probe-value',
+      }),
+    })
+    const res = await request(app).get('/api/public/activity-summary')
+    expect(res.status).toBe(200)
+    expect(res.body.recent).toHaveLength(1)
+    expect(res.body.recent[0].chain).toBe('solana')
+    // Defense-in-depth: the injected sentinel string must appear nowhere in
+    // the response body, under any key.
+    expect(JSON.stringify(res.body)).not.toContain('C1phr1nj3ct3d')
+    expect(JSON.stringify(res.body)).not.toContain('wallet-probe')
+  })
+
+  it('preserves known chain values from the whitelist (case-insensitive)', async () => {
+    insertActivity({
+      agent: 'sipher',
+      level: 'info',
+      type: 'send.success',
+      title: 'eth-event',
+      detail: JSON.stringify({ amount: 1, chain: 'ETHEREUM' }),
+    })
+    insertActivity({
+      agent: 'sipher',
+      level: 'info',
+      type: 'swap.completed',
+      title: 'arb-event',
+      detail: JSON.stringify({ amount: 1, chain: 'arbitrum' }),
+    })
+    const res = await request(app).get('/api/public/activity-summary')
+    expect(res.status).toBe(200)
+    const chains = res.body.recent.map((r: { chain: string }) => r.chain).sort()
+    expect(chains).toEqual(['arbitrum', 'ethereum'])
+  })
+
   it('amount band buckets work as documented', async () => {
     const { toAmountBand } = await import('../../src/lib/queries/public.js')
     expect(toAmountBand(0.5)).toBe('<1')

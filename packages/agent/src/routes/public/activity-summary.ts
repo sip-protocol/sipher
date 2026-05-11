@@ -19,6 +19,15 @@ const CACHE_TTL_SECONDS = 60
 const RATE_CAP = 120
 const RATE_WINDOW_MS = 60_000
 
+// Whitelist of chain identifiers allowed in the public teaser. Defense-in-depth
+// against value-injection: if a future ingest path writes a wallet probe or
+// arbitrary string into `detail.chain`, the unauthed response would leak it.
+// Anything not on this list collapses to the `solana` fallback.
+const KNOWN_CHAINS = new Set([
+  'solana', 'ethereum', 'polygon', 'arbitrum', 'base', 'optimism',
+  'avalanche', 'bsc', 'fantom', 'linea', 'scroll', 'mantle', 'blast',
+])
+
 activitySummaryRouter.use(ipRateLimitMiddleware('activity-summary', RATE_CAP, RATE_WINDOW_MS))
 
 /**
@@ -97,7 +106,12 @@ function computeRecent(): AnonActivityRow[] {
   for (const row of rows) {
     const type = typeof row.type === 'string' ? row.type : ''
     const detail = parseActivityDetail(row.detail)
-    const chain = typeof detail.chain === 'string' ? detail.chain : 'solana'
+    // Whitelist-only: any unknown chain value is replaced with `solana`. This
+    // guards against value-injection in the public teaser — the
+    // anonymization test catches extra keys, this guard catches malicious
+    // values under the allow-listed `chain` key.
+    const rawChain = typeof detail.chain === 'string' ? detail.chain.toLowerCase() : ''
+    const chain = KNOWN_CHAINS.has(rawChain) ? rawChain : 'solana'
     const rawAmount = typeof detail.amount === 'number'
       ? detail.amount
       : typeof detail.amount === 'string'
