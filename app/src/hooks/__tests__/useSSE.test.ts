@@ -55,6 +55,37 @@ describe('useSSE', () => {
     await waitFor(() => expect(result.current.events).toHaveLength(0))
   })
 
+  it('skips state setters and closes resolved source when auth clears mid-connectSSE resolution', async () => {
+    // Race: connectSSE returns a Promise. If auth clears AFTER connectSSE
+    // is called but BEFORE the Promise resolves, the eventual .then
+    // callback must NOT push the resolved source into state — that would
+    // bypass the auth-clear cleanup the user just performed.
+    let resolveConnect: ((source: EventSource) => void) | null = null
+    const connectPromise = new Promise<EventSource>((resolve) => {
+      resolveConnect = resolve
+    })
+    const closeMock = vi.fn()
+    const mockSource = {
+      close: closeMock,
+      addEventListener: vi.fn(),
+      onerror: null,
+    } as unknown as EventSource
+    ;(connectSSE as ReturnType<typeof vi.fn>).mockReturnValueOnce(connectPromise)
+
+    const { result } = renderHook(() => useSSE())
+    // Auth clears BEFORE connectSSE resolves.
+    act(() => onAuthClear.clearAll())
+    // NOW resolve connectSSE — the resolved source must be closed and
+    // state setters must skip.
+    await act(async () => {
+      resolveConnect!(mockSource)
+      await connectPromise
+    })
+
+    expect(result.current.connected).toBe(false)
+    expect(closeMock).toHaveBeenCalled()
+  })
+
   it('keeps events on transient EventSource error and only flips connected to false', async () => {
     let onMessageCb: ((e: MessageEvent) => void) | null = null
     const onerrorRef: { current: (() => void) | null } = { current: null }
