@@ -2,14 +2,27 @@ import { useState } from 'react'
 import { useActiveView } from '../hooks/useActiveView'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 
-const STORAGE_KEY = 'sipher.beta-banner.dismissed'
+// Persist the dismissal as an absolute epoch-ms cutoff in localStorage so
+// the banner stays hidden for 24 hours across tab close + reopen, but
+// re-appears afterwards. Old sessionStorage key
+// `sipher.beta-banner.dismissed` is intentionally NOT read here — the
+// migration is one-way and stale entries should not silently suppress
+// a banner the user hasn't dismissed under the new scheme.
+const STORAGE_KEY = 'sipher.devnet-banner.dismissed-until'
+const COOLDOWN_MS = 24 * 60 * 60 * 1000
 
 const VAULT_VIEWS = new Set(['vault', 'deposit', 'withdraw'])
 
+function isCurrentlyDismissed(): boolean {
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (raw === null) return false
+  const until = Number(raw)
+  if (!Number.isFinite(until)) return false
+  return until > Date.now()
+}
+
 export function BetaBanner({ beta }: { beta: boolean }) {
-  const [dismissed, setDismissed] = useState<boolean>(
-    () => sessionStorage.getItem(STORAGE_KEY) === 'true',
-  )
+  const [dismissed, setDismissed] = useState<boolean>(isCurrentlyDismissed)
   const activeView = useActiveView()
   const network = useNetworkConfigStore((s) => s.config?.network ?? '')
 
@@ -37,7 +50,8 @@ export function BetaBanner({ beta }: { beta: boolean }) {
   if (dismissed) return null
 
   function handleDismiss() {
-    sessionStorage.setItem(STORAGE_KEY, 'true')
+    const until = Date.now() + COOLDOWN_MS
+    localStorage.setItem(STORAGE_KEY, String(until))
     setDismissed(true)
   }
 
