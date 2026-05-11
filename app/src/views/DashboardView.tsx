@@ -9,6 +9,7 @@ import { PrivacyGraph } from '../components/PrivacyGraph'
 import { ShieldedVolumeCard } from '../components/ShieldedVolumeCard'
 import { MultiChainVaultGrid } from '../components/MultiChainVaultGrid'
 import DemoCtaCard from '../components/DemoCtaCard'
+import UnauthedActivityFeed from '../components/UnauthedActivityFeed'
 
 interface VaultData {
   wallet: string
@@ -175,7 +176,11 @@ export default function DashboardView({ events }: { events: ActivityEvent[] }) {
 
         <MultiChainVaultGrid />
 
-        <ActivityStreamTable rows={allRows} />
+        {status === 'authed' ? (
+          <ActivityStreamTable rows={allRows} />
+        ) : (
+          <UnauthedActivityFeed />
+        )}
       </div>
     </>
   )

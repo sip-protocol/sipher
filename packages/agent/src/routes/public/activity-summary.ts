@@ -1,0 +1,131 @@
+import { Router, type Request, type Response } from 'express'
+import { getDb } from '../../db.js'
+import { ipRateLimitMiddleware } from '../../lib/ip-rate-limit.js'
+import { getCached, setCached } from '../../lib/cache.js'
+import {
+  parseActivityDetail,
+  relativeTime,
+  toAmountBand,
+  type ActivitySummaryResponse,
+  type AnonActivityRow,
+} from '../../lib/queries/public.js'
+
+export const activitySummaryRouter: Router = Router()
+
+const CACHE_KEY = 'public-activity-summary'
+const CACHE_TTL_SECONDS = 60
+// Rate limit: 120 req/min/IP. Generous enough that an unauthed page mounting
+// + 60s polling never trips it under normal browsing patterns.
+const RATE_CAP = 120
+const RATE_WINDOW_MS = 60_000
+
+// Whitelist of chain identifiers allowed in the public teaser. Defense-in-depth
+// against value-injection: if a future ingest path writes a wallet probe or
+// arbitrary string into `detail.chain`, the unauthed response would leak it.
+// Anything not on this list collapses to the `solana` fallback.
+const KNOWN_CHAINS = new Set([
+  'solana', 'ethereum', 'polygon', 'arbitrum', 'base', 'optimism',
+  'avalanche', 'bsc', 'fantom', 'linea', 'scroll', 'mantle', 'blast',
+])
+
+activitySummaryRouter.use(ipRateLimitMiddleware('activity-summary', RATE_CAP, RATE_WINDOW_MS))
+
+/**
+ * GET /api/public/activity-summary
+ *
+ * Returns an anonymized snapshot of ecosystem-wide shielded-transfer activity
+ * — counter of all-time successful fund-mover events + the 5 most recent
+ * rows, stripped of any wallet-identifiable fields.
+ *
+ * Cached for 60s server-side. NO sender, recipient, exact amount, transaction
+ * hash, wallet address, agent identifier, or activity id is exposed.
+ */
+activitySummaryRouter.get('/', async (_req: Request, res: Response) => {
+  try {
+    const cached = await getCached<ActivitySummaryResponse>(CACHE_KEY)
+    if (cached) {
+      res.json(cached)
+      return
+    }
+
+    const counter = computeCounter()
+    const recent = computeRecent()
+    const payload: ActivitySummaryResponse = { counter, recent }
+
+    await setCached(CACHE_KEY, payload, CACHE_TTL_SECONDS)
+    res.json(payload)
+  } catch (e) {
+    // Log raw message server-side for operator debugging, but return a generic
+    // envelope to anonymous callers — this endpoint is unauthed, so the response
+    // body must never leak SQLite errors, stack-frame paths, or infra state.
+    const message = e instanceof Error ? e.message : 'activity-summary failed'
+    console.error('[activity-summary]', message)
+    res.status(500).json({ error: { code: 'INTERNAL', message: 'activity-summary unavailable' } })
+  }
+})
+
+/**
+ * SELECT COUNT(*) of completed fund-mover events across all wallets.
+ * Matches the suffix pattern used by the agent's activity logger
+ * (e.g., `send.success`, `swap.completed`) — see DashboardView's
+ * `fundMoverPattern` for the canonical type-name conventions.
+ */
+function computeCounter(): number {
+  const db = getDb()
+  const row = db
+    .prepare(
+      'SELECT COUNT(*) AS n FROM activity_stream WHERE type LIKE ? OR type LIKE ?',
+    )
+    .get('%.success', '%.completed') as { n: number } | undefined
+  return row?.n ?? 0
+}
+
+/**
+ * Pull the 5 most recent successful fund-mover rows across all wallets,
+ * defensively parse `detail`, and project to the anonymized output shape.
+ * Only allow-listed keys (`type`, `chain`, `amountBand`, `relativeTime`)
+ * make it into the response.
+ *
+ * The filter runs at SQL level — a JS post-filter over an over-fetched window
+ * silently degrades as the activity stream grows (non-fund-mover events can
+ * push fund-movers out of the limit window entirely). Mirrors the inline-SQL
+ * pattern from `computeCounter`.
+ */
+function computeRecent(): AnonActivityRow[] {
+  const db = getDb()
+  const rows = db
+    .prepare(
+      `SELECT type, detail, created_at FROM activity_stream
+       WHERE type LIKE ? OR type LIKE ?
+       ORDER BY created_at DESC, rowid DESC
+       LIMIT 5`,
+    )
+    .all('%.success', '%.completed') as Array<Record<string, unknown>>
+
+  const out: AnonActivityRow[] = []
+  for (const row of rows) {
+    const type = typeof row.type === 'string' ? row.type : ''
+    const detail = parseActivityDetail(row.detail)
+    // Whitelist-only: any unknown chain value is replaced with `solana`. This
+    // guards against value-injection in the public teaser — the
+    // anonymization test catches extra keys, this guard catches malicious
+    // values under the allow-listed `chain` key.
+    const rawChain = typeof detail.chain === 'string' ? detail.chain.toLowerCase() : ''
+    const chain = KNOWN_CHAINS.has(rawChain) ? rawChain : 'solana'
+    const rawAmount = typeof detail.amount === 'number'
+      ? detail.amount
+      : typeof detail.amount === 'string'
+        ? Number(detail.amount)
+        : 0
+    const createdAt = typeof row.created_at === 'string' ? row.created_at : new Date().toISOString()
+
+    out.push({
+      type,
+      chain,
+      amountBand: toAmountBand(rawAmount),
+      relativeTime: relativeTime(createdAt),
+    })
+  }
+
+  return out
+}
