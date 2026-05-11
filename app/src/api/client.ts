@@ -39,14 +39,31 @@ export function triggerAuthInterceptor(): void {
 // (NetworkError when attempting to fetch resource).
 const NETWORK_ERROR_PATTERN = /^(Failed to fetch|Load failed|NetworkError when attempting to fetch resource)$/i
 
+// Module-scope offline flag. Flipped to `true` when a real network-error
+// fires; gates the recovery emit so the banner only animates on actual
+// offline→online transitions instead of flashing on every successful fetch.
+let wasOffline = false
+
 function emitNetworkError(): void {
+  wasOffline = true
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent('sipher:network-error'))
 }
 
 function emitNetworkRecovered(): void {
+  if (!wasOffline) return
+  wasOffline = false
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent('sipher:network-recovered'))
+}
+
+/**
+ * Test-only helper. Resets module-scope state (currently just `wasOffline`).
+ * Tests that exercise the offline→online transition logic call this in
+ * `beforeEach`/`afterEach` so suites can't leak the flag between cases.
+ */
+export function _resetClientForTests(): void {
+  wasOffline = false
 }
 
 export async function apiFetch<T>(

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { apiFetch, registerAuthInterceptor, triggerAuthInterceptor } from '../client'
+import {
+  apiFetch,
+  registerAuthInterceptor,
+  triggerAuthInterceptor,
+  _resetClientForTests,
+} from '../client'
 
 describe('apiFetch', () => {
   const originalFetch = global.fetch
@@ -146,9 +151,11 @@ describe('apiFetch network-error branch', () => {
   let originalFetch: typeof globalThis.fetch
   beforeEach(() => {
     originalFetch = globalThis.fetch
+    _resetClientForTests()
   })
   afterEach(() => {
     globalThis.fetch = originalFetch
+    _resetClientForTests()
   })
 
   it('emits a network-error CustomEvent on TypeError: Failed to fetch', async () => {
@@ -171,15 +178,43 @@ describe('apiFetch network-error branch', () => {
     window.removeEventListener('sipher:network-error', handler)
   })
 
-  it('emits network-recovered on successful fetch', async () => {
+  it('does NOT emit network-recovered on first successful fetch (was never offline)', async () => {
+    // Lock: recovery is a transition event. Without a prior network-error
+    // there is nothing to recover from, so the banner must not flash.
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), { status: 200 }),
     )
     const handler = vi.fn()
     window.addEventListener('sipher:network-recovered', handler)
     await apiFetch('/whatever')
-    expect(handler).toHaveBeenCalledOnce()
+    expect(handler).not.toHaveBeenCalled()
     window.removeEventListener('sipher:network-recovered', handler)
+  })
+
+  it('emits network-recovered ONLY after a prior network error (offline→online transition)', async () => {
+    const recoveredHandler = vi.fn()
+    window.addEventListener('sipher:network-recovered', recoveredHandler)
+
+    // Step 1: simulate going offline via a real network TypeError.
+    globalThis.fetch = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(apiFetch('/foo')).rejects.toThrow()
+    expect(recoveredHandler).not.toHaveBeenCalled()
+
+    // Step 2: next successful fetch fires recovery exactly once.
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    )
+    await apiFetch('/foo')
+    expect(recoveredHandler).toHaveBeenCalledOnce()
+
+    // Step 3: subsequent successes do NOT refire (offline flag was reset).
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    )
+    await apiFetch('/foo')
+    expect(recoveredHandler).toHaveBeenCalledOnce()
+
+    window.removeEventListener('sipher:network-recovered', recoveredHandler)
   })
 
   it('preserves AbortError name through the network-error catch wrapper', async () => {
