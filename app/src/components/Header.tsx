@@ -14,6 +14,7 @@ import AgentDot from './AgentDot'
 import { UserMenu, type AdminView } from './UserMenu'
 import { useNetworkConfigStore } from '../lib/networkConfig'
 import { TickerBar } from './ui/TickerBar'
+import { ConnectionQualityIndicator } from './ConnectionQualityIndicator'
 
 interface Tab {
   id: View
@@ -128,6 +129,7 @@ export default function Header() {
         </button>
 
         <div className="flex items-center gap-1.5">
+          <ConnectionQualityIndicator />
           <AgentDot agent="sipher" size={5} />
           <AgentDot agent="herald" size={5} />
           <AgentDot agent="sentinel" size={5} />

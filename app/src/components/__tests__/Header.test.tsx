@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Header from '../Header'
@@ -70,6 +70,16 @@ beforeEach(() => {
   useAppStore.setState({ chatSheetOpen: false }, false)
   setAuth({ status: 'unauthed', publicKey: null, isAdmin: false })
   mockNetworkConfig = { config: { network: 'devnet' } }
+
+  // Stub fetch so the ConnectionQualityIndicator mounted in the header
+  // does not fire real network requests during these tests. Each test
+  // gets a fresh stub; the indicator's async state updates are swallowed
+  // by vi.restoreAllMocks() between specs.
+  vi.spyOn(global, 'fetch').mockResolvedValue(new Response('{}'))
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('Header — auth pill', () => {
