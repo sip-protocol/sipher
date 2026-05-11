@@ -46,9 +46,12 @@ activitySummaryRouter.get('/', async (_req: Request, res: Response) => {
     await setCached(CACHE_KEY, payload, CACHE_TTL_SECONDS)
     res.json(payload)
   } catch (e) {
+    // Log raw message server-side for operator debugging, but return a generic
+    // envelope to anonymous callers — this endpoint is unauthed, so the response
+    // body must never leak SQLite errors, stack-frame paths, or infra state.
     const message = e instanceof Error ? e.message : 'activity-summary failed'
     console.error('[activity-summary]', message)
-    res.status(500).json({ error: { code: 'INTERNAL', message } })
+    res.status(500).json({ error: { code: 'INTERNAL', message: 'activity-summary unavailable' } })
   }
 })
 

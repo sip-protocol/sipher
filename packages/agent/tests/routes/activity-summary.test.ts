@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import express from 'express'
 import request from 'supertest'
 import { _resetForTests as resetIpRateLimit } from '../../src/lib/ip-rate-limit.js'
@@ -99,6 +99,38 @@ describe('/api/public/activity-summary', () => {
     expect(toAmountBand(50)).toBe('10-100')
     expect(toAmountBand(500)).toBe('100-1000')
     expect(toAmountBand(5_000)).toBe('>1000')
+  })
+
+  // Regression: 500 responses on this unauthed endpoint must NOT leak the raw
+  // error message — defense-in-depth against anonymous callers fingerprinting
+  // SQLite version, infra state, or stack-frame paths via 500 bodies.
+  it('returns generic 500 envelope when computation throws — raw error not leaked', async () => {
+    const dbModule = await import('../../src/db.js')
+    const spy = vi.spyOn(dbModule, 'getDb').mockImplementation(() => {
+      throw new Error('PRIVATE_INTERNAL_DETAIL: sqlite3_step failure at /opt/secret/path')
+    })
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    try {
+      const res = await request(app).get('/api/public/activity-summary')
+
+      expect(res.status).toBe(500)
+      expect(res.body).toEqual({
+        error: { code: 'INTERNAL', message: 'activity-summary unavailable' },
+      })
+      // Defense-in-depth: response body must NEVER contain the raw error detail.
+      expect(JSON.stringify(res.body)).not.toContain('PRIVATE_INTERNAL_DETAIL')
+      expect(JSON.stringify(res.body)).not.toContain('/opt/secret/path')
+      expect(JSON.stringify(res.body)).not.toContain('sqlite3_step')
+      // But the raw message MUST still hit server logs so operators can debug.
+      expect(errSpy).toHaveBeenCalledWith(
+        '[activity-summary]',
+        expect.stringContaining('PRIVATE_INTERNAL_DETAIL'),
+      )
+    } finally {
+      spy.mockRestore()
+      errSpy.mockRestore()
+    }
   })
 
   // Regression: previously the route fetched the last 50 rows then JS-filtered
