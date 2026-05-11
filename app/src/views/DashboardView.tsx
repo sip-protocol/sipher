@@ -46,7 +46,7 @@ function parseDetail(detail: unknown): Record<string, unknown> {
 }
 
 export default function DashboardView({ events }: { events: ActivityEvent[] }) {
-  const { token } = useAuthState()
+  const { token, status } = useAuthState()
   const [vault, setVault] = useState<VaultData | null>(null)
   const [history, setHistory] = useState<ActivityRow[]>([])
   const [privacyData, setPrivacyData] = useState<PrivacyData | null>(null)
@@ -152,6 +152,14 @@ export default function DashboardView({ events }: { events: ActivityEvent[] }) {
       <meta property="og:title" content="SIPHER — Multi-chain privacy command center" />
       <meta property="og:description" content="Multi-chain privacy command center for shielded transfers across 9+ chains." />
       <div data-testid="dashboard-view" className="space-y-6 p-6">
+        {status !== 'authed' && (
+          <p
+            data-testid="dashboard-unauthed-tagline"
+            className="text-sm text-text-muted text-center max-w-2xl mx-auto"
+          >
+            Multi-chain privacy command center for shielded transfers across 9+ chains.
+          </p>
+        )}
         <PrivacyGraph />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

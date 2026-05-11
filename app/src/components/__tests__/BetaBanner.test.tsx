@@ -1,6 +1,9 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { View } from '../../stores/app'
+
+const DISMISS_KEY = 'sipher.devnet-banner.dismissed-until'
+const COOLDOWN_MS = 24 * 60 * 60 * 1000
 
 let activeViewValue: View | null = 'dashboard'
 let networkValue: string = 'devnet'
@@ -18,9 +21,14 @@ import { BetaBanner } from '../BetaBanner'
 
 describe('BetaBanner', () => {
   beforeEach(() => {
+    localStorage.clear()
     sessionStorage.clear()
     activeViewValue = 'dashboard'
     networkValue = 'devnet'
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders when beta=true', () => {
@@ -37,16 +45,10 @@ describe('BetaBanner', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('is dismissible via button, hides for the rest of the session', () => {
+  it('is dismissible via button, hides immediately', () => {
     render(<BetaBanner beta={true} />)
     expect(screen.getByText(/DEVNET BETA/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /dismiss/i }))
-    expect(screen.queryByText(/DEVNET BETA/i)).not.toBeInTheDocument()
-  })
-
-  it('respects sessionStorage dismissal across re-renders', () => {
-    sessionStorage.setItem('sipher.beta-banner.dismissed', 'true')
-    render(<BetaBanner beta={true} />)
     expect(screen.queryByText(/DEVNET BETA/i)).not.toBeInTheDocument()
   })
 
@@ -98,5 +100,61 @@ describe('BetaBanner', () => {
     networkValue = 'mainnet'
     render(<BetaBanner beta={false} />)
     expect(screen.queryByText(/Sipher Vault is on devnet only/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('BetaBanner — 24h localStorage cooldown', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+    activeViewValue = 'dashboard'
+    networkValue = 'devnet'
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('does not render when dismissed-until timestamp is in the future', () => {
+    localStorage.setItem(DISMISS_KEY, String(Date.now() + 60_000))
+    render(<BetaBanner beta={true} />)
+    expect(screen.queryByText(/DEVNET BETA/i)).not.toBeInTheDocument()
+  })
+
+  it('renders when dismissed-until timestamp is in the past', () => {
+    localStorage.setItem(DISMISS_KEY, String(Date.now() - 60_000))
+    render(<BetaBanner beta={true} />)
+    expect(screen.getByText(/DEVNET BETA/i)).toBeInTheDocument()
+  })
+
+  it('sets dismissed-until to ~24h from now on dismiss click', () => {
+    const fixedNow = 1_700_000_000_000
+    vi.useFakeTimers()
+    vi.setSystemTime(fixedNow)
+
+    render(<BetaBanner beta={true} />)
+    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }))
+
+    const stored = Number(localStorage.getItem(DISMISS_KEY))
+    expect(stored).toBe(fixedNow + COOLDOWN_MS)
+  })
+
+  it('does not write to the old sessionStorage key after dismiss', () => {
+    render(<BetaBanner beta={true} />)
+    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }))
+    expect(sessionStorage.getItem('sipher.beta-banner.dismissed')).toBeNull()
+  })
+
+  it('ignores stale sessionStorage entries from the old dismissal scheme', () => {
+    sessionStorage.setItem('sipher.beta-banner.dismissed', 'true')
+    render(<BetaBanner beta={true} />)
+    // Migration: legacy sessionStorage key must not gate the banner anymore.
+    expect(screen.getByText(/DEVNET BETA/i)).toBeInTheDocument()
+  })
+
+  it('treats malformed timestamp values as not-dismissed', () => {
+    localStorage.setItem(DISMISS_KEY, 'not-a-number')
+    render(<BetaBanner beta={true} />)
+    expect(screen.getByText(/DEVNET BETA/i)).toBeInTheDocument()
   })
 })
