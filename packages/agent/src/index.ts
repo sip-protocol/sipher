@@ -33,6 +33,7 @@ import { configRouter } from './routes/config.js'
 import { chainsRouter } from './routes/chains.js'
 import { stealthIndexRouter } from './routes/stealth-index.js'
 import { keysRouter } from './routes/keys.js'
+import { publicRouter } from './routes/public/index.js'
 import { buildCorsMiddleware } from './cors-config.js'
 import { loadNetworkConfig } from './config/network.js'
 import {
@@ -176,6 +177,10 @@ app.use('/api/config', configRouter)
 
 // Public chain registry + TVL aggregator (read by UI Shielded Volume + Chains views)
 app.use('/api/chains', chainsRouter)
+
+// Public, unauthenticated routes (rate-limited per IP) — used by Wave 2b
+// /demo, /activity-summary, /chat. Sub-routers registered inside the module.
+app.use('/api/public', publicRouter)
 
 // Activity SSE stream — JWT required (EventSource passes ?token=)
 app.get('/api/stream', verifyJwt, streamHandler)
