@@ -43,22 +43,37 @@ export default function PrivacyReportView() {
     return () => controller.abort()
   }, [token])
 
+  const seoTags = (
+    <>
+      <title>SIPHER — Privacy Report</title>
+      <meta name="description" content="On-chain privacy score and surveillance exposure analysis." />
+      <meta property="og:title" content="SIPHER — Privacy Report" />
+      <meta property="og:description" content="On-chain privacy score and surveillance exposure analysis." />
+      <meta property="og:type" content="website" />
+      <meta property="og:image" content="/icons/sipher.svg" />
+    </>
+  )
+
   if (status !== 'authed') {
     return (
-      <UnauthedEmptyState
-        title="Privacy Score Report"
-        body={
-          <>
-            Connect a wallet to view network analysis, surveillance score, and personalized
-            recommendations.
-          </>
-        }
-      />
+      <>
+        {seoTags}
+        <UnauthedEmptyState
+          title="Privacy Score Report"
+          body={
+            <>
+              Connect a wallet to view network analysis, surveillance score, and personalized
+              recommendations.
+            </>
+          }
+        />
+      </>
     )
   }
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
+      {seoTags}
       <button
         type="button"
         onClick={() => navigate('/')}

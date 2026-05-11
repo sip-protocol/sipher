@@ -125,18 +125,33 @@ export default function DepositView() {
     [signAndBroadcast, token, navigate],
   )
 
+  const seoTags = (
+    <>
+      <title>SIPHER — Deposit</title>
+      <meta name="description" content="Deposit to shielded vault." />
+      <meta property="og:title" content="SIPHER — Deposit" />
+      <meta property="og:description" content="Deposit to shielded vault." />
+      <meta property="og:type" content="website" />
+      <meta property="og:image" content="/icons/sipher.svg" />
+    </>
+  )
+
   if (authStatus !== 'authed') {
     return (
-      <UnauthedEmptyState
-        title="Shielded Deposit"
-        body={<>Connect a wallet to deposit into the shielded vault.</>}
-      />
+      <>
+        {seoTags}
+        <UnauthedEmptyState
+          title="Shielded Deposit"
+          body={<>Connect a wallet to deposit into the shielded vault.</>}
+        />
+      </>
     )
   }
 
   if (isMainnet) {
     return (
       <div className="flex flex-col gap-4 max-w-3xl mx-auto">
+        {seoTags}
         <BackChip onClick={() => navigate('/vault')} />
         <Card variant="default" className="p-6">
           <p className="text-sm text-text">
@@ -151,6 +166,7 @@ export default function DepositView() {
 
   return (
     <div className="flex flex-col gap-4 max-w-3xl mx-auto">
+      {seoTags}
       <BackChip onClick={() => navigate('/vault')} />
       <h1 className="text-2xl font-semibold">Shield to vault</h1>
 

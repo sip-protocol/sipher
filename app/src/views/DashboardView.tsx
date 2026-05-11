@@ -146,21 +146,29 @@ export default function DashboardView({ events }: { events: ActivityEvent[] }) {
   ].slice(0, 30)
 
   return (
-    <div data-testid="dashboard-view" className="space-y-6 p-6">
-      <PrivacyGraph />
+    <>
+      <title>SIPHER — Multi-chain privacy command center</title>
+      <meta name="description" content="Multi-chain privacy command center for shielded transfers across 9+ chains." />
+      <meta property="og:title" content="SIPHER — Multi-chain privacy command center" />
+      <meta property="og:description" content="Multi-chain privacy command center for shielded transfers across 9+ chains." />
+      <meta property="og:type" content="website" />
+      <meta property="og:image" content="/icons/sipher.svg" />
+      <div data-testid="dashboard-view" className="space-y-6 p-6">
+        <PrivacyGraph />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <PrivacyScoreCard data={privacyData} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <PrivacyScoreCard data={privacyData} />
+          </div>
+          <div>
+            <ShieldedVolumeCard />
+          </div>
         </div>
-        <div>
-          <ShieldedVolumeCard />
-        </div>
+
+        <MultiChainVaultGrid />
+
+        <ActivityStreamTable rows={allRows} />
       </div>
-
-      <MultiChainVaultGrid />
-
-      <ActivityStreamTable rows={allRows} />
-    </div>
+    </>
   )
 }

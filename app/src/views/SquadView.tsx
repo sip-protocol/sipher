@@ -257,12 +257,29 @@ export default function SquadView({ token }: { token: string | null }) {
 
   if (!isAdmin) return null
 
+  const seoTags = (
+    <>
+      <title>SIPHER — Guardian Squad</title>
+      <meta name="description" content="SENTINEL guardian squad oversight and threat assessment." />
+      <meta property="og:title" content="SIPHER — Guardian Squad" />
+      <meta property="og:description" content="SENTINEL guardian squad oversight and threat assessment." />
+      <meta property="og:type" content="website" />
+      <meta property="og:image" content="/icons/sipher.svg" />
+    </>
+  )
+
   if (!data && !error) {
-    return <div className="text-text-muted text-sm text-center py-20">Loading squad data...</div>
+    return (
+      <div className="text-text-muted text-sm text-center py-20">
+        {seoTags}
+        Loading squad data...
+      </div>
+    )
   }
 
   return (
     <div data-testid="squad-view" className="flex flex-col gap-6">
+      {seoTags}
       <div className="flex items-center gap-2">
         <Chip tone="sentinel">SENTINEL</Chip>
         <span className="text-2xs text-text-muted tracking-widest uppercase">Operations</span>

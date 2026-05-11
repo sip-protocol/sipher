@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import NotFoundView from '../NotFoundView'
@@ -33,5 +33,18 @@ describe('NotFoundView', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: /not found/i }),
     ).toBeInTheDocument()
+  })
+
+  describe('SEO metadata', () => {
+    it('renders SIPHER — Not found title', async () => {
+      render(
+        <MemoryRouter>
+          <NotFoundView />
+        </MemoryRouter>,
+      )
+      await waitFor(() => {
+        expect(document.title).toBe('SIPHER — Not found')
+      })
+    })
   })
 })

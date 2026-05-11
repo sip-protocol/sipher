@@ -106,18 +106,33 @@ export default function WithdrawView() {
     [signAndBroadcast, token, refresh],
   )
 
+  const seoTags = (
+    <>
+      <title>SIPHER — Withdraw</title>
+      <meta name="description" content="Withdraw from shielded vault to stealth address." />
+      <meta property="og:title" content="SIPHER — Withdraw" />
+      <meta property="og:description" content="Withdraw from shielded vault to stealth address." />
+      <meta property="og:type" content="website" />
+      <meta property="og:image" content="/icons/sipher.svg" />
+    </>
+  )
+
   if (status !== 'authed') {
     return (
-      <UnauthedEmptyState
-        title="Shielded Withdraw"
-        body={<>Connect a wallet to refund deposits and withdraw shielded balances.</>}
-      />
+      <>
+        {seoTags}
+        <UnauthedEmptyState
+          title="Shielded Withdraw"
+          body={<>Connect a wallet to refund deposits and withdraw shielded balances.</>}
+        />
+      </>
     )
   }
 
   if (isMainnet) {
     return (
       <div className="flex flex-col gap-4 max-w-3xl mx-auto">
+        {seoTags}
         <BackChip onClick={() => navigate('/vault')} />
         <Card variant="default" className="p-6">
           <p className="text-sm text-text">
@@ -130,6 +145,7 @@ export default function WithdrawView() {
 
   return (
     <div className="flex flex-col gap-4 max-w-3xl mx-auto">
+      {seoTags}
       <BackChip onClick={() => navigate('/vault')} />
       <h1 className="text-2xl font-semibold">Refund from vault</h1>
       <p className="text-xs text-text-muted">

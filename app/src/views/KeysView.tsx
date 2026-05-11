@@ -6,9 +6,20 @@ import { StealthAddressBackup } from '../components/keys/StealthAddressBackup'
 
 export default function KeysView() {
   const { status } = useAuthState()
+  const seoTags = (
+    <>
+      <title>SIPHER — Keys</title>
+      <meta name="description" content="Manage viewing keys and stealth addresses for shielded transfers." />
+      <meta property="og:title" content="SIPHER — Keys" />
+      <meta property="og:description" content="Manage viewing keys and stealth addresses for shielded transfers." />
+      <meta property="og:type" content="website" />
+      <meta property="og:image" content="/icons/sipher.svg" />
+    </>
+  )
   if (status !== 'authed') {
     return (
       <div className="flex flex-col gap-4">
+        {seoTags}
         <Banner kind="info">
           Stealth keys are a connected-wallet feature. Connect your wallet to view, rotate, or back them up.
         </Banner>
@@ -22,6 +33,7 @@ export default function KeysView() {
 
   return (
     <div className="flex flex-col gap-4">
+      {seoTags}
       <h1 className="text-sm text-text-muted" style={{ letterSpacing: 'var(--tracking-widest)' }}>
         VIEWING KEY MANAGEMENT
       </h1>

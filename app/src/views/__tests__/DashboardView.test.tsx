@@ -131,4 +131,23 @@ describe('DashboardView', () => {
     unmount()
     expect(capturedSignals.every((s) => s.aborted === true)).toBe(true)
   })
+
+  describe('SEO metadata', () => {
+    it('renders document.title and og:title meta tags', async () => {
+      render(
+        <MemoryRouter>
+          <DashboardView events={[]} />
+        </MemoryRouter>,
+      )
+      await waitFor(() => {
+        expect(document.title).toBe('SIPHER — Multi-chain privacy command center')
+      })
+      const ogTitle = document.querySelector('meta[property="og:title"]')
+      expect(ogTitle?.getAttribute('content')).toBe('SIPHER — Multi-chain privacy command center')
+      const ogDescription = document.querySelector('meta[property="og:description"]')
+      expect(ogDescription?.getAttribute('content')).toBe(
+        'Multi-chain privacy command center for shielded transfers across 9+ chains.',
+      )
+    })
+  })
 })

@@ -75,6 +75,12 @@ export default function SettingsView() {
 
   return (
     <div className="flex flex-col gap-4">
+      <title>SIPHER — Settings</title>
+      <meta name="description" content="Configure network, privacy, and admin settings." />
+      <meta property="og:title" content="SIPHER — Settings" />
+      <meta property="og:description" content="Configure network, privacy, and admin settings." />
+      <meta property="og:type" content="website" />
+      <meta property="og:image" content="/icons/sipher.svg" />
       <h1 className="text-sm text-text-muted" style={{ letterSpacing: 'var(--tracking-widest)' }}>
         SETTINGS — READ-ONLY INSPECTOR
       </h1>
