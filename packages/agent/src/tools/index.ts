@@ -62,3 +62,6 @@ export { consolidateTool, executeConsolidate } from './consolidate.js'
 export type { ConsolidateParams, ConsolidateToolResult } from './consolidate.js'
 
 export { assessRiskTool, executeAssessRisk } from './assess-risk.js'
+
+export { resolveSNSTool, executeResolveSNS } from './resolve-sns.js'
+export type { ResolveSNSParams, ResolveSNSToolResult } from './resolve-sns.js'
