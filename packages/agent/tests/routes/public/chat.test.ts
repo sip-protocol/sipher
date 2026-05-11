@@ -126,6 +126,49 @@ describe('/api/public/chat/stream', () => {
     })
   })
 
+  it('does not consume a rate-limit slot on validation 400 (empty messages)', async () => {
+    // Five malformed POSTs MUST NOT touch the rate-limit counter. If they
+    // did, an attacker who can spoof IPs could deplete a victim's 5-message
+    // budget with junk payloads. After 5 malformed requests, a 6th valid
+    // request should still be accepted with X-RateLimit-Remaining=4.
+    for (let i = 0; i < 5; i++) {
+      const res = await request(app)
+        .post('/api/public/chat/stream')
+        .send({ messages: [] })
+      expect(res.status).toBe(400)
+    }
+    const res = await request(app)
+      .post('/api/public/chat/stream')
+      .send({ messages: [{ role: 'user', content: 'hi' }] })
+    expect(res.status).toBe(200)
+    expect(res.headers['x-ratelimit-remaining']).toBe('4')
+  })
+
+  it('does not consume a rate-limit slot on validation 400 (malformed message shape)', async () => {
+    // Same protection for malformed message objects (missing role/content).
+    for (let i = 0; i < 5; i++) {
+      const res = await request(app)
+        .post('/api/public/chat/stream')
+        .send({ messages: [{ foo: 'bar' }] })
+      expect(res.status).toBe(400)
+    }
+    const res = await request(app)
+      .post('/api/public/chat/stream')
+      .send({ messages: [{ role: 'user', content: 'hi' }] })
+    expect(res.status).toBe(200)
+    expect(res.headers['x-ratelimit-remaining']).toBe('4')
+  })
+
+  it('rejects malformed message objects with 400 VALIDATION_FAILED', async () => {
+    const res = await request(app)
+      .post('/api/public/chat/stream')
+      .send({ messages: [{ role: 'user' }] }) // missing content
+    expect(res.status).toBe(400)
+    expect(res.body).toEqual({
+      error: { code: 'VALIDATION_FAILED', message: expect.any(String) },
+    })
+  })
+
   it('sanitizes upstream errors before writing to SSE stream', async () => {
     // Reach into the mocked agent module and force chatStream to throw a
     // message that mimics an internal infra leak (OpenRouter API key in
