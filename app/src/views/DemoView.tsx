@@ -181,7 +181,7 @@ export default function DemoView() {
 
       <ActivityStreamTable rows={history} />
 
-      {vault?.balances.status === 'unavailable' && (
+      {vault?.balances?.status === 'unavailable' && (
         <p className="text-xs text-text-muted text-center">
           On-chain balances are temporarily unavailable. Snapshot from cache.
         </p>

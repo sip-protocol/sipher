@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import '@solana/wallet-adapter-react-ui/styles.css'
@@ -12,6 +12,7 @@ import { BetaBanner } from './components/BetaBanner'
 import { NetworkBanner } from './components/NetworkBanner'
 import { Sheet } from './components/ui/Sheet'
 import DashboardView from './views/DashboardView'
+import DemoView from './views/DemoView'
 import VaultView from './views/VaultView'
 import DepositView from './views/DepositView'
 import WithdrawView from './views/WithdrawView'
@@ -37,17 +38,25 @@ function AppShell() {
   const { token } = useAuth()
   const { events } = useSSE()
   const beta = useNetworkConfigStore((s) => s.config?.beta ?? false)
+  // On /demo we strip the authed-only nav chrome (Header tabs, BottomNav,
+  // Ask-SIPHER chat sheet trigger) so the read-only preview stays focused
+  // and visitors cannot navigate into routes that require a JWT. The
+  // BetaBanner + NetworkBanner stay visible because they communicate
+  // network identity, which is also material to the demo.
+  const location = useLocation()
+  const hideChrome = location.pathname.startsWith('/demo')
 
   return (
     <div className="flex flex-col h-dvh bg-bg">
       <BetaBanner beta={beta} />
       <NetworkBanner />
-      <Header />
+      {!hideChrome && <Header />}
 
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-y-auto px-4 py-5 lg:px-6">
           <Routes>
             <Route path="/" element={<DashboardView events={events} />} />
+            <Route path="/demo" element={<DemoView />} />
             <Route path="/vault" element={<VaultView />} />
             <Route path="/vault/deposit" element={<DepositView />} />
             <Route path="/vault/withdraw" element={<WithdrawView />} />
@@ -64,16 +73,18 @@ function AppShell() {
         </main>
       </div>
 
-      <BottomNav />
+      {!hideChrome && <BottomNav />}
       <Footer />
 
-      <Sheet
-        open={chatSheetOpen}
-        onClose={() => setChatSheetOpen(false)}
-        ariaLabel="Ask SIPHER"
-      >
-        <ChatSidebar />
-      </Sheet>
+      {!hideChrome && (
+        <Sheet
+          open={chatSheetOpen}
+          onClose={() => setChatSheetOpen(false)}
+          ariaLabel="Ask SIPHER"
+        >
+          <ChatSidebar />
+        </Sheet>
+      )}
     </div>
   )
 }
