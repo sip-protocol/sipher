@@ -60,15 +60,15 @@ export function PrivacyScoreCard({ data, delta }: PrivacyScoreCardProps) {
                 >
                   <JargonTerm term="Privacy Score">PRIVACY SCORE</JargonTerm>
                 </div>
-                <div className="text-base mt-1">
-                  {delta != null && (
+                {delta != null && (
+                  <div className="text-base mt-1">
                     <span className="text-cyan font-mono">
                       {delta > 0 ? '+' : ''}
                       {delta}
                     </span>
-                  )}
-                  <span className="text-text-muted"> vs last week</span>
-                </div>
+                    <span className="text-text-muted"> vs last week</span>
+                  </div>
+                )}
               </div>
               <button
                 type="button"

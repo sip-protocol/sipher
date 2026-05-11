@@ -120,11 +120,6 @@ function StealthTreeSection({
               </div>
             </div>
           ))}
-          {stealthTree.length === 1 && (
-            <Chip tone="neutral" className="self-start mt-2">
-              M19 — Derived stealth tree expands when M19 ships
-            </Chip>
-          )}
         </div>
       )}
     </Card>

@@ -151,7 +151,7 @@ export default function DashboardView({ events }: { events: ActivityEvent[] }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <PrivacyScoreCard data={privacyData} delta={4} />
+          <PrivacyScoreCard data={privacyData} />
         </div>
         <div>
           <ShieldedVolumeCard />

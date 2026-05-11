@@ -82,10 +82,16 @@ describe('PrivacyScoreCard', () => {
     expect(navigateMock).toHaveBeenCalledWith('/privacy-report')
   })
 
-  it('omits delta block when delta is undefined', () => {
+  it('renders nothing for delta section when delta is undefined', () => {
     renderCard({ data: fakeData })
-    expect(screen.queryByText(/vs last week/)).toBeInTheDocument()
+    expect(screen.queryByText(/vs last week/)).toBeNull()
     expect(screen.queryByText('+4')).not.toBeInTheDocument()
+  })
+
+  it('renders both delta and " vs last week" when delta is provided', () => {
+    renderCard({ data: null, delta: 3 })
+    expect(screen.getByText('+3')).toBeInTheDocument()
+    expect(screen.getByText(/vs last week/)).toBeInTheDocument()
   })
 
   it('opens Sheet teaser with UnauthedEmptyState when View report clicked unauthed', () => {
