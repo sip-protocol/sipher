@@ -450,7 +450,7 @@ Mirrors Wave 1 (validated in frontier_49):
    - Out-of-scope guardrails (verbatim)
    - Carry-forward conventions (verbatim from Tier 4 spec)
    - Branch name + worktree path
-   - "Read `docs/superpowers/plans/2026-05-11-qa-sweep-tier-4-wave-2.md` → Cluster {X} implementer subagent prompt section" reference for detailed per-issue TDD briefs.
+   - "Read `docs/superpowers/plans/2026-05-11-qa-sweep-tier-4-wave-2a.md` → Cluster {X} implementer subagent prompt section" reference for detailed per-issue TDD briefs.
 4. **Subagent execution per cluster:** TDD-first (red test → implementation → green), one issue at a time within the cluster. Conventional commits with appropriate scope (`fix(app)`, `feat(app)`, `test(app)`, `chore(app)`). Push branch when all cluster issues green.
 5. **Spec review (sequential, post-implementation):** Spawn spec-reviewer subagent per cluster. Validates D-items met.
 6. **Code-quality review (sequential, post-spec-review):** Spawn code-quality-reviewer per cluster. Critical/Important findings → fix loop within cluster's implementer subagent. Minor findings → file as `tech-debt,priority:low` follow-ups (NOT `qa-skill` — avoids inflating Phase D gate count).
