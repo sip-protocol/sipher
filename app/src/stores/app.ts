@@ -50,6 +50,13 @@ interface AppState {
 
   chatSheetOpen: boolean
   setChatSheetOpen: (open: boolean) => void
+
+  // Wave 2b #218 — unauthed chat budget. Null = unknown (no message sent yet
+  // in this session). Number = X-RateLimit-Remaining from the last public
+  // chat response. Reset to null on auth state changes so authed→unauthed
+  // transitions start fresh.
+  unauthedRemaining: number | null
+  setUnauthedRemaining: (n: number | null) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -58,9 +65,16 @@ export const useAppStore = create<AppState>()(
       token: null,
       isAdmin: false,
       expiresAt: null,
-      setAuth: (token, isAdmin, expiresAt = null) => set({ token, isAdmin, expiresAt }),
+      setAuth: (token, isAdmin, expiresAt = null) =>
+        set({ token, isAdmin, expiresAt, unauthedRemaining: null }),
       clearAuth: () => {
-        set({ token: null, isAdmin: false, expiresAt: null, messages: [] })
+        set({
+          token: null,
+          isAdmin: false,
+          expiresAt: null,
+          messages: [],
+          unauthedRemaining: null,
+        })
         onAuthClear.clearAll()
       },
 
@@ -125,6 +139,9 @@ export const useAppStore = create<AppState>()(
 
       chatSheetOpen: false,
       setChatSheetOpen: (chatSheetOpen) => set({ chatSheetOpen }),
+
+      unauthedRemaining: null,
+      setUnauthedRemaining: (unauthedRemaining) => set({ unauthedRemaining }),
     }),
     {
       name: 'sipher-auth',
