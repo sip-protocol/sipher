@@ -45,6 +45,7 @@ export function DepositForm({
         max={max}
         onSubmit={handleSubmit}
         onCancel={() => {}}
+        assetSymbol={asset}
       />
       <TxStatusBadge status={status} signature={signature} />
     </div>

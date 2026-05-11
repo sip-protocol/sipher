@@ -5,9 +5,16 @@ interface Props {
   max: number
   onSubmit: (amount: number) => void
   onCancel: () => void
+  assetSymbol?: string
 }
 
-export default function AmountForm({ action, max, onSubmit, onCancel }: Props) {
+export default function AmountForm({
+  action,
+  max,
+  onSubmit,
+  onCancel,
+  assetSymbol = 'SOL',
+}: Props) {
   const [raw, setRaw] = useState('')
   const parsed = Number(raw)
   const valid = raw.length > 0 && Number.isFinite(parsed) && parsed > 0 && parsed <= max
@@ -26,9 +33,9 @@ export default function AmountForm({ action, max, onSubmit, onCancel }: Props) {
           className="flex-1 bg-elevated border border-border rounded-lg px-3 py-2 text-[14px] font-mono text-text focus:outline-none focus:border-accent/40"
           placeholder="0.0"
         />
-        <span className="text-[12px] font-mono text-text-muted">SOL</span>
+        <span className="text-[12px] font-mono text-text-muted">{assetSymbol}</span>
       </div>
-      <div className="text-[10px] font-mono text-text-muted">Max: {max} SOL</div>
+      <div className="text-[10px] font-mono text-text-muted">Max: {max} {assetSymbol}</div>
       <div className="flex gap-2">
         <button
           onClick={() => valid && onSubmit(parsed)}

@@ -50,4 +50,17 @@ describe('DepositForm', () => {
     render(<DepositForm {...baseProps} status="signing" />)
     expect(screen.getByText(/signing/i)).toBeInTheDocument()
   })
+
+  it('passes the selected asset as assetSymbol to AmountForm', () => {
+    render(<DepositForm {...baseProps} />)
+    // Default selected asset is SOL — AmountForm should render SOL label
+    expect(screen.getByText(/Max:\s*5\s*SOL/)).toBeInTheDocument()
+    // Switch to USDC — AmountForm should re-render with USDC label
+    fireEvent.click(screen.getByRole('button', { name: 'USDC' }))
+    expect(screen.getByText(/Max:\s*100\s*USDC/)).toBeInTheDocument()
+    expect(screen.queryByText(/Max:\s*100\s*SOL/)).not.toBeInTheDocument()
+    // Switch to USDT — AmountForm should re-render with USDT label
+    fireEvent.click(screen.getByRole('button', { name: 'USDT' }))
+    expect(screen.getByText(/Max:\s*100\s*USDT/)).toBeInTheDocument()
+  })
 })
