@@ -17,20 +17,33 @@ interface StealthNode {
 export function PrivacyGraph() {
   const { token } = useAuthState()
   const [tree, setTree] = useState<StealthNode[]>([])
+  const [loading, setLoading] = useState<boolean>(Boolean(token))
 
-  useOnAuthClear(() => setTree([]))
+  useOnAuthClear(() => {
+    setTree([])
+    setLoading(false)
+  })
 
   useEffect(() => {
-    if (!token) return
+    if (!token) {
+      setLoading(false)
+      return
+    }
     const controller = new AbortController()
+    setLoading(true)
     apiFetch<{ tree: StealthNode[]; rootWallet: string }>('/api/stealth/index', {
       token,
       signal: controller.signal,
     })
-      .then((j) => setTree(j.tree))
+      .then((j) => {
+        if (controller.signal.aborted) return
+        setTree(j.tree)
+        setLoading(false)
+      })
       .catch((err) => {
         if (err instanceof Error && err.name === 'AbortError') return
         setTree([])
+        setLoading(false)
       })
     return () => controller.abort()
   }, [token])
@@ -60,8 +73,22 @@ export function PrivacyGraph() {
           {tree.length} {tree.length === 1 ? 'address' : 'addresses'}
         </span>
       </div>
-      {tree.length === 0 ? (
-        <div className="h-[400px] flex flex-col items-center justify-center text-center px-6">
+      {loading ? (
+        <div
+          data-testid="privacy-graph-skeleton"
+          aria-busy="true"
+          aria-label="Loading privacy graph"
+          className="h-[400px] animate-pulse flex flex-col items-center justify-center text-center px-6 gap-3"
+        >
+          <div className="h-3 bg-text/10 rounded w-1/3" />
+          <div className="h-3 bg-text/10 rounded w-2/3" />
+          <div className="h-3 bg-text/10 rounded w-1/2" />
+        </div>
+      ) : tree.length === 0 ? (
+        <div
+          data-testid="privacy-graph-empty"
+          className="h-[400px] flex flex-col items-center justify-center text-center px-6"
+        >
           <p className="text-sm text-text-secondary">
             Each node is a one-time stealth address.
           </p>

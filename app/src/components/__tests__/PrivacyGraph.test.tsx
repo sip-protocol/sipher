@@ -105,4 +105,26 @@ describe('PrivacyGraph', () => {
       expect(screen.getByText(/0 addresses/)).toBeInTheDocument()
     })
   })
+
+  describe('loading state', () => {
+    it('renders skeleton while loading and hides empty state', async () => {
+      // Mock a fetch that never resolves so the loading state persists
+      ;(apiFetch as ReturnType<typeof vi.fn>).mockImplementationOnce(() => new Promise(() => {}))
+      render(<PrivacyGraph />)
+      expect(screen.getByTestId('privacy-graph-skeleton')).toBeInTheDocument()
+      expect(screen.queryByTestId('privacy-graph-empty')).not.toBeInTheDocument()
+    })
+
+    it('renders empty state when loaded with no nodes', async () => {
+      ;(apiFetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        tree: [],
+        rootWallet: '',
+      })
+      render(<PrivacyGraph />)
+      await waitFor(() => {
+        expect(screen.getByTestId('privacy-graph-empty')).toBeInTheDocument()
+      })
+      expect(screen.queryByTestId('privacy-graph-skeleton')).not.toBeInTheDocument()
+    })
+  })
 })
