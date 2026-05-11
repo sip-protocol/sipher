@@ -36,4 +36,41 @@ describe('AmountForm', () => {
     await userEvent.click(screen.getByRole('button', { name: /cancel/i }))
     expect(onCancel).toHaveBeenCalled()
   })
+
+  describe('assetSymbol prop', () => {
+    it('renders SOL by default', () => {
+      render(<AmountForm action="Deposit" max={5} onSubmit={() => {}} onCancel={() => {}} />)
+      expect(screen.getByText('SOL')).toBeInTheDocument()
+      expect(screen.getByText(/Max:\s*5\s*SOL/)).toBeInTheDocument()
+    })
+
+    it('renders custom assetSymbol when passed (USDC)', () => {
+      render(
+        <AmountForm
+          action="Deposit"
+          max={5}
+          onSubmit={() => {}}
+          onCancel={() => {}}
+          assetSymbol="USDC"
+        />,
+      )
+      expect(screen.getByText('USDC')).toBeInTheDocument()
+      expect(screen.getByText(/Max:\s*5\s*USDC/)).toBeInTheDocument()
+      expect(screen.queryByText('SOL')).not.toBeInTheDocument()
+    })
+
+    it('renders custom assetSymbol when passed (USDT)', () => {
+      render(
+        <AmountForm
+          action="Deposit"
+          max={10}
+          onSubmit={() => {}}
+          onCancel={() => {}}
+          assetSymbol="USDT"
+        />,
+      )
+      expect(screen.getByText('USDT')).toBeInTheDocument()
+      expect(screen.queryByText('SOL')).not.toBeInTheDocument()
+    })
+  })
 })
