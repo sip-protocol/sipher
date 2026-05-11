@@ -100,4 +100,39 @@ describe('/api/public/activity-summary', () => {
     expect(toAmountBand(500)).toBe('100-1000')
     expect(toAmountBand(5_000)).toBe('>1000')
   })
+
+  // Regression: previously the route fetched the last 50 rows then JS-filtered
+  // for fund-mover types. If non-fund-mover events dominate the recent window,
+  // the teaser silently degrades — the SQL filter is the only way to keep the
+  // teaser useful as the activity stream grows.
+  it('recent rows are SQL-filtered to fund-mover types even when non-fund-mover rows dominate the recent window', async () => {
+    // Seed 5 OLDER fund-mover events first.
+    for (let i = 0; i < 5; i++) {
+      insertActivity({
+        agent: 'sipher',
+        level: 'info',
+        type: 'send.success',
+        title: `fund-${i}`,
+        detail: JSON.stringify({ amount: i + 1, chain: 'solana' }),
+      })
+    }
+    // Then seed 60 NEWER non-fund-mover events. With the old JS-filter
+    // (over-fetch limit=50, then filter), the 5 fund-mover rows are pushed
+    // out of the limit window entirely → recent becomes [].
+    for (let i = 0; i < 60; i++) {
+      insertActivity({
+        agent: 'sipher',
+        level: 'info',
+        type: 'agent.info',
+        title: `noise-${i}`,
+        detail: JSON.stringify({ chain: 'solana' }),
+      })
+    }
+    const res = await request(app).get('/api/public/activity-summary')
+    expect(res.status).toBe(200)
+    expect(res.body.recent).toHaveLength(5)
+    for (const row of res.body.recent) {
+      expect(['send.success', 'swap.success', 'send.completed', 'swap.completed']).toContain(row.type)
+    }
+  })
 })

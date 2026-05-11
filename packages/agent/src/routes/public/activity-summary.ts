@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import { getDb, getActivity } from '../../db.js'
+import { getDb } from '../../db.js'
 import { ipRateLimitMiddleware } from '../../lib/ip-rate-limit.js'
 import { getCached, setCached } from '../../lib/cache.js'
 import {
@@ -73,21 +73,26 @@ function computeCounter(): number {
  * defensively parse `detail`, and project to the anonymized output shape.
  * Only allow-listed keys (`type`, `chain`, `amountBand`, `relativeTime`)
  * make it into the response.
+ *
+ * The filter runs at SQL level — a JS post-filter over an over-fetched window
+ * silently degrades as the activity stream grows (non-fund-mover events can
+ * push fund-movers out of the limit window entirely). Mirrors the inline-SQL
+ * pattern from `computeCounter`.
  */
 function computeRecent(): AnonActivityRow[] {
-  // getActivity(null) returns rows across all wallets — exactly the
-  // ecosystem-wide teaser we want. Over-fetch by a small factor so the
-  // post-filter still has 5 fund-mover rows in the (rare) case where most
-  // recent rows are non-completion levels (e.g., `info`, `warning`).
-  const rows = getActivity(null, { limit: 50 })
+  const db = getDb()
+  const rows = db
+    .prepare(
+      `SELECT type, detail, created_at FROM activity_stream
+       WHERE type LIKE ? OR type LIKE ?
+       ORDER BY created_at DESC, rowid DESC
+       LIMIT 5`,
+    )
+    .all('%.success', '%.completed') as Array<Record<string, unknown>>
 
-  const fundMoverPattern = /\.(success|completed)$/
   const out: AnonActivityRow[] = []
-
   for (const row of rows) {
     const type = typeof row.type === 'string' ? row.type : ''
-    if (!fundMoverPattern.test(type)) continue
-
     const detail = parseActivityDetail(row.detail)
     const chain = typeof detail.chain === 'string' ? detail.chain : 'solana'
     const rawAmount = typeof detail.amount === 'number'
@@ -103,8 +108,6 @@ function computeRecent(): AnonActivityRow[] {
       amountBand: toAmountBand(rawAmount),
       relativeTime: relativeTime(createdAt),
     })
-
-    if (out.length >= 5) break
   }
 
   return out
