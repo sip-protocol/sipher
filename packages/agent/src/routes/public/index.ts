@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { demoRouter } from './demo.js'
 
 /**
  * Public, unauthenticated routes mounted at /api/public.
@@ -9,3 +10,6 @@ import { Router } from 'express'
  * All sub-routers MUST apply ipRateLimitMiddleware with their own key/cap.
  */
 export const publicRouter = Router()
+
+// #216 — demo mode (vault / activity / privacy-score snapshots for /demo)
+publicRouter.use('/demo', demoRouter)
