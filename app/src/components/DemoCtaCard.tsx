@@ -20,7 +20,6 @@ export default function DemoCtaCard() {
     >
       <p className="text-sm text-text-secondary mb-3">Curious how it looks populated?</p>
       <a
-        role="link"
         href="/demo"
         onClick={(e) => {
           e.preventDefault()
