@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { onAuthClear } from '../onAuthClear'
 
 describe('onAuthClear registry', () => {
   beforeEach(() => {
     onAuthClear._resetForTests()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('register returns an unsubscribe function', () => {
@@ -41,11 +45,43 @@ describe('onAuthClear registry', () => {
   })
 
   it('a callback that throws does not block subsequent callbacks', () => {
+    // Vitest's default env is DEV=true, which routes the swallowed-error
+    // warning to console.warn. Suppress it here so the test output stays
+    // clean — the warn behavior itself is covered by the DEV-mode test
+    // below.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const a = vi.fn(() => { throw new Error('boom') })
     const b = vi.fn()
     onAuthClear.register(a)
     onAuthClear.register(b)
     expect(() => onAuthClear.clearAll()).not.toThrow()
     expect(b).toHaveBeenCalledOnce()
+    warnSpy.mockRestore()
+  })
+
+  it('warns in DEV mode when a registered callback throws', () => {
+    vi.stubEnv('DEV', true)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const err = new Error('boom')
+    onAuthClear.register(() => { throw err })
+    onAuthClear.clearAll()
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('onAuthClear callback threw'),
+      err,
+    )
+    warnSpy.mockRestore()
+  })
+
+  it('does NOT warn in production mode when a callback throws', () => {
+    vi.stubEnv('DEV', false)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    onAuthClear.register(() => { throw new Error('boom') })
+    onAuthClear.clearAll()
+
+    expect(warnSpy).not.toHaveBeenCalled()
+    warnSpy.mockRestore()
   })
 })
