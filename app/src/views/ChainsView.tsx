@@ -40,8 +40,6 @@ export default function ChainsView() {
       <meta name="description" content="Multi-chain support spanning 9+ blockchains including Solana, Ethereum, and L2s." />
       <meta property="og:title" content="SIPHER — Chains" />
       <meta property="og:description" content="Multi-chain support spanning 9+ blockchains including Solana, Ethereum, and L2s." />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="/icons/sipher.svg" />
       <div>
         <h1 className="text-3xl text-text font-semibold">Chains</h1>
         <p className="text-base text-text-muted mt-1">

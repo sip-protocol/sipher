@@ -7,8 +7,6 @@ export default function ChatView() {
       <meta name="description" content="Ask SIPHER about your privacy posture." />
       <meta property="og:title" content="SIPHER — Chat" />
       <meta property="og:description" content="Ask SIPHER about your privacy posture." />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="/icons/sipher.svg" />
       <ChatSidebar fullScreen />
     </div>
   )

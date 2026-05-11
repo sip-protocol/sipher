@@ -12,8 +12,6 @@ export default function KeysView() {
       <meta name="description" content="Manage viewing keys and stealth addresses for shielded transfers." />
       <meta property="og:title" content="SIPHER — Keys" />
       <meta property="og:description" content="Manage viewing keys and stealth addresses for shielded transfers." />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="/icons/sipher.svg" />
     </>
   )
   if (status !== 'authed') {

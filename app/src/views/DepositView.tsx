@@ -131,8 +131,6 @@ export default function DepositView() {
       <meta name="description" content="Deposit to shielded vault." />
       <meta property="og:title" content="SIPHER — Deposit" />
       <meta property="og:description" content="Deposit to shielded vault." />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="/icons/sipher.svg" />
     </>
   )
 

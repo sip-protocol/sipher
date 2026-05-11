@@ -8,8 +8,6 @@ export default function NotFoundView() {
       <meta name="description" content="Page not found." />
       <meta property="og:title" content="SIPHER — Not found" />
       <meta property="og:description" content="Page not found." />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="/icons/sipher.svg" />
       <h1 className="sr-only">Not Found</h1>
       <UnauthedEmptyState
         title="Not found"

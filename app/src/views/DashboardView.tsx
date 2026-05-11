@@ -151,8 +151,6 @@ export default function DashboardView({ events }: { events: ActivityEvent[] }) {
       <meta name="description" content="Multi-chain privacy command center for shielded transfers across 9+ chains." />
       <meta property="og:title" content="SIPHER — Multi-chain privacy command center" />
       <meta property="og:description" content="Multi-chain privacy command center for shielded transfers across 9+ chains." />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="/icons/sipher.svg" />
       <div data-testid="dashboard-view" className="space-y-6 p-6">
         <PrivacyGraph />
 

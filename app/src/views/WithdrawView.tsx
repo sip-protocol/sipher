@@ -112,8 +112,6 @@ export default function WithdrawView() {
       <meta name="description" content="Withdraw from shielded vault to stealth address." />
       <meta property="og:title" content="SIPHER — Withdraw" />
       <meta property="og:description" content="Withdraw from shielded vault to stealth address." />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="/icons/sipher.svg" />
     </>
   )
 

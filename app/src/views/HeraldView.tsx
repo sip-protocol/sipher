@@ -410,8 +410,6 @@ export default function HeraldView({ token }: { token: string | null }) {
       <meta name="description" content="Monitor HERALD agent activity and X interactions." />
       <meta property="og:title" content="SIPHER — Herald" />
       <meta property="og:description" content="Monitor HERALD agent activity and X interactions." />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="/icons/sipher.svg" />
     </>
   )
 

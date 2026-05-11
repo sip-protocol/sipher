@@ -92,8 +92,6 @@ export default function VaultView() {
       <meta name="description" content="Shielded vault for private deposits and withdrawals on Solana." />
       <meta property="og:title" content="SIPHER — Vault" />
       <meta property="og:description" content="Shielded vault for private deposits and withdrawals on Solana." />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="/icons/sipher.svg" />
     </>
   )
 

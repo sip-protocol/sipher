@@ -263,8 +263,6 @@ export default function SquadView({ token }: { token: string | null }) {
       <meta name="description" content="SENTINEL guardian squad oversight and threat assessment." />
       <meta property="og:title" content="SIPHER — Guardian Squad" />
       <meta property="og:description" content="SENTINEL guardian squad oversight and threat assessment." />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="/icons/sipher.svg" />
     </>
   )
 

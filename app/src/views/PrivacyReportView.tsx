@@ -49,8 +49,6 @@ export default function PrivacyReportView() {
       <meta name="description" content="On-chain privacy score and surveillance exposure analysis." />
       <meta property="og:title" content="SIPHER — Privacy Report" />
       <meta property="og:description" content="On-chain privacy score and surveillance exposure analysis." />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="/icons/sipher.svg" />
     </>
   )
 
