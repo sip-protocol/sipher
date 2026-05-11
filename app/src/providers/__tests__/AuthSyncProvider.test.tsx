@@ -3,8 +3,9 @@ import { render, screen, act } from '@testing-library/react'
 import { AuthSyncProvider } from '../AuthSyncProvider'
 import { useAuthState, type AuthState } from '../../hooks/useAuthState'
 import { useAppStore } from '../../stores/app'
+import type { ToastInput } from '../../components/Toast'
 
-const mockToastShow = vi.fn(() => 'toast-id')
+const mockToastShow = vi.fn((_: ToastInput): string => 'toast-id')
 const mockToastDismiss = vi.fn()
 vi.mock('../ToastProvider', () => ({
   useToast: () => ({ show: mockToastShow, dismiss: mockToastDismiss }),
@@ -833,5 +834,213 @@ describe('AuthSyncProvider — authenticate', () => {
       await pending!
     })
     expect(captured.current!.status).toBe('authed')
+  })
+})
+
+describe('AuthSyncProvider — 401 interceptor toast dedup (#203)', () => {
+  beforeEach(() => {
+    useAppStore.setState({ token: null, isAdmin: false, expiresAt: null }, false)
+    mockedUseWallet.mockReset()
+    mockToastShow.mockClear()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('emits only one "Session expired" toast when multiple 401s fire concurrently', async () => {
+    mockedUseWallet.mockReturnValue({
+      connected: false,
+      publicKey: null,
+      wallet: null,
+      signMessage: undefined,
+      disconnect: vi.fn(),
+    })
+
+    render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+
+    const { triggerAuthInterceptor } = await import('../../api/client')
+
+    act(() => {
+      triggerAuthInterceptor()
+      triggerAuthInterceptor()
+      triggerAuthInterceptor()
+    })
+
+    const toastCalls = mockToastShow.mock.calls.filter(([input]) =>
+      /session expired/i.test(input.message),
+    )
+    expect(toastCalls).toHaveLength(1)
+  })
+
+  it('re-emits toast after 30s dedup window expires', async () => {
+    vi.useFakeTimers()
+    mockedUseWallet.mockReturnValue({
+      connected: false,
+      publicKey: null,
+      wallet: null,
+      signMessage: undefined,
+      disconnect: vi.fn(),
+    })
+
+    render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+
+    const { triggerAuthInterceptor } = await import('../../api/client')
+    const matches = () =>
+      mockToastShow.mock.calls.filter(([input]) =>
+        /session expired/i.test(input.message),
+      )
+
+    act(() => {
+      triggerAuthInterceptor()
+    })
+    expect(matches()).toHaveLength(1)
+
+    // Inside the window: subsequent 401s do NOT emit additional toasts.
+    act(() => {
+      triggerAuthInterceptor()
+    })
+    expect(matches()).toHaveLength(1)
+
+    // Past the 30s window: next 401 emits a fresh toast.
+    act(() => {
+      vi.advanceTimersByTime(31_000)
+    })
+
+    act(() => {
+      triggerAuthInterceptor()
+    })
+    expect(matches()).toHaveLength(2)
+  })
+
+  it('clears the dedup flag after successful auth so a later 401 re-emits the toast', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 86400
+    const issuedToken = makeJwtForTest({ wallet: 'W', exp: futureExp })
+    const mockSignMessage = vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3]))
+    mockedUseWallet.mockReturnValue({
+      connected: true,
+      publicKey: { toBase58: () => 'W' },
+      wallet: null,
+      signMessage: mockSignMessage,
+      disconnect: vi.fn(),
+    })
+
+    const originalFetch = global.fetch
+    global.fetch = vi.fn() as unknown as typeof fetch
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ nonce: 'n', message: 'm' }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token: issuedToken, isAdmin: false, expiresIn: '24h' }),
+      })
+
+    const captured: { current: AuthState | null } = { current: null }
+    function Capture() {
+      captured.current = useAuthState()
+      return null
+    }
+
+    render(
+      <AuthSyncProvider>
+        <Capture />
+      </AuthSyncProvider>,
+    )
+
+    const { triggerAuthInterceptor } = await import('../../api/client')
+    const matches = () =>
+      mockToastShow.mock.calls.filter(([input]) =>
+        /session expired/i.test(input.message),
+      )
+
+    act(() => {
+      triggerAuthInterceptor()
+    })
+    expect(matches()).toHaveLength(1)
+
+    // A second 401 inside the dedup window is suppressed.
+    act(() => {
+      triggerAuthInterceptor()
+    })
+    expect(matches()).toHaveLength(1)
+
+    // Successful re-auth resets the flag.
+    await act(async () => {
+      await captured.current!.authenticate()
+    })
+
+    act(() => {
+      triggerAuthInterceptor()
+    })
+    expect(matches()).toHaveLength(2)
+
+    global.fetch = originalFetch
+  })
+})
+
+describe('AuthSyncProvider — walletName localStorage cleanup (#213)', () => {
+  beforeEach(() => {
+    useAppStore.setState({ token: null, isAdmin: false, expiresAt: null }, false)
+    mockedUseWallet.mockReset()
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it('clears walletName from localStorage when clearAuth fires', () => {
+    mockedUseWallet.mockReturnValue({
+      connected: false,
+      publicKey: null,
+      wallet: null,
+      signMessage: undefined,
+      disconnect: vi.fn(),
+    })
+    // The wallet-adapter persists the chosen wallet name as a JSON string.
+    localStorage.setItem('walletName', JSON.stringify('Phantom'))
+
+    render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+
+    expect(localStorage.getItem('walletName')).toBe(JSON.stringify('Phantom'))
+
+    act(() => {
+      useAppStore.getState().clearAuth()
+    })
+
+    expect(localStorage.getItem('walletName')).toBeNull()
+  })
+
+  it('does NOT clear walletName on initial mount (autoConnect happy path)', () => {
+    mockedUseWallet.mockReturnValue({
+      connected: false,
+      publicKey: null,
+      wallet: null,
+      signMessage: undefined,
+      disconnect: vi.fn(),
+    })
+    localStorage.setItem('walletName', JSON.stringify('Phantom'))
+
+    render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+
+    // Cleanup only fires on clearAuth — returning users with a valid JWT
+    // (or any user whose autoConnect is still resolving) keep the persisted
+    // walletName so the adapter can reconnect.
+    expect(localStorage.getItem('walletName')).toBe(JSON.stringify('Phantom'))
   })
 })
