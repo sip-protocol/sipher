@@ -1,12 +1,10 @@
 import { Router } from 'express'
 import { demoRouter } from './demo.js'
 import { activitySummaryRouter } from './activity-summary.js'
+import { chatRouter } from './chat.js'
 
 /**
  * Public, unauthenticated routes mounted at /api/public.
- * Wave 2b subagents (F3) extend this router by appending sub-routers.
- * F1 (/demo) and F2 (/activity-summary) already wired below.
- *
  * All sub-routers MUST apply ipRateLimitMiddleware with their own key/cap.
  */
 export const publicRouter = Router()
@@ -15,3 +13,5 @@ export const publicRouter = Router()
 publicRouter.use('/demo', demoRouter)
 // #217 — unauthed activity teaser (counter + 5 recent rows)
 publicRouter.use('/activity-summary', activitySummaryRouter)
+// #218 — unauthed Ask SIPHER chat (POST /api/public/chat/stream, 5 msgs/IP/24h)
+publicRouter.use('/chat', chatRouter)
