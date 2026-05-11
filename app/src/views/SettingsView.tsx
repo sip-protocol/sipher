@@ -57,6 +57,13 @@ export default function SettingsView() {
         if (!controller.signal.aborted) setConfig(r)
       })
       .catch((e: unknown) => {
+        // AbortError convention aligns with HeraldView/SquadView — the err
+        // name is the authoritative signal (works whether the abort came
+        // from this effect's controller or an upstream AbortError). The
+        // signal.aborted check remains as belt-and-suspenders against
+        // unmount races where setError would run after the controller's
+        // effect-cleanup fired but before the catch micro-task drained.
+        if (e instanceof Error && e.name === 'AbortError') return
         if (!controller.signal.aborted) {
           setError(e instanceof Error ? e.message : 'Failed to load config')
         }

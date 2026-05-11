@@ -125,6 +125,17 @@ describe('SquadView KillSwitch tones', () => {
 
 describe('SquadView AbortController', () => {
   beforeEach(() => {
+    // mockClear wipes call history but leaks any mockImplementation set in
+    // a prior test in this describe; mockReset clears both. Re-seed the
+    // happy-path default so future tests added to this block can still
+    // assert on a clean default fixture instead of a never-resolving stub.
+    vi.mocked(apiFetch).mockReset()
+    vi.mocked(apiFetch).mockResolvedValue({
+      agents: [],
+      stats: { toolCalls: 0, walletSessions: 0, xPosts: 0, xReplies: 0, blocksScanned: 0, alerts: 0 },
+      coordination: [],
+      killSwitch: false,
+    })
     vi.mocked(useAuthState).mockReturnValue(
       makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: true }),
     )

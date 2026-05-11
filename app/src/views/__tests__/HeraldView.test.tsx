@@ -110,7 +110,19 @@ describe('HeraldView budget bar colors', () => {
 })
 
 describe('HeraldView AbortController', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    const { apiFetch } = await import('../../api/client')
+    // mockClear wipes call history but leaks any mockImplementation set in
+    // a prior test in this describe; mockReset clears both. Re-seed the
+    // file-level happy-path default so the second test (empty-token guard)
+    // can still assert "not called" against a clean default.
+    vi.mocked(apiFetch).mockReset()
+    vi.mocked(apiFetch).mockResolvedValue({
+      queue: [],
+      budget: { spent: 0, limit: 100, gate: 'open', percentage: 0 },
+      dms: [],
+      recentPosts: [],
+    })
     vi.mocked(useAuthState).mockReturnValue(
       makeFakeAuthState({ status: 'authed', token: 't', publicKey: 'pk', isAdmin: true }),
     )
@@ -132,7 +144,6 @@ describe('HeraldView AbortController', () => {
 
   it('does not call apiFetch when token prop is empty even with isAdmin', async () => {
     const { apiFetch } = await import('../../api/client')
-    vi.mocked(apiFetch).mockClear()
     const { container } = renderHerald('')
     expect(container.textContent).toMatch(/Connect your wallet to view HERALD activity/i)
     expect(vi.mocked(apiFetch)).not.toHaveBeenCalled()

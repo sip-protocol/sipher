@@ -130,4 +130,22 @@ describe('SettingsView', () => {
       expect(screen.getByText(/\$10/)).toBeInTheDocument()
     })
   })
+
+  it('ignores AbortError thrown directly (not via controller.abort())', async () => {
+    // Regression-locker for the convention switch from
+    // `if (!signal.aborted)` to `if (err.name === 'AbortError') return`.
+    // An AbortError surfaced from a downstream code path (rather than via
+    // the local controller) must not paint the error card.
+    useAuthStateMock.mockReturnValue(
+      makeFakeAuthState({ publicKey: 'X', token: 't', status: 'authed', isAdmin: true }),
+    )
+    const abortError = Object.assign(new Error('aborted'), { name: 'AbortError' })
+    apiFetchMock.mockRejectedValueOnce(abortError)
+    const { default: SettingsView } = await import('../SettingsView')
+    const { container } = renderSettings(SettingsView)
+    await waitFor(() => {
+      expect(container.firstChild).not.toBeNull()
+    })
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
 })

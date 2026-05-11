@@ -28,9 +28,14 @@ function createRegistry(): OnAuthClearRegistry {
       for (const cb of snapshot) {
         try {
           cb()
-        } catch {
+        } catch (err) {
           // A consumer's cleanup throwing should not block other consumers.
-          // Swallow; auth-clear is best-effort UI cleanup.
+          // Swallow; auth-clear is best-effort UI cleanup. Surface the
+          // swallowed error in DEV so the developer sees it locally — in
+          // production we stay quiet to avoid polluting the user console.
+          if (import.meta.env.DEV) {
+            console.warn('onAuthClear callback threw (swallowed)', err)
+          }
         }
       }
     },

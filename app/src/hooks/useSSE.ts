@@ -17,8 +17,13 @@ export function useSSE() {
   const [events, setEvents] = useState<ActivityEvent[]>([])
   const [connected, setConnected] = useState(false)
   const sourceRef = useRef<EventSource | null>(null)
+  // Flips to `true` when onAuthClear fires while a connectSSE Promise is
+  // still pending. The .then handler checks this before any state setter
+  // so a stale resolution can't bypass auth-clear cleanup.
+  const authClearedRef = useRef(false)
 
   useOnAuthClear(() => {
+    authClearedRef.current = true
     setEvents([])
     setConnected(false)
     sourceRef.current?.close()
@@ -29,12 +34,16 @@ export function useSSE() {
     if (!token) { setConnected(false); return }
 
     let cancelled = false
+    // Fresh connect attempt — reset the auth-cleared flag so this attempt
+    // is allowed to land. If auth clears mid-resolution, the flag flips
+    // back to true and the .then handler will short-circuit.
+    authClearedRef.current = false
 
     connectSSE(token, (e) => {
       const data = JSON.parse(e.data) as ActivityEvent
       setEvents(prev => [data, ...prev].slice(0, 200))
     }).then((source) => {
-      if (cancelled) { source.close(); return }
+      if (cancelled || authClearedRef.current) { source.close(); return }
       sourceRef.current = source
       setConnected(true)
       // EventSource fires onerror on every transient blip (1s WiFi hiccup,
