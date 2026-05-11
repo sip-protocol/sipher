@@ -51,7 +51,11 @@ export default function Header() {
   const activeView = useActiveView()
   const navigate = useNavigate()
   const setChatSheetOpen = useAppStore((s) => s.setChatSheetOpen)
-  const network = useNetworkConfigStore((s) => s.config?.network ?? 'mainnet')
+  // App.tsx gates the entire shell on `config` resolving (shows "Loading…"
+  // until then), so this selector is always defined at render time. The old
+  // `?? 'mainnet'` fallback was dead code that would silently mislabel devnet
+  // sessions if the gate ever changed. Render the network only when known.
+  const network = useNetworkConfigStore((s) => s.config?.network)
 
   const handleConnectOrSignIn = () => {
     authenticate().catch((err: unknown) => {
@@ -84,7 +88,9 @@ export default function Header() {
         >
           SIPHER
         </span>
-        <span className="text-2xs text-text-muted font-mono uppercase">{network}</span>
+        {network && (
+          <span className="text-2xs text-text-muted font-mono uppercase">{network}</span>
+        )}
         <TickerBar />
         <nav className="flex items-center ml-3">
           {TABS.map((tab) => {

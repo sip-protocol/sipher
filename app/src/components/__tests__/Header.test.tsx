@@ -29,9 +29,13 @@ vi.mock('../../providers/ToastProvider', () => ({
   useToast: () => ({ show: mockToastShow, dismiss: vi.fn() }),
 }))
 
+let mockNetworkConfig: { config: { network: string } | undefined } = {
+  config: { network: 'devnet' },
+}
+
 vi.mock('../../lib/networkConfig', () => ({
-  useNetworkConfigStore: <T,>(selector: (s: { config: { network: string } }) => T) =>
-    selector({ config: { network: 'devnet' } }),
+  useNetworkConfigStore: <T,>(selector: (s: { config: { network: string } | undefined }) => T) =>
+    selector(mockNetworkConfig),
 }))
 
 const FULL = 'HciZTd6rR7YsaS5ZNThx9KdgqSimxwMzJgs2j98U25En'
@@ -65,6 +69,7 @@ beforeEach(() => {
   })
   useAppStore.setState({ chatSheetOpen: false }, false)
   setAuth({ status: 'unauthed', publicKey: null, isAdmin: false })
+  mockNetworkConfig = { config: { network: 'devnet' } }
 })
 
 describe('Header — auth pill', () => {
@@ -205,5 +210,29 @@ describe('Header — tabs', () => {
     expect(screen.getByRole('link', { name: /Vault/i })).not.toHaveAttribute('aria-current')
     expect(screen.getByRole('link', { name: /Chains/i })).not.toHaveAttribute('aria-current')
     expect(screen.getByRole('link', { name: /Keys/i })).not.toHaveAttribute('aria-current')
+  })
+})
+
+describe('Header — network identifier', () => {
+  it('renders the active network when config is loaded (devnet)', () => {
+    mockNetworkConfig = { config: { network: 'devnet' } }
+    renderHeader()
+    expect(screen.getByText('devnet')).toBeInTheDocument()
+  })
+
+  it('renders the active network when config is mainnet', () => {
+    mockNetworkConfig = { config: { network: 'mainnet' } }
+    renderHeader()
+    expect(screen.getByText('mainnet')).toBeInTheDocument()
+  })
+
+  it('omits the network badge when config is undefined (App.tsx gates shell — defensive)', () => {
+    // App.tsx shows a "Loading…" splash until config resolves, so Header
+    // should never see undefined in production. Assert the defensive
+    // behaviour: no stale "mainnet" fallback leaks through.
+    mockNetworkConfig = { config: undefined }
+    renderHeader()
+    expect(screen.queryByText('mainnet')).not.toBeInTheDocument()
+    expect(screen.queryByText('devnet')).not.toBeInTheDocument()
   })
 })
