@@ -56,6 +56,11 @@ jobs:
 
       - run: pnpm --filter @sipher/sdk build
 
+      # Build the agent before playwright spawns it via `node dist/index.js`.
+      # tsx-based dev mode hit an upstream Bonfida ESM bundle issue after the
+      # Phase D sip.sol integration; production already uses the built output.
+      - run: pnpm --filter @sipher/agent build
+
       - run: pnpm exec playwright install --with-deps chromium
 
       - name: Write E2E admin keypair

@@ -36,6 +36,8 @@ import {
   sweepTool,
   consolidateTool,
   assessRiskTool,
+  resolveSNSTool,
+  sendPrivateToSNSTool,
 } from '../src/tools/index.js'
 import { TOOLS, SYSTEM_PROMPT, executeTool } from '../src/agent.js'
 
@@ -124,6 +126,7 @@ describe('tool definitions', () => {
     paymentLinkTool, invoiceTool, privacyScoreTool, threatCheckTool,
     roundAmountTool, scheduleSendTool, splitSendTool, dripTool,
     recurringTool, sweepTool, consolidateTool, assessRiskTool,
+    resolveSNSTool, sendPrivateToSNSTool,
   ]
   const toolNames = [
     'deposit', 'send', 'refund', 'balance', 'scan', 'claim',
@@ -131,11 +134,12 @@ describe('tool definitions', () => {
     'paymentLink', 'invoice', 'privacyScore', 'threatCheck',
     'roundAmount', 'scheduleSend', 'splitSend', 'drip',
     'recurring', 'sweep', 'consolidate', 'assessRisk',
+    'resolveSNS', 'sendPrivateToSNS',
   ]
 
-  it('exports exactly 22 tools', () => {
-    expect(allTools).toHaveLength(22)
-    expect(TOOLS).toHaveLength(22)
+  it('exports exactly 24 tools', () => {
+    expect(allTools).toHaveLength(24)
+    expect(TOOLS).toHaveLength(24)
   })
 
   it('all tools have unique names', () => {
@@ -187,7 +191,7 @@ describe('system prompt', () => {
     expect(SYSTEM_PROMPT).toContain('Plug in. Go private.')
   })
 
-  it('references all 22 tools', () => {
+  it('references all 24 tools', () => {
     expect(SYSTEM_PROMPT).toContain('deposit')
     expect(SYSTEM_PROMPT).toContain('send')
     expect(SYSTEM_PROMPT).toContain('refund')
@@ -210,6 +214,8 @@ describe('system prompt', () => {
     expect(SYSTEM_PROMPT).toContain('sweep')
     expect(SYSTEM_PROMPT).toContain('consolidate')
     expect(SYSTEM_PROMPT).toContain('assessRisk')
+    expect(SYSTEM_PROMPT).toContain('resolveSNS')
+    expect(SYSTEM_PROMPT).toContain('sendPrivateToSNS')
   })
 
   it('includes the confirmation rule for fund-moving operations', () => {

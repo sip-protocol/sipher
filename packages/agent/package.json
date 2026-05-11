@@ -13,6 +13,7 @@
     "@mariozechner/pi-ai": "^0.66.1",
     "@noble/ciphers": "^2.1.1",
     "@sinclair/typebox": "^0.34.49",
+    "@sip-protocol/sns-stealth": "^0.1.0",
     "@sipher/sdk": "workspace:*",
     "better-sqlite3": "^12.8.0",
     "express": "^5.0.0",
@@ -20,8 +21,8 @@
     "jsonwebtoken": "^9.0.3",
     "twitter-api-v2": "^1.29.0",
     "ulid": "^3.0.2",
-    "zod": "^3.24.2",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

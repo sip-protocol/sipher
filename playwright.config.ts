@@ -28,7 +28,13 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'pnpm --filter @sipher/agent dev',
+      // Use the built output (`node dist/index.js`) instead of `tsx watch`.
+      // tsx's ESM loader hits a transitive Bonfida ESM bundle bug
+      // (@bonfida/spl-name-service@3.0.21 vendored borsh) introduced when
+      // @sip-protocol/sns-stealth was added in Phase D. Production uses
+      // `node dist/index.js` via Docker and is unaffected; the build step
+      // is added explicitly in .github/workflows/e2e.yml.
+      command: 'pnpm --filter @sipher/agent start',
       url: `http://localhost:${PORT_BACKEND}/api/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
