@@ -45,6 +45,10 @@ import {
   executeConsolidate,
   assessRiskTool,
   executeAssessRisk,
+  resolveSNSTool,
+  executeResolveSNS,
+  sendPrivateToSNSTool,
+  executeSendPrivateToSNS,
 } from './tools/index.js'
 import type { AgentMessage } from '@mariozechner/pi-agent-core'
 import { createPiAgent } from './pi/sipher-agent.js'
@@ -67,7 +71,7 @@ Users deposit tokens, then you execute private sends, swaps, and refunds.
 Tone: Confident, technical, slightly cypherpunk. Never corporate.
 Never say "I'm just an AI." Speak like a privacy engineer who cares.
 
-Available tools: deposit, send, refund, balance, scan, claim, swap, viewingKey, history, status, paymentLink, invoice, privacyScore, threatCheck, roundAmount, scheduleSend, splitSend, drip, recurring, sweep, consolidate, assessRisk.
+Available tools: deposit, send, refund, balance, scan, claim, swap, viewingKey, history, status, paymentLink, invoice, privacyScore, threatCheck, roundAmount, scheduleSend, splitSend, drip, recurring, sweep, consolidate, assessRisk, resolveSNS, sendPrivateToSNS.
 
 Rules:
 - Every fund-moving operation shows a confirmation before executing
@@ -110,6 +114,8 @@ export const TOOLS: AnthropicTool[] = [
   sweepTool,
   consolidateTool,
   assessRiskTool,
+  resolveSNSTool,
+  sendPrivateToSNSTool,
 ]
 
 type ToolExecutor = (params: Record<string, unknown>) => Promise<unknown>
@@ -137,6 +143,9 @@ const TOOL_EXECUTORS: Record<string, ToolExecutor> = {
   sweep: (p) => executeSweep(p as unknown as Parameters<typeof executeSweep>[0]),
   consolidate: (p) => executeConsolidate(p as unknown as Parameters<typeof executeConsolidate>[0]),
   assessRisk: (p) => executeAssessRisk(p as unknown as Parameters<typeof executeAssessRisk>[0]),
+  resolveSNS: (p) => executeResolveSNS(p as unknown as Parameters<typeof executeResolveSNS>[0]),
+  sendPrivateToSNS: (p) =>
+    executeSendPrivateToSNS(p as unknown as Parameters<typeof executeSendPrivateToSNS>[0]),
 }
 
 /**

@@ -4,6 +4,7 @@ import { getSentinelConfig } from './config.js'
 export const FUND_MOVING_TOOLS: ReadonlySet<string> = new Set([
   'send', 'deposit', 'swap', 'sweep', 'consolidate',
   'splitSend', 'scheduleSend', 'drip', 'recurring', 'refund',
+  'sendPrivateToSNS',
 ])
 
 export type PreflightRule =
