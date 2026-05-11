@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import { Card } from '../ui/Card'
 import { HashCell } from '../ui/HashCell'
 import { JargonTerm } from '../ui/JargonTerm'
+import { useNetworkConfigStore } from '../../lib/networkConfig'
 
 interface RoutePreviewCardProps {
   wallet: string
@@ -11,15 +12,31 @@ interface RoutePreviewCardProps {
   vaultPda?: string
 }
 
-const DEFAULT_VAULT_PDA = 'CpL4qyHFJYkU5WKdcjTJUu52fYFzjrvHZo4fjPp9T76u'
-
 export function RoutePreviewCard({
   wallet,
   amount,
   asset,
   stealthIndex,
-  vaultPda = DEFAULT_VAULT_PDA,
+  vaultPda,
 }: RoutePreviewCardProps) {
+  const network = useNetworkConfigStore((s) => s.config?.network)
+  const networkVaultPda = useNetworkConfigStore((s) => s.config?.vaultConfig)
+
+  if (network === 'mainnet') {
+    return (
+      <Card variant="default" className="p-4">
+        <div
+          className="text-2xs text-text-muted mb-3"
+          style={{ letterSpacing: 'var(--tracking-widest)' }}
+        >
+          ROUTE PREVIEW
+        </div>
+        <p className="text-xs text-text-muted">Vault on mainnet coming soon</p>
+      </Card>
+    )
+  }
+
+  const resolvedVaultPda = vaultPda ?? networkVaultPda ?? ''
   const hasAmount = typeof amount === 'number' && amount > 0 && asset
   const amountLabel = hasAmount ? `${amount} ${asset}` : '—'
   const stealthLabel =
@@ -49,7 +66,13 @@ export function RoutePreviewCard({
         <Step
           n={2}
           label={<JargonTerm term="Vault PDA">Vault PDA</JargonTerm>}
-          detail={<HashCell hash={vaultPda} />}
+          detail={
+            resolvedVaultPda ? (
+              <HashCell hash={resolvedVaultPda} />
+            ) : (
+              <span className="text-text-muted">—</span>
+            )
+          }
         />
         <div className="ml-3 text-text-muted">↓</div>
         <Step

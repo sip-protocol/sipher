@@ -1,6 +1,29 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+
+type NetworkConfig = {
+  network: 'devnet' | 'mainnet'
+  vaultConfig: string
+} | null
+
+let networkConfigValue: NetworkConfig = {
+  network: 'devnet',
+  vaultConfig: 'CpL4qyHFJYkU5WKdcjTJUu52fYFzjrvHZo4fjPp9T76u',
+}
+
+vi.mock('../../../lib/networkConfig', () => ({
+  useNetworkConfigStore: <T,>(selector: (s: { config: NetworkConfig }) => T) =>
+    selector({ config: networkConfigValue }),
+}))
+
 import { RoutePreviewCard } from '../RoutePreviewCard'
+
+beforeEach(() => {
+  networkConfigValue = {
+    network: 'devnet',
+    vaultConfig: 'CpL4qyHFJYkU5WKdcjTJUu52fYFzjrvHZo4fjPp9T76u',
+  }
+})
 
 describe('RoutePreviewCard', () => {
   it('renders 3 numbered steps', () => {
@@ -46,9 +69,34 @@ describe('RoutePreviewCard', () => {
     const { container } = render(<RoutePreviewCard wallet="" />)
     // No focusable HashCell button with empty aria-label
     expect(container.querySelector('button[aria-label="Copy "]')).toBeNull()
-    // Vault PDA HashCell is still rendered (default)
+    // Vault PDA HashCell is still rendered (derived from network config)
     expect(
       container.querySelector('button[aria-label*="CpL4qyHFJYkU5WKdcjTJUu52fYFzjrvHZo4fjPp9T76u"]'),
     ).not.toBeNull()
+  })
+
+  it('renders "Vault on mainnet coming soon" when network is mainnet', () => {
+    networkConfigValue = { network: 'mainnet', vaultConfig: '' }
+    render(<RoutePreviewCard wallet="C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N" />)
+    expect(screen.getByText(/Vault on mainnet coming soon/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Vault PDA/)).toBeNull()
+  })
+
+  it('uses vaultConfig from the network store when on devnet', () => {
+    networkConfigValue = {
+      network: 'devnet',
+      vaultConfig: 'D3vN3tVaultPDA111111111111111111111111111111',
+    }
+    const { container } = render(
+      <RoutePreviewCard wallet="C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N" />,
+    )
+    // The derived PDA from the store appears in the rendered HashCell
+    expect(
+      container.querySelector(
+        'button[aria-label*="D3vN3tVaultPDA111111111111111111111111111111"]',
+      ),
+    ).not.toBeNull()
+    // Mainnet copy must NOT render on devnet
+    expect(screen.queryByText(/Vault on mainnet/i)).toBeNull()
   })
 })
