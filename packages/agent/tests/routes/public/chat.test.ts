@@ -125,4 +125,30 @@ describe('/api/public/chat/stream', () => {
       error: { code: 'VALIDATION_FAILED', message: expect.any(String) },
     })
   })
+
+  it('sanitizes upstream errors before writing to SSE stream', async () => {
+    // Reach into the mocked agent module and force chatStream to throw a
+    // message that mimics an internal infra leak (OpenRouter API key in
+    // stack, model timeout details, etc.). The route MUST NOT forward this
+    // verbatim — anonymous clients receive a generic 'Service temporarily
+    // unavailable' message and the detailed error stays in server logs.
+    const agentModule = await import('../../../src/agent.js')
+    const spy = vi.spyOn(agentModule, 'chatStream').mockImplementation(async function* (): AsyncGenerator<SSEEvent> {
+      throw new Error('OpenRouter API error: invalid key sk-or-v1-LEAKED_SECRET_xxx')
+    })
+
+    const res = await request(app)
+      .post('/api/public/chat/stream')
+      .send({ messages: [{ role: 'user', content: 'hello' }] })
+
+    expect(res.status).toBe(200)
+    // The sanitized generic message MUST be present
+    expect(res.text).toContain('Service temporarily unavailable')
+    // The raw error text (model name, API key fragment, internal noise) MUST NOT leak
+    expect(res.text).not.toContain('OpenRouter')
+    expect(res.text).not.toContain('sk-or-v1-LEAKED_SECRET_xxx')
+    expect(res.text).not.toContain('invalid key')
+
+    spy.mockRestore()
+  })
 })

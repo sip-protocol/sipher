@@ -97,9 +97,13 @@ chatRouter.post(
         res.write(`data: ${JSON.stringify(event)}\n\n`)
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Internal error'
+      // Sanitize before writing to the stream. Anonymous clients receive a
+      // generic message; the raw error stays in server logs (operator
+      // visibility) so we don't leak OpenRouter/model/infra details into
+      // the assistant bubble where the FE paints SSE error events.
+      console.error('[public/chat] chatStream error:', err)
       if (!res.writableEnded) {
-        res.write(`data: ${JSON.stringify({ type: 'error', message })}\n\n`)
+        res.write(`data: ${JSON.stringify({ type: 'error', message: 'Service temporarily unavailable' })}\n\n`)
       }
     }
 
