@@ -984,3 +984,63 @@ describe('AuthSyncProvider — 401 interceptor toast dedup (#203)', () => {
     global.fetch = originalFetch
   })
 })
+
+describe('AuthSyncProvider — walletName localStorage cleanup (#213)', () => {
+  beforeEach(() => {
+    useAppStore.setState({ token: null, isAdmin: false, expiresAt: null }, false)
+    mockedUseWallet.mockReset()
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it('clears walletName from localStorage when clearAuth fires', () => {
+    mockedUseWallet.mockReturnValue({
+      connected: false,
+      publicKey: null,
+      wallet: null,
+      signMessage: undefined,
+      disconnect: vi.fn(),
+    })
+    // The wallet-adapter persists the chosen wallet name as a JSON string.
+    localStorage.setItem('walletName', JSON.stringify('Phantom'))
+
+    render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+
+    expect(localStorage.getItem('walletName')).toBe(JSON.stringify('Phantom'))
+
+    act(() => {
+      useAppStore.getState().clearAuth()
+    })
+
+    expect(localStorage.getItem('walletName')).toBeNull()
+  })
+
+  it('does NOT clear walletName on initial mount (autoConnect happy path)', () => {
+    mockedUseWallet.mockReturnValue({
+      connected: false,
+      publicKey: null,
+      wallet: null,
+      signMessage: undefined,
+      disconnect: vi.fn(),
+    })
+    localStorage.setItem('walletName', JSON.stringify('Phantom'))
+
+    render(
+      <AuthSyncProvider>
+        <div />
+      </AuthSyncProvider>,
+    )
+
+    // Cleanup only fires on clearAuth — returning users with a valid JWT
+    // (or any user whose autoConnect is still resolving) keep the persisted
+    // walletName so the adapter can reconnect.
+    expect(localStorage.getItem('walletName')).toBe(JSON.stringify('Phantom'))
+  })
+})

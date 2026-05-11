@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, ReactN
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { useAppStore } from '../stores/app'
+import { useOnAuthClear } from '../store/useOnAuthClear'
 import { decodeJwtPayload, isJwtExpired } from '../lib/jwt'
 import { requestNonce, verifySignature } from '../api/auth'
 import { refreshToken } from '../api/refresh'
@@ -27,6 +28,15 @@ export interface AuthState {
  * successful re-auth or once the timer fires.
  */
 const SESSION_EXPIRED_DEDUP_MS = 30_000
+
+/**
+ * Default `localStorageKey` for `@solana/wallet-adapter-react`'s
+ * `WalletProvider`. Mirroring the constant here keeps the cleanup in
+ * `onAuthClear` aligned with what the adapter persists. If `App.tsx`
+ * ever passes a custom `localStorageKey` to `WalletProvider`, update
+ * this constant in lockstep. See #213.
+ */
+const WALLET_ADAPTER_STORAGE_KEY = 'walletName'
 
 const AuthSyncContext = createContext<AuthState | null>(null)
 
@@ -285,6 +295,23 @@ export function AuthSyncProvider({ children }: { children: ReactNode }) {
       sessionExpiredToastTimerRef.current = null
     }
   }, [status])
+
+  // Clear the wallet-adapter's persisted `walletName` whenever the auth
+  // store transitions to cleared. Without this, a user who picks a wallet,
+  // fails (or skips) sign-in, then reloads gets silently auto-reconnected
+  // to a wallet they never authenticated with. Fires ONLY via the
+  // `onAuthClear` registry — i.e. on explicit `clearAuth()` calls — never
+  // on initial mount, so returning users with a valid JWT still benefit
+  // from the adapter's `autoConnect`. See #213.
+  useOnAuthClear(() => {
+    try {
+      localStorage.removeItem(WALLET_ADAPTER_STORAGE_KEY)
+    } catch {
+      // localStorage may be unavailable (Safari private mode, quota errors).
+      // Best-effort cleanup — the next mount will simply retain the stale
+      // walletName, which is no worse than the pre-fix behavior.
+    }
+  })
 
   const value: AuthState = {
     status,
