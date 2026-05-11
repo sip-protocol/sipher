@@ -404,6 +404,15 @@ export default function HeraldView({ token }: { token: string | null }) {
   const [data, setData] = useState<HeraldData | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const seoTags = (
+    <>
+      <title>SIPHER — Herald</title>
+      <meta name="description" content="Monitor HERALD agent activity and X interactions." />
+      <meta property="og:title" content="SIPHER — Herald" />
+      <meta property="og:description" content="Monitor HERALD agent activity and X interactions." />
+    </>
+  )
+
   useEffect(() => {
     if (!isAdmin) {
       navigate('/')
@@ -460,6 +469,7 @@ export default function HeraldView({ token }: { token: string | null }) {
   if (!token) {
     return (
       <div className="text-text-muted text-sm text-center py-20">
+        {seoTags}
         Connect your wallet to view HERALD activity.
       </div>
     )
@@ -469,6 +479,7 @@ export default function HeraldView({ token }: { token: string | null }) {
 
   return (
     <div data-testid="herald-view" className="flex flex-col h-full">
+      {seoTags}
       <BudgetBar budget={budget} />
       <SubTabs active={tab} onChange={setTab} />
 

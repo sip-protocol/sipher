@@ -258,4 +258,16 @@ describe('VaultView (split-panel)', () => {
     renderVault()
     expect(mockedFetch).not.toHaveBeenCalled()
   })
+
+  describe('SEO metadata', () => {
+    it('renders SIPHER — Vault title and og description', async () => {
+      mockThreeFetches()
+      renderVault()
+      await waitFor(() => {
+        expect(document.title).toBe('SIPHER — Vault')
+      })
+      expect(document.querySelector('meta[property="og:description"]')?.getAttribute('content'))
+        .toBe('Shielded vault for private deposits and withdrawals on Solana.')
+    })
+  })
 })

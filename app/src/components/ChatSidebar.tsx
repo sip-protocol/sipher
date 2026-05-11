@@ -216,6 +216,8 @@ export default function ChatSidebar({ fullScreen }: Props) {
                 sendMessage()
               }
             }}
+            aria-label="Ask SIPHER"
+            maxLength={4000}
             placeholder={token ? 'Message SIPHER...' : 'Connect wallet first'}
             className="flex-1 bg-elevated border border-border rounded-lg px-3 py-2 text-[13px] text-text placeholder-text-muted focus:outline-none focus:border-accent/40 transition-colors"
             disabled={!token || chatLoading}

@@ -14,13 +14,25 @@ const kindStyles: Record<NonNullable<ToastInput['kind']>, string> = {
   success: 'bg-emerald-950/90 border-emerald-700 text-emerald-100',
 }
 
+const ariaSemantics: Record<
+  NonNullable<ToastInput['kind']>,
+  { role: 'status' | 'alert'; ariaLive: 'polite' | 'assertive' }
+> = {
+  info: { role: 'status', ariaLive: 'polite' },
+  success: { role: 'status', ariaLive: 'polite' },
+  warn: { role: 'alert', ariaLive: 'assertive' },
+  error: { role: 'alert', ariaLive: 'assertive' },
+}
+
 export function Toast({ toast, onDismiss }: { toast: ToastInput; onDismiss: () => void }) {
-  const styles = kindStyles[toast.kind ?? 'info']
+  const kind = toast.kind ?? 'info'
+  const styles = kindStyles[kind]
+  const { role, ariaLive } = ariaSemantics[kind]
   return (
     <div
       className={`border rounded px-3 py-2 text-sm shadow-lg ${styles}`}
-      role="status"
-      aria-live="polite"
+      role={role}
+      aria-live={ariaLive}
     >
       <div className="flex items-start gap-2">
         <span className="flex-1">{toast.message}</span>

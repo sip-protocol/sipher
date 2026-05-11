@@ -206,4 +206,14 @@ describe('ChatSidebar', () => {
       expect(triggerAuthInterceptor).toHaveBeenCalledOnce()
     })
   })
+
+  describe('input accessibility', () => {
+    it('input has aria-label="Ask SIPHER" and maxLength=4000', () => {
+      useAppStore.setState({ token: 'test-jwt', isAdmin: true })
+      render(<ChatSidebar />)
+      const input = screen.getByLabelText('Ask SIPHER') as HTMLInputElement
+      expect(input).toBeInTheDocument()
+      expect(input.maxLength).toBe(4000)
+    })
+  })
 })

@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom'
 export default function AboutView() {
   return (
     <div data-testid="about-view" className="flex flex-col gap-12 max-w-4xl mx-auto py-8">
+      <title>SIPHER — About</title>
+      <meta name="description" content="About SIPHER — privacy primitives, multi-chain support, and dual-identity architecture." />
+      <meta property="og:title" content="SIPHER — About" />
+      <meta property="og:description" content="About SIPHER — privacy primitives, multi-chain support, and dual-identity architecture." />
       <section className="flex flex-col gap-4">
         <h1 className="text-3xl md:text-5xl font-semibold leading-tight">
           Privacy-by-default for Solana

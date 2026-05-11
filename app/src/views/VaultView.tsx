@@ -86,9 +86,19 @@ export default function VaultView() {
     return () => controller.abort()
   }, [token])
 
+  const seoTags = (
+    <>
+      <title>SIPHER — Vault</title>
+      <meta name="description" content="Shielded vault for private deposits and withdrawals on Solana." />
+      <meta property="og:title" content="SIPHER — Vault" />
+      <meta property="og:description" content="Shielded vault for private deposits and withdrawals on Solana." />
+    </>
+  )
+
   if (status !== 'authed') {
     return (
       <div className="flex flex-col gap-4">
+        {seoTags}
         <Banner kind="info">
           Vault is a connected-wallet feature. Connect your wallet to deposit, manage stealth keys, and view your shielded balance.
         </Banner>
@@ -109,6 +119,7 @@ export default function VaultView() {
 
   return (
     <div data-testid="vault-view" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {seoTags}
       <ShieldedVaultPanel
         positions={positions}
         stealthTree={stealthTree}
