@@ -172,4 +172,15 @@ describe('App routing', () => {
     expect(screen.getByTestId('mock-header')).toBeInTheDocument()
     expect(screen.getByTestId('mock-bottom-nav')).toBeInTheDocument()
   })
+
+  it('does NOT hide chrome on /demo-foo (prefix-match footgun guard)', () => {
+    // /demo-foo is a hypothetical future route that should NOT inherit
+    // /demo's chrome-hidden treatment. Using pathname.startsWith('/demo')
+    // would match it; an exact-match Set scopes the hide correctly to /demo
+    // alone.
+    window.history.pushState({}, '', '/demo-foo')
+    render(<App />)
+    expect(screen.getByTestId('mock-header')).toBeInTheDocument()
+    expect(screen.getByTestId('mock-bottom-nav')).toBeInTheDocument()
+  })
 })

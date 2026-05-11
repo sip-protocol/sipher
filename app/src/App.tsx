@@ -32,19 +32,25 @@ import { useNetworkConfigStore, fetchNetworkConfig } from './lib/networkConfig'
 import { ToastProvider } from './providers/ToastProvider'
 import { AuthSyncProvider } from './providers/AuthSyncProvider'
 
+// Exact-match set of routes where authed-only nav chrome (Header tabs,
+// BottomNav, Ask-SIPHER chat sheet trigger) is suppressed. Using a Set
+// instead of `pathname.startsWith('/demo')` so future neighbour routes
+// like `/demo-foo` or `/demothing` don't accidentally inherit the hide
+// treatment.
+const HIDE_CHROME_PATHS = new Set(['/demo'])
+
 function AppShell() {
   const chatSheetOpen = useAppStore((s) => s.chatSheetOpen)
   const setChatSheetOpen = useAppStore((s) => s.setChatSheetOpen)
   const { token } = useAuth()
   const { events } = useSSE()
   const beta = useNetworkConfigStore((s) => s.config?.beta ?? false)
-  // On /demo we strip the authed-only nav chrome (Header tabs, BottomNav,
-  // Ask-SIPHER chat sheet trigger) so the read-only preview stays focused
-  // and visitors cannot navigate into routes that require a JWT. The
-  // BetaBanner + NetworkBanner stay visible because they communicate
-  // network identity, which is also material to the demo.
+  // On /demo we strip the authed-only nav chrome so the read-only preview
+  // stays focused and visitors cannot navigate into routes that require a
+  // JWT. The BetaBanner + NetworkBanner stay visible because they
+  // communicate network identity, which is also material to the demo.
   const location = useLocation()
-  const hideChrome = location.pathname.startsWith('/demo')
+  const hideChrome = HIDE_CHROME_PATHS.has(location.pathname)
 
   return (
     <div className="flex flex-col h-dvh bg-bg">
