@@ -54,7 +54,7 @@ export async function deriveRebateDestination(
       } else {
         // NotFound (subject: 'domain' | 'record') or Malformed — no usable record
         console.warn(
-          `[torque] rebate skipped for wallet ${params.wallet} (${params.domain}): no SNS SIP-STEALTH record. Publish via sip-app/wallet/sip-stealth to claim rebates.`,
+          `[torque] rebate skipped for wallet ${params.wallet} (${params.domain}): no SNS SIP-STEALTH record (or malformed record schema). Publish or republish via sip-app/wallet/sip-stealth to claim rebates.`,
         )
         result = { kind: 'unavailable', address: null, reason: 'no_sns_record' }
       }

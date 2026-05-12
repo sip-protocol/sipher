@@ -139,6 +139,18 @@ describe('wrapExecutorWithGrowthHook', () => {
     expect(emitEventMock).toHaveBeenCalledOnce()
   })
 
+  it('does NOT bubble emit promise rejection to the caller', async () => {
+    baseExecutor.mockResolvedValue({ action: 'send', status: 'confirmed', signature: TX_SIG })
+    emitEventMock.mockRejectedValue(new Error('network'))
+    const wrapped = wrapExecutorWithGrowthHook(baseExecutor, opts)
+
+    const result = await wrapped('send', { wallet: WALLET, amount: 1, token: 'SOL', recipient: 'rector.sol' })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(result).toBeDefined()
+    expect(emitEventMock).toHaveBeenCalledOnce()
+  })
+
   it('skips emit when no tx_signature in result (e.g. status: awaiting_signature)', async () => {
     baseExecutor.mockResolvedValue({ action: 'send', status: 'awaiting_signature' })
     const wrapped = wrapExecutorWithGrowthHook(baseExecutor, opts)

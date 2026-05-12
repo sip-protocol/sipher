@@ -83,4 +83,14 @@ describe('deriveRebateDestination', () => {
 
     expect(resolveSIPStealth).toHaveBeenCalledOnce()
   })
+
+  it('returns sns_error + warns when SNS resolution throws', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    vi.mocked(resolveSIPStealth).mockRejectedValue(new Error('RPC timeout'))
+
+    const result = await deriveRebateDestination({ wallet: WALLET, domain: 'rector.sol', connection: conn })
+
+    expect(result).toStrictEqual({ kind: 'unavailable', address: null, reason: 'sns_error' })
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('RPC timeout'))
+  })
 })
