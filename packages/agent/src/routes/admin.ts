@@ -153,6 +153,7 @@ adminRouter.get('/api/torque/status', async (_req, res) => {
     enabled: true,
     network,
     campaignId,
+    campaignFetchOk: campaign !== null,
     campaign,
   })
 })

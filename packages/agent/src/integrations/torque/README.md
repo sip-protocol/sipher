@@ -7,11 +7,13 @@ Sipher integrates [Torque](https://torque.so) MCP to drive a per-action rebate g
 ```bash
 # In ~/Documents/secret/sipher-vps-secrets.env (or .env for local dev)
 TORQUE_API_KEY=tk_...                                     # From Torque dashboard
-TORQUE_MCP_URL=https://api.torque.so                      # MCP server endpoint
+TORQUE_MCP_URL=<provided via Torque hackathon Telegram group>   # MCP server endpoint — confirmed by @smicktrq in Frontier TG
 TORQUE_CAMPAIGN_ID_DEVNET=camp_dev_xxx                    # Devnet campaign
 TORQUE_CAMPAIGN_ID_MAINNET=camp_main_xxx                  # Mainnet campaign (optional until rollout)
 TORQUE_GROWTH_ENABLED=true                                # Master kill-switch
 ```
+
+> **Note:** `TORQUE_MCP_URL` is TBD pending Torque hackathon Telegram group access. The integration test skip-predicate gates this — tests skip cleanly until the URL is known.
 
 When `TORQUE_GROWTH_ENABLED=false` (default) the entire integration is bypassed cleanly — sipher tools work as before, no events are emitted, no admin endpoint queries Torque.
 
@@ -24,11 +26,18 @@ pnpm --filter @sipher/agent test -- integrations/torque
 # Admin endpoint tests (always run)
 pnpm --filter @sipher/agent test -- routes/admin-torque
 
-# Integration test (opt-in, requires TORQUE_API_KEY + TORQUE_MCP_URL + TORQUE_TEST_CAMPAIGN_ID)
-TORQUE_TEST_CAMPAIGN_ID=$TORQUE_CAMPAIGN_ID_DEVNET pnpm --filter @sipher/agent test -- torque-emit-roundtrip
+# Integration test — opt-in, hits the real Torque devnet API
+TORQUE_API_KEY=tk_... \
+TORQUE_MCP_URL=https://... \
+TORQUE_TEST_CAMPAIGN_ID=$TORQUE_CAMPAIGN_ID_DEVNET \
+pnpm --filter @sipher/agent test -- torque-emit-roundtrip
 
-# E2E test (opt-in, requires devnet keypair + SIP_TEST_DOMAIN)
-SIP_TEST_DOMAIN=therector.sol pnpm --filter @sipher/agent test -- torque-rebate-e2e
+# E2E test — opt-in, requires devnet keypair + published SIP-STEALTH on SIP_TEST_DOMAIN
+TORQUE_API_KEY=tk_... \
+TORQUE_MCP_URL=https://... \
+TORQUE_TEST_CAMPAIGN_ID=$TORQUE_CAMPAIGN_ID_DEVNET \
+SIP_TEST_DOMAIN=therector.sol \
+pnpm --filter @sipher/agent test -- torque-rebate-e2e
 ```
 
 ## Admin endpoint
@@ -41,6 +50,7 @@ SIP_TEST_DOMAIN=therector.sol pnpm --filter @sipher/agent test -- torque-rebate-
   "enabled": true,
   "network": "devnet",
   "campaignId": "camp_devnet_1",
+  "campaignFetchOk": true,
   "campaign": {
     "id": "camp_devnet_1",
     "name": "Sipher Private Action Rebate",
