@@ -1,4 +1,7 @@
 import { randomUUID } from 'crypto'
+import { wrapExecutorWithGrowthHook } from './integrations/torque/growth-hook.js'
+import { loadTorqueConfig, loadNetworkConfig } from './config/network.js'
+import { createConnection } from '@sipher/sdk'
 import type { AnthropicTool } from './pi/tool-adapter.js'
 import {
   depositTool,
@@ -314,10 +317,29 @@ export async function chat(
   userMessage: string,
   opts: ChatOptions = {},
 ): Promise<{ text: string; toolsUsed: string[] }> {
+  const baseExecutor = opts.toolExecutor ?? executeTool
+  const torqueConfig = loadTorqueConfig()
+  const torqueExecutor = torqueConfig
+    ? (() => {
+        const net = loadNetworkConfig()
+        return wrapExecutorWithGrowthHook(baseExecutor, {
+          growthEnabled: true,
+          apiKey: torqueConfig.apiKey,
+          baseUrl: torqueConfig.baseUrl,
+          campaignId:
+            net.clusterName === 'mainnet-beta'
+              ? torqueConfig.campaignIdMainnet
+              : torqueConfig.campaignIdDevnet,
+          network: net.clusterName === 'mainnet-beta' ? 'mainnet-beta' : 'devnet',
+          connection: createConnection(net.clusterName, net.rpcUrl),
+        })
+      })()
+    : baseExecutor
+
   const agent = createPiAgent({
     systemPrompt: opts.systemPrompt ?? SYSTEM_PROMPT,
     tools: opts.tools ?? TOOLS,
-    toolExecutor: opts.toolExecutor ?? executeTool,
+    toolExecutor: torqueExecutor,
     model: opts.model,
     history: opts.history,
     sessionId: opts.sessionId,
@@ -419,10 +441,32 @@ export async function* chatStream(
     return baseExecutor(name, input)
   }
 
+  // Apply Torque growth-hook on top of the SENTINEL executor when enabled.
+  // Torque fires post-success (fire-and-forget), so it correctly wraps the
+  // SENTINEL layer — events emit only after SENTINEL has allowed the tool and
+  // the underlying executor returned a result.
+  const torqueConfig = loadTorqueConfig()
+  const finalExecutor = torqueConfig
+    ? (() => {
+        const net = loadNetworkConfig()
+        return wrapExecutorWithGrowthHook(wrappedExecutor, {
+          growthEnabled: true,
+          apiKey: torqueConfig.apiKey,
+          baseUrl: torqueConfig.baseUrl,
+          campaignId:
+            net.clusterName === 'mainnet-beta'
+              ? torqueConfig.campaignIdMainnet
+              : torqueConfig.campaignIdDevnet,
+          network: net.clusterName === 'mainnet-beta' ? 'mainnet-beta' : 'devnet',
+          connection: createConnection(net.clusterName, net.rpcUrl),
+        })
+      })()
+    : wrappedExecutor
+
   const agent = createPiAgent({
     systemPrompt: opts.systemPrompt ?? SYSTEM_PROMPT,
     tools: opts.tools ?? TOOLS,
-    toolExecutor: wrappedExecutor,
+    toolExecutor: finalExecutor,
     model: opts.model,
     history: opts.history,
     sessionId: opts.sessionId,
