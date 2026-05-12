@@ -97,12 +97,36 @@ describe('createAgent torque wiring', () => {
 
     expect(wrapExecutorWithGrowthHook).toHaveBeenCalledOnce()
     const callArgs = vi.mocked(wrapExecutorWithGrowthHook).mock.calls[0]!
-    expect(callArgs[1]).toMatchObject({
+    expect(callArgs[1]).toStrictEqual({
       growthEnabled: true,
       apiKey: 'tk_secret',
       baseUrl: 'https://torque.test',
       campaignId: 'camp_d', // devnet cluster → devnet campaign ID
       network: 'devnet',
+      connection: { stub: 'connection' },
+    })
+  })
+
+  it('wraps executor in chatStream when env enables it', async () => {
+    process.env.TORQUE_GROWTH_ENABLED = 'true'
+    process.env.TORQUE_API_KEY = 'tk_secret'
+    process.env.TORQUE_MCP_URL = 'https://torque.test'
+    process.env.TORQUE_CAMPAIGN_ID_DEVNET = 'camp_d'
+    process.env.TORQUE_CAMPAIGN_ID_MAINNET = 'camp_m'
+
+    const { chatStream } = await import('../src/agent.js')
+    const gen = chatStream('hello')
+    await gen.next() // drain — streamPiAgent is mocked as empty async generator
+
+    expect(wrapExecutorWithGrowthHook).toHaveBeenCalledOnce()
+    const callArgs = vi.mocked(wrapExecutorWithGrowthHook).mock.calls[0]!
+    expect(callArgs[1]).toStrictEqual({
+      growthEnabled: true,
+      apiKey: 'tk_secret',
+      baseUrl: 'https://torque.test',
+      campaignId: 'camp_d', // devnet cluster → devnet campaign ID
+      network: 'devnet',
+      connection: { stub: 'connection' },
     })
   })
 })

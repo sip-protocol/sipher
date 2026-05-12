@@ -74,7 +74,6 @@ export function loadNetworkConfig(): NetworkConfig {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface TorqueConfig {
-  enabled: boolean
   apiKey: string
   baseUrl: string
   campaignIdDevnet: string
@@ -103,5 +102,5 @@ export function loadTorqueConfig(): TorqueConfig | null {
     return null
   }
 
-  return { enabled, apiKey, baseUrl, campaignIdDevnet, campaignIdMainnet }
+  return { apiKey, baseUrl, campaignIdDevnet, campaignIdMainnet }
 }

@@ -28,7 +28,6 @@ describe('loadTorqueConfig', () => {
     process.env.TORQUE_CAMPAIGN_ID_MAINNET = 'camp_m'
 
     expect(loadTorqueConfig()).toStrictEqual({
-      enabled: true,
       apiKey: 'tk_secret',
       baseUrl: 'https://torque.test',
       campaignIdDevnet: 'camp_d',
