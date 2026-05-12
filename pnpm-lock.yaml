@@ -217,8 +217,8 @@ importers:
         specifier: ^0.34.49
         version: 0.34.49
       '@sip-protocol/sns-stealth':
-        specifier: ^0.1.0
-        version: 0.1.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
+        specifier: ^0.1.1
+        version: 0.1.1(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@sipher/sdk':
         specifier: workspace:*
         version: link:../sdk
@@ -1874,8 +1874,8 @@ packages:
   '@sip-protocol/sdk@0.7.4':
     resolution: {integrity: sha512-tbdoto6okq7C8zQjqulNbXp5oqCPjj8tWe5K/uKIres32ouFjrN7lXytTPB+zQkB1Gv4ECHvGoaqf5EV4AaDrQ==}
 
-  '@sip-protocol/sns-stealth@0.1.0':
-    resolution: {integrity: sha512-XPb7gSQf+ie7MmNXr9vpZU69UvO5/XWDqrfECel1m65UBu20F+/3ohFeD4TmowkJ4f6UHkA1HCNxMv9y6Slc4A==}
+  '@sip-protocol/sns-stealth@0.1.1':
+    resolution: {integrity: sha512-11UD+wXDVnDisN6h432FKB3hHvi5jed/Bd9EOChmO2tV+JOd9R9Bg53E2aJ5zdxCdH9HXKos3RpqeKaLdkv8Lg==}
 
   '@sip-protocol/types@0.2.2':
     resolution: {integrity: sha512-FvJosQIp/dnADchEFmjdqCBlKolL4RrW15W2MPR1zlSZax9UbIR3vZjkm/j3mWewjO/bBfXii3FSxnqFlSBSkQ==}
@@ -9939,7 +9939,7 @@ snapshots:
       - ws
       - zod-to-json-schema
 
-  '@sip-protocol/sns-stealth@0.1.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)':
+  '@sip-protocol/sns-stealth@0.1.1(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
       '@bonfida/spl-name-service': 3.0.21(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10))(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@noble/curves': 1.9.7

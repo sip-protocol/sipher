@@ -13,7 +13,7 @@
     "@mariozechner/pi-ai": "^0.66.1",
     "@noble/ciphers": "^2.1.1",
     "@sinclair/typebox": "^0.34.49",
-    "@sip-protocol/sns-stealth": "^0.1.0",
+    "@sip-protocol/sns-stealth": "^0.1.1",
     "@sipher/sdk": "workspace:*",
     "better-sqlite3": "^12.8.0",
     "express": "^5.0.0",
