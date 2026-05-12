@@ -93,9 +93,13 @@ Users who want zero attribution leakage should set `TORQUE_GROWTH_ENABLED=false`
 ```
 sipher tool execution → growth-hook → rebate-destination → TorqueMCPClient → Torque MCP server
                                           │
-                                          └─→ derives a fresh Ed25519 stealth address
-                                              from the user's SNS SIP-STEALTH record
-                                              (via @sip-protocol/sns-stealth@0.1.1)
+                                          └─→ derives an Ed25519 stealth address from the
+                                              user's SNS SIP-STEALTH record
+                                              (via @sip-protocol/sns-stealth@0.1.1),
+                                              cached 60s per (wallet, domain) to reduce
+                                              SNS RPC load — within that window multiple
+                                              events from the same wallet rebate to the
+                                              same derived address
 ```
 
 See `docs/superpowers/specs/2026-05-12-torque-mcp-integration-design.md` for full design.
