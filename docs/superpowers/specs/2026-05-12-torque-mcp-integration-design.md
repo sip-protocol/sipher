@@ -44,13 +44,14 @@ sipher agent (existing)
        Torque Campaign Engine
            │
            ▼
-       Rebate → fresh stealth address derived per-event
+       Rebate → stealth address derived from SNS record
+                (cached 60s per wallet+domain)
 ```
 
 **New module: `packages/agent/src/integrations/torque/`**
 - `mcp-client.ts` — wraps Torque MCP calls (`emit_event`, `get_campaign_status`, `get_campaign`)
 - `growth-hook.ts` — post-success middleware on fund-moving tools
-- `rebate-destination.ts` — derives fresh stealth address per event from user's published meta-address
+- `rebate-destination.ts` — derives stealth address from user's published meta-address (cached 60s per wallet+domain)
 - `types.ts` — event payload + MCP response types
 - `README.md` — setup, env vars, privacy posture disclosure
 - `tests/...` — unit + integration + e2e
@@ -89,7 +90,7 @@ type SipherGrowthEvent = {
   metadata: {
     amount_lamports?: number       // OMITTED for `send`, INCLUDED for `swap`
     asset?: string                 // 'SOL' | 'USDC' | mint address
-    rebate_destination: string     // fresh stealth address
+    rebate_destination: string     // derived stealth address (60s cache per wallet+domain)
   }
 }
 ```
@@ -111,6 +112,7 @@ type SipherGrowthEvent = {
 - Preferred: SNS `SIP-STEALTH` record via `@sip-protocol/sns-stealth@0.1.1` (just shipped today)
 - Fallback: legacy hex stealth meta-address from sipher's existing identity flow
 - Neither available: rebate skipped silently; event still emitted for analytics; log warning ("publish your sip.sol record to claim rebates")
+- Result is cached 60s per `(wallet, domain)` to reduce SNS RPC load. Within that window multiple events from the same wallet rebate to the **same** derived stealth address; this is not a privacy regression because Torque already correlates rebates by wallet on its side, so the 60s reuse adds no new linkage.
 
 This wires sip.sol Phase A-E directly into the Torque growth loop — strong narrative composition for the Friction Log + demo video.
 
@@ -138,7 +140,7 @@ This wires sip.sol Phase A-E directly into the Torque growth loop — strong nar
 
 **Campaign discovery (startup):**
 - On boot, sipher fetches campaign metadata via `TorqueMCPClient.getCampaign(id)`
-- Caches for 5 minutes (mirrors the existing `TorqueReader` cache TTL in sip-app for consistency)
+- No metadata cache today: `getCampaign()` is re-queried per `/admin/api/torque/status` call. Admin is operator-only and rarely hit, so the upstream RPC cost is negligible. Pre-mainnet, add a short-TTL (≤5min) cache here if `status` polling becomes load-bearing for ops dashboards.
 - Failure to fetch ≠ broken sipher. Tools still work; events still emit. Just no rebates land. Logged as warning.
 
 **Env vars (added to sipher's existing config):**
