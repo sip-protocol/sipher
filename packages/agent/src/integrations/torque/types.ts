@@ -37,7 +37,6 @@ export interface TorqueMCPClientOptions {
   baseUrl: string
   apiKey: string
   campaignId: string
-  network: 'mainnet-beta' | 'devnet'
   /** ms; default 8000 */
   timeoutMs?: number
 }

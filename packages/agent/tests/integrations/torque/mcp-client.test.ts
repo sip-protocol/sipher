@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { TorqueMCPClient } from '../../../src/integrations/torque/mcp-client.js'
 import type { SipherGrowthEvent } from '../../../src/integrations/torque/types.js'
-import type { TorqueEmitResult } from '../../../src/integrations/torque/types.js'
 
 const baseEvent: SipherGrowthEvent = {
   event: 'sipher.private_send_completed',
@@ -31,7 +30,6 @@ describe('TorqueMCPClient.emitEvent', () => {
       baseUrl: 'https://torque.test',
       apiKey: 'tk_secret',
       campaignId: 'camp_devnet_1',
-      network: 'devnet',
     })
 
     const result = await client.emitEvent(baseEvent)
@@ -63,7 +61,6 @@ describe('TorqueMCPClient.emitEvent error paths', () => {
       baseUrl: 'https://torque.test',
       apiKey: 'tk_secret',
       campaignId: 'camp_devnet_1',
-      network: 'devnet',
     })
   }
 
@@ -109,7 +106,6 @@ describe('TorqueMCPClient.emitEvent error paths', () => {
       baseUrl: 'https://torque.test',
       apiKey: 'tk_secret',
       campaignId: 'camp_devnet_1',
-      network: 'devnet',
     })
     const result = await client.emitEvent(baseEvent)
     expect(result).toStrictEqual({ ok: false, reason: 'network', message: 'ECONNREFUSED' })

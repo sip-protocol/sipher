@@ -11,21 +11,17 @@ export class TorqueMCPClient {
   private readonly baseUrl: string
   private readonly apiKey: string
   private readonly campaignId: string
-  private readonly network: 'mainnet-beta' | 'devnet'
   private readonly timeoutMs: number
 
   constructor(opts: TorqueMCPClientOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/+$/, '')
     this.apiKey = opts.apiKey
     this.campaignId = opts.campaignId
-    this.network = opts.network
     this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
   }
 
   async emitEvent(event: SipherGrowthEvent): Promise<TorqueEmitResult> {
     const url = `${this.baseUrl}/campaigns/${this.campaignId}/events`
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -34,7 +30,7 @@ export class TorqueMCPClient {
           'x-torque-api-key': this.apiKey,
         },
         body: JSON.stringify(event),
-        signal: controller.signal,
+        signal: AbortSignal.timeout(this.timeoutMs),
       })
       if (response.status === 401 || response.status === 403) {
         return { ok: false, reason: 'auth', message: `Torque rejected api key (${response.status})` }
@@ -60,8 +56,6 @@ export class TorqueMCPClient {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       return { ok: false, reason: 'network', message }
-    } finally {
-      clearTimeout(timeout)
     }
   }
 
