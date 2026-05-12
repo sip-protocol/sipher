@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Connection } from '@solana/web3.js'
 
 vi.mock('@sip-protocol/sns-stealth', () => ({
@@ -31,6 +31,10 @@ describe('deriveRebateDestination', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     _resetRebateDestinationCacheForTests()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('derives a stealth address from the SNS SIP-STEALTH record when present', async () => {
