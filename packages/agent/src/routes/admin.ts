@@ -8,6 +8,8 @@ import {
 import { renderLoginPage, renderDashboardPage } from '../views/admin-page.js'
 import type { DashboardStats } from '../views/admin-page.js'
 import { createStore } from '../state/ephemeral.js'
+import { loadTorqueConfig, loadNetworkConfig } from '../config/network.js'
+import { TorqueMCPClient } from '../integrations/torque/mcp-client.js'
 
 export const adminRouter = Router()
 
@@ -119,6 +121,41 @@ adminRouter.get('/dashboard', requireAuth as any, (_req, res) => {
 adminRouter.get('/api/stats', requireAuth as any, (_req, res) => {
   const stats = buildStats()
   ;(res as any).json(stats)
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Torque integration status (no auth required — no sensitive data returned)
+// ─────────────────────────────────────────────────────────────────────────────
+
+adminRouter.get('/api/torque/status', async (_req, res) => {
+  const config = loadTorqueConfig()
+  if (!config) {
+    ;(res as any).status(200).json({
+      ok: true,
+      enabled: false,
+      reason: 'TORQUE_GROWTH_ENABLED is false or required env vars missing',
+    })
+    return
+  }
+
+  const network = loadNetworkConfig().clusterName
+  const campaignId = network === 'mainnet-beta' ? config.campaignIdMainnet : config.campaignIdDevnet
+
+  const client = new TorqueMCPClient({
+    apiKey: config.apiKey,
+    baseUrl: config.baseUrl,
+    campaignId,
+  })
+
+  const campaign = await client.getCampaign()
+  ;(res as any).status(200).json({
+    ok: true,
+    enabled: true,
+    network,
+    campaignId,
+    campaignFetchOk: campaign !== null,
+    campaign,
+  })
 })
 
 // Background cleanup is centralized in the ephemeral store (sweep loop +
