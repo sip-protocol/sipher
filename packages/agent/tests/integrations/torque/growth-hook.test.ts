@@ -160,4 +160,61 @@ describe('wrapExecutorWithGrowthHook', () => {
 
     expect(emitEventMock).not.toHaveBeenCalled()
   })
+
+  it('returns the base executor (no client construction, no emit) when campaignId is empty', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    baseExecutor.mockResolvedValue({ action: 'send', status: 'confirmed', signature: TX_SIG })
+
+    const wrapped = wrapExecutorWithGrowthHook(baseExecutor, { ...opts, campaignId: '' })
+
+    await wrapped('send', { wallet: WALLET, amount: 1, token: 'SOL', recipient: 'rector.sol' })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(TorqueMCPClient).not.toHaveBeenCalled()
+    expect(emitEventMock).not.toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('no campaign ID for network=devnet'),
+    )
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('TORQUE_CAMPAIGN_ID_DEVNET'),
+    )
+    warnSpy.mockRestore()
+  })
+
+  it('treats a whitespace-only campaignId as empty', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    baseExecutor.mockResolvedValue({ action: 'send', status: 'confirmed', signature: TX_SIG })
+
+    const wrapped = wrapExecutorWithGrowthHook(baseExecutor, { ...opts, campaignId: '   ' })
+
+    await wrapped('send', { wallet: WALLET, amount: 1, token: 'SOL', recipient: 'rector.sol' })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(TorqueMCPClient).not.toHaveBeenCalled()
+    expect(emitEventMock).not.toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalled()
+    warnSpy.mockRestore()
+  })
+
+  it('names the mainnet env var in the warning when network=mainnet-beta', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    baseExecutor.mockResolvedValue({ action: 'send', status: 'confirmed', signature: TX_SIG })
+
+    const wrapped = wrapExecutorWithGrowthHook(baseExecutor, {
+      ...opts,
+      campaignId: '',
+      network: 'mainnet-beta',
+    })
+
+    await wrapped('send', { wallet: WALLET, amount: 1, token: 'SOL', recipient: 'rector.sol' })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('TORQUE_CAMPAIGN_ID_MAINNET'),
+    )
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('network=mainnet-beta'),
+    )
+    warnSpy.mockRestore()
+  })
 })

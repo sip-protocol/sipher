@@ -33,6 +33,17 @@ export function wrapExecutorWithGrowthHook(
     return baseExecutor
   }
 
+  // Without a campaign ID the client would POST to https://.../campaigns//events
+  // (note the double slash) — Torque returns 404 and the error envelope swallows
+  // it silently. Bail out loudly instead so misconfigured envs are visible.
+  if (!opts.campaignId || !opts.campaignId.trim()) {
+    const envVar = opts.network === 'mainnet-beta' ? 'TORQUE_CAMPAIGN_ID_MAINNET' : 'TORQUE_CAMPAIGN_ID_DEVNET'
+    console.warn(
+      `[torque] no campaign ID for network=${opts.network} — growth-hook disabled. Set ${envVar} to enable rebate emission.`,
+    )
+    return baseExecutor
+  }
+
   const client = new TorqueMCPClient(opts)
 
   return async (name, input) => {
