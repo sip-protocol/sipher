@@ -3,10 +3,11 @@ export { deriveRebateDestination, _resetRebateDestinationCacheForTests } from '.
 export { wrapExecutorWithGrowthHook } from './growth-hook.js'
 export type {
   SipherGrowthEvent,
+  SipherGrowthEventData,
   SipherEventName,
-  TorqueCampaign,
   TorqueMCPClientOptions,
   TorqueEmitResult,
+  TorquePingResult,
 } from './types.js'
 export type { RebateDestination, DeriveRebateDestinationParams } from './rebate-destination.js'
 export type { GrowthHookOptions } from './growth-hook.js'

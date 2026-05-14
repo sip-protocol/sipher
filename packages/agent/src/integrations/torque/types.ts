@@ -1,46 +1,48 @@
 /**
- * Event emitted to Torque MCP after a successful fund-moving sipher tool call.
- * Wallet field is required for attribution; rebate_destination is a fresh
- * stealth address derived per event so Torque does not learn the user's
- * recipient identity.
+ * Event emitted to Torque ingest after a successful fund-moving sipher tool call.
+ * Shape mirrors Torque's canonical ingest contract — flat top-level fields
+ * with a `data` sub-object whose values are string|number|boolean only.
+ *
+ * userPubkey is required for attribution. `data.rebate_destination` carries
+ * the per-event fresh stealth address so Torque cannot learn the recipient
+ * identity.
  */
 export interface SipherGrowthEvent {
-  event: SipherEventName
-  wallet: string
-  ts: string
+  userPubkey: string
+  /** ms-epoch number, NOT ISO string */
+  timestamp: number
+  eventName: SipherEventName
+  data: SipherGrowthEventData
+}
+
+export interface SipherGrowthEventData {
   tx_signature: string
   network: 'mainnet-beta' | 'devnet'
-  metadata: {
-    amount_lamports?: number
-    asset?: string
-    rebate_destination: string
-  }
+  rebate_destination: string
+  /** Present only on swap events for amount attribution */
+  amount_lamports?: number
+  /** Present only on swap events */
+  asset?: string
 }
 
 export type SipherEventName =
-  | 'sipher.private_send_completed'
-  | 'sipher.private_swap_completed'
-  | 'sipher.private_claim_completed'
-  | 'sipher.recurring_send_tick'
-  | 'sipher.batch_send_completed'
-
-export interface TorqueCampaign {
-  id: string
-  name: string
-  status: 'ACTIVE' | 'PAUSED' | 'ENDED'
-  remainingPool: number
-  rewardAmountPerEvent: number
-  rewardToken: string
-}
+  | 'sipher_private_send_completed'
+  | 'sipher_private_swap_completed'
+  | 'sipher_private_claim_completed'
+  | 'sipher_recurring_send_tick'
+  | 'sipher_batch_send_completed'
 
 export interface TorqueMCPClientOptions {
-  baseUrl: string
-  apiKey: string
-  campaignId: string
+  ingesterUrl: string
+  apiToken: string
   /** ms; default 8000 */
   timeoutMs?: number
 }
 
 export type TorqueEmitResult =
-  | { ok: true; eventId: string }
-  | { ok: false; reason: 'auth' | 'rate_limit' | 'network' | 'duplicate' | 'campaign_inactive' | 'unknown'; message: string }
+  | { ok: true }
+  | { ok: false; reason: 'auth' | 'rate_limit' | 'network' | 'event_undefined' | 'validation' | 'unknown'; message: string }
+
+export type TorquePingResult =
+  | { ok: true }
+  | { ok: false; reason: 'auth' | 'network' | 'unknown'; message: string }

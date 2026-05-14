@@ -5,11 +5,10 @@ import { homedir } from 'node:os'
 
 const KEYPAIR_PATH = `${homedir()}/Documents/secret/solana-devnet.json`
 const TEST_DOMAIN = process.env.SIP_TEST_DOMAIN
-const apiKey = process.env.TORQUE_API_KEY
-const baseUrl = process.env.TORQUE_MCP_URL
-const campaignId = process.env.TORQUE_TEST_CAMPAIGN_ID
+const apiToken = process.env.TORQUE_API_TOKEN
+const ingesterUrl = process.env.TORQUE_INGESTER_URL
 
-const skip = !existsSync(KEYPAIR_PATH) || !TEST_DOMAIN || !apiKey || !baseUrl || !campaignId
+const skip = !existsSync(KEYPAIR_PATH) || !TEST_DOMAIN || !apiToken || !ingesterUrl
 
 describe.skipIf(skip)('e2e: sipher send → torque rebate (devnet)', () => {
   let connection: Connection
