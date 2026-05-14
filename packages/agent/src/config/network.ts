@@ -95,7 +95,7 @@ export function loadTorqueConfig(): TorqueConfig | null {
   if (!enabled) return null
 
   const apiToken = process.env.TORQUE_API_TOKEN
-  const ingesterUrl = process.env.TORQUE_INGESTER_URL ?? 'https://ingest.torque.so'
+  const ingesterUrl = process.env.TORQUE_INGESTER_URL || 'https://ingest.torque.so'
 
   if (!apiToken) {
     console.warn(

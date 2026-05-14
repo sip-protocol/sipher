@@ -53,6 +53,16 @@ describe('loadTorqueConfig', () => {
     })
   })
 
+  it('defaults ingesterUrl to https://ingest.torque.so when TORQUE_INGESTER_URL is empty string', () => {
+    process.env.TORQUE_GROWTH_ENABLED = 'true'
+    process.env.TORQUE_API_TOKEN = 'tk_secret'
+    process.env.TORQUE_INGESTER_URL = ''
+    expect(loadTorqueConfig()).toStrictEqual({
+      apiToken: 'tk_secret',
+      ingesterUrl: 'https://ingest.torque.so',
+    })
+  })
+
   it('uses TORQUE_INGESTER_URL override when set', () => {
     process.env.TORQUE_GROWTH_ENABLED = 'true'
     process.env.TORQUE_API_TOKEN = 'tq_secret'
