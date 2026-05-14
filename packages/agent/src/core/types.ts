@@ -30,7 +30,7 @@ export interface MsgContext {
 
 /** A single response chunk for streaming */
 export interface ResponseChunk {
-  type: 'text' | 'tool_start' | 'tool_end' | 'error' | 'done' | 'sentinel_pause'
+  type: 'text' | 'tool_start' | 'tool_end' | 'error' | 'done' | 'sentinel_pause' | 'tool_signing_required'
   text?: string
   toolName?: string
   toolId?: string
@@ -42,6 +42,19 @@ export interface ResponseChunk {
     amount: string
     severity: string
     description: string
+  }
+  /** Populated only when type === 'tool_signing_required' */
+  signing?: {
+    flagId: string
+    toolName: 'send' | 'swap'
+    serializedTx: string
+    network: 'mainnet-beta' | 'devnet'
+    walletPubkey: string
+    display: {
+      title: string
+      primaryDetail: string
+      secondaryDetails: string[]
+    }
   }
 }
 

@@ -10,7 +10,7 @@ import { adminRouter } from './routes/admin.js'
 import { authRouter, verifyJwt, requireOwner } from './routes/auth.js'
 import { streamHandler } from './routes/stream.js'
 import { createWebAdapter } from './adapters/web.js'
-import { confirmRouter } from './routes/confirm.js'
+import { toolSigningRouter } from './routes/tool-signing.js'
 import { vaultRouter } from './routes/vault-api.js'
 import { vaultDepositTxRouter } from './routes/vault-deposit-tx.js'
 import { vaultPositionsRouter } from './routes/vault-positions.js'
@@ -194,8 +194,8 @@ app.post('/api/command', verifyJwt, (req, res, next) => {
   webAdapter.handleCommand(req, res).catch(next)
 })
 
-// Fund-movement confirmation resolution — JWT required
-app.use('/api/confirm', verifyJwt, confirmRouter)
+// Tool signing callback for chat-driven send/swap — JWT required
+app.use('/api/tool-signing', verifyJwt, toolSigningRouter)
 
 // Vault activity feed (per-wallet) — JWT required
 app.use('/api/vault', verifyJwt, vaultRouter)
@@ -346,7 +346,7 @@ const server = app.listen(PORT, () => {
   console.log(`  Auth:    POST http://localhost:${PORT}/api/auth/nonce|verify`)
   console.log(`  SSE:     GET  http://localhost:${PORT}/api/stream`)
   console.log(`  Command: POST http://localhost:${PORT}/api/command`)
-  console.log(`  Confirm: POST http://localhost:${PORT}/api/confirm/:id`)
+  console.log(`  Signing: POST http://localhost:${PORT}/api/tool-signing/:flagId/{confirm,reject}`)
   console.log(`  Vault:   GET  http://localhost:${PORT}/api/vault`)
   console.log(`  Squad:   http://localhost:${PORT}/api/squad`)
   console.log(`  Herald:  http://localhost:${PORT}/api/herald`)

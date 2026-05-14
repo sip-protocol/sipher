@@ -21,6 +21,16 @@ vi.mock('../../api/client', async () => {
   }
 })
 
+// Stub SignTxCard so ChatSidebar tests don't need wallet-adapter mocks.
+// SignTxCard's own behavior is unit-tested in SignTxCard.test.tsx.
+vi.mock('../SignTxCard', () => ({
+  default: (props: { flagId: string; display: { title: string } }) => (
+    <div data-testid="sign-tx-card" data-flag-id={props.flagId}>
+      {props.display.title}
+    </div>
+  ),
+}))
+
 vi.mock('../../hooks/useAuthState', async () => {
   const { useAppStore: store } = await vi.importActual<
     typeof import('../../stores/app')
@@ -127,6 +137,89 @@ describe('ChatSidebar', () => {
     render(<ChatSidebar />)
     expect(screen.getByText(/blacklisted address/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /override & send/i })).toBeInTheDocument()
+  })
+
+  it('renders SignTxCard when a tool_signing_required message is in the store', () => {
+    useAppStore.setState({
+      token: 'test-jwt',
+      isAdmin: true,
+      messages: [
+        {
+          id: 'm-sign-1',
+          role: 'system',
+          content: '',
+          kind: 'tool_signing_required',
+          meta: {
+            flagId: 'flag-sign-1',
+            toolName: 'send',
+            serializedTx: 'BASE64TX',
+            network: 'devnet',
+            walletPubkey: 'WalletABC',
+            display: {
+              title: 'Send 1 SOL to alice.sol',
+              primaryDetail: 'Stealth recipient',
+              secondaryDetails: ['Protocol fee: 0.005 SOL'],
+            },
+          },
+        },
+      ],
+    })
+    render(<ChatSidebar />)
+    const card = screen.getByTestId('sign-tx-card')
+    expect(card).toBeInTheDocument()
+    expect(card.getAttribute('data-flag-id')).toBe('flag-sign-1')
+    expect(screen.getByText('Send 1 SOL to alice.sol')).toBeInTheDocument()
+  })
+
+  it('creates a tool_signing_required system message on SSE event', async () => {
+    useAppStore.setState({ token: 'test-jwt', isAdmin: true })
+
+    const encoder = new TextEncoder()
+    const sseBody = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              type: 'tool_signing_required',
+              flagId: 'flag-sse-1',
+              toolName: 'send',
+              serializedTx: 'BASE64TX',
+              network: 'devnet',
+              walletPubkey: 'WalletABC',
+              display: {
+                title: 'Send 1 SOL to alice.sol',
+                primaryDetail: 'Stealth recipient',
+                secondaryDetails: ['Protocol fee: 0.005 SOL'],
+              },
+            })}\n\n`,
+          ),
+        )
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+        controller.close()
+      },
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(sseBody, {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+      ),
+    )
+
+    render(<ChatSidebar />)
+    const input = screen.getByPlaceholderText('Message SIPHER...') as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'send 1 sol' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      const msgs = useAppStore.getState().messages
+      const signingMsg = msgs.find((m) => m.kind === 'tool_signing_required')
+      expect(signingMsg).toBeDefined()
+      expect(signingMsg?.meta?.flagId).toBe('flag-sse-1')
+      expect(signingMsg?.meta?.serializedTx).toBe('BASE64TX')
+    })
   })
 
   it('sends message and appends streamed reply', async () => {
