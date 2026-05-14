@@ -71,10 +71,8 @@ describe('createAgent torque wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     delete process.env.TORQUE_GROWTH_ENABLED
-    delete process.env.TORQUE_API_KEY
-    delete process.env.TORQUE_MCP_URL
-    delete process.env.TORQUE_CAMPAIGN_ID_DEVNET
-    delete process.env.TORQUE_CAMPAIGN_ID_MAINNET
+    delete process.env.TORQUE_API_TOKEN
+    delete process.env.TORQUE_INGESTER_URL
     // Ensure DB does not fail on import
     process.env.DB_PATH = ':memory:'
   })
@@ -87,10 +85,8 @@ describe('createAgent torque wiring', () => {
 
   it('wraps executor with growth hook when env enables it', async () => {
     process.env.TORQUE_GROWTH_ENABLED = 'true'
-    process.env.TORQUE_API_KEY = 'tk_secret'
-    process.env.TORQUE_MCP_URL = 'https://torque.test'
-    process.env.TORQUE_CAMPAIGN_ID_DEVNET = 'camp_d'
-    process.env.TORQUE_CAMPAIGN_ID_MAINNET = 'camp_m'
+    process.env.TORQUE_API_TOKEN = 'tk_secret'
+    process.env.TORQUE_INGESTER_URL = 'https://torque.test'
 
     const { chat } = await import('../src/agent.js')
     await chat('hello')
@@ -99,9 +95,8 @@ describe('createAgent torque wiring', () => {
     const callArgs = vi.mocked(wrapExecutorWithGrowthHook).mock.calls[0]!
     expect(callArgs[1]).toStrictEqual({
       growthEnabled: true,
-      apiKey: 'tk_secret',
-      baseUrl: 'https://torque.test',
-      campaignId: 'camp_d', // devnet cluster → devnet campaign ID
+      apiToken: 'tk_secret',
+      ingesterUrl: 'https://torque.test',
       network: 'devnet',
       connection: { stub: 'connection' },
     })
@@ -109,10 +104,8 @@ describe('createAgent torque wiring', () => {
 
   it('wraps executor in chatStream when env enables it', async () => {
     process.env.TORQUE_GROWTH_ENABLED = 'true'
-    process.env.TORQUE_API_KEY = 'tk_secret'
-    process.env.TORQUE_MCP_URL = 'https://torque.test'
-    process.env.TORQUE_CAMPAIGN_ID_DEVNET = 'camp_d'
-    process.env.TORQUE_CAMPAIGN_ID_MAINNET = 'camp_m'
+    process.env.TORQUE_API_TOKEN = 'tk_secret'
+    process.env.TORQUE_INGESTER_URL = 'https://torque.test'
 
     const { chatStream } = await import('../src/agent.js')
     const gen = chatStream('hello')
@@ -122,9 +115,8 @@ describe('createAgent torque wiring', () => {
     const callArgs = vi.mocked(wrapExecutorWithGrowthHook).mock.calls[0]!
     expect(callArgs[1]).toStrictEqual({
       growthEnabled: true,
-      apiKey: 'tk_secret',
-      baseUrl: 'https://torque.test',
-      campaignId: 'camp_d', // devnet cluster → devnet campaign ID
+      apiToken: 'tk_secret',
+      ingesterUrl: 'https://torque.test',
       network: 'devnet',
       connection: { stub: 'connection' },
     })
