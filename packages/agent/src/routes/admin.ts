@@ -139,22 +139,20 @@ adminRouter.get('/api/torque/status', async (_req, res) => {
   }
 
   const network = loadNetworkConfig().clusterName
-  const campaignId = network === 'mainnet-beta' ? config.campaignIdMainnet : config.campaignIdDevnet
 
   const client = new TorqueMCPClient({
-    apiKey: config.apiKey,
-    baseUrl: config.baseUrl,
-    campaignId,
+    apiToken: config.apiToken,
+    ingesterUrl: config.ingesterUrl,
   })
 
-  const campaign = await client.getCampaign()
+  const ping = await client.pingIngester()
   ;(res as any).status(200).json({
     ok: true,
     enabled: true,
     network,
-    campaignId,
-    campaignFetchOk: campaign !== null,
-    campaign,
+    ingesterUrl: config.ingesterUrl,
+    ingesterReachable: ping.ok,
+    ingesterReason: ping.ok ? undefined : ping.reason,
   })
 })
 

@@ -525,12 +525,8 @@ export async function chat(
         const net = loadNetworkConfig()
         return wrapExecutorWithGrowthHook(baseExecutor, {
           growthEnabled: true,
-          apiKey: torqueConfig.apiKey,
-          baseUrl: torqueConfig.baseUrl,
-          campaignId:
-            net.clusterName === 'mainnet-beta'
-              ? torqueConfig.campaignIdMainnet
-              : torqueConfig.campaignIdDevnet,
+          apiToken: torqueConfig.apiToken,
+          ingesterUrl: torqueConfig.ingesterUrl,
           network: net.clusterName === 'mainnet-beta' ? 'mainnet-beta' : 'devnet',
           connection: createConnection(net.clusterName, net.rpcUrl),
         })
@@ -669,12 +665,8 @@ export async function* chatStream(
   const finalExecutor = torqueConfig
     ? wrapExecutorWithGrowthHook(signingExecutor, {
         growthEnabled: true,
-        apiKey: torqueConfig.apiKey,
-        baseUrl: torqueConfig.baseUrl,
-        campaignId:
-          net.clusterName === 'mainnet-beta'
-            ? torqueConfig.campaignIdMainnet
-            : torqueConfig.campaignIdDevnet,
+        apiToken: torqueConfig.apiToken,
+        ingesterUrl: torqueConfig.ingesterUrl,
         network: net.clusterName === 'mainnet-beta' ? 'mainnet-beta' : 'devnet',
         connection: createConnection(net.clusterName, net.rpcUrl),
       })

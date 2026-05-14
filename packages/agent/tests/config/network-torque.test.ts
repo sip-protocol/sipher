@@ -1,37 +1,74 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { loadTorqueConfig } from '../../src/config/network.js'
 
 describe('loadTorqueConfig', () => {
   beforeEach(() => {
     delete process.env.TORQUE_GROWTH_ENABLED
-    delete process.env.TORQUE_API_KEY
-    delete process.env.TORQUE_MCP_URL
-    delete process.env.TORQUE_CAMPAIGN_ID_DEVNET
-    delete process.env.TORQUE_CAMPAIGN_ID_MAINNET
+    delete process.env.TORQUE_API_TOKEN
+    delete process.env.TORQUE_INGESTER_URL
   })
 
-  it('returns null when TORQUE_GROWTH_ENABLED is not "true"', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('returns null when TORQUE_GROWTH_ENABLED is unset', () => {
     expect(loadTorqueConfig()).toBeNull()
   })
 
-  it('returns null when TORQUE_API_KEY is missing despite enabled=true', () => {
+  it.each([['false'], ['1'], ['yes'], ['TRUE']])(
+    'returns null when TORQUE_GROWTH_ENABLED is %s (non-"true" value)',
+    (value) => {
+      process.env.TORQUE_GROWTH_ENABLED = value
+      expect(loadTorqueConfig()).toBeNull()
+    },
+  )
+
+  it('returns null and warns when TORQUE_API_TOKEN is missing despite enabled=true', () => {
     process.env.TORQUE_GROWTH_ENABLED = 'true'
-    process.env.TORQUE_MCP_URL = 'https://torque.test'
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
     expect(loadTorqueConfig()).toBeNull()
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('TORQUE_API_TOKEN'))
   })
 
-  it('returns config when all required vars present', () => {
+  it('returns config when TORQUE_API_TOKEN and TORQUE_INGESTER_URL are both set', () => {
     process.env.TORQUE_GROWTH_ENABLED = 'true'
-    process.env.TORQUE_API_KEY = 'tk_secret'
-    process.env.TORQUE_MCP_URL = 'https://torque.test'
-    process.env.TORQUE_CAMPAIGN_ID_DEVNET = 'camp_d'
-    process.env.TORQUE_CAMPAIGN_ID_MAINNET = 'camp_m'
+    process.env.TORQUE_API_TOKEN = 'tq_secret'
+    process.env.TORQUE_INGESTER_URL = 'https://ingest.torque.test'
 
     expect(loadTorqueConfig()).toStrictEqual({
-      apiKey: 'tk_secret',
-      baseUrl: 'https://torque.test',
-      campaignIdDevnet: 'camp_d',
-      campaignIdMainnet: 'camp_m',
+      apiToken: 'tq_secret',
+      ingesterUrl: 'https://ingest.torque.test',
     })
+  })
+
+  it('defaults ingesterUrl to https://ingest.torque.so when TORQUE_INGESTER_URL is unset', () => {
+    process.env.TORQUE_GROWTH_ENABLED = 'true'
+    process.env.TORQUE_API_TOKEN = 'tq_secret'
+
+    expect(loadTorqueConfig()).toStrictEqual({
+      apiToken: 'tq_secret',
+      ingesterUrl: 'https://ingest.torque.so',
+    })
+  })
+
+  it('defaults ingesterUrl to https://ingest.torque.so when TORQUE_INGESTER_URL is empty string', () => {
+    process.env.TORQUE_GROWTH_ENABLED = 'true'
+    process.env.TORQUE_API_TOKEN = 'tk_secret'
+    process.env.TORQUE_INGESTER_URL = ''
+    expect(loadTorqueConfig()).toStrictEqual({
+      apiToken: 'tk_secret',
+      ingesterUrl: 'https://ingest.torque.so',
+    })
+  })
+
+  it('uses TORQUE_INGESTER_URL override when set', () => {
+    process.env.TORQUE_GROWTH_ENABLED = 'true'
+    process.env.TORQUE_API_TOKEN = 'tq_secret'
+    process.env.TORQUE_INGESTER_URL = 'https://staging.ingest.torque.so'
+
+    const config = loadTorqueConfig()
+    expect(config?.ingesterUrl).toBe('https://staging.ingest.torque.so')
   })
 })

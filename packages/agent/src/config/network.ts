@@ -74,10 +74,8 @@ export function loadNetworkConfig(): NetworkConfig {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface TorqueConfig {
-  apiKey: string
-  baseUrl: string
-  campaignIdDevnet: string
-  campaignIdMainnet: string
+  apiToken: string
+  ingesterUrl: string
 }
 
 /**
@@ -85,22 +83,26 @@ export interface TorqueConfig {
  * disabled (TORQUE_GROWTH_ENABLED != 'true') or required env vars are missing.
  * Caller treats null as "Torque integration disabled" — passes baseExecutor
  * through unchanged.
+ *
+ * Env var names follow the official @torque-labs/mcp convention:
+ * - TORQUE_API_TOKEN: project-scoped event-ingest API key from
+ *   platform.torque.so/developer.
+ * - TORQUE_INGESTER_URL: defaults to https://ingest.torque.so. Override only
+ *   for staging/test deployments.
  */
 export function loadTorqueConfig(): TorqueConfig | null {
   const enabled = process.env.TORQUE_GROWTH_ENABLED === 'true'
   if (!enabled) return null
 
-  const apiKey = process.env.TORQUE_API_KEY
-  const baseUrl = process.env.TORQUE_MCP_URL
-  const campaignIdDevnet = process.env.TORQUE_CAMPAIGN_ID_DEVNET ?? ''
-  const campaignIdMainnet = process.env.TORQUE_CAMPAIGN_ID_MAINNET ?? ''
+  const apiToken = process.env.TORQUE_API_TOKEN
+  const ingesterUrl = process.env.TORQUE_INGESTER_URL || 'https://ingest.torque.so'
 
-  if (!apiKey || !baseUrl) {
+  if (!apiToken) {
     console.warn(
-      '[torque] TORQUE_GROWTH_ENABLED=true but TORQUE_API_KEY or TORQUE_MCP_URL missing — disabling integration',
+      '[torque] TORQUE_GROWTH_ENABLED=true but TORQUE_API_TOKEN missing — disabling integration',
     )
     return null
   }
 
-  return { apiKey, baseUrl, campaignIdDevnet, campaignIdMainnet }
+  return { apiToken, ingesterUrl }
 }

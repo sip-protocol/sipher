@@ -41,7 +41,7 @@ sipher agent (existing)
    └─► Torque MCP server (external)
            │
            ▼
-       Torque Campaign Engine
+       Torque Incentive Engine
            │
            ▼
        Rebate → stealth address derived from SNS record
@@ -49,7 +49,7 @@ sipher agent (existing)
 ```
 
 **New module: `packages/agent/src/integrations/torque/`**
-- `mcp-client.ts` — wraps Torque MCP calls (`emit_event`, `get_campaign_status`, `get_campaign`)
+- `mcp-client.ts` — wraps Torque MCP calls (`emitEvent`, `pingIngester`)
 - `growth-hook.ts` — post-success middleware on fund-moving tools
 - `rebate-destination.ts` — derives stealth address from user's published meta-address (cached 60s per wallet+domain)
 - `types.ts` — event payload + MCP response types
@@ -71,35 +71,39 @@ sipher agent (existing)
 
 | Sipher tool | Event name | Why we emit |
 |---|---|---|
-| `send` | `sipher.private_send_completed` | Core privacy action |
-| `swap` | `sipher.private_swap_completed` | Privacy + DEX volume signal |
-| `claim` | `sipher.private_claim_completed` | Receiving side of stealth flow |
-| `drip` | `sipher.recurring_send_tick` | Recurring engagement |
-| `splitSend` | `sipher.batch_send_completed` | Power-user signal |
+| `send` | `sipher_private_send_completed` | Core privacy action |
+| `swap` | `sipher_private_swap_completed` | Privacy + DEX volume signal |
+| `claim` | `sipher_private_claim_completed` | Receiving side of stealth flow |
+| `drip` | `sipher_recurring_send_tick` | Recurring engagement |
+| `splitSend` | `sipher_batch_send_completed` | Power-user signal |
 
 **Skipped intentionally:** read-only tools (`balance`, `history`, `viewingKey`, `privacyScore`, `threatCheck`, `assessRisk`), admin tools (`status`, `viewingKey`), and `sipher_vault` deposit/withdraw (devnet-only, CPI complexity, defer to a future sweep).
 
-**Event payload (canonical shape):**
+**Event payload (canonical shape — probed against live `ingest.torque.so`):**
 ```ts
-type SipherGrowthEvent = {
-  event: string                    // 'sipher.private_send_completed'
-  wallet: string                   // user's public Solana pubkey (attribution)
-  ts: string                       // ISO-8601
-  tx_signature: string             // Solana TX sig (idempotency key)
-  network: 'mainnet-beta' | 'devnet'
-  metadata: {
-    amount_lamports?: number       // OMITTED for `send`, INCLUDED for `swap`
+// Wire format sent to POST https://ingest.torque.so/events
+// Header: x-api-key: $TORQUE_API_TOKEN
+type TorqueIngestBody = {
+  userPubkey: string               // user's public Solana pubkey (attribution)
+  timestamp: number                // Unix epoch in milliseconds (ms, not seconds)
+  eventName: string                // e.g. 'sipher_private_send_completed'
+  data: {                          // flat map — only string | number | boolean values
+    tx_signature: string           // Solana TX sig (idempotency key)
+    network: 'mainnet-beta' | 'devnet'  // sipher-internal field; Torque accepts events from any network
+    amount_lamports?: number       // OMITTED for `send` + `claim`, INCLUDED for `swap`
     asset?: string                 // 'SOL' | 'USDC' | mint address
-    rebate_destination: string     // derived stealth address (60s cache per wallet+domain)
+    rebate_destination?: string    // derived stealth address (60s cache per wallet+domain)
   }
 }
 ```
+
+All four top-level fields (`userPubkey`, `timestamp`, `eventName`, `data`) are required. The `data` object may be `{}` but must be present. Nested objects inside `data` are rejected by the ingest schema with a 400.
 
 **Per-event privacy decisions, not blanket:**
 - `send` events OMIT `amount_lamports` — sender wallet + amount = nearly full deanonymization
 - `swap` events INCLUDE `amount_lamports` — DEX trade is already public on-chain; redaction would be pointless
 - `claim` events OMIT `amount_lamports` — receiver-side flow, amount isn't needed for attribution
-- All events include `tx_signature` for idempotency (Torque deduplicates retries)
+- `data.tx_signature` is the idempotency key — Torque deduplicates on the ingest side
 
 **Emission rules:**
 - Fire **only after** on-chain confirmation. Never on submit. Never on optimistic UI.
@@ -118,7 +122,7 @@ This wires sip.sol Phase A-E directly into the Torque growth loop — strong nar
 
 ---
 
-## Campaign + reward pool
+## Incentive + reward pool
 
 **One campaign initially** (multi-campaign later if it proves out):
 
@@ -136,19 +140,17 @@ This wires sip.sol Phase A-E directly into the Torque growth loop — strong nar
 **Network strategy:**
 - **Devnet first (shadow week 1)** — shake out the integration, prove the loop, no real money at risk
 - **Mainnet after demo verified (week 2 or post-shadow)** — small pool, monitor for 7 days before scaling
-- Per-network campaign IDs in env: `TORQUE_CAMPAIGN_ID_DEVNET`, `TORQUE_CAMPAIGN_ID_MAINNET`. Sipher routes based on `SIPHER_NETWORK`.
+- Torque has no "Campaign" primitive. Our use case maps to: `IncentiveType: REBATE` + `EventDataSource: CUSTOM_EVENT_PROVIDER`. Sipher routes event ingestion based on `SIPHER_NETWORK`; pool funding + reward distribution are mainnet-only (see addendum).
 
 **Campaign discovery (startup):**
-- On boot, sipher fetches campaign metadata via `TorqueMCPClient.getCampaign(id)`
-- No metadata cache today: `getCampaign()` is re-queried per `/admin/api/torque/status` call. Admin is operator-only and rarely hit, so the upstream RPC cost is negligible. Pre-mainnet, add a short-TTL (≤5min) cache here if `status` polling becomes load-bearing for ops dashboards.
+- On boot, sipher fetches incentive/status metadata via `TorqueMCPClient.getStatus()`
+- No metadata cache today: re-queried per `/admin/api/torque/status` call. Admin is operator-only and rarely hit, so the upstream RPC cost is negligible. Pre-mainnet, add a short-TTL (≤5min) cache here if `status` polling becomes load-bearing for ops dashboards.
 - Failure to fetch ≠ broken sipher. Tools still work; events still emit. Just no rebates land. Logged as warning.
 
 **Env vars (added to sipher's existing config):**
 ```
-TORQUE_API_KEY=               # Per-environment, stored in ~/Documents/secret/sipher-vps-secrets.env
-TORQUE_MCP_URL=               # MCP server endpoint (provided via Torque hackathon TG group)
-TORQUE_CAMPAIGN_ID_DEVNET=
-TORQUE_CAMPAIGN_ID_MAINNET=   # Set after mainnet pool funded
+TORQUE_API_TOKEN=             # Per-environment token, stored in ~/Documents/secret/sipher-vps-secrets.env
+TORQUE_INGESTER_URL=          # https://ingest.torque.so (canonical ingest host)
 TORQUE_GROWTH_ENABLED=true    # Master kill-switch
 ```
 
@@ -175,8 +177,8 @@ Three layers, mirroring sipher's existing test discipline. Patterns locked in PR
 - `rebate-destination.test.ts` — given user has SNS record → derives stealth address; given user has legacy hex meta → derives stealth address; given neither → returns null + logs warning.
 
 **Integration tests** (real Torque devnet API)
-- `torque-emit-roundtrip.test.ts` — fire a real `custom_event` against Torque devnet, poll for ingestion, assert it appears in campaign attribution.
-- Skip predicate (mirrors `sns-stealth/tests/integration.test.ts` pattern shipped today): require explicit `TORQUE_TEST_CAMPAIGN_ID` + `TORQUE_API_KEY` env. No defaults — opt-in only. Skips cleanly for contributors / CI.
+- `torque-emit-roundtrip.test.ts` — fire a real `custom_event` against Torque ingest, poll for ingestion, assert it appears in attribution.
+- Skip predicate (mirrors `sns-stealth/tests/integration.test.ts` pattern shipped today): require explicit `TORQUE_API_TOKEN` + `TORQUE_INGESTER_URL` env. No defaults — opt-in only. Skips cleanly for contributors / CI.
 
 **E2E test** (full sipher flow)
 - `torque-rebate-e2e.test.ts` — invoke `sipher.send` end-to-end on devnet: confirm Solana TX → assert event lands at Torque → poll rebate destination wallet → assert lamport balance increased.
@@ -203,7 +205,7 @@ Single take, no voiceover edits:
 
 1. **Setup shot (5s)** — sipher chat UI, devnet wallet connected, current SOL balance shown. Caption overlay: "Torque rebate pool: 5 SOL"
 2. **Action (15s)** — type `send 0.1 SOL privately to therector.sol`. SENTINEL preflight passes. TX confirms on-chain. Solscan tab opens showing the shielded transfer.
-3. **Attribution (20s)** — flip to Torque dashboard tab, refresh. New event appears: `sipher.private_send_completed`, attributed to user wallet. Caption: "Custom event emitted via Torque MCP"
+3. **Attribution (20s)** — flip to Torque dashboard tab, refresh. New event appears: `sipher_private_send_completed`, attributed to user wallet. Caption: "Custom event emitted via Torque MCP"
 4. **Rebate (30s)** — flip back to a fresh wallet view, derived stealth address. Within ~5s, lamport balance increases by 0.005 SOL. Solscan link to the rebate TX. Caption: "Rebate auto-claimed at fresh stealth address — no doxxing"
 5. **Closing card (20s)** — text card: "Sipher × Torque MCP. Privacy-native growth loops on Solana. github.com/sip-protocol/sipher"
 
@@ -261,9 +263,82 @@ Each PR follows the established sipher pattern: TDD where feasible, `pnpm typech
 ## Open questions deferred to implementation
 
 These don't block design approval but need answers during PR-A:
-- Does Torque MCP server use Anthropic's stdio MCP transport or an HTTP-based MCP variant? (TG group answer)
-- What auth flow does the Torque MCP server use? (API key in header? OAuth? wallet-signature?)
+- ~~Does Torque MCP server use Anthropic's stdio MCP transport or an HTTP-based MCP variant?~~ **Resolved — see Discovery addendum: REST ingest at `ingest.torque.so`, no MCP transport needed for event emission**
+- ~~What auth flow does the Torque MCP server use?~~ **Resolved — `x-api-key: $TORQUE_API_TOKEN` header on every request to `ingest.torque.so`**
 - Are there per-event-type rate limits on the Torque side?
-- Is there a sandbox campaign ID we can use for testing without affecting our real campaign?
+- ~~Is there a sandbox campaign ID we can use for testing without affecting our real campaign?~~ **Resolved — Torque has no Campaign primitive; events are ingested by slug against the Incentive configured in the dashboard. Devnet events are network-agnostic; no separate sandbox ID needed.**
 
-Friction Log captures the answers as they arrive.
+Friction Log captures the remaining answers as they arrive.
+
+---
+
+## Discovery addendum — canonical ingest contract (2026-05-12)
+
+This section documents the ground-truth contract discovered by probing the live Torque API during dashboard onboarding (frontier_sip_9 session). It supersedes any conflicting spec text above. PR-A through PR-D (#256, #258, #260, #261) were shipped against the original (wrong) spec; PR-E (this rewrite + downstream source changes) aligns the codebase with this canonical contract.
+
+### Four-host architecture
+
+| Host | Purpose |
+|---|---|
+| `server.torque.so` | CRUD — read/write Queries, Incentives, Lists, user lookups |
+| `platform.torque.so` | Dashboard UI — browser-facing, not called from code |
+| `ingest.torque.so` | Event ingestion — the only host sipher writes to |
+| `ai.torque.so` | AI features — out of scope for this integration |
+
+### Torque primitives (no "Campaign" entity)
+
+Torque's data model does not have a "Campaign" object. Our integration maps to:
+
+| Torque primitive | Our value |
+|---|---|
+| `IncentiveType` | `REBATE` |
+| `EventDataSource` | `CUSTOM_EVENT_PROVIDER` |
+| `QueryType` options | `ALLOWLIST`, `DENYLIST`, `LIST`, `PREDEFINED_ALLOCATION` |
+
+The Incentive is configured in `platform.torque.so` and references Custom Event slugs by name. Sipher emits events; Torque's engine matches slugs to Incentives and distributes rebates.
+
+### Mainnet-only constraint
+
+Pool funding and reward distribution require mainnet SOL/USDC. There is no Torque devnet. However, **event ingestion is network-agnostic** — `ingest.torque.so` accepts events regardless of which Solana cluster the underlying TX was confirmed on. Pubkeys are network-portable (same keypair exists on devnet and mainnet).
+
+Consequence: a **hybrid mode is viable and deliberate**:
+- Shadow week 1 — emit real devnet events (prove the wire format + ingestion pipeline with no real money at risk)
+- Week 2+ — fund a small mainnet pool; Torque engine begins distributing rebates for events attributed to the same pubkeys
+
+### Canonical ingest contract
+
+```
+POST https://ingest.torque.so/events
+x-api-key: $TORQUE_API_TOKEN
+
+{
+  "userPubkey": "<base58 Solana pubkey>",
+  "timestamp": <unix epoch ms — number, not string>,
+  "eventName": "<slug>",
+  "data": { <flat map of string | number | boolean> }
+}
+```
+
+All four top-level fields are required. Missing any field produces a 400 with `body/<field> Required`. The `data` object must be present (may be `{}`). Nested objects inside `data` are rejected.
+
+### Custom event slugs (underscore form — required by Torque dashboard)
+
+| Event | Slug |
+|---|---|
+| Private send | `sipher_private_send_completed` |
+| Private swap | `sipher_private_swap_completed` |
+| Private claim | `sipher_private_claim_completed` |
+| Recurring send tick | `sipher_recurring_send_tick` |
+| Batch send | `sipher_batch_send_completed` |
+
+Slugs must match exactly as configured in the Torque dashboard (Incentive → Custom Event). Dotted form (`sipher.private_send_completed`) is not accepted.
+
+### Env var names (locked)
+
+```
+TORQUE_API_TOKEN=         # was TORQUE_API_KEY (old spec)
+TORQUE_INGESTER_URL=      # was TORQUE_MCP_URL (old spec); value = https://ingest.torque.so
+TORQUE_GROWTH_ENABLED=    # unchanged
+```
+
+`TORQUE_CAMPAIGN_ID_DEVNET` and `TORQUE_CAMPAIGN_ID_MAINNET` are dropped — Torque has no Campaign primitive and sipher does not need to track an ID to emit events.
