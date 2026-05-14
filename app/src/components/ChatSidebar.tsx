@@ -8,6 +8,7 @@ import { isAuthError } from '../lib/auth-errors'
 import { triggerAuthInterceptor } from '../api/client'
 import ToolTimeline from './ToolTimeline'
 import SentinelConfirm from './SentinelConfirm'
+import SignTxCard from './SignTxCard'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -182,6 +183,21 @@ export default function ChatSidebar({ fullScreen }: Props) {
                   severity: event.severity,
                 },
               })
+            } else if (event.type === 'tool_signing_required') {
+              addMessage({
+                id: crypto.randomUUID(),
+                role: 'system',
+                content: '',
+                kind: 'tool_signing_required' as const,
+                meta: {
+                  flagId: event.flagId,
+                  toolName: event.toolName,
+                  serializedTx: event.serializedTx,
+                  network: event.network,
+                  walletPubkey: event.walletPubkey,
+                  display: event.display,
+                },
+              })
             } else if (event.type === 'error') {
               appendToLast(`\n\nError: ${event.message}`)
             }
@@ -296,6 +312,31 @@ export default function ChatSidebar({ fullScreen }: Props) {
                     action={meta.action ?? 'Action'}
                     amount={meta.amount ?? ''}
                     description={meta.description}
+                    onResolved={() => dismissMessage(msg.id)}
+                  />
+                </div>
+              </div>
+            )
+          }
+          if (msg.role === 'system' && msg.kind === 'tool_signing_required' && token) {
+            const meta = (msg.meta ?? {}) as {
+              flagId?: string
+              toolName?: 'send' | 'swap'
+              serializedTx?: string
+              network?: 'mainnet-beta' | 'devnet'
+              walletPubkey?: string
+              display?: { title: string; primaryDetail: string; secondaryDetails: string[] }
+            }
+            return (
+              <div key={msg.id} className="flex justify-start">
+                <div className="max-w-[90%] w-full">
+                  <SignTxCard
+                    flagId={meta.flagId ?? ''}
+                    toolName={meta.toolName ?? 'send'}
+                    serializedTx={meta.serializedTx ?? ''}
+                    network={meta.network ?? 'devnet'}
+                    walletPubkey={meta.walletPubkey ?? ''}
+                    display={meta.display ?? { title: '', primaryDetail: '', secondaryDetails: [] }}
                     onResolved={() => dismissMessage(msg.id)}
                   />
                 </div>
