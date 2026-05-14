@@ -1,21 +1,39 @@
 # Torque MCP Integration
 
-Sipher integrates [Torque](https://torque.so) MCP to drive a per-action rebate growth loop. After every successful private send / swap / claim / drip / batch-send via sipher's agent tools, a `custom_event` is emitted to a Torque campaign that distributes a small SOL/USDC rebate to a fresh stealth address derived from the user's published SNS `SIP-STEALTH` record.
+Sipher integrates [Torque](https://torque.so) to drive a per-action rebate growth loop. After every successful private send / swap / claim / drip / batch-send via sipher's agent tools, a custom event is emitted to `ingest.torque.so` which triggers a REBATE Incentive that distributes a small SOL rebate to a fresh stealth address derived from the user's published SNS `SIP-STEALTH` record.
 
 ## Setup
 
 ```bash
 # In ~/Documents/secret/sipher-vps-secrets.env (or .env for local dev)
-TORQUE_API_KEY=tk_...                                     # From Torque dashboard
-TORQUE_MCP_URL=<provided via Torque hackathon Telegram group>   # MCP server endpoint — confirmed by @smicktrq in Frontier TG
-TORQUE_CAMPAIGN_ID_DEVNET=camp_dev_xxx                    # Devnet campaign
-TORQUE_CAMPAIGN_ID_MAINNET=camp_main_xxx                  # Mainnet campaign (optional until rollout)
-TORQUE_GROWTH_ENABLED=true                                # Master kill-switch
+TORQUE_API_TOKEN=tq_...                          # Project-scoped event-ingest API key from platform.torque.so/developer (one-time view at creation)
+TORQUE_INGESTER_URL=https://ingest.torque.so     # Optional — defaults to production ingester; override only for staging/test
+TORQUE_GROWTH_ENABLED=true                       # Master kill-switch — set to 'true' to enable post-success event emission
 ```
 
-> **Note:** `TORQUE_MCP_URL` is TBD pending Torque hackathon Telegram group access. The integration test skip-predicate gates this — tests skip cleanly until the URL is known.
+> **Note:** The canonical ingest contract has been verified against the live `ingest.torque.so` endpoint. The API key (`TORQUE_API_TOKEN`) is project-scoped — no campaign IDs are needed; the key alone routes events to the correct project and incentive.
 
 When `TORQUE_GROWTH_ENABLED=false` (default) the entire integration is bypassed cleanly — sipher tools work as before, no events are emitted, no admin endpoint queries Torque.
+
+## Dashboard prerequisites
+
+Before enabling the integration, the following must be configured at `platform.torque.so`:
+
+1. **Project created** under the Torque-owning wallet (one-time)
+2. **API key generated** from `/developer` — value goes into `TORQUE_API_TOKEN` (one-time view at creation; rotate via dashboard if lost)
+3. **5 Custom Events defined** with these exact slugs + field schemas:
+
+| Slug | Fields |
+|---|---|
+| `sipher_private_send_completed` | `tx_signature` (string), `network` (string), `rebate_destination` (string) |
+| `sipher_private_swap_completed` | `tx_signature` (string), `network` (string), `rebate_destination` (string), `amount_lamports` (number), `asset` (string) |
+| `sipher_private_claim_completed` | same as send |
+| `sipher_recurring_send_tick` | same as send |
+| `sipher_batch_send_completed` | same as send |
+
+4. **REBATE Incentive** configured via `CUSTOM_EVENT_PROVIDER` data source bound to those 5 slugs, with sybil/reward/epoch rules set in the Torque dashboard recipe form (NOT in this code — distribution is dashboard-driven)
+
+Emissions to undefined slugs return `400 Event not found for this API key` — the integration logs the reason and skips without failing the sipher tool.
 
 ## Test commands
 
@@ -26,41 +44,46 @@ pnpm --filter @sipher/agent test -- integrations/torque
 # Admin endpoint tests (always run)
 pnpm --filter @sipher/agent test -- routes/admin-torque
 
-# Integration test — opt-in, hits the real Torque devnet API
-TORQUE_API_KEY=tk_... \
-TORQUE_MCP_URL=https://... \
-TORQUE_TEST_CAMPAIGN_ID=$TORQUE_CAMPAIGN_ID_DEVNET \
+# Integration test — opt-in, hits the real Torque ingest API
+TORQUE_API_TOKEN=tq_... \
+TORQUE_INGESTER_URL=https://ingest.torque.so \
 pnpm --filter @sipher/agent test -- torque-emit-roundtrip
 
 # E2E test — opt-in, requires devnet keypair + published SIP-STEALTH on SIP_TEST_DOMAIN
-TORQUE_API_KEY=tk_... \
-TORQUE_MCP_URL=https://... \
-TORQUE_TEST_CAMPAIGN_ID=$TORQUE_CAMPAIGN_ID_DEVNET \
+TORQUE_API_TOKEN=tq_... \
+TORQUE_INGESTER_URL=https://ingest.torque.so \
 SIP_TEST_DOMAIN=therector.sol \
 pnpm --filter @sipher/agent test -- torque-rebate-e2e
 ```
 
 ## Admin endpoint
 
-`GET /admin/api/torque/status` returns the current campaign state:
+`GET /admin/api/torque/status` returns the current ingester state:
 
 ```json
 {
   "ok": true,
   "enabled": true,
   "network": "devnet",
-  "campaignId": "camp_devnet_1",
-  "campaignFetchOk": true,
-  "campaign": {
-    "id": "camp_devnet_1",
-    "name": "Sipher Private Action Rebate",
-    "status": "ACTIVE",
-    "remainingPool": 4.95,
-    "rewardAmountPerEvent": 0.005,
-    "rewardToken": "SOL"
-  }
+  "ingesterUrl": "https://ingest.torque.so",
+  "ingesterReachable": true
 }
 ```
+
+When the ingester is unreachable, `ingesterReachable` is `false` and `ingesterReason` is included:
+
+```json
+{
+  "ok": true,
+  "enabled": true,
+  "network": "devnet",
+  "ingesterUrl": "https://ingest.torque.so",
+  "ingesterReachable": false,
+  "ingesterReason": "network"
+}
+```
+
+`ingesterReason` is one of `'auth' | 'network' | 'unknown'`, present only when `ingesterReachable` is `false`.
 
 When `TORQUE_GROWTH_ENABLED=false`:
 
@@ -72,6 +95,14 @@ When `TORQUE_GROWTH_ENABLED=false`:
 }
 ```
 
+## Network model
+
+Torque's event ingestion is **network-agnostic** — `ingest.torque.so` accepts events regardless of which Solana cluster the underlying TX was confirmed on. The `network` field inside `data` is sipher-internal record-keeping.
+
+Torque's **pool funding and reward distribution are mainnet-only** — the SOL/USDC pool that backs a REBATE incentive must live on mainnet. Pubkeys are network-portable, so a wallet that fires devnet events still receives mainnet rewards at the same address.
+
+This enables a **hybrid deployment model**: sipher fires devnet events from devnet wallets (no real money during shadow testing), while Torque pays out from a small mainnet pool. The same `cipher-admin` wallet owns both the Torque project and the mainnet pool.
+
 ## Privacy posture
 
 This integration has a known, bounded privacy leak: **Torque learns "wallet X used sipher".**
@@ -80,11 +111,11 @@ To attribute actions and route rebates, the Torque MCP server needs the user's p
 
 | Event | Wallet sent? | Amount sent? | Recipient sent? |
 |---|---|---|---|
-| `private_send_completed` | yes | **no** | no |
-| `private_swap_completed` | yes | yes (already public on-chain) | no |
-| `private_claim_completed` | yes | no | no |
-| `recurring_send_tick` | yes | no | no |
-| `batch_send_completed` | yes | no | no |
+| `sipher_private_send_completed` | yes | **no** | no |
+| `sipher_private_swap_completed` | yes | yes (already public on-chain) | no |
+| `sipher_private_claim_completed` | yes | no | no |
+| `sipher_recurring_send_tick` | yes | no | no |
+| `sipher_batch_send_completed` | yes | no | no |
 
 Users who want zero attribution leakage should set `TORQUE_GROWTH_ENABLED=false`.
 
@@ -101,7 +132,7 @@ Users who want zero attribution leakage should set `TORQUE_GROWTH_ENABLED=false`
 ## Architecture
 
 ```
-sipher tool execution → growth-hook → rebate-destination → TorqueMCPClient → Torque MCP server
+sipher tool execution → growth-hook → rebate-destination → TorqueMCPClient → ingest.torque.so/events
                                           │
                                           └─→ derives an Ed25519 stealth address from the
                                               user's SNS SIP-STEALTH record
@@ -110,6 +141,22 @@ sipher tool execution → growth-hook → rebate-destination → TorqueMCPClient
                                               SNS RPC load — within that window multiple
                                               events from the same wallet rebate to the
                                               same derived address
+```
+
+Event payload shape (canonical contract, verified against live endpoint):
+
+```ts
+{
+  userPubkey: 'C1phr...',       // user's Solana pubkey
+  timestamp: 1747068000000,     // ms-epoch
+  eventName: 'sipher_private_send_completed',
+  data: {
+    tx_signature: '3QCo...',
+    network: 'devnet',           // sipher-internal; Torque is network-agnostic
+    rebate_destination: 'RbT6...', // fresh stealth address derived from SNS SIP-STEALTH record
+    // amount_lamports, asset — present only for swap events
+  }
+}
 ```
 
 See `docs/superpowers/specs/2026-05-12-torque-mcp-integration-design.md` for full design.
