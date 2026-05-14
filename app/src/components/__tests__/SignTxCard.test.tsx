@@ -137,4 +137,48 @@ describe('SignTxCard', () => {
     await waitFor(() => expect(screen.getByText(/expired|session/i)).toBeInTheDocument())
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
   })
+
+  it('does NOT fire reject beacon when transitioning idle → signing (regression for #74a8886 race)', async () => {
+    signAndBroadcastMock.mockResolvedValue({ signature: 'SIG_XYZ' })
+    // Spy on global.fetch to count POST /reject vs /confirm
+    const fetchSpy = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'accepted' }), { status: 200 }))
+    global.fetch = fetchSpy as typeof fetch
+
+    // Also spy on navigator.sendBeacon (not always present in jsdom)
+    const beaconSpy = vi.fn()
+    Object.defineProperty(window.navigator, 'sendBeacon', {
+      value: beaconSpy,
+      configurable: true,
+    })
+
+    render(<SignTxCard {...DEFAULT_PROPS} />)
+    await userEvent.click(screen.getByRole('button', { name: /sign with wallet/i }))
+    await waitFor(() => expect(signAndBroadcastMock).toHaveBeenCalled())
+
+    // Assert no /reject fetch fired and no /reject beacon fired during sign flow
+    const rejectCalls = fetchSpy.mock.calls.filter(([url]) =>
+      typeof url === 'string' && url.includes('/reject'),
+    )
+    expect(rejectCalls.length).toBe(0)
+    const rejectBeacons = beaconSpy.mock.calls.filter(([url]) =>
+      typeof url === 'string' && url.includes('/reject'),
+    )
+    expect(rejectBeacons.length).toBe(0)
+  })
+
+  it('fires reject beacon on unmount-while-idle', () => {
+    const beaconSpy = vi.fn().mockReturnValue(true)
+    Object.defineProperty(window.navigator, 'sendBeacon', {
+      value: beaconSpy,
+      configurable: true,
+    })
+
+    const { unmount } = render(<SignTxCard {...DEFAULT_PROPS} />)
+    unmount()
+
+    const rejectBeacons = beaconSpy.mock.calls.filter(([url]) =>
+      typeof url === 'string' && url.includes('/reject'),
+    )
+    expect(rejectBeacons.length).toBe(1)
+  })
 })

@@ -43,6 +43,13 @@ export default function SignTxCard({
   const [status, setStatus] = useState<CardStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const beaconFiredRef = useRef(false)
+  const statusRef = useRef<CardStatus>('idle')
+
+  // Mirror status into a ref so the unmount cleanup below can read the live
+  // value at teardown instead of a stale closure capture.
+  useEffect(() => {
+    statusRef.current = status
+  }, [status])
 
   const connectedPubkey = publicKey?.toBase58() ?? null
   const walletMismatch = connectedPubkey !== null && connectedPubkey !== walletPubkey
@@ -111,10 +118,17 @@ export default function SignTxCard({
   // Best-effort cleanup beacon on unmount-while-idle: if the user closes the
   // tab or navigates away before deciding, fire a /reject so the server can
   // release the pending slot instead of waiting for the 60s TTL to expire.
+  //
+  // status is intentionally NOT in the dep array: including it would re-run the
+  // cleanup on every transition (e.g. idle → signing), and the cleanup's
+  // closure would still see the OLD captured status. That race fired /reject
+  // the instant the user clicked Sign, server-rejecting the flag while the
+  // wallet popup was still opening. Reading via statusRef lets the cleanup
+  // observe the current status at actual unmount time only.
   useEffect(() => {
     return () => {
       if (beaconFiredRef.current) return
-      if (status !== 'idle') return
+      if (statusRef.current !== 'idle') return
       try {
         const blob = new Blob([JSON.stringify({ reason: 'tab_closed' })], { type: 'application/json' })
         if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
@@ -134,7 +148,7 @@ export default function SignTxCard({
         // best-effort only — never surface to user
       }
     }
-  }, [flagId, status, token])
+  }, [flagId, token])
 
   const signLabel =
     status === 'signing' ? 'Open your wallet...' :
