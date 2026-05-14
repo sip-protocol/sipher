@@ -41,7 +41,7 @@ sipher agent (existing)
    └─► Torque MCP server (external)
            │
            ▼
-       Torque Campaign Engine
+       Torque Incentive Engine
            │
            ▼
        Rebate → stealth address derived from SNS record
@@ -49,7 +49,7 @@ sipher agent (existing)
 ```
 
 **New module: `packages/agent/src/integrations/torque/`**
-- `mcp-client.ts` — wraps Torque MCP calls (`emit_event`, `get_campaign_status`, `get_campaign`)
+- `mcp-client.ts` — wraps Torque MCP calls (`emitEvent`, `pingIngester`)
 - `growth-hook.ts` — post-success middleware on fund-moving tools
 - `rebate-destination.ts` — derives stealth address from user's published meta-address (cached 60s per wallet+domain)
 - `types.ts` — event payload + MCP response types
@@ -89,7 +89,7 @@ type TorqueIngestBody = {
   eventName: string                // e.g. 'sipher_private_send_completed'
   data: {                          // flat map — only string | number | boolean values
     tx_signature: string           // Solana TX sig (idempotency key)
-    network: 'mainnet-beta' | 'devnet'
+    network: 'mainnet-beta' | 'devnet'  // sipher-internal field; Torque accepts events from any network
     amount_lamports?: number       // OMITTED for `send` + `claim`, INCLUDED for `swap`
     asset?: string                 // 'SOL' | 'USDC' | mint address
     rebate_destination?: string    // derived stealth address (60s cache per wallet+domain)
@@ -122,7 +122,7 @@ This wires sip.sol Phase A-E directly into the Torque growth loop — strong nar
 
 ---
 
-## Campaign + reward pool
+## Incentive + reward pool
 
 **One campaign initially** (multi-campaign later if it proves out):
 
