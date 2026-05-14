@@ -45,6 +45,7 @@ _To be filled. Q&A with @smicktrq during build, with timestamps. Signals real en
 ### What was confusing
 
 - **2026-05-12 — Three Torque hosts, similar names.** `server.torque.so` (CRUD), `platform.torque.so` (dashboard UI + small internal API), `ingest.torque.so` (events), `ai.torque.so` (AI features). Distinct purposes, similar TLD prefixes — easy to test against the wrong one and get cryptic 404s. The official `@torque-labs/mcp@0.4.7` npm package source code (`dist/index.js`) was the cleanest source for the host map, not the public docs.
+- **2026-05-12 — Dashboard onboarding required starting over with a fresh account.** RECTOR initially signed in to platform.torque.so with his default Phantom wallet (`HciZTd6rR7YsaS5ZNThx9KdgqSimxwMzJgs2j98U25En`) and reached the "Create a Project" step. Then realized: Torque has no account merge or transfer flow — whichever wallet creates the project owns it forever. Pivoted to `cipher-admin` (`C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N`, vanity `C1phr...` matching sipher's brand), imported it into Phantom via base58, reconnected, started the onboarding from scratch. The `HciZTd` account on Torque is orphaned (no project, no API key, no campaign — safe to abandon). Also surprising: Torque project IDs use the prefix `cmp` + 24-char nanoid (e.g., `cmp2as15d05pnk01hiyuf7208`), NOT `camp_xxx` as our original spec assumed. And the API key is one-time-view at creation — losing it requires rotation, not retrieval. We saved ours to `~/Documents/secret/sipher-vps-secrets.env` immediately.
 
 ### What we'd improve
 
