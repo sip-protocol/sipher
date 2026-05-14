@@ -5,7 +5,7 @@ import type { SipherEventName, SipherGrowthEvent, TorqueMCPClientOptions } from 
 
 export interface GrowthHookOptions extends TorqueMCPClientOptions {
   growthEnabled: boolean
-  /** Network used to populate SipherGrowthEvent.network. */
+  /** Network used to populate SipherGrowthEvent.data.network. */
   network: 'mainnet-beta' | 'devnet'
   /** Optional connection for rebate-destination SNS resolution; emission is skipped if omitted. */
   connection?: Connection
@@ -13,11 +13,11 @@ export interface GrowthHookOptions extends TorqueMCPClientOptions {
 
 /** Map sipher tool name → growth event name. Read-only tools are intentionally absent. */
 const TOOL_EVENT_MAP: Record<string, SipherEventName> = {
-  send: 'sipher.private_send_completed',
-  swap: 'sipher.private_swap_completed',
-  claim: 'sipher.private_claim_completed',
-  drip: 'sipher.recurring_send_tick',
-  splitSend: 'sipher.batch_send_completed',
+  send: 'sipher_private_send_completed',
+  swap: 'sipher_private_swap_completed',
+  claim: 'sipher_private_claim_completed',
+  drip: 'sipher_recurring_send_tick',
+  splitSend: 'sipher_batch_send_completed',
 }
 
 /** Swap outputs are on-chain DEX events already; include lamport amount for Torque attribution. */
@@ -30,17 +30,6 @@ export function wrapExecutorWithGrowthHook(
   opts: GrowthHookOptions,
 ): ToolExecutor {
   if (!opts.growthEnabled) {
-    return baseExecutor
-  }
-
-  // Without a campaign ID the client would POST to https://.../campaigns//events
-  // (note the double slash) — Torque returns 404 and the error envelope swallows
-  // it silently. Bail out loudly instead so misconfigured envs are visible.
-  if (!opts.campaignId || !opts.campaignId.trim()) {
-    const envVar = opts.network === 'mainnet-beta' ? 'TORQUE_CAMPAIGN_ID_MAINNET' : 'TORQUE_CAMPAIGN_ID_DEVNET'
-    console.warn(
-      `[torque] no campaign ID for network=${opts.network} — growth-hook disabled. Set ${envVar} to enable rebate emission.`,
-    )
     return baseExecutor
   }
 
@@ -73,7 +62,6 @@ async function emitGrowthEvent(
   const wallet = typeof input.wallet === 'string' ? input.wallet : undefined
   if (!wallet) return
 
-  // Only attempt SNS resolution when a connection is available.
   if (!opts.connection) return
 
   const domain =
@@ -89,17 +77,21 @@ async function emitGrowthEvent(
 
   if (destination.kind !== 'stealth') return
 
+  const amountLamports = AMOUNT_INCLUDED_TOOLS.has(toolName)
+    ? extractAmountLamports(result)
+    : undefined
+  const asset = AMOUNT_INCLUDED_TOOLS.has(toolName) ? extractAsset(result) : undefined
+
   const event: SipherGrowthEvent = {
-    event: eventName,
-    wallet,
-    ts: new Date().toISOString(),
-    tx_signature: txSignature,
-    network: opts.network,
-    metadata: {
+    userPubkey: wallet,
+    timestamp: Date.now(),
+    eventName,
+    data: {
+      tx_signature: txSignature,
+      network: opts.network,
       rebate_destination: destination.address,
-      ...(AMOUNT_INCLUDED_TOOLS.has(toolName)
-        ? { amount_lamports: extractAmountLamports(result) }
-        : {}),
+      ...(amountLamports !== undefined ? { amount_lamports: amountLamports } : {}),
+      ...(asset !== undefined ? { asset } : {}),
     },
   }
 
@@ -119,5 +111,13 @@ function extractAmountLamports(result: unknown): number | undefined {
   const r = result as Record<string, unknown>
   if (typeof r.amountInLamports === 'number') return r.amountInLamports
   if (typeof r.amountLamports === 'number') return r.amountLamports
+  return undefined
+}
+
+function extractAsset(result: unknown): string | undefined {
+  if (!result || typeof result !== 'object') return undefined
+  const r = result as Record<string, unknown>
+  if (typeof r.asset === 'string') return r.asset
+  if (typeof r.outputMint === 'string') return r.outputMint
   return undefined
 }
