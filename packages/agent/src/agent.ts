@@ -261,6 +261,26 @@ export interface SSESentinelPause {
   description: string
 }
 
+export interface SSEToolSigningRequired {
+  type: 'tool_signing_required'
+  /** Server-issued invocation ID; client POSTs to /api/tool-signing/:flagId/{confirm,reject} */
+  flagId: string
+  /** Tool name — 'send' | 'swap' for v1 */
+  toolName: 'send' | 'swap'
+  /** Base64-serialized unsigned transaction */
+  serializedTx: string
+  /** Cluster — for client-side sanity check vs connected RPC */
+  network: 'mainnet-beta' | 'devnet'
+  /** Wallet that should sign — client verifies still-connected pubkey matches */
+  walletPubkey: string
+  /** Server-formatted display payload — keeps frontend tool-agnostic */
+  display: {
+    title: string
+    primaryDetail: string
+    secondaryDetails: string[]
+  }
+}
+
 export type SSEEvent =
   | SSEContentDelta
   | SSEToolUse
@@ -268,6 +288,7 @@ export type SSEEvent =
   | SSEMessageComplete
   | SSEError
   | SSESentinelPause
+  | SSEToolSigningRequired
 
 // ─── Local helpers — humanize advisory metadata for the UI ──────────────────
 
@@ -304,6 +325,84 @@ function extractAmount(input: Record<string, unknown>): string {
   if (typeof amount !== 'number' || !Number.isFinite(amount)) return ''
   const token = typeof input.token === 'string' && input.token ? input.token : 'SOL'
   return `${amount} ${token}`
+}
+
+/**
+ * Server-format the display payload for a tool_signing_required SSE event.
+ * Keeps the frontend SignTxCard tool-agnostic — it just renders title +
+ * primaryDetail + secondaryDetails without per-tool branching.
+ */
+export function formatSigningDisplay(
+  toolName: 'send' | 'swap',
+  input: Record<string, unknown>,
+  result: unknown,
+): { title: string; primaryDetail: string; secondaryDetails: string[] } {
+  if (toolName === 'send') return formatSendDisplay(input, result)
+  return formatSwapDisplay(input, result)
+}
+
+function formatSendDisplay(
+  input: Record<string, unknown>,
+  result: unknown,
+): { title: string; primaryDetail: string; secondaryDetails: string[] } {
+  const amount = typeof input.amount === 'number' ? input.amount : 0
+  const token = typeof input.token === 'string' ? input.token.toUpperCase() : 'SOL'
+  const recipient = typeof input.recipient === 'string' ? input.recipient : 'unknown'
+  const recipientShort = truncateRecipient(recipient)
+
+  const r = result as {
+    privacy?: { estimatedFee?: string; netAmount?: string | null; commitmentGenerated?: boolean }
+  }
+  const fee = r?.privacy?.estimatedFee ?? '—'
+  const net = r?.privacy?.netAmount ?? '—'
+  const stealthOn = r?.privacy?.commitmentGenerated === true
+
+  return {
+    title: `Send ${amount} ${token} to ${recipientShort}`,
+    primaryDetail: stealthOn
+      ? 'Stealth recipient — amount + recipient hidden on-chain'
+      : 'Direct recipient — amount visible on-chain',
+    secondaryDetails: [
+      `Protocol fee: ${fee}`,
+      `Net amount received: ${net} ${token}`,
+    ],
+  }
+}
+
+function formatSwapDisplay(
+  input: Record<string, unknown>,
+  result: unknown,
+): { title: string; primaryDetail: string; secondaryDetails: string[] } {
+  const amount = typeof input.amount === 'number' ? input.amount : 0
+  const from = typeof input.fromToken === 'string' ? input.fromToken.toUpperCase() : '?'
+  const to = typeof input.toToken === 'string' ? input.toToken.toUpperCase() : '?'
+  const slippageBps = typeof input.slippageBps === 'number' ? input.slippageBps : 50
+
+  const r = result as {
+    quote?: { estimatedOutput?: string; priceImpact?: string; route?: string[] }
+    privacy?: { stealthRouted?: boolean }
+  }
+  const estOut = r?.quote?.estimatedOutput ?? '—'
+  const priceImpact = r?.quote?.priceImpact ?? '—'
+  const route = (r?.quote?.route ?? []).join(' → ') || 'Jupiter'
+  const stealthRouted = r?.privacy?.stealthRouted === true
+
+  return {
+    title: `Swap ${amount} ${from} → ~${estOut} ${to}`,
+    primaryDetail: stealthRouted
+      ? `Routed via ${route} — output to stealth address`
+      : `Routed via ${route}`,
+    secondaryDetails: [
+      `Slippage: ${(slippageBps / 100).toFixed(1)}%`,
+      `Price impact: ${priceImpact}%`,
+    ],
+  }
+}
+
+function truncateRecipient(r: string): string {
+  if (r.endsWith('.sol')) return r
+  if (r.length <= 12) return r
+  return `${r.slice(0, 4)}...${r.slice(-4)}`
 }
 
 /**
