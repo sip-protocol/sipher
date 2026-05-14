@@ -16,7 +16,8 @@
 #   NO_COLOR=1 scripts/torque-preflight.sh   # disable color
 #
 # Environment overrides (optional):
-#   SIPHER_BASE_URL       default https://sipher.sip-protocol.org
+#   SIPHER_API_URL        default https://sipher-api.sip-protocol.org  (backend host — /api/health, /admin/api/torque/status)
+#   SIPHER_FE_URL         default https://sipher.sip-protocol.org      (Vercel-served SPA host)
 #   TORQUE_INGEST_URL     default https://ingest.torque.so
 #   SIPHER_ADMIN_TOKEN    optional Bearer token. If unset, the script reads
 #                         from $SIPHER_ADMIN_TOKEN_FILE (default
@@ -56,7 +57,8 @@ set -euo pipefail
 # Config & defaults
 # ────────────────────────────────────────────────────────────────────────────
 
-SIPHER_BASE_URL="${SIPHER_BASE_URL:-https://sipher.sip-protocol.org}"
+SIPHER_API_URL="${SIPHER_API_URL:-https://sipher-api.sip-protocol.org}"
+SIPHER_FE_URL="${SIPHER_FE_URL:-https://sipher.sip-protocol.org}"
 TORQUE_INGEST_URL="${TORQUE_INGEST_URL:-https://ingest.torque.so}"
 SIPHER_ADMIN_TOKEN_FILE="${SIPHER_ADMIN_TOKEN_FILE:-$HOME/Documents/secret/sipher-admin-token}"
 
@@ -165,7 +167,7 @@ http() {
 # in the codebase, so we hit the real endpoint here.
 
 check_vps_health() {
-  local url="${SIPHER_BASE_URL}/api/health"
+  local url="${SIPHER_API_URL}/api/health"
   local body="$TMPDIR_PREFLIGHT/health.json"
   trace "GET $url"
   local code
@@ -212,7 +214,7 @@ TORQUE_STATUS_BODY=""  # populated by check 2, reused by 3 & 4
 TORQUE_STATUS_OK=0
 
 check_torque_status() {
-  local url="${SIPHER_BASE_URL}/admin/api/torque/status"
+  local url="${SIPHER_API_URL}/admin/api/torque/status"
   local body="$TMPDIR_PREFLIGHT/torque-status.json"
   TORQUE_STATUS_BODY="$body"
   trace "GET $url"
@@ -273,14 +275,21 @@ check_torque_status() {
   fi
 
   # Check 4: network correctness
+  # Hybrid mode (the canonical setup): events emit on devnet (cheap, safe),
+  # rebate pool funded on mainnet (real money). Event ingestion at
+  # ingest.torque.so is network-agnostic — the payload has no network field —
+  # so devnet events still attribute to the mainnet pool's REBATE Incentive.
+  # Either devnet or mainnet-beta is valid here; anything else is suspect.
   if [[ "$enabled" != "true" ]]; then
     record FAIL "Network correctness" "skipped (integration disabled)" \
       "Resolve check 2 first."
+  elif [[ "$network" == "devnet" ]]; then
+    record OK "Network correctness: devnet (hybrid mode — events on devnet, pool on mainnet)"
   elif [[ "$network" == "mainnet-beta" ]]; then
     record OK "Network correctness: mainnet-beta"
   else
-    record FAIL "Network correctness" "expected mainnet-beta, got ${network:-empty}" \
-      "Pool is funded on mainnet; emitting devnet events would route incentives nowhere. Set SOLANA_CLUSTER=mainnet-beta on the VPS (or whatever loadNetworkConfig() reads) and restart."
+    record FAIL "Network correctness" "expected devnet or mainnet-beta, got ${network:-empty}" \
+      "Check SIPHER_NETWORK on the VPS. Valid values: 'devnet' (hybrid mode) or 'mainnet' (full mainnet)."
   fi
 
   if [[ "$VERBOSE" -eq 1 ]]; then
@@ -420,7 +429,7 @@ check_synthetic_event() {
 # serving the bundle.
 
 check_frontend() {
-  local url="${SIPHER_BASE_URL}/"
+  local url="${SIPHER_FE_URL}/"
   local body="$TMPDIR_PREFLIGHT/frontend.html"
   trace "GET $url"
   local code
@@ -451,7 +460,7 @@ check_frontend() {
     record OK "Frontend reachable" "$url -> 200 ($size bytes, sipher SPA marker found)"
   else
     record WARN "Frontend reachable" "$url -> 200 ($size bytes) but no sipher marker in body" \
-      "Body returned by upstream is HTML but lacks identifying tokens. Inspect with: curl -s ${SIPHER_BASE_URL}/ | head -50"
+      "Body returned by upstream is HTML but lacks identifying tokens. Inspect with: curl -s ${SIPHER_FE_URL}/ | head -50"
   fi
 }
 
@@ -462,7 +471,8 @@ check_frontend() {
 if [[ "$JSON_MODE" -eq 0 ]]; then
   echo
   echo "${C_BOLD}=== Torque MCP Preflight ===${C_RESET}"
-  echo "${C_DIM}Target: ${SIPHER_BASE_URL}${C_RESET}"
+  echo "${C_DIM}API:    ${SIPHER_API_URL}${C_RESET}"
+  echo "${C_DIM}FE:     ${SIPHER_FE_URL}${C_RESET}"
   echo "${C_DIM}Ingest: ${TORQUE_INGEST_URL}${C_RESET}"
   echo
 fi
@@ -480,14 +490,16 @@ check_frontend
 if [[ "$JSON_MODE" -eq 1 ]]; then
   # Emit a single JSON object for machine consumption
   jq -n \
-    --arg target "$SIPHER_BASE_URL" \
+    --arg api "$SIPHER_API_URL" \
+    --arg fe "$SIPHER_FE_URL" \
     --arg ingest "$TORQUE_INGEST_URL" \
     --argjson fail "$FAIL_COUNT" \
     --argjson warn "$WARN_COUNT" \
     --arg verdict "$([[ $FAIL_COUNT -eq 0 ]] && echo 'READY' || echo 'NOT_READY')" \
     --argjson results "$(printf '%s\n' "${RESULTS[@]}" | jq -R 'split("|") | {status: .[0], label: .[1], detail: .[2], fix: .[3]}' | jq -s .)" \
     '{
-       target: $target,
+       api: $api,
+       fe: $fe,
        ingest: $ingest,
        fail_count: $fail,
        warn_count: $warn,

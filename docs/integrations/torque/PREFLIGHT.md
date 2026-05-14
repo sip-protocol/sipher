@@ -34,7 +34,7 @@ Exit codes: `0` = READY, `1` = NOT READY, `2` = script misuse / missing dep.
 | 1 | VPS health | `GET /api/health` returns 200 | sipher container is down or DNS broken. SSH the `sip` user and run `docker compose ps && docker compose logs --tail 200 sipher`. |
 | 2 | Torque integration enabled | `GET /admin/api/torque/status` returns `enabled: true` | VPS env vars not loaded. Set `TORQUE_GROWTH_ENABLED=true`, `TORQUE_API_TOKEN=<token>`, `TORQUE_INGESTER_URL=https://ingest.torque.so` and **restart** the sipher container. Remove any stale `TORQUE_API_KEY`, `TORQUE_MCP_URL`, or `TORQUE_CAMPAIGN_ID_*`. |
 | 3 | Ingester reachable from VPS | Same endpoint, `ingesterReachable: true` | The VPS cannot reach `https://ingest.torque.so`. Either the token is invalid (reason=`auth`), egress is blocked (reason=`network`), or Torque is down. |
-| 4 | Network correctness | `network: mainnet-beta` | The pool is funded on mainnet — devnet events would route incentives nowhere. Set `SOLANA_CLUSTER=mainnet-beta` (or whatever `loadNetworkConfig()` reads in `packages/agent/src/config/network.ts`) and restart. |
+| 4 | Network correctness | `network: devnet` (hybrid mode) or `network: mainnet-beta` (full mainnet) | Unexpected value. Check `SIPHER_NETWORK` on the VPS. Event ingestion is network-agnostic (payload has no network field), so devnet events still attribute to the mainnet pool's REBATE Incentive — hybrid mode is the canonical setup. |
 | 5 | Local env vars sanity | No stale `TORQUE_CAMPAIGN_ID_*` / `TORQUE_API_KEY` / `TORQUE_MCP_URL` in your shell or repo `.env` | Cosmetic only. Torque has no Campaign primitive (see [FRICTION-LOG.md](./FRICTION-LOG.md) entry from 2026-05-12). Remove the keys to avoid future confusion. **The VPS is what matters for the demo, not your laptop.** This emits WARN, never FAIL. |
 | 6 | Ingester auth verified (synthetic event) | A `POST` to `https://ingest.torque.so/events` with `eventName=sipher_preflight_test` is rejected with HTTP 400 | Either the network is broken (`HTTP 000`), the token is rejected (`401`/`403`), or Torque silently accepted an unregistered slug (rare — would emit WARN, not FAIL). |
 | 7 | Frontend reachable | `GET /` returns 200 with the sipher SPA bundle (not the nginx default page) | Reverse proxy may be up but no upstream serving. Check `docker compose ps` and `/etc/nginx/sites-enabled/sipher.conf` on the VPS. |
@@ -89,9 +89,9 @@ Two tokens it may need are sourced as follows:
 
 ```
 [OK]   VPS health
-[OK]   Torque integration enabled (network: mainnet-beta)
+[OK]   Torque integration enabled (network: devnet ingester: https://ingest.torque.so)
 [OK]   Ingester reachable from VPS
-[OK]   Network correctness: mainnet-beta
+[OK]   Network correctness: devnet (hybrid mode — events on devnet, pool on mainnet)
 [OK]   Local env vars sanity
 [OK]   Ingester auth verified
 [OK]   Frontend reachable
@@ -113,12 +113,16 @@ is being caught by the SPA fallback BEFORE the admin router. Either:
 - Or the express route ordering changed and the catch-all is registered before
   `/admin`. Inspect `packages/agent/src/index.ts` around the `app.use('/admin', adminRouter)` line.
 
-### Check 4 says `network: devnet`
+### Check 4 reports `network: devnet`
 
-Pool is mainnet. Emitting devnet events is a no-op for incentive distribution.
-Either update the VPS to `SOLANA_CLUSTER=mainnet-beta` (so growth events flow
-into the mainnet pool) or accept that we're running in hybrid mode and the
-demo will only show ingest correctness, not actual incentive distribution.
+This is the canonical hybrid-mode setup: events emit on devnet (cheap, safe
+for testing), pool is funded on mainnet (real money for rebate distribution).
+Event ingestion at `ingest.torque.so` is **network-agnostic** — the payload
+has no network field — so devnet events still attribute to the mainnet pool's
+REBATE Incentive. Check passes OK.
+
+To flip to full mainnet (everything on mainnet, events + pool), set
+`SIPHER_NETWORK=mainnet` on the VPS and restart.
 
 ### Check 6 returns 200 instead of 400
 
