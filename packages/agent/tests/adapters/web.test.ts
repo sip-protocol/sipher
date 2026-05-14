@@ -233,6 +233,51 @@ describe('handleChatStream', () => {
     expect(res.flushHeaders).toHaveBeenCalled()
   })
 
+  it('forwards tool_signing_required chunk to SSE wire shape', async () => {
+    mockStreamMessage.mockImplementation(async function* () {
+      yield {
+        type: 'tool_signing_required',
+        signing: {
+          flagId: 'flag-sse-1',
+          toolName: 'send',
+          serializedTx: 'BASE64TX',
+          network: 'devnet',
+          walletPubkey: 'WalletABC',
+          display: {
+            title: 'Send 1 SOL to alice.sol',
+            primaryDetail: 'Stealth recipient',
+            secondaryDetails: ['Protocol fee: 0.005 SOL'],
+          },
+        },
+      } as ResponseChunk
+      yield { type: 'done', text: 'awaiting signature' } as ResponseChunk
+    })
+
+    const adapter = createWebAdapter()
+    const req = mockReq({
+      body: { messages: [{ role: 'user', content: 'send 1 sol' }] },
+    })
+    const res = mockRes()
+
+    await adapter.handleChatStream(req, res)
+
+    const sseWrites = res._writes.filter((w) => w.startsWith('data: ') && w !== 'data: [DONE]\n\n')
+    const signing = JSON.parse(sseWrites[0].replace('data: ', '').trim())
+    expect(signing).toEqual({
+      type: 'tool_signing_required',
+      flagId: 'flag-sse-1',
+      toolName: 'send',
+      serializedTx: 'BASE64TX',
+      network: 'devnet',
+      walletPubkey: 'WalletABC',
+      display: {
+        title: 'Send 1 SOL to alice.sol',
+        primaryDetail: 'Stealth recipient',
+        secondaryDetails: ['Protocol fee: 0.005 SOL'],
+      },
+    })
+  })
+
   it('handles tool_start and tool_end chunks', async () => {
     mockStreamMessage.mockImplementation(async function* () {
       yield { type: 'tool_start', toolName: 'balance', toolId: 'tool_1' } as ResponseChunk

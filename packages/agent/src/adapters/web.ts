@@ -46,6 +46,16 @@ function chunkToSSE(chunk: ResponseChunk): Record<string, unknown> {
         severity: chunk.pause?.severity ?? '',
         description: chunk.pause?.description ?? '',
       }
+    case 'tool_signing_required':
+      return {
+        type: 'tool_signing_required',
+        flagId: chunk.signing?.flagId ?? '',
+        toolName: chunk.signing?.toolName ?? 'send',
+        serializedTx: chunk.signing?.serializedTx ?? '',
+        network: chunk.signing?.network ?? 'devnet',
+        walletPubkey: chunk.signing?.walletPubkey ?? '',
+        display: chunk.signing?.display ?? { title: '', primaryDetail: '', secondaryDetails: [] },
+      }
     case 'error':
       return { type: 'error', message: chunk.text }
     case 'done':

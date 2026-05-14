@@ -185,6 +185,20 @@ export class AgentCore {
           }
           break
 
+        case 'tool_signing_required':
+          yield {
+            type: 'tool_signing_required',
+            signing: {
+              flagId: event.flagId,
+              toolName: event.toolName,
+              serializedTx: event.serializedTx,
+              network: event.network,
+              walletPubkey: event.walletPubkey,
+              display: event.display,
+            },
+          }
+          break
+
         case 'error':
           yield { type: 'error', text: event.message }
           break
