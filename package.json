@@ -25,6 +25,7 @@
     "gm": "bash scripts/gm.sh",
     "thanks": "bash scripts/thanks.sh",
     "openapi:export": "tsx scripts/export-openapi.ts",
+    "preflight:torque": "bash scripts/torque-preflight.sh",
     "sdks:generate": "bash sdks/generator/generate.sh",
     "devnet-demo": "tsx scripts/devnet-shielded-transfer.ts",
     "test:e2e": "playwright test",
