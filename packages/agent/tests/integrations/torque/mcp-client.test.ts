@@ -38,7 +38,7 @@ describe('TorqueMCPClient.emitEvent', () => {
     const [url, init] = fetchSpy.mock.calls[0]!
     expect(url).toBe('https://ingest.torque.test/events')
     expect(init?.method).toBe('POST')
-    expect(init?.headers).toMatchObject({
+    expect(init?.headers).toStrictEqual({
       'Content-Type': 'application/json',
       'x-api-key': 'tk_secret',
     })
@@ -136,6 +136,21 @@ describe('TorqueMCPClient.emitEvent error paths', () => {
       ok: false,
       reason: 'validation',
       message: 'body/data Required',
+    })
+  })
+
+  it('returns unknown reason on 5xx', async () => {
+    const client = clientWithMockedFetch(503)
+    const result = await client.emitEvent({
+      userPubkey: 'C1phr',
+      timestamp: 1747068000000,
+      eventName: 'sipher_private_send_completed',
+      data: { tx_signature: 's', network: 'devnet', rebate_destination: 'r' },
+    })
+    expect(result).toStrictEqual({
+      ok: false,
+      reason: 'unknown',
+      message: expect.stringMatching(/503/),
     })
   })
 
