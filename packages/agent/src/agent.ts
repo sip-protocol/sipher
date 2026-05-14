@@ -491,8 +491,9 @@ export function wrapWithSigning(
     try {
       signature = await promise
     } catch (err) {
+      // Match SENTINEL's terse cancel shape — drop serializedTx/privacy so the
+      // LLM context doesn't carry leftover broadcast bytes for a cancelled tx.
       return {
-        ...(result as Record<string, unknown>),
         status: 'cancelled_by_user',
         reason: err instanceof Error ? err.message : 'cancelled',
       }
@@ -641,6 +642,11 @@ export async function* chatStream(
     return baseExecutor(name, input)
   }
 
+  // Hoist network config once — both the signing wrapper and the growth-hook
+  // wrapper need it. Function is pure but the call still flips through env-var
+  // validation, so a single read is cleaner.
+  const net = loadNetworkConfig()
+
   // Insert the signing-wait wrapper between SENTINEL pause and growth-hook.
   // For send/swap results carrying a serializedTx, the wrapper emits a
   // tool_signing_required SSE event and awaits the client signing callback;
@@ -648,7 +654,7 @@ export async function* chatStream(
   // via the existing extractTxSignature helper — zero growth-hook changes.
   const signingExecutor = wrapWithSigning(wrappedExecutor, {
     sessionId,
-    network: loadNetworkConfig().clusterName,
+    network: net.clusterName,
     externalQueue,
     externalWake: () => {
       if (externalWake) externalWake()
@@ -661,20 +667,17 @@ export async function* chatStream(
   // wrapper mutated result.signature onto the tool result.
   const torqueConfig = loadTorqueConfig()
   const finalExecutor = torqueConfig
-    ? (() => {
-        const net = loadNetworkConfig()
-        return wrapExecutorWithGrowthHook(signingExecutor, {
-          growthEnabled: true,
-          apiKey: torqueConfig.apiKey,
-          baseUrl: torqueConfig.baseUrl,
-          campaignId:
-            net.clusterName === 'mainnet-beta'
-              ? torqueConfig.campaignIdMainnet
-              : torqueConfig.campaignIdDevnet,
-          network: net.clusterName === 'mainnet-beta' ? 'mainnet-beta' : 'devnet',
-          connection: createConnection(net.clusterName, net.rpcUrl),
-        })
-      })()
+    ? wrapExecutorWithGrowthHook(signingExecutor, {
+        growthEnabled: true,
+        apiKey: torqueConfig.apiKey,
+        baseUrl: torqueConfig.baseUrl,
+        campaignId:
+          net.clusterName === 'mainnet-beta'
+            ? torqueConfig.campaignIdMainnet
+            : torqueConfig.campaignIdDevnet,
+        network: net.clusterName === 'mainnet-beta' ? 'mainnet-beta' : 'devnet',
+        connection: createConnection(net.clusterName, net.rpcUrl),
+      })
     : signingExecutor
 
   const agent = createPiAgent({

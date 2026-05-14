@@ -29,7 +29,7 @@ function detectClusterFromEndpoint(endpoint: string): 'mainnet-beta' | 'devnet' 
 
 export default function SignTxCard({
   flagId,
-  toolName: _toolName,
+  toolName,
   serializedTx,
   network,
   walletPubkey,
@@ -148,6 +148,7 @@ export default function SignTxCard({
         // best-effort only — never surface to user
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- status is intentionally read via statusRef (see comment above)
   }, [flagId, token])
 
   const signLabel =
@@ -157,7 +158,11 @@ export default function SignTxCard({
     'Sign with Wallet'
 
   return (
-    <div className="bg-glass-1 border border-line rounded-lg p-4 flex flex-col gap-3">
+    <div
+      className="bg-glass-1 border border-line rounded-lg p-4 flex flex-col gap-3"
+      role="region"
+      aria-label={`Sign ${toolName} transaction`}
+    >
       <div className="text-[12px] text-text-muted uppercase tracking-wide">Sign Transaction</div>
       <div className="text-[14px] text-text font-medium">{display.title}</div>
       <div className="text-[12px] text-text-muted leading-relaxed">{display.primaryDetail}</div>
