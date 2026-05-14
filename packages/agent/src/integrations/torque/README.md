@@ -88,6 +88,16 @@ To attribute actions and route rebates, the Torque MCP server needs the user's p
 
 Users who want zero attribution leakage should set `TORQUE_GROWTH_ENABLED=false`.
 
+## Tool emission coverage
+
+| Tool | Event name | Emits today? | Notes |
+|---|---|---|---|
+| `send` (chat-driven) | `sipher_private_send_completed` | Yes (since sipher#262) | Fires after SignTxCard callback `/api/tool-signing/:flagId/confirm` |
+| `swap` (chat-driven) | `sipher_private_swap_completed` | Yes (since sipher#262) | Same flow as send; includes `amount_lamports` + `asset` |
+| `claim` (chat-driven) | `sipher_private_claim_completed` | Partial | Uses input deposit-tx-signature as the emission key. Proper fix tracked in the claim Phase 2 follow-up. |
+| `drip`, `splitSend`, `sweep`, `consolidate`, `recurring`, `scheduleSend` | `sipher_recurring_send_tick`, `sipher_batch_send_completed`, etc. | No | Scheduled-op broadcasts not yet wired. Needs wallet-delegation or pre-signed-batch design — separate follow-up. |
+| `deposit`, `refund` | — | No | Routed through `DepositView` / `WithdrawView` dedicated UIs, not the chat path. |
+
 ## Architecture
 
 ```
