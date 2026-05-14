@@ -140,7 +140,9 @@ describe('chatStream signing-wait wrapper (wrapWithSigning)', () => {
       sessionId: 's1', network: 'devnet', externalQueue: queue, externalWake: () => {},
     })
 
-    const result = await wrapped('send', { amount: 1, token: 'SOL', recipient: 'alice.sol' })
+    // Include wallet so this test isolates the `serializedTx: null` cause —
+    // the missing-wallet skip path is covered by the next test.
+    const result = await wrapped('send', { amount: 1, token: 'SOL', recipient: 'alice.sol', wallet: 'W1' })
     expect(queue.length).toBe(0)
     expect(result).toBe(await baseExecutor.mock.results[0]!.value)
   })
