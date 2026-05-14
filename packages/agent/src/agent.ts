@@ -60,6 +60,7 @@ import { attachToolGuard } from './pi/tool-guard.js'
 import { runPreflightGate, type AdvisoryInfo } from './sentinel/preflight-gate.js'
 import { getSentinelConfig } from './sentinel/config.js'
 import { createPending } from './sentinel/pending.js'
+import { createPendingSigning } from './sentinel/pending-signing.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // System prompt — Sipher's identity and behavior rules
@@ -405,6 +406,106 @@ function truncateRecipient(r: string): string {
   return `${r.slice(0, 4)}...${r.slice(-4)}`
 }
 
+// ─── Signing-wait wrapper — chatStream layer between SENTINEL + growth-hook ──
+
+type ToolExecutorAsync = (name: string, input: Record<string, unknown>) => Promise<unknown>
+
+interface SigningWrapperOptions {
+  sessionId: string
+  network: 'mainnet-beta' | 'devnet'
+  externalQueue: Array<SSESentinelPause | SSEToolSigningRequired>
+  externalWake: () => void
+}
+
+function isAwaitingSignatureResult(result: unknown): result is { status: 'awaiting_signature' } {
+  return (
+    typeof result === 'object' &&
+    result !== null &&
+    (result as { status?: unknown }).status === 'awaiting_signature'
+  )
+}
+
+function hasSerializedTx(result: unknown): result is { serializedTx: string } {
+  if (typeof result !== 'object' || result === null) return false
+  const tx = (result as { serializedTx?: unknown }).serializedTx
+  return typeof tx === 'string' && tx.length > 0
+}
+
+/**
+ * Wrap a base tool executor so that send/swap results with a serializedTx
+ * pause for client signing. The wrapper emits a tool_signing_required SSE
+ * event into the external queue, awaits the pending-signing promise, then
+ * mutates the result to include the on-chain signature.
+ *
+ * Skips intercept for:
+ *  - tools other than send/swap
+ *  - results without serializedTx (preview mode)
+ *  - inputs without wallet
+ *  - results whose status is not 'awaiting_signature' (e.g. cancelled_by_user)
+ *
+ * Wrapper ordering inside chatStream: growth-hook wraps signingExecutor wraps
+ * SENTINEL wrappedExecutor wraps executeTool. The SSE event must reach the
+ * bridge's external queue BEFORE the wrapper's await blocks; growth-hook reads
+ * `result.signature` after this wrapper mutates the result.
+ */
+export function wrapWithSigning(
+  baseExecutor: ToolExecutorAsync,
+  opts: SigningWrapperOptions,
+): ToolExecutorAsync {
+  return async (name, input) => {
+    const result = await baseExecutor(name, input)
+
+    const shouldIntercept =
+      (name === 'send' || name === 'swap') &&
+      isAwaitingSignatureResult(result) &&
+      hasSerializedTx(result) &&
+      typeof input.wallet === 'string'
+
+    if (!shouldIntercept) return result
+
+    const toolName = name as 'send' | 'swap'
+    const wallet = input.wallet as string
+    const serializedTx = (result as { serializedTx: string }).serializedTx
+
+    const { flagId, promise } = createPendingSigning({
+      sessionId: opts.sessionId,
+      toolName,
+      wallet,
+      serializedTx,
+      network: opts.network,
+      toolInput: input,
+    })
+
+    opts.externalQueue.push({
+      type: 'tool_signing_required',
+      flagId,
+      toolName,
+      serializedTx,
+      network: opts.network,
+      walletPubkey: wallet,
+      display: formatSigningDisplay(toolName, input, result),
+    })
+    opts.externalWake()
+
+    let signature: string
+    try {
+      signature = await promise
+    } catch (err) {
+      return {
+        ...(result as Record<string, unknown>),
+        status: 'cancelled_by_user',
+        reason: err instanceof Error ? err.message : 'cancelled',
+      }
+    }
+
+    return {
+      ...(result as Record<string, unknown>),
+      signature,
+      status: 'completed',
+    }
+  }
+}
+
 /**
  * Run the SIPHER agent loop to completion via Pi SDK.
  *
@@ -509,7 +610,7 @@ export async function* chatStream(
   // don't collide under a shared key. Production callers (AgentCore) always
   // pass a real session id derived from the wallet.
   const sessionId = opts.sessionId ?? randomUUID()
-  const externalQueue: SSESentinelPause[] = []
+  const externalQueue: Array<SSESentinelPause | SSEToolSigningRequired> = []
   let externalWake: (() => void) | null = null
   const baseExecutor = opts.toolExecutor ?? executeTool
 
@@ -540,15 +641,29 @@ export async function* chatStream(
     return baseExecutor(name, input)
   }
 
-  // Apply Torque growth-hook on top of the SENTINEL executor when enabled.
+  // Insert the signing-wait wrapper between SENTINEL pause and growth-hook.
+  // For send/swap results carrying a serializedTx, the wrapper emits a
+  // tool_signing_required SSE event and awaits the client signing callback;
+  // on resolve it mutates the result so growth-hook reads result.signature
+  // via the existing extractTxSignature helper — zero growth-hook changes.
+  const signingExecutor = wrapWithSigning(wrappedExecutor, {
+    sessionId,
+    network: loadNetworkConfig().clusterName,
+    externalQueue,
+    externalWake: () => {
+      if (externalWake) externalWake()
+    },
+  })
+
+  // Apply Torque growth-hook on top of the signing-wait executor when enabled.
   // Torque fires post-success (fire-and-forget), so it correctly wraps the
-  // SENTINEL layer — events emit only after SENTINEL has allowed the tool and
-  // the underlying executor returned a result.
+  // signing layer — events emit only after the user signed the tx and the
+  // wrapper mutated result.signature onto the tool result.
   const torqueConfig = loadTorqueConfig()
   const finalExecutor = torqueConfig
     ? (() => {
         const net = loadNetworkConfig()
-        return wrapExecutorWithGrowthHook(wrappedExecutor, {
+        return wrapExecutorWithGrowthHook(signingExecutor, {
           growthEnabled: true,
           apiKey: torqueConfig.apiKey,
           baseUrl: torqueConfig.baseUrl,
@@ -560,7 +675,7 @@ export async function* chatStream(
           connection: createConnection(net.clusterName, net.rpcUrl),
         })
       })()
-    : wrappedExecutor
+    : signingExecutor
 
   const agent = createPiAgent({
     systemPrompt: opts.systemPrompt ?? SYSTEM_PROMPT,
@@ -571,7 +686,7 @@ export async function* chatStream(
     sessionId: opts.sessionId,
   })
 
-  for await (const event of streamPiAgent<SSESentinelPause>(agent, userMessage, {
+  for await (const event of streamPiAgent<SSESentinelPause | SSEToolSigningRequired>(agent, userMessage, {
     externalQueue,
     attachWake: (wake) => {
       externalWake = wake

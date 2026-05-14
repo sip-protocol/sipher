@@ -3,6 +3,7 @@ import type { ResponseChunk } from '../core/types.js'
 import { AgentCore } from '../core/agent-core.js'
 import { resolveSession } from '../session.js'
 import { clearAll } from '../sentinel/pending.js'
+import { clearAllSigning } from '../sentinel/pending-signing.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Web Adapter — maps Express HTTP requests to AgentCore
@@ -170,6 +171,7 @@ export function createWebAdapter() {
     res.on('close', () => {
       aborted = true
       clearAll(session.id)
+      clearAllSigning(session.id)
     })
 
     try {
