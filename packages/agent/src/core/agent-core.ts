@@ -200,6 +200,16 @@ export class AgentCore {
           }
           break
 
+        case 'tool_signing_expired':
+          yield {
+            type: 'tool_signing_expired',
+            expired: {
+              flagId: event.flagId,
+              reason: event.reason,
+            },
+          }
+          break
+
         case 'error':
           yield { type: 'error', text: event.message }
           break

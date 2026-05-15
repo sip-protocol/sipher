@@ -18,7 +18,13 @@ interface Props {
     primaryDetail: string
     secondaryDetails: string[]
   }
-  onResolved: (decision: 'confirm' | 'reject') => void
+  /**
+   * When true, the server has already reaped this flagId (TTL fired) and the
+   * card renders in a greyed-out, dismiss-only state. Sign/Cancel are hidden;
+   * the unmount-beacon /reject is suppressed (the flag is already gone).
+   */
+  expired?: boolean
+  onResolved: (decision: 'confirm' | 'reject' | 'dismiss') => void
 }
 
 function detectClusterFromEndpoint(endpoint: string): 'mainnet-beta' | 'devnet' | 'unknown' {
@@ -34,6 +40,7 @@ export default function SignTxCard({
   network,
   walletPubkey,
   display,
+  expired = false,
   onResolved,
 }: Props) {
   const { token } = useAuthState()
@@ -129,6 +136,9 @@ export default function SignTxCard({
     return () => {
       if (beaconFiredRef.current) return
       if (statusRef.current !== 'idle') return
+      // Server has already reaped the flag — firing /reject would 404 and
+      // pollute logs. Skip the beacon entirely when expired.
+      if (expired) return
       try {
         const blob = new Blob([JSON.stringify({ reason: 'tab_closed' })], { type: 'application/json' })
         if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
@@ -148,14 +158,42 @@ export default function SignTxCard({
         // best-effort only — never surface to user
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- status is intentionally read via statusRef (see comment above)
-  }, [flagId, token])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- status is intentionally read via statusRef (see comment above); expired added explicitly to suppress beacon when applicable
+  }, [flagId, token, expired])
 
   const signLabel =
     status === 'signing' ? 'Open your wallet...' :
     status === 'callback-posting' ? 'Finalizing...' :
     status === 'done' ? 'Signed' :
     'Sign with Wallet'
+
+  if (expired) {
+    return (
+      <div
+        className="bg-glass-1 border border-line rounded-lg p-4 flex flex-col gap-3 opacity-50"
+        role="region"
+        aria-label={`Expired ${toolName} signing request`}
+      >
+        <div className="text-[12px] text-text-muted uppercase tracking-wide">Sign Transaction</div>
+        <div className="text-[14px] text-text font-medium">{display.title}</div>
+        <div className="text-[12px] text-text-muted leading-relaxed">{display.primaryDetail}</div>
+        <ul className="text-[11px] text-text-muted flex flex-col gap-1">
+          {display.secondaryDetails.map((d) => (
+            <li key={d}>{d}</li>
+          ))}
+        </ul>
+        <div className="text-[12px] text-warning">Expired — request again to sign.</div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onResolved('dismiss')}
+            className="flex-1 border border-line text-text-muted py-2 rounded-lg text-[12px] hover:text-text"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

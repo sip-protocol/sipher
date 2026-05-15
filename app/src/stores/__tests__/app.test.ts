@@ -48,3 +48,72 @@ describe('useAppStore.clearAuth', () => {
     expect(observedToken).toBeNull()
   })
 })
+
+describe('useAppStore.markMessageExpired', () => {
+  beforeEach(() => {
+    useAppStore.setState({ messages: [] }, false)
+  })
+
+  const baseSigningMsg = {
+    id: 'msg-1',
+    role: 'system' as const,
+    content: '',
+    kind: 'tool_signing_required' as const,
+    meta: { flagId: 'flag-abc', toolName: 'send' as const },
+  }
+
+  it('marks the matching tool_signing_required message expired by flagId', () => {
+    useAppStore.setState({ messages: [baseSigningMsg] })
+    useAppStore.getState().markMessageExpired('flag-abc')
+    const msg = useAppStore.getState().messages[0]
+    expect(msg.expired).toBe(true)
+  })
+
+  it('is a no-op when no message matches the flagId', () => {
+    useAppStore.setState({ messages: [baseSigningMsg] })
+    useAppStore.getState().markMessageExpired('flag-OTHER')
+    const msg = useAppStore.getState().messages[0]
+    expect(msg.expired).toBeUndefined()
+  })
+
+  it('skips non-signing messages even when meta.flagId happens to match', () => {
+    const sentinelMsg = {
+      id: 'msg-2',
+      role: 'system' as const,
+      content: '',
+      kind: 'sentinel_pause' as const,
+      meta: { flagId: 'flag-abc' },
+    }
+    useAppStore.setState({ messages: [sentinelMsg] })
+    useAppStore.getState().markMessageExpired('flag-abc')
+    const msg = useAppStore.getState().messages[0]
+    expect(msg.expired).toBeUndefined()
+  })
+
+  it('skips already-dismissed messages (race protection)', () => {
+    useAppStore.setState({ messages: [{ ...baseSigningMsg, dismissed: true }] })
+    useAppStore.getState().markMessageExpired('flag-abc')
+    const msg = useAppStore.getState().messages[0]
+    expect(msg.expired).toBeUndefined()
+  })
+
+  it('skips already-expired messages (idempotent)', () => {
+    useAppStore.setState({ messages: [{ ...baseSigningMsg, expired: true }] })
+    // Snapshot the array reference; idempotent should leave entries untouched
+    const before = useAppStore.getState().messages
+    useAppStore.getState().markMessageExpired('flag-abc')
+    const after = useAppStore.getState().messages
+    // The message itself remains expired; we just confirm no double-mutation
+    expect(after[0].expired).toBe(true)
+    expect(after[0]).toBe(before[0])
+  })
+
+  it('only updates the matched message; leaves siblings alone', () => {
+    const other = { ...baseSigningMsg, id: 'msg-other', meta: { flagId: 'flag-XYZ' } }
+    useAppStore.setState({ messages: [baseSigningMsg, other] })
+    useAppStore.getState().markMessageExpired('flag-abc')
+    const msgs = useAppStore.getState().messages
+    expect(msgs[0].expired).toBe(true)
+    expect(msgs[1].expired).toBeUndefined()
+  })
+})

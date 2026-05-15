@@ -23,6 +23,12 @@ export interface ChatMessage {
   kind?: 'sentinel_pause' | 'tool_signing_required'
   meta?: Record<string, unknown>
   dismissed?: boolean
+  /**
+   * Set true when a tool_signing_expired SSE event arrives matching this
+   * message's flagId. The SignTxCard renders a greyed-out, dismiss-only
+   * state when this is true. Defaults to false / absent.
+   */
+  expired?: boolean
 }
 
 interface AppState {
@@ -41,6 +47,12 @@ interface AppState {
   appendTool: (name: string, args?: string) => void
   completeTool: (name: string, status: ToolStatus) => void
   dismissMessage: (id: string) => void
+  /**
+   * Mark a tool_signing_required message as expired by its server-issued
+   * flagId. No-op if no matching message is found (silent — late events
+   * after a sign/reject/dismiss should not regress UI).
+   */
+  markMessageExpired: (flagId: string) => void
   seedChat: (prompt: string) => void
 
   chatOpen: boolean
@@ -125,6 +137,17 @@ export const useAppStore = create<AppState>()(
       dismissMessage: (id) =>
         set((s) => ({
           messages: s.messages.map((m) => (m.id === id ? { ...m, dismissed: true } : m)),
+        })),
+      markMessageExpired: (flagId) =>
+        set((s) => ({
+          messages: s.messages.map((m) =>
+            m.kind === 'tool_signing_required' &&
+            !m.expired &&
+            !m.dismissed &&
+            (m.meta as { flagId?: string } | undefined)?.flagId === flagId
+              ? { ...m, expired: true }
+              : m,
+          ),
         })),
       seedChat: (prompt) => set({ chatOpen: true, pendingPrompt: prompt }),
 

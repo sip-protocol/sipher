@@ -181,4 +181,52 @@ describe('SignTxCard', () => {
     )
     expect(rejectBeacons.length).toBe(1)
   })
+
+  describe('expired state', () => {
+    it('renders only a Dismiss button (no Sign / Cancel)', () => {
+      render(<SignTxCard {...DEFAULT_PROPS} expired />)
+      expect(screen.queryByRole('button', { name: /sign with wallet/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /^cancel$/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument()
+    })
+
+    it('shows the "Expired" hint copy', () => {
+      render(<SignTxCard {...DEFAULT_PROPS} expired />)
+      expect(screen.getByText(/expired/i)).toBeInTheDocument()
+    })
+
+    it('still displays the original title / detail / secondary lines', () => {
+      render(<SignTxCard {...DEFAULT_PROPS} expired />)
+      expect(screen.getByText('Send 1 SOL to alice.sol')).toBeInTheDocument()
+      expect(screen.getByText('Protocol fee: 0.005 SOL')).toBeInTheDocument()
+    })
+
+    it('calls onResolved("dismiss") when Dismiss clicked', async () => {
+      const onResolved = vi.fn()
+      render(<SignTxCard {...DEFAULT_PROPS} expired onResolved={onResolved} />)
+      await userEvent.click(screen.getByRole('button', { name: /dismiss/i }))
+      expect(onResolved).toHaveBeenCalledWith('dismiss')
+    })
+
+    it('does NOT fire the reject beacon on unmount when expired', () => {
+      const beaconSpy = vi.fn().mockReturnValue(true)
+      Object.defineProperty(window.navigator, 'sendBeacon', {
+        value: beaconSpy,
+        configurable: true,
+      })
+
+      const { unmount } = render(<SignTxCard {...DEFAULT_PROPS} expired />)
+      unmount()
+
+      const rejectBeacons = beaconSpy.mock.calls.filter(([url]) =>
+        typeof url === 'string' && url.includes('/reject'),
+      )
+      expect(rejectBeacons.length).toBe(0)
+    })
+
+    it('region aria-label changes to convey expiry', () => {
+      render(<SignTxCard {...DEFAULT_PROPS} expired />)
+      expect(screen.getByRole('region', { name: /expired send signing request/i })).toBeInTheDocument()
+    })
+  })
 })

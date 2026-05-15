@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   createPendingSigning,
   resolvePendingSigning,
@@ -90,5 +90,42 @@ describe('pending-signing registry', () => {
     promise.catch(() => {})
     rejectPendingSigning(flagId, 'cancelled')
     expect(getPendingSigning(flagId)).toBeUndefined()
+  })
+
+  it('onExpire callback fires with flagId when timeout hits', async () => {
+    _setTimeoutMsForTests(20)
+    const onExpire = vi.fn()
+    const { flagId, promise } = createPendingSigning({ ...SAMPLE, onExpire })
+    promise.catch(() => {})
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(onExpire).toHaveBeenCalledTimes(1)
+    expect(onExpire).toHaveBeenCalledWith(flagId)
+  })
+
+  it('onExpire is NOT called when resolvePendingSigning runs first', async () => {
+    const onExpire = vi.fn()
+    const { flagId, promise } = createPendingSigning({ ...SAMPLE, onExpire })
+    resolvePendingSigning(flagId, 'SIG')
+    await expect(promise).resolves.toBe('SIG')
+    expect(onExpire).not.toHaveBeenCalled()
+  })
+
+  it('onExpire is NOT called when rejectPendingSigning runs first', async () => {
+    const onExpire = vi.fn()
+    const { flagId, promise } = createPendingSigning({ ...SAMPLE, onExpire })
+    promise.catch(() => {})
+    rejectPendingSigning(flagId, 'cancelled_by_user')
+    await expect(promise).rejects.toThrow('cancelled_by_user')
+    expect(onExpire).not.toHaveBeenCalled()
+  })
+
+  it('rejection still fires even when onExpire throws (suppressed)', async () => {
+    _setTimeoutMsForTests(20)
+    const onExpire = vi.fn(() => {
+      throw new Error('boom')
+    })
+    const { promise } = createPendingSigning({ ...SAMPLE, onExpire })
+    await expect(promise).rejects.toThrow('operation timed out')
+    expect(onExpire).toHaveBeenCalledTimes(1)
   })
 })
