@@ -222,6 +222,65 @@ describe('ChatSidebar', () => {
     })
   })
 
+  it('marks the matching signing message expired on tool_signing_expired SSE event', async () => {
+    useAppStore.setState({
+      token: 'test-jwt',
+      isAdmin: true,
+      messages: [
+        {
+          id: 'pre-existing',
+          role: 'system',
+          content: '',
+          kind: 'tool_signing_required',
+          meta: {
+            flagId: 'flag-exp-1',
+            toolName: 'send',
+            serializedTx: 'BASE64TX',
+            network: 'devnet',
+            walletPubkey: 'WalletABC',
+            display: { title: 'Send 1 SOL', primaryDetail: '', secondaryDetails: [] },
+          },
+        },
+      ],
+    })
+
+    const encoder = new TextEncoder()
+    const sseBody = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              type: 'tool_signing_expired',
+              flagId: 'flag-exp-1',
+              reason: 'timeout',
+            })}\n\n`,
+          ),
+        )
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+        controller.close()
+      },
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(sseBody, {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+      ),
+    )
+
+    render(<ChatSidebar />)
+    const input = screen.getByPlaceholderText('Message SIPHER...') as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'noop' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      const msg = useAppStore.getState().messages.find((m) => m.id === 'pre-existing')
+      expect(msg?.expired).toBe(true)
+    })
+  })
+
   it('sends message and appends streamed reply', async () => {
     useAppStore.setState({ token: 'test-jwt', isAdmin: true })
 

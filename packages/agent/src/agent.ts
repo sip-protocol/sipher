@@ -282,6 +282,14 @@ export interface SSEToolSigningRequired {
   }
 }
 
+export interface SSEToolSigningExpired {
+  type: 'tool_signing_expired'
+  /** Matches the flagId of a previously emitted tool_signing_required event */
+  flagId: string
+  /** Reason kind — reserved for future variants (server_shutdown, etc.) */
+  reason: 'timeout'
+}
+
 export type SSEEvent =
   | SSEContentDelta
   | SSEToolUse
@@ -290,6 +298,7 @@ export type SSEEvent =
   | SSEError
   | SSESentinelPause
   | SSEToolSigningRequired
+  | SSEToolSigningExpired
 
 // ─── Local helpers — humanize advisory metadata for the UI ──────────────────
 
@@ -413,7 +422,7 @@ type ToolExecutorAsync = (name: string, input: Record<string, unknown>) => Promi
 interface SigningWrapperOptions {
   sessionId: string
   network: 'mainnet-beta' | 'devnet'
-  externalQueue: Array<SSESentinelPause | SSEToolSigningRequired>
+  externalQueue: Array<SSESentinelPause | SSEToolSigningRequired | SSEToolSigningExpired>
   externalWake: () => void
 }
 
@@ -474,6 +483,14 @@ export function wrapWithSigning(
       serializedTx,
       network: opts.network,
       toolInput: input,
+      onExpire: (expiredFlagId) => {
+        opts.externalQueue.push({
+          type: 'tool_signing_expired',
+          flagId: expiredFlagId,
+          reason: 'timeout',
+        })
+        opts.externalWake()
+      },
     })
 
     opts.externalQueue.push({
@@ -607,7 +624,7 @@ export async function* chatStream(
   // don't collide under a shared key. Production callers (AgentCore) always
   // pass a real session id derived from the wallet.
   const sessionId = opts.sessionId ?? randomUUID()
-  const externalQueue: Array<SSESentinelPause | SSEToolSigningRequired> = []
+  const externalQueue: Array<SSESentinelPause | SSEToolSigningRequired | SSEToolSigningExpired> = []
   let externalWake: (() => void) | null = null
   const baseExecutor = opts.toolExecutor ?? executeTool
 
@@ -681,7 +698,7 @@ export async function* chatStream(
     sessionId: opts.sessionId,
   })
 
-  for await (const event of streamPiAgent<SSESentinelPause | SSEToolSigningRequired>(agent, userMessage, {
+  for await (const event of streamPiAgent<SSESentinelPause | SSEToolSigningRequired | SSEToolSigningExpired>(agent, userMessage, {
     externalQueue,
     attachWake: (wake) => {
       externalWake = wake

@@ -30,7 +30,15 @@ export interface MsgContext {
 
 /** A single response chunk for streaming */
 export interface ResponseChunk {
-  type: 'text' | 'tool_start' | 'tool_end' | 'error' | 'done' | 'sentinel_pause' | 'tool_signing_required'
+  type:
+    | 'text'
+    | 'tool_start'
+    | 'tool_end'
+    | 'error'
+    | 'done'
+    | 'sentinel_pause'
+    | 'tool_signing_required'
+    | 'tool_signing_expired'
   text?: string
   toolName?: string
   toolId?: string
@@ -55,6 +63,11 @@ export interface ResponseChunk {
       primaryDetail: string
       secondaryDetails: string[]
     }
+  }
+  /** Populated only when type === 'tool_signing_expired' */
+  expired?: {
+    flagId: string
+    reason: 'timeout'
   }
 }
 

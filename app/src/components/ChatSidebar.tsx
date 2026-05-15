@@ -38,6 +38,7 @@ export default function ChatSidebar({ fullScreen }: Props) {
   const appendTool = useAppStore((s) => s.appendTool)
   const completeTool = useAppStore((s) => s.completeTool)
   const dismissMessage = useAppStore((s) => s.dismissMessage)
+  const markMessageExpired = useAppStore((s) => s.markMessageExpired)
   const consumePendingPrompt = useAppStore((s) => s.consumePendingPrompt)
   const unauthedRemaining = useAppStore((s) => s.unauthedRemaining)
   const setUnauthedRemaining = useAppStore((s) => s.setUnauthedRemaining)
@@ -198,6 +199,8 @@ export default function ChatSidebar({ fullScreen }: Props) {
                   display: event.display,
                 },
               })
+            } else if (event.type === 'tool_signing_expired') {
+              markMessageExpired(event.flagId)
             } else if (event.type === 'error') {
               appendToLast(`\n\nError: ${event.message}`)
             }
@@ -337,6 +340,7 @@ export default function ChatSidebar({ fullScreen }: Props) {
                     network={meta.network ?? 'devnet'}
                     walletPubkey={meta.walletPubkey ?? ''}
                     display={meta.display ?? { title: '', primaryDetail: '', secondaryDetails: [] }}
+                    expired={msg.expired === true}
                     onResolved={() => dismissMessage(msg.id)}
                   />
                 </div>

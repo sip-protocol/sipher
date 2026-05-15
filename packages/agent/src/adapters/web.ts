@@ -57,6 +57,12 @@ function chunkToSSE(chunk: ResponseChunk): Record<string, unknown> {
         walletPubkey: chunk.signing?.walletPubkey ?? '',
         display: chunk.signing?.display ?? { title: '', primaryDetail: '', secondaryDetails: [] },
       }
+    case 'tool_signing_expired':
+      return {
+        type: 'tool_signing_expired',
+        flagId: chunk.expired?.flagId ?? '',
+        reason: chunk.expired?.reason ?? 'timeout',
+      }
     case 'error':
       return { type: 'error', message: chunk.text }
     case 'done':

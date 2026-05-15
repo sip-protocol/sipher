@@ -34,6 +34,14 @@ export interface CreatePendingSigningParams {
   serializedTx: string
   network: 'mainnet-beta' | 'devnet'
   toolInput: unknown
+  /**
+   * Optional callback invoked once when the TTL fires, BEFORE the awaiting
+   * promise is rejected. Used to emit a `tool_signing_expired` SSE event
+   * so the active client SSE stream can transition its SignTxCard to an
+   * expired state. Throws are suppressed — emission failure must not block
+   * the reject path.
+   */
+  onExpire?: (flagId: string) => void
 }
 
 export function createPendingSigning(
@@ -49,6 +57,15 @@ export function createPendingSigning(
   const timeoutHandle = setTimeout(() => {
     if (pending.has(flagId)) {
       pending.delete(flagId)
+      if (params.onExpire) {
+        try {
+          params.onExpire(flagId)
+        } catch (err) {
+          console.warn(
+            `[signing] onExpire callback threw (suppressed): ${err instanceof Error ? err.message : String(err)}`,
+          )
+        }
+      }
       rejecter(new Error('operation timed out'))
     }
   }, TIMEOUT_MS)
