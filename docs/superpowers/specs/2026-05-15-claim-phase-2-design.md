@@ -294,3 +294,127 @@ Discussed below.
 - Replay protection in growth-hook (also tracked in [[2026-05-15-server-side-sig-verification-design]])
 - Ethereum claim path (depends on contracts/sip-ethereum claim instruction)
 - Verification of the claim tx using the same RPC verifier from [[2026-05-15-server-side-sig-verification-design]] — this should compose cleanly
+
+---
+
+## Amendment — SDK reality check (2026-05-15, frontier_sip_13)
+
+**Discovered during implementation scoping:** the original spec above (Implementation Steps 1-7) assumed the server would build claim_transfer from scratch — own announcement parser, own ECDH derivation, own partial-sign + serialize for client-side fee-payer signing. **This is more work than necessary.** `@sip-protocol/sdk@^0.7.4` already exposes the complete primitive surface:
+
+```ts
+// All exported from @sip-protocol/sdk
+declare function parseAnnouncement(memo: string): SolanaAnnouncement | null
+declare function scanForPayments(params: SolanaScanParams): Promise<SolanaScanResult[]>
+declare function claimStealthPayment(params: SolanaClaimParams): Promise<SolanaClaimResult>
+declare function deriveStealthPrivateKey(...): ...
+declare function deriveSolanaStealthKeys(...): ...
+```
+
+`claimStealthPayment(params: SolanaClaimParams)` accepts the user's `viewingPrivateKey` + `spendingPrivateKey` and **internally derives the stealth privkey + builds claim_transfer + signs + broadcasts**, returning `{ txSignature, destinationAddress, ... }`. Steps 1, 2, and 3 of the original Implementation section are entirely subsumed by this single call.
+
+### What changes
+
+The original spec's flow diagram (lines 73-115) hinges on a tool-signing wrapper / SignTxCard round-trip where the user signs as the fee payer. **That UX does not match the SDK's broadcast-internal claim primitive.** Server-side, the stealth address itself signs as fee payer (using the stealth privkey derived from the user's viewing+spending keys). The destination wallet does not need to sign — it's only the recipient of the claim transfer.
+
+This collapses the "client signing UX" assumption. There are two coherent paths from here:
+
+### Path A — SDK-driven claim (recommended for first ship)
+
+**One-shot server execution. No SignTxCard. No tool-signing wrapper extension.**
+
+```
+User invokes `claim` tool with depositTxSignature + viewingKey + spendingKey + destination
+   │
+   ▼
+executeClaim
+   ├─ validate inputs (existing)
+   ├─ fetch deposit tx via getTransaction
+   ├─ extract announcement via parseAnnouncement (sip_privacy memo)
+   ├─ resolve stealthAddress (from scanForPayments OR from announcement decode)
+   ├─ resolve mint (from the deposit's token transfer instruction)
+   │
+   ▼
+claimStealthPayment({ connection, stealthAddress, ephemeralPublicKey, viewingPrivateKey, spendingPrivateKey, destinationAddress, mint })
+   │ (SDK derives stealth privkey + builds claim_transfer + signs + broadcasts)
+   │
+   ▼
+return { action: 'claim', status: 'confirmed', signature: claim_tx_sig, depositTxSignature, destinationWallet, message, ... }
+   │
+   ▼
+growth-hook → emits sipher_private_claim_completed with data.tx_signature = claim_tx_sig
+```
+
+**Trade-offs:**
+- ✅ Minimum new code — the SDK is the implementation
+- ✅ Honest Torque attribution from day one (claim-tx-sig, not deposit-tx-sig)
+- ✅ Closes the Phase 1 stub correctness gap
+- ❌ Loses explicit user consent at sign-time — calling `claim` is the consent
+- ❌ Loses the SignTxCard visual confirmation that send/swap have
+- ❌ Server can't pause-and-confirm pending claims (the SDK is one-shot)
+
+The user-consent loss is bounded: the chat-tool invocation IS the consent. Compare to how SDK CLI users invoke `claimStealthPayment` directly — they consent by calling the function. The chat-driven flow is equivalent.
+
+### Path B — Fork SDK to separate build + broadcast
+
+**Match the original spec's tool-signing UX. Replicate `claimStealthPayment`'s internals (or call lower-level SDK primitives) so build and broadcast are separable.**
+
+```
+executeClaim builds the claim tx (no broadcast) → returns serializedTx + status: awaiting_signature
+   │
+   ▼ tool-signing wrapper emits SSE → SignTxCard appears
+   │
+User confirms in SignTxCard → server broadcasts (still using SDK or raw RPC)
+```
+
+**Trade-offs:**
+- ✅ Explicit user consent moment (SignTxCard)
+- ✅ Symmetric with send/swap UX
+- ❌ Must duplicate or fork SDK internals — fragile, maintenance burden
+- ❌ The stealth keypair signing happens server-side regardless of which path; SignTxCard is cosmetic security theater (the user can't actually refuse — they already passed the keys)
+- ❌ Larger implementation surface (4-6 days remains true)
+
+The "security theater" point is real. In Path A, the user's consent is the tool invocation. In Path B, the user's consent is the SignTxCard click — but the underlying signing authority was already delegated (the viewing+spending keys are server-side). The SignTxCard doesn't gate anything cryptographically.
+
+### Revised recommendation
+
+**Ship Path A.** Defer Path B's SignTxCard surface as a follow-up if RECTOR decides the consent ceremony is worth the build cost. The Phase 1 stub is shipping incorrect Torque events today; Path A fixes that in a clean, small PR.
+
+### Revised Implementation steps (Path A)
+
+1. **Locate the announcement memo in the deposit tx** — `connection.getTransaction(depositTxSig)` → find the SPL memo instruction → call SDK's `parseAnnouncement(memoString)` → get `{ ephemeralPublicKey, viewTag, stealthAddress? }`
+2. **Resolve the stealth address** — if absent from announcement, derive from `(ephemeralPublicKey + viewingPrivateKey + spendingPublicKey)` via SDK's `generateSolanaStealthAddress` OR use `scanForPayments` to locate the matching incoming entry
+3. **Resolve the mint** — inspect the deposit tx's token transfer instruction (or sentinel-style account parse)
+4. **Call `claimStealthPayment`** — pass viewing+spending privkeys + the resolved stealth address + ephemeral pubkey + mint + destination
+5. **Return the result** — `{ status: 'confirmed', signature: result.txSignature, ... }`. The growth-hook extracts `signature` (already supported, lines 101-107 of growth-hook.ts).
+
+### Revised test plan (Path A)
+
+- Unit: executeClaim happy path with mocked SDK call (3 tests)
+- Unit: input validation (existing tests should still pass)
+- Unit: wrong viewing key → SDK throws → executeClaim re-throws as actionable error
+- Unit: deposit tx not found → throws actionable error
+- Unit: announcement parse fails → throws actionable error
+- Growth-hook: claim emission carries `signature` field (claim-tx-sig), not `txSignature` (deposit-tx-sig). One new test.
+- Skip: the entire "ECDH derive in helpers module" test set (lines 220-228 of original spec) — SDK is the implementation.
+
+### Revised viewing-key trust posture
+
+Same trust delegation as Path B (the user shares viewing+spending keys with the server). The fact that the SDK does the broadcast doesn't change the trust surface — the keys are already on the server regardless. The README disclosure section (line 146) still applies verbatim.
+
+### Revised migration / rollout
+
+Path A is a CORRECTNESS FIX (replaces stub with working flow). The chat tool's contract changes only in the return shape — `status: 'confirmed'` instead of `'awaiting_signature'`, plus a real `signature` field. No frontend changes required: today's frontend treats the claim result as plain text in the assistant message, which still works.
+
+### Risks (Path A specific)
+
+**Stealth address resolution.** If `scanForPayments` returns multiple matches or zero matches for the given deposit tx, the code must handle gracefully. Recommend: pass `fromSlot: depositTxSlot - 1, toSlot: depositTxSlot + 1` to narrow scan scope.
+
+**SDK version drift.** Current dep is `@sip-protocol/sdk@^0.7.4`. The primitives used here have been stable since at least 0.5.x but verify before assuming. Pin to a known-good version if needed.
+
+**SDK error surfaces.** `claimStealthPayment` throws on various error conditions (RPC failure, signature mismatch, insufficient lamports). Wrap with try/catch in executeClaim and map to actionable error messages.
+
+**No client consent moment.** Documented above. Acceptable for the chat-driven invocation pattern. If a future deployment requires explicit confirmation (e.g. high-value claims), revisit Path B.
+
+---
+
+This amendment supersedes the original Implementation (Step 1-3) and Test plan sections for the **default first-ship choice**. The original sections remain in this document as the Path B reference if the consent-ceremony UX is later prioritized.
