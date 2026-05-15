@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express'
+import { assertNever } from '../core/assert-never.js'
 import type { ResponseChunk } from '../core/types.js'
 import { AgentCore } from '../core/agent-core.js'
 import { resolveSession } from '../session.js'
@@ -60,6 +61,8 @@ function chunkToSSE(chunk: ResponseChunk): Record<string, unknown> {
       return { type: 'error', message: chunk.text }
     case 'done':
       return { type: 'message_complete', content: chunk.text }
+    default:
+      return assertNever(chunk.type)
   }
 }
 
