@@ -1,20 +1,38 @@
 import { Router, type Request, type Response } from 'express'
+import { createConnection } from '@sipher/sdk'
 import {
   getPendingSigning,
   resolvePendingSigning,
   rejectPendingSigning,
 } from '../sentinel/pending-signing.js'
+import { verifySignature, type VerifyResult } from '../sentinel/verify-signature.js'
+import { loadNetworkConfig } from '../config/network.js'
 import { sendSentinelError } from './sentinel-errors.js'
 
 export const toolSigningRouter = Router()
+
+type VerifyMode = 'strict' | 'advisory' | 'off'
+
+function loadVerifyMode(): VerifyMode {
+  const raw = (process.env.SIPHER_SIG_VERIFY ?? 'strict').toLowerCase()
+  if (raw === 'strict' || raw === 'advisory' || raw === 'off') return raw
+  return 'strict'
+}
 
 /**
  * POST /api/tool-signing/:flagId/confirm
  * Body: { signature: string }
  * Resolves the pending signing promise with the on-chain tx signature.
  * Wallet binding: JWT wallet must equal the pending entry's wallet.
+ *
+ * Server-side verification (Spec 3 — PR #279):
+ *   SIPHER_SIG_VERIFY=strict (default) — verify via Solana RPC; reject pending
+ *     on failure and return 4xx VALIDATION_FAILED. RPC unavailable → 503.
+ *   SIPHER_SIG_VERIFY=advisory — verify and log on failure, but still resolve.
+ *     Used for soak-testing the verifier without blocking the UX.
+ *   SIPHER_SIG_VERIFY=off — skip verification entirely (legacy behavior).
  */
-toolSigningRouter.post('/:flagId/confirm', (req: Request, res: Response) => {
+toolSigningRouter.post('/:flagId/confirm', async (req: Request, res: Response) => {
   const flagId = req.params.flagId as string
   const entry = getPendingSigning(flagId)
   if (!entry) {
@@ -39,8 +57,49 @@ toolSigningRouter.post('/:flagId/confirm', (req: Request, res: Response) => {
     return
   }
 
+  const mode = loadVerifyMode()
+  let verifyResult: VerifyResult | null = null
+  if (mode !== 'off') {
+    try {
+      const net = loadNetworkConfig()
+      const connection = createConnection(net.clusterName, net.rpcUrl)
+      verifyResult = await verifySignature(signature, entry, { connection })
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err)
+      verifyResult = { ok: false, reason: 'rpc_error', detail }
+    }
+
+    if (!verifyResult.ok) {
+      if (mode === 'strict') {
+        if (verifyResult.reason === 'rpc_error' || verifyResult.reason === 'timeout') {
+          // RPC blip — let the client retry rather than killing the pending entry.
+          res.setHeader('Retry-After', '2')
+          sendSentinelError(
+            res,
+            'UNAVAILABLE',
+            `signature verification unavailable (${verifyResult.reason})`,
+          )
+          return
+        }
+        rejectPendingSigning(flagId, `verification_failed: ${verifyResult.reason}`)
+        sendSentinelError(
+          res,
+          'VALIDATION_FAILED',
+          `signature verification failed: ${verifyResult.reason}${verifyResult.detail ? ` (${verifyResult.detail})` : ''}`,
+        )
+        return
+      }
+      console.warn(
+        `[signing] verify failed (advisory mode): flagId=${flagId} reason=${verifyResult.reason}${verifyResult.detail ? ` detail=${verifyResult.detail}` : ''}`,
+      )
+    }
+  }
+
   resolvePendingSigning(flagId, signature)
-  res.status(200).json({ status: 'accepted' })
+  res.status(200).json({
+    status: 'accepted',
+    verified: mode === 'strict' && verifyResult?.ok === true,
+  })
 })
 
 /**
