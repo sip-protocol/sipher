@@ -131,6 +131,80 @@ describe('wrapExecutorWithGrowthHook', () => {
     })
   })
 
+  it('emits sipher_private_drip_completed for drip tool (matches dashboard slug)', async () => {
+    baseExecutor.mockResolvedValue({ action: 'drip', status: 'confirmed', signature: TX_SIG })
+    const wrapped = wrapExecutorWithGrowthHook(baseExecutor, opts)
+
+    await wrapped('drip', { wallet: WALLET, amount: 1, token: 'SOL', recipient: 'rector.sol' })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(emitEventMock).toHaveBeenCalledOnce()
+    expect(emitEventMock).toHaveBeenCalledWith({
+      userPubkey: WALLET,
+      timestamp: expect.any(Number),
+      eventName: 'sipher_private_drip_completed',
+      data: {
+        tx_signature: TX_SIG,
+        network: 'devnet',
+        rebate_destination: 'RbT6X9',
+      },
+    })
+  })
+
+  it('OMITS amount_lamports for drip events (privacy)', async () => {
+    baseExecutor.mockResolvedValue({
+      action: 'drip',
+      status: 'confirmed',
+      signature: TX_SIG,
+      amountInLamports: 1_000_000,
+    })
+    const wrapped = wrapExecutorWithGrowthHook(baseExecutor, opts)
+
+    await wrapped('drip', { wallet: WALLET, amount: 1, token: 'SOL', recipient: 'rector.sol' })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    const call = emitEventMock.mock.calls[0]![0]
+    expect(call.data.amount_lamports).toBeUndefined()
+    expect(call.data.asset).toBeUndefined()
+  })
+
+  it('emits sipher_private_split_send_completed for splitSend tool (matches dashboard slug)', async () => {
+    baseExecutor.mockResolvedValue({ action: 'splitSend', status: 'confirmed', signature: TX_SIG })
+    const wrapped = wrapExecutorWithGrowthHook(baseExecutor, opts)
+
+    await wrapped('splitSend', { wallet: WALLET, amount: 1, token: 'SOL', recipient: 'rector.sol' })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(emitEventMock).toHaveBeenCalledOnce()
+    expect(emitEventMock).toHaveBeenCalledWith({
+      userPubkey: WALLET,
+      timestamp: expect.any(Number),
+      eventName: 'sipher_private_split_send_completed',
+      data: {
+        tx_signature: TX_SIG,
+        network: 'devnet',
+        rebate_destination: 'RbT6X9',
+      },
+    })
+  })
+
+  it('OMITS amount_lamports for splitSend events (privacy)', async () => {
+    baseExecutor.mockResolvedValue({
+      action: 'splitSend',
+      status: 'confirmed',
+      signature: TX_SIG,
+      amountInLamports: 1_000_000,
+    })
+    const wrapped = wrapExecutorWithGrowthHook(baseExecutor, opts)
+
+    await wrapped('splitSend', { wallet: WALLET, amount: 1, token: 'SOL', recipient: 'rector.sol' })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    const call = emitEventMock.mock.calls[0]![0]
+    expect(call.data.amount_lamports).toBeUndefined()
+    expect(call.data.asset).toBeUndefined()
+  })
+
   it('does NOT emit when base executor throws', async () => {
     baseExecutor.mockRejectedValue(new Error('boom'))
     const wrapped = wrapExecutorWithGrowthHook(baseExecutor, opts)

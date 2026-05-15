@@ -29,8 +29,8 @@ export type SipherEventName =
   | 'sipher_private_send_completed'
   | 'sipher_private_swap_completed'
   | 'sipher_private_claim_completed'
-  | 'sipher_recurring_send_tick'
-  | 'sipher_batch_send_completed'
+  | 'sipher_private_drip_completed'
+  | 'sipher_private_split_send_completed'
 
 export interface TorqueMCPClientOptions {
   ingesterUrl: string
