@@ -1,4 +1,5 @@
 import type { MsgContext, ResponseChunk, AgentResponse, AgentConfig } from './types.js'
+import { assertNever } from './assert-never.js'
 import { chat, chatStream } from '../agent.js'
 import {
   resolveSession,
@@ -206,6 +207,9 @@ export class AgentCore {
         case 'message_complete':
           fullText = event.content
           break
+
+        default:
+          assertNever(event)
       }
     }
 
