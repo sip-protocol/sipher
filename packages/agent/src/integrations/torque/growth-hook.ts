@@ -16,8 +16,8 @@ const TOOL_EVENT_MAP: Record<string, SipherEventName> = {
   send: 'sipher_private_send_completed',
   swap: 'sipher_private_swap_completed',
   claim: 'sipher_private_claim_completed',
-  drip: 'sipher_recurring_send_tick',
-  splitSend: 'sipher_batch_send_completed',
+  drip: 'sipher_private_drip_completed',
+  splitSend: 'sipher_private_split_send_completed',
 }
 
 /** Swap outputs are on-chain DEX events already; include lamport amount for Torque attribution. */

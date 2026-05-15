@@ -28,8 +28,8 @@ Before enabling the integration, the following must be configured at `platform.t
 | `sipher_private_send_completed` | `tx_signature` (string), `network` (string), `rebate_destination` (string) |
 | `sipher_private_swap_completed` | `tx_signature` (string), `network` (string), `rebate_destination` (string), `amount_lamports` (number), `asset` (string) |
 | `sipher_private_claim_completed` | same as send |
-| `sipher_recurring_send_tick` | same as send |
-| `sipher_batch_send_completed` | same as send |
+| `sipher_private_drip_completed` | same as send |
+| `sipher_private_split_send_completed` | same as send |
 
 4. **REBATE Incentive** configured via `CUSTOM_EVENT_PROVIDER` data source bound to those 5 slugs, with sybil/reward/epoch rules set in the Torque dashboard recipe form (NOT in this code — distribution is dashboard-driven)
 
@@ -114,8 +114,8 @@ To attribute actions and route rebates, the Torque MCP server needs the user's p
 | `sipher_private_send_completed` | yes | **no** | no |
 | `sipher_private_swap_completed` | yes | yes (already public on-chain) | no |
 | `sipher_private_claim_completed` | yes | no | no |
-| `sipher_recurring_send_tick` | yes | no | no |
-| `sipher_batch_send_completed` | yes | no | no |
+| `sipher_private_drip_completed` | yes | no | no |
+| `sipher_private_split_send_completed` | yes | no | no |
 
 Users who want zero attribution leakage should set `TORQUE_GROWTH_ENABLED=false`.
 
@@ -126,7 +126,7 @@ Users who want zero attribution leakage should set `TORQUE_GROWTH_ENABLED=false`
 | `send` (chat-driven) | `sipher_private_send_completed` | Yes (since sipher#262) | Fires after SignTxCard callback `/api/tool-signing/:flagId/confirm` |
 | `swap` (chat-driven) | `sipher_private_swap_completed` | Yes (since sipher#262) | Same flow as send; includes `amount_lamports` + `asset` |
 | `claim` (chat-driven) | `sipher_private_claim_completed` | Partial | Uses input deposit-tx-signature as the emission key. Proper fix tracked in the claim Phase 2 follow-up. |
-| `drip`, `splitSend`, `sweep`, `consolidate`, `recurring`, `scheduleSend` | `sipher_recurring_send_tick`, `sipher_batch_send_completed`, etc. | No | Scheduled-op broadcasts not yet wired. Needs wallet-delegation or pre-signed-batch design — separate follow-up. |
+| `drip`, `splitSend`, `sweep`, `consolidate`, `recurring`, `scheduleSend` | `sipher_private_drip_completed`, `sipher_private_split_send_completed`, etc. | No | Scheduled-op broadcasts not yet wired. Needs wallet-delegation or pre-signed-batch design — separate follow-up. |
 | `deposit`, `refund` | — | No | Routed through `DepositView` / `WithdrawView` dedicated UIs, not the chat path. |
 
 ## Architecture
