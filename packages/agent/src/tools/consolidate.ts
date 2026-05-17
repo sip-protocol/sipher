@@ -113,6 +113,7 @@ export async function executeConsolidate(
         stealthAddress: payment.stealthAddress.toBase58(),
         viewingKey: params.viewingKey,
         spendingKey: params.spendingKey,
+        destinationWallet: params.wallet,
       },
       wallet_signature: params.walletSignature ?? 'pending',
       next_exec: executesAt,
