@@ -1,7 +1,11 @@
 import { Buffer } from 'node:buffer'
 import { describe, it, expect, vi } from 'vitest'
-import { PublicKey, type Connection } from '@solana/web3.js'
-import { resolveStealthContext, StealthContextError } from '../../src/tools/claim-helpers.js'
+import { Keypair, PublicKey, type Connection } from '@solana/web3.js'
+import {
+  deriveDestinationFromSpending,
+  resolveStealthContext,
+  StealthContextError,
+} from '../../src/tools/claim-helpers.js'
 
 const DEPOSIT_SIG =
   '4Hc3vQBhYzS5xQZK1RtwvkLqxg1JhWf5pSr6vKQYVbTtFNxRr5jJp2k4QvJqwn3aB6XzMpYsLqHv2QwRcVbN8mY5s5c'
@@ -301,5 +305,34 @@ describe('resolveStealthContext — error paths', () => {
     await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
       code: 'stealth_ata_mismatch',
     })
+  })
+})
+
+describe('deriveDestinationFromSpending', () => {
+  it('derives the matching base58 ed25519 pubkey from a hex spending privkey', () => {
+    const kp = Keypair.generate()
+    // Solana keypairs are 64 bytes (32-byte seed + 32-byte pubkey); ed25519 takes the 32-byte seed.
+    const seedHex = Buffer.from(kp.secretKey.slice(0, 32)).toString('hex')
+
+    expect(deriveDestinationFromSpending(seedHex)).toBe(kp.publicKey.toBase58())
+  })
+
+  it('accepts hex with 0x prefix', () => {
+    const kp = Keypair.generate()
+    const seedHex = '0x' + Buffer.from(kp.secretKey.slice(0, 32)).toString('hex')
+
+    expect(deriveDestinationFromSpending(seedHex)).toBe(kp.publicKey.toBase58())
+  })
+
+  it('throws on non-hex input', () => {
+    expect(() => deriveDestinationFromSpending('this-is-not-hex')).toThrow(
+      /spending key must be 32-byte hex/i,
+    )
+  })
+
+  it('throws on wrong-length hex (not 32 bytes)', () => {
+    expect(() => deriveDestinationFromSpending('ab'.repeat(16))).toThrow(
+      /spending key must be 32-byte hex/i,
+    )
   })
 })

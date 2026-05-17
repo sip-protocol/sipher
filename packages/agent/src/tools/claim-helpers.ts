@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import { ed25519 } from '@noble/curves/ed25519'
 import {
   PublicKey,
   type Connection,
@@ -173,4 +174,28 @@ function parseWithdrawEventFromLogs(logs: string[]): WithdrawEvent | null {
     }
   }
   return null
+}
+
+/**
+ * Derive the base58 ed25519 pubkey corresponding to a hex-encoded spending
+ * private key. The spending key in sipher's stealth model corresponds 1:1
+ * with the user's main Solana wallet — this pubkey is the natural default
+ * destination for claimed funds.
+ *
+ * @param spendingPrivateKey - 32-byte hex string, with or without 0x prefix
+ * @returns base58-encoded ed25519 pubkey (Solana address)
+ * @throws if input is not exactly 64 hex characters (32 bytes)
+ */
+export function deriveDestinationFromSpending(spendingPrivateKey: string): string {
+  const stripped = spendingPrivateKey.startsWith('0x')
+    ? spendingPrivateKey.slice(2)
+    : spendingPrivateKey
+  if (!/^[0-9a-fA-F]+$/.test(stripped) || stripped.length !== 64) {
+    throw new Error(
+      'Spending key must be 32-byte hex (64 chars, with or without 0x prefix)',
+    )
+  }
+  const privKeyBytes = Buffer.from(stripped, 'hex')
+  const pubKeyBytes = ed25519.getPublicKey(privKeyBytes)
+  return new PublicKey(pubKeyBytes).toBase58()
 }
