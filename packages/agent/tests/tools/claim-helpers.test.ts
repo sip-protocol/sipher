@@ -170,6 +170,8 @@ describe('resolveStealthContext — happy-path variants', () => {
 
     const ctx = await resolveStealthContext(mockConnection, DEPOSIT_SIG)
     expect(ctx.stealthAddress).toBe(STEALTH_PUBKEY)
+    expect(ctx.mint).toBe(MINT_USDC)
+    expect(ctx.ephemeralPublicKey).toBe(EPHEMERAL_PUBKEY)
   })
 })
 
@@ -280,6 +282,19 @@ describe('resolveStealthContext — error paths', () => {
       getParsedTransaction: vi.fn().mockResolvedValue(mockTxWithEventAndSplTransfer()),
       getParsedAccountInfo: vi.fn().mockResolvedValue({
         value: { data: { parsed: { info: { owner: DIFFERENT_OWNER, mint: MINT_USDC } } } },
+      }),
+    } as unknown as Connection
+
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'stealth_ata_mismatch',
+    })
+  })
+
+  it('throws stealth_ata_mismatch when ATA data is raw bytes (not a parsed token account)', async () => {
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue(mockTxWithEventAndSplTransfer()),
+      getParsedAccountInfo: vi.fn().mockResolvedValue({
+        value: { data: Buffer.from([1, 2, 3, 4]) },
       }),
     } as unknown as Connection
 
