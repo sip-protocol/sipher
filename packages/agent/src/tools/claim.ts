@@ -2,7 +2,12 @@ import { PublicKey } from '@solana/web3.js'
 import { claimStealthPayment, type SolanaClaimResult } from '@sip-protocol/sdk'
 import { createConnection } from '@sipher/sdk'
 import { loadNetworkConfig } from '../config/network.js'
-import { resolveStealthContext, StealthContextError } from './claim-helpers.js'
+import {
+  resolveStealthContext,
+  StealthContextError,
+  deriveDestinationFromSpending,
+  formatClaimAmount,
+} from './claim-helpers.js'
 import type { AnthropicTool } from '../pi/tool-adapter.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,8 +23,8 @@ export interface ClaimParams {
   txSignature: string
   viewingKey: string
   spendingKey: string
-  /** Destination wallet (base58) to receive claimed tokens. */
-  destinationWallet: string
+  /** Optional destination wallet (base58). Defaults to the spending pubkey. */
+  destinationWallet?: string
   /**
    * Optional SPL token mint (base58). If omitted, the mint is resolved from
    * the deposit transaction. Provide explicitly when you already know it
@@ -70,7 +75,7 @@ export const claimTool: AnthropicTool = {
       },
       destinationWallet: {
         type: 'string',
-        description: 'Wallet address (base58) to receive claimed tokens. Required (auto-derive from spending pubkey is a planned follow-up).',
+        description: 'Wallet address (base58) to receive claimed tokens. Defaults to the spending pubkey.',
       },
       mint: {
         type: 'string',
@@ -78,7 +83,7 @@ export const claimTool: AnthropicTool = {
           'Optional SPL token mint (base58). If omitted, the mint is resolved from the deposit transaction.',
       },
     },
-    required: ['txSignature', 'viewingKey', 'spendingKey', 'destinationWallet'],
+    required: ['txSignature', 'viewingKey', 'spendingKey'],
   },
 }
 
@@ -110,7 +115,7 @@ export async function executeClaim(params: ClaimParams): Promise<ClaimToolResult
   if (!mintBase58) {
     throw new Error('Internal: resolveStealthContext returned no mint and no override was provided')
   }
-  const destinationAddress = params.destinationWallet
+  const destinationAddress = params.destinationWallet ?? deriveDestinationFromSpending(params.spendingKey)
   const viewingPrivateKey = normalizeKey(params.viewingKey)
   const spendingPrivateKey = normalizeKey(params.spendingKey)
 
@@ -141,7 +146,7 @@ export async function executeClaim(params: ClaimParams): Promise<ClaimToolResult
     explorerUrl: sdkResult.explorerUrl,
     message:
       `Claimed payment ${params.txSignature.slice(0, 12)}... → claim tx ${sdkResult.txSignature.slice(0, 12)}... ` +
-      `(${sdkResult.amount.toString()} units to ${sdkResult.destinationAddress.slice(0, 8)}...)`,
+      `(${formatClaimAmount(sdkResult.amount, mintBase58)} to ${sdkResult.destinationAddress.slice(0, 8)}...)`,
   }
 }
 

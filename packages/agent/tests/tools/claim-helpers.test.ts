@@ -1,7 +1,13 @@
 import { Buffer } from 'node:buffer'
 import { describe, it, expect, vi } from 'vitest'
-import { PublicKey, type Connection } from '@solana/web3.js'
-import { resolveStealthContext, StealthContextError } from '../../src/tools/claim-helpers.js'
+import { Keypair, PublicKey, type Connection } from '@solana/web3.js'
+import { WSOL_MINT, USDC_MINT, USDT_MINT } from '@sipher/sdk'
+import {
+  deriveDestinationFromSpending,
+  formatClaimAmount,
+  resolveStealthContext,
+  StealthContextError,
+} from '../../src/tools/claim-helpers.js'
 
 const DEPOSIT_SIG =
   '4Hc3vQBhYzS5xQZK1RtwvkLqxg1JhWf5pSr6vKQYVbTtFNxRr5jJp2k4QvJqwn3aB6XzMpYsLqHv2QwRcVbN8mY5s5c'
@@ -301,5 +307,63 @@ describe('resolveStealthContext — error paths', () => {
     await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
       code: 'stealth_ata_mismatch',
     })
+  })
+})
+
+describe('deriveDestinationFromSpending', () => {
+  it('derives the matching base58 ed25519 pubkey from a hex spending privkey', () => {
+    const kp = Keypair.generate()
+    // Solana keypairs are 64 bytes (32-byte seed + 32-byte pubkey); ed25519 takes the 32-byte seed.
+    const seedHex = Buffer.from(kp.secretKey.slice(0, 32)).toString('hex')
+
+    expect(deriveDestinationFromSpending(seedHex)).toBe(kp.publicKey.toBase58())
+  })
+
+  it('accepts hex with 0x prefix', () => {
+    const kp = Keypair.generate()
+    const seedHex = '0x' + Buffer.from(kp.secretKey.slice(0, 32)).toString('hex')
+
+    expect(deriveDestinationFromSpending(seedHex)).toBe(kp.publicKey.toBase58())
+  })
+
+  it('throws on non-hex input', () => {
+    expect(() => deriveDestinationFromSpending('this-is-not-hex')).toThrow(
+      /spending key must be 32-byte hex/i,
+    )
+  })
+
+  it('throws on wrong-length hex (not 32 bytes)', () => {
+    expect(() => deriveDestinationFromSpending('ab'.repeat(16))).toThrow(
+      /spending key must be 32-byte hex/i,
+    )
+  })
+})
+
+describe('formatClaimAmount', () => {
+  // Freshly generated via `Keypair.generate().publicKey.toBase58()` — guaranteed valid base58.
+  const SYNTHETIC = 'ApBEQDhQV5nqctbUw5Qr34FvJaiovrirkWZxWqwWE2Pw'
+
+  it('formats SOL (9 decimals) with "SOL" symbol (not WSOL)', () => {
+    expect(formatClaimAmount(1_500_000_000n, WSOL_MINT.toBase58())).toBe('1.5 SOL')
+  })
+
+  it('formats USDC (6 decimals) without trailing .0 for whole-number amounts', () => {
+    expect(formatClaimAmount(1_000_000n, USDC_MINT.toBase58())).toBe('1 USDC')
+  })
+
+  it('formats USDT (6 decimals)', () => {
+    expect(formatClaimAmount(2_500_000n, USDT_MINT.toBase58())).toBe('2.5 USDT')
+  })
+
+  it('formats unknown SPL mints with short prefix-suffix and default 9 decimals', () => {
+    const prefix = SYNTHETIC.slice(0, 4)
+    const suffix = SYNTHETIC.slice(-4)
+    expect(formatClaimAmount(1_000_000_000n, SYNTHETIC)).toBe(`1 ${prefix}...${suffix}`)
+  })
+
+  it('handles fractional amounts for unknown mints', () => {
+    const prefix = SYNTHETIC.slice(0, 4)
+    const suffix = SYNTHETIC.slice(-4)
+    expect(formatClaimAmount(1_000_000n, SYNTHETIC)).toBe(`0.001 ${prefix}...${suffix}`)
   })
 })

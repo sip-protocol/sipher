@@ -1,4 +1,6 @@
 import { Buffer } from 'node:buffer'
+import { ed25519 } from '@noble/curves/ed25519'
+import { WSOL_MINT, USDC_MINT, USDT_MINT, getTokenDecimals, fromBaseUnits } from '@sipher/sdk'
 import {
   PublicKey,
   type Connection,
@@ -173,4 +175,56 @@ function parseWithdrawEventFromLogs(logs: string[]): WithdrawEvent | null {
     }
   }
   return null
+}
+
+/**
+ * Derive the base58 ed25519 pubkey corresponding to a hex-encoded spending
+ * private key. The spending key in sipher's stealth model corresponds 1:1
+ * with the user's main Solana wallet — this pubkey is the natural default
+ * destination for claimed funds.
+ *
+ * @param spendingPrivateKey - 32-byte hex string, with or without 0x prefix
+ * @returns base58-encoded ed25519 pubkey (Solana address)
+ * @throws if input is not exactly 64 hex characters (32 bytes)
+ */
+export function deriveDestinationFromSpending(spendingPrivateKey: string): string {
+  const stripped = spendingPrivateKey.startsWith('0x')
+    ? spendingPrivateKey.slice(2)
+    : spendingPrivateKey
+  if (!/^[0-9a-fA-F]+$/.test(stripped) || stripped.length !== 64) {
+    throw new Error(
+      'Spending key must be 32-byte hex (64 chars, with or without 0x prefix)',
+    )
+  }
+  const privKeyBytes = Buffer.from(stripped, 'hex')
+  const pubKeyBytes = ed25519.getPublicKey(privKeyBytes)
+  return new PublicKey(pubKeyBytes).toBase58()
+}
+
+/**
+ * Format an SDK-returned base-units amount as a human-readable token string.
+ * Returns `"<amount> <symbol>"` for known mints (SOL/USDC/USDT) or
+ * `"<amount> <mint_prefix>...<mint_suffix>"` for unknown SPL mints.
+ *
+ * `<amount>` format: matches `@sipher/sdk`'s `fromBaseUnits` — `"1"` for
+ * whole numbers (no trailing `.0`), `"1.5"` / `"0.001"` for fractional.
+ *
+ * Token decimals come from `@sipher/sdk`'s `getTokenDecimals` (returns 9
+ * for unknown mints — accurate for most SPL but imprecise for low-decimal
+ * exotics; out of scope for this polish).
+ */
+export function formatClaimAmount(amountBaseUnits: bigint, mintBase58: string): string {
+  const mintPubkey = new PublicKey(mintBase58)
+  const decimals = getTokenDecimals(mintPubkey)
+  const human = fromBaseUnits(amountBaseUnits, decimals)
+  const symbol = tokenSymbol(mintBase58)
+  return `${human} ${symbol}`
+}
+
+/** Inline symbol lookup — keep private to claim-helpers (SDK doesn't export getTokenSymbol). */
+function tokenSymbol(mintBase58: string): string {
+  if (mintBase58 === WSOL_MINT.toBase58()) return 'SOL' // UX: users think SOL, not WSOL
+  if (mintBase58 === USDC_MINT.toBase58()) return 'USDC'
+  if (mintBase58 === USDT_MINT.toBase58()) return 'USDT'
+  return `${mintBase58.slice(0, 4)}...${mintBase58.slice(-4)}`
 }

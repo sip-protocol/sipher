@@ -13,6 +13,8 @@ vi.mock('@sip-protocol/sdk', async () => {
 // Mock helpers + sipher connection helper
 vi.mock('../src/tools/claim-helpers.js', () => ({
   resolveStealthContext: vi.fn(),
+  deriveDestinationFromSpending: vi.fn(),
+  formatClaimAmount: vi.fn((amount: bigint, mint: string) => `${amount.toString()} ${mint.slice(0, 4)}`),
   StealthContextError: class StealthContextError extends Error {
     constructor(message: string, public code: string) {
       super(message)
@@ -33,7 +35,7 @@ vi.mock('@sipher/sdk', async () => {
 
 import { claimTool, executeClaim } from '../src/tools/claim.js'
 import { claimStealthPayment } from '@sip-protocol/sdk'
-import { resolveStealthContext, StealthContextError } from '../src/tools/claim-helpers.js'
+import { resolveStealthContext, StealthContextError, deriveDestinationFromSpending } from '../src/tools/claim-helpers.js'
 
 const VALID_TX_SIG = '5' + 'a'.repeat(87)
 const VALID_VIEWING_KEY = 'ab'.repeat(32)
@@ -54,7 +56,6 @@ describe('claimTool definition', () => {
       'txSignature',
       'viewingKey',
       'spendingKey',
-      'destinationWallet',
     ])
   })
 
@@ -124,6 +125,33 @@ describe('executeClaim — happy path', () => {
 
     expect(result.message).toContain(VALID_TX_SIG.slice(0, 12))
     expect(result.message).toContain(CLAIM_TX_SIG.slice(0, 12))
+    // NEW: formatClaimAmount mock returns "<amount> <mint_prefix>" deterministically.
+    // The beforeEach SDK mock returns amount: 1000000n, mint resolved to MINT_USDC ('EPjF...').
+    expect(result.message).toContain('1000000 EPjF')
+  })
+
+  it('auto-derives destinationWallet from spendingKey when omitted', async () => {
+    const DERIVED_DESTINATION = 'AutoD3rived1111111111111111111111111111111111'
+    vi.mocked(deriveDestinationFromSpending).mockReturnValue(DERIVED_DESTINATION)
+
+    const result = await executeClaim({
+      txSignature: VALID_TX_SIG,
+      viewingKey: VALID_VIEWING_KEY,
+      spendingKey: VALID_SPENDING_KEY,
+      // destinationWallet intentionally omitted
+    })
+
+    expect(deriveDestinationFromSpending).toHaveBeenCalledWith(VALID_SPENDING_KEY)
+    // The SDK call should receive the derived destination
+    expect(claimStealthPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ destinationAddress: DERIVED_DESTINATION }),
+    )
+    // Note: result.destinationWallet still reflects whatever the SDK mock returned
+    // (VALID_DESTINATION from beforeEach), which is fine — the helper only feeds
+    // the SDK; the SDK's returned destinationAddress is the source of truth in
+    // the result.
+    expect(result.action).toBe('claim')
+    expect(result.status).toBe('confirmed')
   })
 })
 
@@ -134,7 +162,6 @@ describe('executeClaim — input validation (regression)', () => {
         txSignature: '',
         viewingKey: VALID_VIEWING_KEY,
         spendingKey: VALID_SPENDING_KEY,
-        destinationWallet: VALID_DESTINATION,
       })
     ).rejects.toThrow(/transaction signature is required/i)
   })
@@ -145,7 +172,6 @@ describe('executeClaim — input validation (regression)', () => {
         txSignature: '   ',
         viewingKey: VALID_VIEWING_KEY,
         spendingKey: VALID_SPENDING_KEY,
-        destinationWallet: VALID_DESTINATION,
       })
     ).rejects.toThrow(/transaction signature is required/i)
   })
@@ -156,7 +182,6 @@ describe('executeClaim — input validation (regression)', () => {
         txSignature: VALID_TX_SIG,
         viewingKey: '',
         spendingKey: VALID_SPENDING_KEY,
-        destinationWallet: VALID_DESTINATION,
       })
     ).rejects.toThrow(/viewing key is required/i)
   })
@@ -167,7 +192,6 @@ describe('executeClaim — input validation (regression)', () => {
         txSignature: VALID_TX_SIG,
         viewingKey: VALID_VIEWING_KEY,
         spendingKey: '',
-        destinationWallet: VALID_DESTINATION,
       })
     ).rejects.toThrow(/spending key is required/i)
   })
