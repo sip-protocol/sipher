@@ -205,6 +205,40 @@ describe('wrapExecutorWithGrowthHook', () => {
     expect(call.data.asset).toBeUndefined()
   })
 
+  it('claim emission uses result.signature (claim tx) as data.tx_signature, NOT depositTxSignature', async () => {
+    const DEPOSIT_TX = TX_SIG // existing constant — what we WOULDN'T want as the attribution key
+    const CLAIM_TX = '4HcClaimTxSignaturePlaceholderXXXXXXXXXXXXXXX' // distinct sig — should be the attribution key
+
+    baseExecutor.mockResolvedValue({
+      action: 'claim',
+      status: 'confirmed',
+      depositTxSignature: DEPOSIT_TX,
+      signature: CLAIM_TX,
+      destinationWallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr',
+      amount: '1000000',
+      mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      explorerUrl: `https://solscan.io/tx/${CLAIM_TX}`,
+      message: '...',
+    })
+
+    const wrapped = wrapExecutorWithGrowthHook(baseExecutor, opts)
+    await wrapped('claim', {
+      wallet: WALLET,
+      txSignature: DEPOSIT_TX,
+      viewingKey: 'vk',
+      spendingKey: 'sk',
+      destinationWallet: 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr',
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(emitEventMock).toHaveBeenCalledOnce()
+    const emittedEvent = emitEventMock.mock.calls[0]![0]
+    expect(emittedEvent.eventName).toBe('sipher_private_claim_completed')
+    expect(emittedEvent.data.tx_signature).toBe(CLAIM_TX)
+    // Negative assertion: the deposit-tx-sig must NOT be the attribution key
+    expect(emittedEvent.data.tx_signature).not.toBe(DEPOSIT_TX)
+  })
+
   it('does NOT emit when base executor throws', async () => {
     baseExecutor.mockRejectedValue(new Error('boom'))
     const wrapped = wrapExecutorWithGrowthHook(baseExecutor, opts)
