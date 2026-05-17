@@ -103,3 +103,188 @@ describe('resolveStealthContext — happy path', () => {
     expect(ctx.mint).toBe(MINT_USDC)
   })
 })
+
+describe('resolveStealthContext — happy-path variants', () => {
+  it('handles spl-token-2022 transferChecked', async () => {
+    const mockConnection = {
+      getParsedTransaction: vi
+        .fn()
+        .mockResolvedValue(mockTxWithEventAndSplTransfer({ tokenProgram: 'spl-token-2022' })),
+      getParsedAccountInfo: vi.fn().mockResolvedValue({
+        value: { data: { parsed: { info: { owner: STEALTH_PUBKEY, mint: MINT_USDC } } } },
+      }),
+    } as unknown as Connection
+
+    const ctx = await resolveStealthContext(mockConnection, DEPOSIT_SIG)
+    expect(ctx.stealthAddress).toBe(STEALTH_PUBKEY)
+    expect(ctx.mint).toBe(MINT_USDC)
+  })
+
+  it('finds SPL transferChecked in inner instructions (Jupiter-routed deposit)', async () => {
+    const mockConnection = {
+      getParsedTransaction: vi
+        .fn()
+        .mockResolvedValue(mockTxWithEventAndSplTransfer({ inner: true })),
+      getParsedAccountInfo: vi.fn().mockResolvedValue({
+        value: { data: { parsed: { info: { owner: STEALTH_PUBKEY, mint: MINT_USDC } } } },
+      }),
+    } as unknown as Connection
+
+    const ctx = await resolveStealthContext(mockConnection, DEPOSIT_SIG)
+    expect(ctx.stealthAddress).toBe(STEALTH_PUBKEY)
+    expect(ctx.mint).toBe(MINT_USDC)
+  })
+
+  it('skips PartiallyDecodedInstruction entries when searching for SPL transferChecked', async () => {
+    const splTokenIx = {
+      program: 'spl-token',
+      programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+      parsed: {
+        type: 'transferChecked',
+        info: {
+          destination: STEALTH_ATA,
+          mint: MINT_USDC,
+          tokenAmount: { amount: '1000000', decimals: 6 },
+        },
+      },
+    }
+    const partiallyDecoded = {
+      programId: new PublicKey('ComputeBudget111111111111111111111111111111'),
+      accounts: [],
+      data: 'AwBAQg8AAAAA',
+      // No `program` or `parsed` field — PartiallyDecodedInstruction shape
+    }
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue({
+        transaction: { message: { instructions: [partiallyDecoded, splTokenIx] } },
+        meta: {
+          err: null,
+          logMessages: [programDataLog(buildWithdrawEventBytes({}))],
+          innerInstructions: [],
+        },
+      }),
+      getParsedAccountInfo: vi.fn().mockResolvedValue({
+        value: { data: { parsed: { info: { owner: STEALTH_PUBKEY, mint: MINT_USDC } } } },
+      }),
+    } as unknown as Connection
+
+    const ctx = await resolveStealthContext(mockConnection, DEPOSIT_SIG)
+    expect(ctx.stealthAddress).toBe(STEALTH_PUBKEY)
+  })
+})
+
+describe('resolveStealthContext — error paths', () => {
+  it('throws deposit_not_found when getParsedTransaction returns null', async () => {
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue(null),
+      getParsedAccountInfo: vi.fn(),
+    } as unknown as Connection
+
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      name: 'StealthContextError',
+      code: 'deposit_not_found',
+    })
+  })
+
+  it('throws no_withdraw_event when logMessages has no decodable VaultWithdrawEvent', async () => {
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue({
+        transaction: { message: { instructions: [] } },
+        meta: {
+          err: null,
+          logMessages: [
+            'Program 11111111111111111111111111111111 invoke [1]',
+            'Program 11111111111111111111111111111111 success',
+          ],
+          innerInstructions: [],
+        },
+      }),
+      getParsedAccountInfo: vi.fn(),
+    } as unknown as Connection
+
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'no_withdraw_event',
+    })
+  })
+
+  it('also throws no_withdraw_event when Program data log is present but too short', async () => {
+    const shortBuf = Buffer.alloc(64) // < 194-byte floor
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue({
+        transaction: { message: { instructions: [] } },
+        meta: {
+          err: null,
+          logMessages: [programDataLog(shortBuf)],
+          innerInstructions: [],
+        },
+      }),
+      getParsedAccountInfo: vi.fn(),
+    } as unknown as Connection
+
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'no_withdraw_event',
+    })
+  })
+
+  it('skips zero-filled placeholder events and throws no_withdraw_event if none decodable', async () => {
+    const zeroEphBuf = buildWithdrawEventBytes({ zeroEphemeral: true })
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue({
+        transaction: { message: { instructions: [] } },
+        meta: {
+          err: null,
+          logMessages: [programDataLog(zeroEphBuf)],
+          innerInstructions: [],
+        },
+      }),
+      getParsedAccountInfo: vi.fn(),
+    } as unknown as Connection
+
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'no_withdraw_event',
+    })
+  })
+
+  it('throws no_token_transfer when event exists but no SPL transferChecked', async () => {
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue({
+        transaction: { message: { instructions: [] } },
+        meta: {
+          err: null,
+          logMessages: [programDataLog(buildWithdrawEventBytes({}))],
+          innerInstructions: [],
+        },
+      }),
+      getParsedAccountInfo: vi.fn(),
+    } as unknown as Connection
+
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'no_token_transfer',
+    })
+  })
+
+  it('throws stealth_ata_mismatch when ATA account info has no owner', async () => {
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue(mockTxWithEventAndSplTransfer()),
+      getParsedAccountInfo: vi.fn().mockResolvedValue({ value: null }),
+    } as unknown as Connection
+
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'stealth_ata_mismatch',
+    })
+  })
+
+  it('throws stealth_ata_mismatch when ATA owner differs from event stealth_recipient', async () => {
+    const DIFFERENT_OWNER = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue(mockTxWithEventAndSplTransfer()),
+      getParsedAccountInfo: vi.fn().mockResolvedValue({
+        value: { data: { parsed: { info: { owner: DIFFERENT_OWNER, mint: MINT_USDC } } } },
+      }),
+    } as unknown as Connection
+
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'stealth_ata_mismatch',
+    })
+  })
+})
