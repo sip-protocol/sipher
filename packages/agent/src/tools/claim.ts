@@ -1,13 +1,17 @@
+import { PublicKey } from '@solana/web3.js'
+import { claimStealthPayment, type SolanaClaimResult } from '@sip-protocol/sdk'
+import { createConnection, USDC_MINT } from '@sipher/sdk'
+import { loadNetworkConfig } from '../config/network.js'
+import { resolveStealthContext, StealthContextError } from './claim-helpers.js'
 import type { AnthropicTool } from '../pi/tool-adapter.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Claim tool — Claim a received stealth payment
 //
-// NOTE: Claim uses sip_privacy program's claim_transfer instruction, not
-// sipher_vault. The stealth private key derivation requires the full
-// @sip-protocol/sdk ECDH flow. This is scaffolded for Phase 1 — the tool
-// validates inputs, derives the stealth key concept, and returns the
-// prepared shape. Phase 2 will wire to the real claim_transfer instruction.
+// Delegates ECDH derivation + SPL transfer + broadcast to @sip-protocol/sdk's
+// claimStealthPayment. Stealth context (stealth address, ephemeral pubkey,
+// mint) is resolved from the deposit tx via resolveStealthContext (helper).
+// Returns the claim tx signature for honest Torque attribution.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ClaimParams {
@@ -89,6 +93,70 @@ export async function executeClaim(params: ClaimParams): Promise<ClaimToolResult
     throw new Error('Spending key is required to derive stealth key')
   }
 
-  // Task 4 will replace this stub with the real SDK call.
-  throw new Error('executeClaim Phase 2 not yet wired — Task 4 placeholder')
+  const network = loadNetworkConfig().clusterName
+  const connection = createConnection(network)
+
+  let ctx
+  try {
+    ctx = await resolveStealthContext(connection, params.txSignature)
+  } catch (err) {
+    if (err instanceof StealthContextError) {
+      throw new Error(`Cannot resolve stealth payment: ${err.message}`)
+    }
+    throw err
+  }
+
+  const mintBase58 = params.mint ?? ctx.mint ?? USDC_MINT.toBase58()
+  const destinationAddress = params.destinationWallet ?? deriveDestinationFromSpending(params.spendingKey)
+  const viewingPrivateKey = normalizeKey(params.viewingKey)
+  const spendingPrivateKey = normalizeKey(params.spendingKey)
+
+  let sdkResult: SolanaClaimResult
+  try {
+    sdkResult = await claimStealthPayment({
+      connection,
+      stealthAddress: ctx.stealthAddress,
+      ephemeralPublicKey: ctx.ephemeralPublicKey,
+      viewingPrivateKey,
+      spendingPrivateKey,
+      destinationAddress,
+      mint: new PublicKey(mintBase58),
+    })
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    throw new Error(`Claim broadcast failed: ${detail}`)
+  }
+
+  return {
+    action: 'claim',
+    status: 'confirmed',
+    depositTxSignature: params.txSignature,
+    signature: sdkResult.txSignature,
+    destinationWallet: sdkResult.destinationAddress,
+    amount: sdkResult.amount.toString(),
+    mint: mintBase58,
+    explorerUrl: sdkResult.explorerUrl,
+    message:
+      `Claimed payment ${params.txSignature.slice(0, 12)}... → claim tx ${sdkResult.txSignature.slice(0, 12)}... ` +
+      `(${sdkResult.amount.toString()} units to ${sdkResult.destinationAddress.slice(0, 8)}...)`,
+  }
+}
+
+/** @internal — placeholder until SDK exposes spending pubkey derivation */
+function deriveDestinationFromSpending(spendingKey: string): string {
+  // For Path A initial scope: if user does not provide destinationWallet, throw —
+  // mirroring the existing send tool's pattern. A follow-up PR can derive the
+  // pubkey from the spending privkey, but for the initial ship the destination
+  // is always supplied via the agent's tool input.
+  void spendingKey
+  throw new Error('destinationWallet is required (Path A initial scope — auto-derive in follow-up)')
+}
+
+/** Strip 0x prefix and validate hex shape for SDK consumption. */
+function normalizeKey(key: string): `0x${string}` {
+  const stripped = key.startsWith('0x') ? key.slice(2) : key
+  if (!/^[0-9a-fA-F]+$/.test(stripped)) {
+    throw new Error('Key must be hex (with or without 0x prefix)')
+  }
+  return `0x${stripped.toLowerCase()}` as `0x${string}`
 }

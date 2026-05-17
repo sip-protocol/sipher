@@ -11,7 +11,6 @@ import {
   scanTool,
   executeScan,
   claimTool,
-  executeClaim,
   swapTool,
   executeSwap,
   viewingKeyTool,
@@ -263,13 +262,19 @@ describe('executeTool', () => {
     expect(result).toHaveProperty('action', 'scan')
   })
 
-  it('dispatches to claim', async () => {
-    const result = await executeTool('claim', {
-      txSignature: 'sig123',
-      viewingKey: 'abc',
-      spendingKey: 'def',
-    })
-    expect(result).toHaveProperty('action', 'claim')
+  it('dispatches to claim (routes through executeClaim and resolveStealthContext)', async () => {
+    // executeClaim now delegates to the SDK via resolveStealthContext, which
+    // calls connection.getParsedTransaction. The mocked connection returns
+    // null → StealthContextError('deposit_not_found') → wrapped error here.
+    // The throw confirms the dispatcher routed to executeClaim correctly.
+    await expect(
+      executeTool('claim', {
+        txSignature: 'sig123',
+        viewingKey: 'ab'.repeat(32),
+        spendingKey: 'cd'.repeat(32),
+        destinationWallet: VALID_WALLET,
+      })
+    ).rejects.toThrow(/Cannot resolve stealth payment/i)
   })
 
   it('dispatches to swap', async () => {
@@ -526,57 +531,10 @@ describe('executeScan', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Claim tool
+// Claim tool — unit coverage lives in tests/claim.test.ts (full SDK + helper
+// mock setup). Dispatch routing is exercised by the executeTool dispatcher
+// block above.
 // ─────────────────────────────────────────────────────────────────────────────
-
-describe('executeClaim', () => {
-  const validParams = {
-    txSignature: 'sig123abc456def',
-    viewingKey: 'vk999',
-    spendingKey: 'sk888',
-  }
-
-  it('returns correct result shape', async () => {
-    const result = await executeClaim(validParams)
-    expect(result.action).toBe('claim')
-    expect(result.txSignature).toBe('sig123abc456def')
-    expect(result.status).toBe('awaiting_signature')
-    expect(result.details.stealthKeyDerived).toBe(true)
-    expect(result.details.destinationWallet).toBeNull()
-    expect(result.serializedTx).toBeNull()
-  })
-
-  it('includes destination wallet when provided', async () => {
-    const result = await executeClaim({
-      ...validParams,
-      destinationWallet: VALID_WALLET,
-    })
-    expect(result.details.destinationWallet).toBe(VALID_WALLET)
-  })
-
-  it('message contains truncated signature', async () => {
-    const result = await executeClaim(validParams)
-    expect(result.message).toContain('sig123abc456')
-  })
-
-  it('rejects empty tx signature', async () => {
-    await expect(
-      executeClaim({ ...validParams, txSignature: '' })
-    ).rejects.toThrow('Transaction signature is required')
-  })
-
-  it('rejects empty viewing key', async () => {
-    await expect(
-      executeClaim({ ...validParams, viewingKey: '' })
-    ).rejects.toThrow('Viewing key is required')
-  })
-
-  it('rejects empty spending key', async () => {
-    await expect(
-      executeClaim({ ...validParams, spendingKey: '' })
-    ).rejects.toThrow('Spending key is required')
-  })
-})
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Swap tool
