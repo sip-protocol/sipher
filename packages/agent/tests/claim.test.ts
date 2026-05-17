@@ -33,7 +33,7 @@ vi.mock('@sipher/sdk', async () => {
 
 import { claimTool, executeClaim } from '../src/tools/claim.js'
 import { claimStealthPayment } from '@sip-protocol/sdk'
-import { resolveStealthContext } from '../src/tools/claim-helpers.js'
+import { resolveStealthContext, StealthContextError } from '../src/tools/claim-helpers.js'
 
 const VALID_TX_SIG = '5' + 'a'.repeat(87)
 const VALID_VIEWING_KEY = 'ab'.repeat(32)
@@ -170,5 +170,59 @@ describe('executeClaim — input validation (regression)', () => {
         destinationWallet: VALID_DESTINATION,
       })
     ).rejects.toThrow(/spending key is required/i)
+  })
+})
+
+describe('executeClaim — error paths', () => {
+  it('wraps StealthContextError in actionable error', async () => {
+    vi.mocked(resolveStealthContext).mockRejectedValue(
+      new StealthContextError('Deposit transaction 5aaaaaa... not found on chain', 'deposit_not_found'),
+    )
+
+    await expect(
+      executeClaim({
+        txSignature: VALID_TX_SIG,
+        viewingKey: VALID_VIEWING_KEY,
+        spendingKey: VALID_SPENDING_KEY,
+        destinationWallet: VALID_DESTINATION,
+      }),
+    ).rejects.toThrow(/Cannot resolve stealth payment/i)
+  })
+
+  it('wraps SDK broadcast errors in actionable error', async () => {
+    vi.mocked(resolveStealthContext).mockResolvedValue({
+      stealthAddress: STEALTH_ADDR,
+      ephemeralPublicKey: EPHEMERAL_PUBKEY,
+      mint: MINT_USDC,
+    })
+    vi.mocked(claimStealthPayment).mockRejectedValue(
+      new Error('Stealth key derivation failed: derived private key does not produce expected public key'),
+    )
+
+    await expect(
+      executeClaim({
+        txSignature: VALID_TX_SIG,
+        viewingKey: VALID_VIEWING_KEY,
+        spendingKey: VALID_SPENDING_KEY,
+        destinationWallet: VALID_DESTINATION,
+      }),
+    ).rejects.toThrow(/Claim broadcast failed:.*Stealth key derivation failed/i)
+  })
+
+  it('rejects non-hex viewing key', async () => {
+    vi.mocked(resolveStealthContext).mockResolvedValue({
+      stealthAddress: STEALTH_ADDR,
+      ephemeralPublicKey: EPHEMERAL_PUBKEY,
+      mint: MINT_USDC,
+    })
+
+    await expect(
+      executeClaim({
+        txSignature: VALID_TX_SIG,
+        viewingKey: 'this-is-not-hex',
+        spendingKey: VALID_SPENDING_KEY,
+        destinationWallet: VALID_DESTINATION,
+      }),
+    ).rejects.toThrow(/key must be hex/i)
   })
 })
