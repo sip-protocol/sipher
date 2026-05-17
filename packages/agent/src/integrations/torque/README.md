@@ -125,7 +125,7 @@ Users who want zero attribution leakage should set `TORQUE_GROWTH_ENABLED=false`
 |---|---|---|---|
 | `send` (chat-driven) | `sipher_private_send_completed` | Yes (since sipher#262) | Fires after SignTxCard callback `/api/tool-signing/:flagId/confirm` |
 | `swap` (chat-driven) | `sipher_private_swap_completed` | Yes (since sipher#262) | Same flow as send; includes `amount_lamports` + `asset` |
-| `claim` (chat-driven) | `sipher_private_claim_completed` | Partial | Uses input deposit-tx-signature as the emission key. Proper fix tracked in the claim Phase 2 follow-up. |
+| `claim` (chat-driven) | `sipher_private_claim_completed` | Yes (Path A) | Uses the CLAIM tx signature (`result.signature`) as the emission key, distinct from the input deposit-tx-signature (`result.depositTxSignature`). |
 | `drip`, `splitSend`, `sweep`, `consolidate`, `recurring`, `scheduleSend` | `sipher_private_drip_completed`, `sipher_private_split_send_completed`, etc. | No | Scheduled-op broadcasts not yet wired. Needs wallet-delegation or pre-signed-batch design — separate follow-up. |
 | `deposit`, `refund` | — | No | Routed through `DepositView` / `WithdrawView` dedicated UIs, not the chat path. |
 
