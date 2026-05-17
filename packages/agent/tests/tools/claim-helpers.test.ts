@@ -1,8 +1,10 @@
 import { Buffer } from 'node:buffer'
 import { describe, it, expect, vi } from 'vitest'
 import { Keypair, PublicKey, type Connection } from '@solana/web3.js'
+import { WSOL_MINT, USDC_MINT, USDT_MINT } from '@sipher/sdk'
 import {
   deriveDestinationFromSpending,
+  formatClaimAmount,
   resolveStealthContext,
   StealthContextError,
 } from '../../src/tools/claim-helpers.js'
@@ -334,5 +336,34 @@ describe('deriveDestinationFromSpending', () => {
     expect(() => deriveDestinationFromSpending('ab'.repeat(16))).toThrow(
       /spending key must be 32-byte hex/i,
     )
+  })
+})
+
+describe('formatClaimAmount', () => {
+  // Freshly generated via `Keypair.generate().publicKey.toBase58()` — guaranteed valid base58.
+  const SYNTHETIC = 'ApBEQDhQV5nqctbUw5Qr34FvJaiovrirkWZxWqwWE2Pw'
+
+  it('formats SOL (9 decimals) with "SOL" symbol (not WSOL)', () => {
+    expect(formatClaimAmount(1_500_000_000n, WSOL_MINT.toBase58())).toBe('1.5 SOL')
+  })
+
+  it('formats USDC (6 decimals) without trailing .0 for whole-number amounts', () => {
+    expect(formatClaimAmount(1_000_000n, USDC_MINT.toBase58())).toBe('1 USDC')
+  })
+
+  it('formats USDT (6 decimals)', () => {
+    expect(formatClaimAmount(2_500_000n, USDT_MINT.toBase58())).toBe('2.5 USDT')
+  })
+
+  it('formats unknown SPL mints with short prefix-suffix and default 9 decimals', () => {
+    const prefix = SYNTHETIC.slice(0, 4)
+    const suffix = SYNTHETIC.slice(-4)
+    expect(formatClaimAmount(1_000_000_000n, SYNTHETIC)).toBe(`1 ${prefix}...${suffix}`)
+  })
+
+  it('handles fractional amounts for unknown mints', () => {
+    const prefix = SYNTHETIC.slice(0, 4)
+    const suffix = SYNTHETIC.slice(-4)
+    expect(formatClaimAmount(1_000_000n, SYNTHETIC)).toBe(`0.001 ${prefix}...${suffix}`)
   })
 })
