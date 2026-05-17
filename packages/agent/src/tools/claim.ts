@@ -14,29 +14,41 @@ export interface ClaimParams {
   txSignature: string
   viewingKey: string
   spendingKey: string
+  /** Optional destination wallet (base58). Defaults to the spending pubkey. */
   destinationWallet?: string
+  /**
+   * Optional SPL token mint (base58). If omitted, the mint is resolved from
+   * the deposit transaction. Provide explicitly when you already know it
+   * (e.g. from a prior scan result) to skip the on-chain lookup.
+   */
+  mint?: string
 }
 
 export interface ClaimToolResult {
   action: 'claim'
-  txSignature: string
-  status: 'awaiting_signature'
+  status: 'confirmed'
+  /** The input deposit-tx signature (for traceability). */
+  depositTxSignature: string
+  /** The CLAIM tx signature — growth-hook reads this as the Torque attribution key. */
+  signature: string
+  /** Base58 destination wallet that received the funds. */
+  destinationWallet: string
+  /** Claimed amount in the token's smallest unit, stringified to avoid BigInt JSON issues. */
+  amount: string
+  /** Base58 SPL token mint. */
+  mint: string
+  /** Explorer URL for the claim transaction. */
+  explorerUrl: string
+  /** Human-readable summary for the chat UX. */
   message: string
-  /** Base64-serialized unsigned transaction (null until Phase 2 integration) */
-  serializedTx: string | null
-  details: {
-    stealthKeyDerived: boolean
-    destinationWallet: string | null
-    note: string
-  }
 }
 
 export const claimTool: AnthropicTool = {
   name: 'claim',
   description:
     'Claim a received stealth payment found by the scan tool. ' +
-    'Derives the stealth private key from your viewing+spending keys and builds a claim transaction. ' +
-    'The claimed tokens are sent to your destination wallet.',
+    'Derives the stealth private key from your viewing+spending keys, ' +
+    'transfers the tokens to your destination wallet, and returns the claim tx signature.',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -56,6 +68,11 @@ export const claimTool: AnthropicTool = {
         type: 'string',
         description: 'Wallet address (base58) to receive claimed tokens. Defaults to the spending pubkey.',
       },
+      mint: {
+        type: 'string',
+        description:
+          'Optional SPL token mint (base58). If omitted, the mint is resolved from the deposit transaction.',
+      },
     },
     required: ['txSignature', 'viewingKey', 'spendingKey'],
   },
@@ -65,31 +82,13 @@ export async function executeClaim(params: ClaimParams): Promise<ClaimToolResult
   if (!params.txSignature || params.txSignature.trim().length === 0) {
     throw new Error('Transaction signature is required')
   }
-
   if (!params.viewingKey || params.viewingKey.trim().length === 0) {
     throw new Error('Viewing key is required to derive stealth key')
   }
-
   if (!params.spendingKey || params.spendingKey.trim().length === 0) {
     throw new Error('Spending key is required to derive stealth key')
   }
 
-  // Phase 1: Return the prepared shape. The actual claim_transfer instruction
-  // building requires @sip-protocol/sdk's ECDH derivation to compute the
-  // stealth private key from ephemeralPubkey + viewingKey + spendingKey.
-  // That wiring happens in Phase 2 when the full claim flow is implemented.
-  return {
-    action: 'claim',
-    txSignature: params.txSignature,
-    status: 'awaiting_signature',
-    message:
-      `Claim prepared for payment ${params.txSignature.slice(0, 12)}... ` +
-      `Stealth key derived. Awaiting signature to transfer tokens to your wallet.`,
-    serializedTx: null,
-    details: {
-      stealthKeyDerived: true,
-      destinationWallet: params.destinationWallet ?? null,
-      note: 'The stealth private key is ephemeral — it exists only for this claim and is never stored.',
-    },
-  }
+  // Task 4 will replace this stub with the real SDK call.
+  throw new Error('executeClaim Phase 2 not yet wired — Task 4 placeholder')
 }
