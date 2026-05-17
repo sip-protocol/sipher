@@ -54,10 +54,11 @@ describe('claimTool definition', () => {
       'txSignature',
       'viewingKey',
       'spendingKey',
+      'destinationWallet',
     ])
   })
 
-  it('declares optional destinationWallet and mint fields', () => {
+  it('declares destinationWallet and mint properties', () => {
     expect(claimTool.input_schema.properties).toHaveProperty('destinationWallet')
     expect(claimTool.input_schema.properties).toHaveProperty('mint')
   })
@@ -133,6 +134,7 @@ describe('executeClaim — input validation (regression)', () => {
         txSignature: '',
         viewingKey: VALID_VIEWING_KEY,
         spendingKey: VALID_SPENDING_KEY,
+        destinationWallet: VALID_DESTINATION,
       })
     ).rejects.toThrow(/transaction signature is required/i)
   })
@@ -143,6 +145,7 @@ describe('executeClaim — input validation (regression)', () => {
         txSignature: '   ',
         viewingKey: VALID_VIEWING_KEY,
         spendingKey: VALID_SPENDING_KEY,
+        destinationWallet: VALID_DESTINATION,
       })
     ).rejects.toThrow(/transaction signature is required/i)
   })
@@ -153,6 +156,7 @@ describe('executeClaim — input validation (regression)', () => {
         txSignature: VALID_TX_SIG,
         viewingKey: '',
         spendingKey: VALID_SPENDING_KEY,
+        destinationWallet: VALID_DESTINATION,
       })
     ).rejects.toThrow(/viewing key is required/i)
   })
@@ -163,6 +167,7 @@ describe('executeClaim — input validation (regression)', () => {
         txSignature: VALID_TX_SIG,
         viewingKey: VALID_VIEWING_KEY,
         spendingKey: '',
+        destinationWallet: VALID_DESTINATION,
       })
     ).rejects.toThrow(/spending key is required/i)
   })

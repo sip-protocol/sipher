@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js'
 import { claimStealthPayment, type SolanaClaimResult } from '@sip-protocol/sdk'
-import { createConnection, USDC_MINT } from '@sipher/sdk'
+import { createConnection } from '@sipher/sdk'
 import { loadNetworkConfig } from '../config/network.js'
 import { resolveStealthContext, StealthContextError } from './claim-helpers.js'
 import type { AnthropicTool } from '../pi/tool-adapter.js'
@@ -18,8 +18,8 @@ export interface ClaimParams {
   txSignature: string
   viewingKey: string
   spendingKey: string
-  /** Optional destination wallet (base58). Defaults to the spending pubkey. */
-  destinationWallet?: string
+  /** Destination wallet (base58) to receive claimed tokens. */
+  destinationWallet: string
   /**
    * Optional SPL token mint (base58). If omitted, the mint is resolved from
    * the deposit transaction. Provide explicitly when you already know it
@@ -62,15 +62,15 @@ export const claimTool: AnthropicTool = {
       },
       viewingKey: {
         type: 'string',
-        description: 'Your viewing private key (hex or base58)',
+        description: 'Your viewing private key (hex, with or without 0x prefix)',
       },
       spendingKey: {
         type: 'string',
-        description: 'Your spending private key (hex or base58). Used to derive the stealth key.',
+        description: 'Your spending private key (hex, with or without 0x prefix). Used to derive the stealth key.',
       },
       destinationWallet: {
         type: 'string',
-        description: 'Wallet address (base58) to receive claimed tokens. Defaults to the spending pubkey.',
+        description: 'Wallet address (base58) to receive claimed tokens. Required (auto-derive from spending pubkey is a planned follow-up).',
       },
       mint: {
         type: 'string',
@@ -78,7 +78,7 @@ export const claimTool: AnthropicTool = {
           'Optional SPL token mint (base58). If omitted, the mint is resolved from the deposit transaction.',
       },
     },
-    required: ['txSignature', 'viewingKey', 'spendingKey'],
+    required: ['txSignature', 'viewingKey', 'spendingKey', 'destinationWallet'],
   },
 }
 
@@ -106,8 +106,11 @@ export async function executeClaim(params: ClaimParams): Promise<ClaimToolResult
     throw err
   }
 
-  const mintBase58 = params.mint ?? ctx.mint ?? USDC_MINT.toBase58()
-  const destinationAddress = params.destinationWallet ?? deriveDestinationFromSpending(params.spendingKey)
+  const mintBase58 = params.mint ?? ctx.mint
+  if (!mintBase58) {
+    throw new Error('Internal: resolveStealthContext returned no mint and no override was provided')
+  }
+  const destinationAddress = params.destinationWallet
   const viewingPrivateKey = normalizeKey(params.viewingKey)
   const spendingPrivateKey = normalizeKey(params.spendingKey)
 
@@ -140,16 +143,6 @@ export async function executeClaim(params: ClaimParams): Promise<ClaimToolResult
       `Claimed payment ${params.txSignature.slice(0, 12)}... → claim tx ${sdkResult.txSignature.slice(0, 12)}... ` +
       `(${sdkResult.amount.toString()} units to ${sdkResult.destinationAddress.slice(0, 8)}...)`,
   }
-}
-
-/** @internal — placeholder until SDK exposes spending pubkey derivation */
-function deriveDestinationFromSpending(spendingKey: string): string {
-  // For Path A initial scope: if user does not provide destinationWallet, throw —
-  // mirroring the existing send tool's pattern. A follow-up PR can derive the
-  // pubkey from the spending privkey, but for the initial ship the destination
-  // is always supplied via the agent's tool input.
-  void spendingKey
-  throw new Error('destinationWallet is required (Path A initial scope — auto-derive in follow-up)')
 }
 
 /** Strip 0x prefix and validate hex shape for SDK consumption. */
