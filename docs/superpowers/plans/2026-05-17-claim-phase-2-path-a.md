@@ -4,9 +4,11 @@
 
 **Goal:** Replace the Phase 1 claim stub with a real, end-to-end SDK-driven claim flow so `sipher_private_claim_completed` Torque events fire with the actual claim transaction signature instead of the deposit transaction signature.
 
-**Architecture:** Delegate cryptography and broadcast to `@sip-protocol/sdk`'s `claimStealthPayment(params)` primitive, which derives the stealth private key via ECDH, builds an SPL transfer from the stealth ATA to the recipient's destination ATA, signs as the stealth keypair (paying fees from the stealth address's SOL balance), and broadcasts in one server-side call. Sipher's `executeClaim` resolves the stealth context (stealth address, ephemeral public key, mint) from the deposit transaction via `getParsedTransaction`, then hands off to the SDK. A new `signature` field on `ClaimToolResult` carries the claim transaction signature; the existing growth-hook `extractTxSignature` already prefers `signature` over `txSignature` (growth-hook.ts:104), so attribution becomes correct without touching the hook.
+**Architecture:** Delegate cryptography and broadcast to `@sip-protocol/sdk`'s `claimStealthPayment(params)` primitive, which derives the stealth private key via ECDH, builds an SPL transfer from the stealth ATA to the recipient's destination ATA, signs as the stealth keypair (paying fees from the stealth address's SOL balance), and broadcasts in one server-side call. Sipher's `executeClaim` resolves the stealth context (stealth address, ephemeral public key, mint) from the deposit transaction by parsing the Anchor `VaultWithdrawEvent` emitted by `sipher_vault`'s `withdraw_private` instruction (mirroring sipher's own `scanForPayments` at `packages/sdk/src/privacy.ts:300-454`), plus finding the SPL `transferChecked` instruction (top-level + inner — to cover Jupiter swap routes — across both `spl-token` and `spl-token-2022`). It then hands off to the SDK. A new `signature` field on `ClaimToolResult` carries the claim transaction signature; the existing growth-hook `extractTxSignature` already prefers `signature` over `txSignature` (growth-hook.ts:104), so attribution becomes correct without touching the hook.
 
-**Tech Stack:** TypeScript (strict, NodeNext ESM with .js suffixes), @sip-protocol/sdk@^0.7.4 (`claimStealthPayment`, `parseAnnouncement`, `SolanaClaimResult`), @sipher/sdk (workspace) for `createConnection` + `USDC_MINT` + `resolveTokenMint`, @solana/web3.js (`Connection`, `PublicKey`, `getParsedTransaction`), vitest 3.x with `vi.mock` for SDK isolation.
+**Tech Stack:** TypeScript (strict, NodeNext ESM with .js suffixes), @sip-protocol/sdk@^0.7.4 (`claimStealthPayment`, `SolanaClaimResult`), @sipher/sdk (workspace) for `createConnection` + `USDC_MINT`, @solana/web3.js (`Connection`, `PublicKey`, `getParsedTransaction`, `ParsedInstruction`), vitest 3.x with `vi.mock` for SDK isolation, Node `Buffer` for VaultWithdrawEvent byte parsing.
+
+**Plan revision note (2026-05-17):** Original plan assumed sipher's deposits emit an `spl-memo` instruction with `SIP:1:<eph>:<vt>` format (matching the SDK's standalone `sendStealthPayment` flow). Code review caught that sipher's actual production flow uses the vault's `withdraw_private` instruction which emits the announcement as an Anchor `VaultWithdrawEvent` in `tx.meta.logMessages` — there is no SPL memo. This revision rewrites Tasks 1 + 2 to parse the event-log format that sipher's own `scanForPayments` already uses (single source of truth for both scan AND claim event parsing). Reviewer also flagged `spl-token-2022` and inner-instruction support gaps; both are addressed in this revision.
 
 **Spec reference:** `docs/superpowers/specs/2026-05-15-claim-phase-2-design.md` — specifically the "Amendment — SDK reality check" section (lines 300–420) which documents Path A's scope and trade-offs.
 
@@ -15,7 +17,7 @@
 ## File Structure
 
 **Create:**
-- `packages/agent/src/tools/claim-helpers.ts` — pure async helpers for stealth-context resolution and destination/mint resolution. Pure functions where possible; the one IO call (`resolveStealthContext`) accepts an injected `Connection` so tests can mock it. No persistent state, no top-level side effects.
+- `packages/agent/src/tools/claim-helpers.ts` — pure async helpers for stealth-context resolution from sipher's `VaultWithdrawEvent` log + SPL `transferChecked` instruction (top-level OR inner, `spl-token` OR `spl-token-2022`). Two IO calls (`getParsedTransaction` + `getParsedAccountInfo`) accept an injected `Connection` so tests can mock them. No persistent state, no top-level side effects.
 - `packages/agent/tests/tools/claim-helpers.test.ts` — vitest suite covering the three helpers' happy + error paths.
 
 **Modify:**
@@ -53,7 +55,9 @@ Expected: typecheck clean, all 1602 agent tests pass.
 
 ## Task 1: Add `resolveStealthContext` helper (RED → GREEN)
 
-Resolves the deposit transaction into the stealth address + ephemeral public key + mint needed by the SDK's claim primitive. Pure async — accepts injected `Connection`, makes one `getParsedTransaction` call, parses the result.
+Resolves the deposit transaction into the stealth address + ephemeral public key + mint needed by the SDK's claim primitive. Reads sipher's `VaultWithdrawEvent` from the tx's `meta.logMessages` (mirroring `packages/sdk/src/privacy.ts:300-454`), then finds the SPL `transferChecked` instruction (top-level or inner, `spl-token` or `spl-token-2022`) for mint + stealth ATA. Sanity-checks the stealth ATA owner matches the event's stealth_recipient.
+
+**Why this shape:** Sipher's `withdraw_private` flow does NOT emit an SPL memo. It emits an Anchor `VaultWithdrawEvent` (layout in `parseWithdrawEvent` at `packages/sdk/src/privacy.ts:413-454`). The same parser is used here for symmetry with sipher's `scan` tool — one source of truth for event-decode logic.
 
 **Files:**
 - Create: `packages/agent/src/tools/claim-helpers.ts`
@@ -64,8 +68,9 @@ Resolves the deposit transaction into the stealth address + ephemeral public key
 Create `packages/agent/tests/tools/claim-helpers.test.ts`:
 
 ```ts
+import { Buffer } from 'node:buffer'
 import { describe, it, expect, vi } from 'vitest'
-import type { Connection } from '@solana/web3.js'
+import { PublicKey, type Connection } from '@solana/web3.js'
 import { resolveStealthContext, StealthContextError } from '../../src/tools/claim-helpers.js'
 
 const DEPOSIT_SIG =
@@ -75,39 +80,87 @@ const EPHEMERAL_PUBKEY = 'GqvBwYTWWZRyDQ4ZeNvFLgfbA8wYjBvE6cKxFQXjHvSr'
 const STEALTH_ATA = 'AfPXfQs5MNJyEnUYvxRJ6BHwQNyKqJVE9Y3CDbHwfXVc'
 const MINT_USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 
-function mockTxWithMemoAndSplTransfer() {
+/**
+ * Build a synthetic VaultWithdrawEvent buffer matching the on-chain layout
+ * documented at packages/sdk/src/privacy.ts:401-411. Total 194 bytes (minimum).
+ */
+function buildWithdrawEventBytes(opts: {
+  stealthBs58?: string
+  ephemeralBs58?: string
+  zeroEphemeral?: boolean
+}): Buffer {
+  const buf = Buffer.alloc(194)
+  // [0, 8)  — Anchor event discriminator (arbitrary bytes; sipher doesn't validate)
+  buf.write('0011223344556677', 0, 'hex')
+  // [8, 40) — depositor (zeros, not used by resolver)
+  // [40, 72) — stealth_recipient
+  const stealth = new PublicKey(opts.stealthBs58 ?? STEALTH_PUBKEY).toBytes()
+  Buffer.from(stealth).copy(buf, 40)
+  // [72, 105) — amount_commitment (zeros)
+  // [105, 138) — ephemeral_pubkey: 0x00 prefix + 32-byte ed25519 (per privacy.ts:339-341)
+  buf[105] = 0x00
+  if (opts.zeroEphemeral) {
+    // intentionally leave [106..138] as zeros — should be skipped by resolver
+  } else {
+    const eph = new PublicKey(opts.ephemeralBs58 ?? EPHEMERAL_PUBKEY).toBytes()
+    Buffer.from(eph).copy(buf, 106)
+  }
+  // [138, 170) — viewing_key_hash (zeros)
+  // [170, 178) — transfer_amount (zeros)
+  // [178, 186) — fee_amount (zeros)
+  // [186, 194) — timestamp (zeros)
+  return buf
+}
+
+function programDataLog(eventBytes: Buffer): string {
+  return `Program data: ${eventBytes.toString('base64')}`
+}
+
+/**
+ * Synthesize a parsed-tx response shape matching @solana/web3.js's
+ * `ParsedTransactionWithMeta` for unit testing. Real responses contain
+ * many more fields; the resolver only reads the keys touched below.
+ */
+function mockTxWithEventAndSplTransfer(opts: { tokenProgram?: 'spl-token' | 'spl-token-2022'; inner?: boolean } = {}) {
+  const tokenProgram = opts.tokenProgram ?? 'spl-token'
+  const splTokenIx = {
+    program: tokenProgram,
+    programId: new PublicKey(
+      tokenProgram === 'spl-token-2022'
+        ? 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
+        : 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+    ),
+    parsed: {
+      type: 'transferChecked',
+      info: {
+        destination: STEALTH_ATA,
+        mint: MINT_USDC,
+        tokenAmount: { amount: '1000000', decimals: 6 },
+      },
+    },
+  }
   return {
     transaction: {
       message: {
-        instructions: [
-          {
-            program: 'spl-memo',
-            programId: { toString: () => 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr' },
-            parsed: `SIP:1:${EPHEMERAL_PUBKEY}:a3`,
-          },
-          {
-            program: 'spl-token',
-            programId: { toString: () => 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
-            parsed: {
-              type: 'transferChecked',
-              info: {
-                destination: STEALTH_ATA,
-                mint: MINT_USDC,
-                tokenAmount: { amount: '1000000', decimals: 6 },
-              },
-            },
-          },
-        ],
+        instructions: opts.inner ? [] : [splTokenIx],
       },
     },
-    meta: { err: null },
+    meta: {
+      err: null,
+      logMessages: [
+        'Program S1Phr5rmDfkZTyLXzH5qUHeiqZS3Uf517SQzRbU4kHB invoke [1]',
+        programDataLog(buildWithdrawEventBytes({})),
+        'Program S1Phr5rmDfkZTyLXzH5qUHeiqZS3Uf517SQzRbU4kHB success',
+      ],
+      innerInstructions: opts.inner ? [{ index: 0, instructions: [splTokenIx] }] : [],
+    },
   }
 }
 
 describe('resolveStealthContext — happy path', () => {
-  it('returns stealth address, ephemeral pubkey, and mint from a parsed deposit', async () => {
+  it('returns stealth address, ephemeral pubkey, and mint from a VaultWithdrawEvent log + top-level SPL transfer', async () => {
     const mockConnection = {
-      getParsedTransaction: vi.fn().mockResolvedValue(mockTxWithMemoAndSplTransfer()),
+      getParsedTransaction: vi.fn().mockResolvedValue(mockTxWithEventAndSplTransfer()),
       getParsedAccountInfo: vi.fn().mockResolvedValue({
         value: { data: { parsed: { info: { owner: STEALTH_PUBKEY, mint: MINT_USDC } } } },
       }),
@@ -133,17 +186,22 @@ Expected: FAIL with `Cannot find module '../../src/tools/claim-helpers.js'`.
 Create `packages/agent/src/tools/claim-helpers.ts`:
 
 ```ts
-import { PublicKey, type Connection } from '@solana/web3.js'
+import { Buffer } from 'node:buffer'
+import {
+  PublicKey,
+  type Connection,
+  type ParsedInstruction,
+  type PartiallyDecodedInstruction,
+} from '@solana/web3.js'
 
 export class StealthContextError extends Error {
   constructor(
     message: string,
     public readonly code:
       | 'deposit_not_found'
-      | 'no_announcement_memo'
-      | 'invalid_announcement'
+      | 'no_withdraw_event'
       | 'no_token_transfer'
-      | 'stealth_ata_unreadable',
+      | 'stealth_ata_mismatch',
   ) {
     super(message)
     this.name = 'StealthContextError'
@@ -151,18 +209,34 @@ export class StealthContextError extends Error {
 }
 
 export interface StealthContext {
-  /** Base58-encoded stealth pubkey (owner of the stealth ATA). */
+  /** Base58-encoded stealth pubkey (must equal the stealth ATA's owner). */
   stealthAddress: string
-  /** Base58-encoded ephemeral pubkey parsed from the announcement memo. */
+  /** Base58-encoded ephemeral pubkey (32 bytes, 0x00 prefix already stripped). */
   ephemeralPublicKey: string
   /** Base58-encoded SPL token mint of the stealth ATA. */
   mint: string
 }
 
+const PROGRAM_DATA_PREFIX = 'Program data: '
+/**
+ * Minimum VaultWithdrawEvent bytes:
+ * 8 (disc) + 32 (depositor) + 32 (stealth) + 33 (commitment) + 33 (ephemeral)
+ *  + 32 (vk_hash) + 8 (amount) + 8 (fee) + 8 (ts) = 194
+ */
+const WITHDRAW_EVENT_MIN_BYTES = 194
+const SPL_TOKEN_PROGRAMS = new Set(['spl-token', 'spl-token-2022'])
+
+function isParsedInstruction(
+  ix: ParsedInstruction | PartiallyDecodedInstruction,
+): ix is ParsedInstruction {
+  return 'program' in ix && 'parsed' in ix
+}
+
 /**
  * Resolves a deposit transaction signature into the cryptographic context
- * needed by `claimStealthPayment`. One RPC call (getParsedTransaction)
- * plus optional account lookup for the stealth ATA owner.
+ * needed by `claimStealthPayment`. Two RPC calls: one `getParsedTransaction`
+ * (to read the VaultWithdrawEvent log + SPL transfer instruction) and one
+ * `getParsedAccountInfo` (to sanity-check the stealth ATA's owner).
  */
 export async function resolveStealthContext(
   connection: Connection,
@@ -180,71 +254,117 @@ export async function resolveStealthContext(
     )
   }
 
-  const instructions = tx.transaction.message.instructions
-  const memoIx = instructions.find(
-    (ix): ix is typeof ix & { parsed: string } =>
-      'program' in ix && ix.program === 'spl-memo' && typeof (ix as { parsed?: unknown }).parsed === 'string',
-  )
-  if (!memoIx) {
+  const event = parseWithdrawEventFromLogs(tx.meta?.logMessages ?? [])
+  if (!event) {
     throw new StealthContextError(
-      `No announcement memo in deposit ${depositTxSignature.slice(0, 12)}...`,
-      'no_announcement_memo',
+      `No VaultWithdrawEvent in deposit ${depositTxSignature.slice(0, 12)}... — is this a sipher private send?`,
+      'no_withdraw_event',
     )
   }
 
-  const announcement = parseAnnouncementMemo(memoIx.parsed)
-  if (!announcement) {
-    throw new StealthContextError(
-      `Announcement memo is malformed: ${memoIx.parsed.slice(0, 32)}...`,
-      'invalid_announcement',
-    )
-  }
+  const topLevel = tx.transaction.message.instructions
+  const inner = (tx.meta?.innerInstructions ?? []).flatMap((g) => g.instructions)
+  const allInstructions: ReadonlyArray<ParsedInstruction | PartiallyDecodedInstruction> = [
+    ...topLevel,
+    ...inner,
+  ]
 
-  const tokenIx = instructions.find(
-    (ix): ix is typeof ix & { parsed: { type: string; info: { destination: string; mint: string } } } =>
-      'program' in ix &&
-      ix.program === 'spl-token' &&
-      typeof (ix as { parsed?: { type?: string } }).parsed === 'object' &&
-      (ix as { parsed?: { type?: string } }).parsed?.type === 'transferChecked',
-  )
+  const tokenIx = allInstructions.filter(isParsedInstruction).find((ix) => {
+    if (!SPL_TOKEN_PROGRAMS.has(ix.program)) return false
+    const parsed = ix.parsed as { type?: string; info?: unknown } | string | null
+    if (typeof parsed !== 'object' || parsed === null) return false
+    if (parsed.type !== 'transferChecked') return false
+    if (typeof parsed.info !== 'object' || parsed.info === null) return false
+    return true
+  })
   if (!tokenIx) {
     throw new StealthContextError(
-      `No SPL token transfer instruction in deposit ${depositTxSignature.slice(0, 12)}...`,
+      `No SPL transferChecked instruction in deposit ${depositTxSignature.slice(0, 12)}...`,
       'no_token_transfer',
     )
   }
 
-  const stealthATA = tokenIx.parsed.info.destination
-  const mint = tokenIx.parsed.info.mint
+  const tokenInfo = (tokenIx.parsed as { info: { destination?: unknown; mint?: unknown } }).info
+  const stealthATA = typeof tokenInfo.destination === 'string' ? tokenInfo.destination : null
+  const mint = typeof tokenInfo.mint === 'string' ? tokenInfo.mint : null
+  if (!stealthATA || !mint) {
+    throw new StealthContextError(
+      `SPL transferChecked missing destination or mint in deposit ${depositTxSignature.slice(0, 12)}...`,
+      'no_token_transfer',
+    )
+  }
 
   const ataInfo = await connection.getParsedAccountInfo(new PublicKey(stealthATA))
-  const parsed = (ataInfo?.value?.data as { parsed?: { info?: { owner?: string } } } | undefined)?.parsed
-  const stealthAddress = parsed?.info?.owner
-  if (!stealthAddress) {
+  const ataData = ataInfo?.value?.data
+  const ataOwner =
+    ataData && typeof ataData === 'object' && 'parsed' in ataData
+      ? ((ataData.parsed as { info?: { owner?: unknown } } | undefined)?.info?.owner ?? null)
+      : null
+  if (typeof ataOwner !== 'string') {
     throw new StealthContextError(
-      `Stealth ATA ${stealthATA.slice(0, 12)}... is unreadable or not a token account`,
-      'stealth_ata_unreadable',
+      `Stealth ATA ${stealthATA.slice(0, 12)}... is unreadable or not a parsed token account`,
+      'stealth_ata_mismatch',
+    )
+  }
+  if (ataOwner !== event.stealthAddress) {
+    throw new StealthContextError(
+      `Stealth ATA owner ${ataOwner.slice(0, 12)}... does not match VaultWithdrawEvent stealth_recipient ${event.stealthAddress.slice(0, 12)}...`,
+      'stealth_ata_mismatch',
     )
   }
 
   return {
-    stealthAddress,
-    ephemeralPublicKey: announcement.ephemeralPublicKey,
+    stealthAddress: event.stealthAddress,
+    ephemeralPublicKey: event.ephemeralPublicKey,
     mint,
   }
 }
 
-function parseAnnouncementMemo(memo: string): { ephemeralPublicKey: string } | null {
-  // Format: SIP:1:<ephemeral_pubkey_base58>:<view_tag_hex>
-  const parts = memo.split(':')
-  if (parts.length !== 4) return null
-  if (parts[0] !== 'SIP' || parts[1] !== '1') return null
-  if (!parts[2] || parts[2].length < 32) return null
-  return { ephemeralPublicKey: parts[2] }
+interface WithdrawEvent {
+  stealthAddress: string
+  ephemeralPublicKey: string
+}
+
+/**
+ * Parses the first decode-able VaultWithdrawEvent out of `Program data: <b64>`
+ * log lines. Mirrors `parseWithdrawEvent` in packages/sdk/src/privacy.ts:413-454
+ * (no discriminator check — matches sipher's scan behavior; relies on the
+ * 194-byte length floor and the downstream ATA-owner equality check to
+ * filter spurious decodes).
+ */
+function parseWithdrawEventFromLogs(logs: string[]): WithdrawEvent | null {
+  for (const log of logs) {
+    if (!log.startsWith(PROGRAM_DATA_PREFIX)) continue
+    const b64 = log.slice(PROGRAM_DATA_PREFIX.length).trim()
+    if (!b64) continue
+    let data: Buffer
+    try {
+      data = Buffer.from(b64, 'base64')
+    } catch {
+      continue
+    }
+    if (data.length < WITHDRAW_EVENT_MIN_BYTES) continue
+    try {
+      // Layout (after 8-byte discriminator): depositor[32] | stealth[32]
+      //   | commitment[33] | ephemeral[33] | vk_hash[32] | amount[8] | fee[8] | ts[8]
+      const stealthBytes = data.subarray(40, 72)
+      const stealthAddress = new PublicKey(stealthBytes).toBase58()
+      // Ephemeral is 33 bytes (0x00 prefix + 32-byte ed25519); strip prefix.
+      const ephRaw = data[105] === 0x00 ? data.subarray(106, 138) : data.subarray(105, 137)
+      if (ephRaw.length !== 32) continue
+      // Skip pre-integration placeholder events with zero-filled ephemeral.
+      if (ephRaw.every((b) => b === 0)) continue
+      const ephemeralPublicKey = new PublicKey(ephRaw).toBase58()
+      return { stealthAddress, ephemeralPublicKey }
+    } catch {
+      continue // not a VaultWithdrawEvent layout; try next log
+    }
+  }
+  return null
 }
 ```
 
-Note: `getParsedAccountInfo` returns `{ value: { data: { parsed: { info: { owner } } } } }` for SPL token ATAs (the `jsonParsed` encoding is automatic for known programs). The Task 1 test fixture mock must match this shape — update the `getAccountInfo` mock to `getParsedAccountInfo` returning `{ value: { data: { parsed: { info: { owner: STEALTH_PUBKEY, mint: MINT_USDC } } } } }`.
+Note: `getParsedAccountInfo` returns `{ value: { data: { parsed: { info: { owner } } } } }` for SPL token ATAs (the `jsonParsed` encoding is automatic for known programs).
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -256,97 +376,205 @@ Expected: PASS.
 
 ```bash
 git add packages/agent/src/tools/claim-helpers.ts packages/agent/tests/tools/claim-helpers.test.ts
-git commit -m "feat(claim): add resolveStealthContext helper for deposit tx parsing"
+git commit -m "feat(claim): add resolveStealthContext helper parsing VaultWithdrawEvent"
 ```
 
 ---
 
-## Task 2: Add error path tests + handlers for `resolveStealthContext` (RED → GREEN)
+## Task 2: Add additional happy-path variants + error path tests for `resolveStealthContext` (RED → GREEN)
+
+Three additional happy-path variants (spl-token-2022 program, inner-instruction-only, heterogeneous instruction array with a PartiallyDecodedInstruction mixed in) plus four error-path tests covering the four discriminated error codes. The variants exercise the type guard's resilience to real `getParsedTransaction` shape diversity — the basic Task 1 test only covers the simplest case.
 
 **Files:**
 - Modify: `packages/agent/tests/tools/claim-helpers.test.ts`
 
-- [ ] **Step 1: Write failing tests for the four error codes**
+- [ ] **Step 1: Write failing tests for happy-path variants + error codes**
 
 Append to `packages/agent/tests/tools/claim-helpers.test.ts`:
 
 ```ts
-describe('resolveStealthContext — error paths', () => {
-  const DEPOSIT_SIG_NF = 'NotFoundTxSignaturePlaceholderXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+describe('resolveStealthContext — happy-path variants', () => {
+  it('handles spl-token-2022 transferChecked', async () => {
+    const mockConnection = {
+      getParsedTransaction: vi
+        .fn()
+        .mockResolvedValue(mockTxWithEventAndSplTransfer({ tokenProgram: 'spl-token-2022' })),
+      getParsedAccountInfo: vi.fn().mockResolvedValue({
+        value: { data: { parsed: { info: { owner: STEALTH_PUBKEY, mint: MINT_USDC } } } },
+      }),
+    } as unknown as Connection
 
+    const ctx = await resolveStealthContext(mockConnection, DEPOSIT_SIG)
+    expect(ctx.stealthAddress).toBe(STEALTH_PUBKEY)
+    expect(ctx.mint).toBe(MINT_USDC)
+  })
+
+  it('finds SPL transferChecked in inner instructions (Jupiter-routed deposit)', async () => {
+    const mockConnection = {
+      getParsedTransaction: vi
+        .fn()
+        .mockResolvedValue(mockTxWithEventAndSplTransfer({ inner: true })),
+      getParsedAccountInfo: vi.fn().mockResolvedValue({
+        value: { data: { parsed: { info: { owner: STEALTH_PUBKEY, mint: MINT_USDC } } } },
+      }),
+    } as unknown as Connection
+
+    const ctx = await resolveStealthContext(mockConnection, DEPOSIT_SIG)
+    expect(ctx.stealthAddress).toBe(STEALTH_PUBKEY)
+    expect(ctx.mint).toBe(MINT_USDC)
+  })
+
+  it('skips PartiallyDecodedInstruction entries when searching for SPL transferChecked', async () => {
+    const splTokenIx = {
+      program: 'spl-token',
+      programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+      parsed: {
+        type: 'transferChecked',
+        info: {
+          destination: STEALTH_ATA,
+          mint: MINT_USDC,
+          tokenAmount: { amount: '1000000', decimals: 6 },
+        },
+      },
+    }
+    const partiallyDecoded = {
+      programId: new PublicKey('ComputeBudget111111111111111111111111111111'),
+      accounts: [],
+      data: 'AwBAQg8AAAAA',
+      // No `program` or `parsed` field — PartiallyDecodedInstruction shape
+    }
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue({
+        transaction: { message: { instructions: [partiallyDecoded, splTokenIx] } },
+        meta: {
+          err: null,
+          logMessages: [programDataLog(buildWithdrawEventBytes({}))],
+          innerInstructions: [],
+        },
+      }),
+      getParsedAccountInfo: vi.fn().mockResolvedValue({
+        value: { data: { parsed: { info: { owner: STEALTH_PUBKEY, mint: MINT_USDC } } } },
+      }),
+    } as unknown as Connection
+
+    const ctx = await resolveStealthContext(mockConnection, DEPOSIT_SIG)
+    expect(ctx.stealthAddress).toBe(STEALTH_PUBKEY)
+  })
+})
+
+describe('resolveStealthContext — error paths', () => {
   it('throws deposit_not_found when getParsedTransaction returns null', async () => {
     const mockConnection = {
       getParsedTransaction: vi.fn().mockResolvedValue(null),
       getParsedAccountInfo: vi.fn(),
     } as unknown as Connection
 
-    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG_NF))
-      .rejects.toMatchObject({ name: 'StealthContextError', code: 'deposit_not_found' })
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      name: 'StealthContextError',
+      code: 'deposit_not_found',
+    })
   })
 
-  it('throws no_announcement_memo when no memo instruction exists', async () => {
+  it('throws no_withdraw_event when logMessages has no decodable VaultWithdrawEvent', async () => {
     const mockConnection = {
       getParsedTransaction: vi.fn().mockResolvedValue({
         transaction: { message: { instructions: [] } },
-        meta: { err: null },
+        meta: {
+          err: null,
+          logMessages: [
+            'Program 11111111111111111111111111111111 invoke [1]',
+            'Program 11111111111111111111111111111111 success',
+          ],
+          innerInstructions: [],
+        },
       }),
       getParsedAccountInfo: vi.fn(),
     } as unknown as Connection
 
-    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG))
-      .rejects.toMatchObject({ code: 'no_announcement_memo' })
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'no_withdraw_event',
+    })
   })
 
-  it('throws invalid_announcement when memo does not match SIP:1:... format', async () => {
+  it('also throws no_withdraw_event when Program data log is present but too short', async () => {
+    const shortBuf = Buffer.alloc(64) // < 194-byte floor
     const mockConnection = {
       getParsedTransaction: vi.fn().mockResolvedValue({
-        transaction: {
-          message: {
-            instructions: [
-              { program: 'spl-memo', programId: { toString: () => 'memo' }, parsed: 'garbage' },
-            ],
-          },
+        transaction: { message: { instructions: [] } },
+        meta: {
+          err: null,
+          logMessages: [programDataLog(shortBuf)],
+          innerInstructions: [],
         },
-        meta: { err: null },
       }),
       getParsedAccountInfo: vi.fn(),
     } as unknown as Connection
 
-    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG))
-      .rejects.toMatchObject({ code: 'invalid_announcement' })
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'no_withdraw_event',
+    })
   })
 
-  it('throws no_token_transfer when memo exists but no SPL transferChecked', async () => {
+  it('skips zero-filled placeholder events and throws no_withdraw_event if none decodable', async () => {
+    const zeroEphBuf = buildWithdrawEventBytes({ zeroEphemeral: true })
     const mockConnection = {
       getParsedTransaction: vi.fn().mockResolvedValue({
-        transaction: {
-          message: {
-            instructions: [
-              {
-                program: 'spl-memo',
-                programId: { toString: () => 'memo' },
-                parsed: `SIP:1:${EPHEMERAL_PUBKEY}:a3`,
-              },
-            ],
-          },
+        transaction: { message: { instructions: [] } },
+        meta: {
+          err: null,
+          logMessages: [programDataLog(zeroEphBuf)],
+          innerInstructions: [],
         },
-        meta: { err: null },
       }),
       getParsedAccountInfo: vi.fn(),
     } as unknown as Connection
 
-    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG))
-      .rejects.toMatchObject({ code: 'no_token_transfer' })
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'no_withdraw_event',
+    })
   })
 
-  it('throws stealth_ata_unreadable when ATA account info has no owner', async () => {
+  it('throws no_token_transfer when event exists but no SPL transferChecked', async () => {
     const mockConnection = {
-      getParsedTransaction: vi.fn().mockResolvedValue(mockTxWithMemoAndSplTransfer()),
+      getParsedTransaction: vi.fn().mockResolvedValue({
+        transaction: { message: { instructions: [] } },
+        meta: {
+          err: null,
+          logMessages: [programDataLog(buildWithdrawEventBytes({}))],
+          innerInstructions: [],
+        },
+      }),
+      getParsedAccountInfo: vi.fn(),
+    } as unknown as Connection
+
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'no_token_transfer',
+    })
+  })
+
+  it('throws stealth_ata_mismatch when ATA account info has no owner', async () => {
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue(mockTxWithEventAndSplTransfer()),
       getParsedAccountInfo: vi.fn().mockResolvedValue({ value: null }),
     } as unknown as Connection
 
-    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG))
-      .rejects.toMatchObject({ code: 'stealth_ata_unreadable' })
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'stealth_ata_mismatch',
+    })
+  })
+
+  it('throws stealth_ata_mismatch when ATA owner differs from event stealth_recipient', async () => {
+    const DIFFERENT_OWNER = 'FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr'
+    const mockConnection = {
+      getParsedTransaction: vi.fn().mockResolvedValue(mockTxWithEventAndSplTransfer()),
+      getParsedAccountInfo: vi.fn().mockResolvedValue({
+        value: { data: { parsed: { info: { owner: DIFFERENT_OWNER, mint: MINT_USDC } } } },
+      }),
+    } as unknown as Connection
+
+    await expect(resolveStealthContext(mockConnection, DEPOSIT_SIG)).rejects.toMatchObject({
+      code: 'stealth_ata_mismatch',
+    })
   })
 })
 ```
@@ -355,13 +583,13 @@ describe('resolveStealthContext — error paths', () => {
 
 Run: `cd packages/agent && pnpm exec vitest run tests/tools/claim-helpers.test.ts`
 
-Expected: ALL 6 tests pass (1 happy path from Task 1 + 5 error paths). If any fail, the Task 1 implementation needs tightening — fix the implementation rather than weakening the test.
+Expected: ALL 11 tests pass (1 happy path from Task 1 + 3 happy-path variants + 7 error paths = 11). If any fail, the Task 1 implementation needs tightening — fix the implementation rather than weakening the test.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add packages/agent/tests/tools/claim-helpers.test.ts
-git commit -m "test(claim): add error path coverage for resolveStealthContext"
+git commit -m "test(claim): add variant + error path coverage for resolveStealthContext"
 ```
 
 ---
@@ -1011,7 +1239,7 @@ Expected: clean across all packages (recursive `pnpm -r --filter='!sipher' run t
 
 Run: `cd /Users/rector/local-dev/sipher/packages/agent && pnpm test -- --run 2>&1 | tail -5`
 
-Expected: all previously-passing tests (1602 baseline) still pass, plus the new tests added in Tasks 1, 2, 4, 5, 6 (~15 net new). Approximate target: 1617+ passing.
+Expected: all previously-passing tests (1602 baseline) still pass, plus the new tests added in Tasks 1, 2, 4, 5, 6 (~20 net new: 1 helper happy + 10 helper variants/errors + 3 executeClaim happy + 4 executeClaim error + 1 attribution + 1 input-validation regression delta = ~20). Approximate target: 1622+ passing.
 
 - [ ] **Step 4: Push branch**
 
@@ -1047,7 +1275,7 @@ Replaces the Phase 1 claim stub with an end-to-end SDK-driven claim flow per Spe
 - [x] `executeClaim` input validation (regression): 4 tests
 - [x] `executeClaim` error paths: 4 tests (StealthContextError wrap, SDK broadcast error wrap, missing destination, malformed key)
 - [x] Growth-hook attribution: 1 test asserting `data.tx_signature === signature` (not `depositTxSignature`)
-- [x] Full agent suite green: ~1617 passing
+- [x] Full agent suite green: ~1622 passing
 - [x] Recursive typecheck clean
 
 ## Verification
@@ -1088,7 +1316,7 @@ After completing all tasks, before requesting RECTOR review:
 - [ ] All 8 tasks committed with conventional prefixes (feat/refactor/test/docs/chore)
 - [ ] No commit on the branch contains `Co-Authored-By`, `🤖`, or any AI attribution
 - [ ] `pnpm typecheck` clean at repo root
-- [ ] `cd packages/agent && pnpm test -- --run` passes (~1617 tests, +15 net)
+- [ ] `cd packages/agent && pnpm test -- --run` passes (~1622 tests, +20 net)
 - [ ] PR description accurately summarizes the Path A scope + trade-offs
 - [ ] Follow-up issues filed and linked from PR body
 - [ ] Spec 4 amendment recommendation honored: SDK-driven, no SignTxCard, honest claim-tx-sig attribution
