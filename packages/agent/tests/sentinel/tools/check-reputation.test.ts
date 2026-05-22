@@ -32,7 +32,7 @@ describe('checkReputationTool definition', () => {
   })
 
   it('has a non-empty description', () => {
-    expect(checkReputationTool.description.length).toBeGreaterThan(0)
+    expect(checkReputationTool.description).toBeTruthy()
   })
 })
 

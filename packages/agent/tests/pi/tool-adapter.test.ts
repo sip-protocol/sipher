@@ -178,7 +178,7 @@ describe('round-trip safety', () => {
     expect(roundTripped.description).toBe(original.description ?? '')
     expect(roundTripped.parameters).toMatchObject({
       type: 'object',
-      properties: (original.parameters as { properties: Record<string, unknown> }).properties,
+      properties: (original.parameters as unknown as { properties: Record<string, unknown> }).properties,
     })
   })
 

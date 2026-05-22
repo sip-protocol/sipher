@@ -45,7 +45,7 @@ describe('getDepositStatusTool definition', () => {
   })
 
   it('has a non-empty description', () => {
-    expect(getDepositStatusTool.description.length).toBeGreaterThan(0)
+    expect(getDepositStatusTool.description).toBeTruthy()
   })
 })
 

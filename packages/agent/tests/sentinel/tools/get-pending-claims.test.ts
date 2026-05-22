@@ -42,7 +42,7 @@ describe('getPendingClaimsTool definition', () => {
   })
 
   it('has a non-empty description', () => {
-    expect(getPendingClaimsTool.description.length).toBeGreaterThan(0)
+    expect(getPendingClaimsTool.description).toBeTruthy()
   })
 })
 

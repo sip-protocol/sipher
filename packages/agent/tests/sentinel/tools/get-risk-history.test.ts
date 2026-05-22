@@ -34,7 +34,7 @@ describe('getRiskHistoryTool definition', () => {
   })
 
   it('has a non-empty description', () => {
-    expect(getRiskHistoryTool.description.length).toBeGreaterThan(0)
+    expect(getRiskHistoryTool.description).toBeTruthy()
   })
 })
 

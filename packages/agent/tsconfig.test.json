@@ -1,0 +1,18 @@
+{
+  // Typecheck-only config: extends the build tsconfig but widens scope to
+  // include test files. The build config (tsconfig.json) keeps its narrow
+  // "include": ["src"] so `tsc` (the build) does not emit test files into
+  // dist/. `pnpm typecheck` runs against this config so test-file type
+  // drift — e.g. assertions referencing removed interface members — is
+  // caught at typecheck time instead of only by `vitest run`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // rootDir is the repo root, not packages/agent: a few agent tests import
+    // root-package modules (e.g. tests/routes/) via ../../../src, so those
+    // files must be allowed inside the program without a TS6059 rootDir error.
+    // noEmit makes rootDir advisory-only — it affects no output.
+    "rootDir": "../.."
+  },
+  "include": ["src", "tests"]
+}

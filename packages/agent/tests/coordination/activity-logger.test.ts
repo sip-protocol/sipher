@@ -230,7 +230,7 @@ describe('ActivityLogger', () => {
     })
     const rows = getActivity(null)
     expect(rows).toHaveLength(1)
-    expect(rows[0].title.toLowerCase()).toContain('refund')
+    expect((rows[0].title as string).toLowerCase()).toContain('refund')
   })
 
   it('formats sentinel:pending-action + sentinel:action-cancelled + sentinel:veto + sentinel:risk-report', () => {

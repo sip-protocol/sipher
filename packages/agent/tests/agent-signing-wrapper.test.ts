@@ -1,4 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type {
+  SSESentinelPause,
+  SSEToolSigningRequired,
+  SSEToolSigningExpired,
+} from '../src/agent.js'
+
+type SigningQueueEvent = SSESentinelPause | SSEToolSigningRequired | SSEToolSigningExpired
 
 // Mock the Pi agent so we don't make LLM calls; we drive the executor manually
 vi.mock('../src/pi/sipher-agent.js', () => ({
@@ -69,7 +76,7 @@ describe('chatStream signing-wait wrapper (wrapWithSigning)', () => {
       },
     }))
 
-    const queue: unknown[] = []
+    const queue: SigningQueueEvent[] = []
     let wakeCalled = false
     const wake = () => { wakeCalled = true }
 
@@ -108,7 +115,7 @@ describe('chatStream signing-wait wrapper (wrapWithSigning)', () => {
       privacy: { stealthRouted: true, stealthAddress: 'S' },
     }))
 
-    const queue: unknown[] = []
+    const queue: SigningQueueEvent[] = []
     const wrapped = wrapWithSigning(baseExecutor, {
       sessionId: 's1', network: 'devnet', externalQueue: queue, externalWake: () => {},
     })
@@ -135,7 +142,7 @@ describe('chatStream signing-wait wrapper (wrapWithSigning)', () => {
       privacy: { stealthAddress: '', commitmentGenerated: false, viewingKeyHashIncluded: false, feeBps: 50, estimatedFee: '0.005 SOL', netAmount: null },
     }))
 
-    const queue: unknown[] = []
+    const queue: SigningQueueEvent[] = []
     const wrapped = wrapWithSigning(baseExecutor, {
       sessionId: 's1', network: 'devnet', externalQueue: queue, externalWake: () => {},
     })
@@ -151,7 +158,7 @@ describe('chatStream signing-wait wrapper (wrapWithSigning)', () => {
     const baseExecutor = vi.fn(async () => ({
       action: 'claim', status: 'awaiting_signature' as const, txSignature: 'INPUT_SIG',
     }))
-    const queue: unknown[] = []
+    const queue: SigningQueueEvent[] = []
     const wrapped = wrapWithSigning(baseExecutor, {
       sessionId: 's1', network: 'devnet', externalQueue: queue, externalWake: () => {},
     })
@@ -164,7 +171,7 @@ describe('chatStream signing-wait wrapper (wrapWithSigning)', () => {
       action: 'send', status: 'awaiting_signature' as const, serializedTx: 'TX',
       privacy: { stealthAddress: 'X', commitmentGenerated: true, viewingKeyHashIncluded: true, feeBps: 50, estimatedFee: '0', netAmount: '1' },
     }))
-    const queue: unknown[] = []
+    const queue: SigningQueueEvent[] = []
     const wrapped = wrapWithSigning(baseExecutor, {
       sessionId: 's1', network: 'devnet', externalQueue: queue, externalWake: () => {},
     })
@@ -176,7 +183,7 @@ describe('chatStream signing-wait wrapper (wrapWithSigning)', () => {
     const baseExecutor = vi.fn(async () => ({
       action: 'send', status: 'cancelled_by_user' as const, reason: 'sentinel blocked',
     }))
-    const queue: unknown[] = []
+    const queue: SigningQueueEvent[] = []
     const wrapped = wrapWithSigning(baseExecutor, {
       sessionId: 's1', network: 'devnet', externalQueue: queue, externalWake: () => {},
     })

@@ -217,7 +217,7 @@ describe('chatStream() end-to-end with stubbed Pi agent', () => {
     const chunks: Array<Record<string, unknown>> = []
 
     for await (const chunk of chatStream('hi', {})) {
-      chunks.push(chunk as Record<string, unknown>)
+      chunks.push(chunk as unknown as Record<string, unknown>)
     }
 
     const toolUse = chunks.find((c) => c.type === 'tool_use')
@@ -231,7 +231,7 @@ describe('chatStream() end-to-end with stubbed Pi agent', () => {
     const chunks: Array<Record<string, unknown>> = []
 
     for await (const chunk of chatStream('hi', {})) {
-      chunks.push(chunk as Record<string, unknown>)
+      chunks.push(chunk as unknown as Record<string, unknown>)
     }
 
     const toolResult = chunks.find((c) => c.type === 'tool_result')
@@ -245,7 +245,7 @@ describe('chatStream() end-to-end with stubbed Pi agent', () => {
     const chunks: Array<Record<string, unknown>> = []
 
     for await (const chunk of chatStream('hi', {})) {
-      chunks.push(chunk as Record<string, unknown>)
+      chunks.push(chunk as unknown as Record<string, unknown>)
     }
 
     const done = chunks.find((c) => c.type === 'message_complete')
