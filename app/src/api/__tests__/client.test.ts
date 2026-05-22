@@ -78,6 +78,27 @@ describe('apiFetch', () => {
     expect(onUnauth).not.toHaveBeenCalled()
   })
 
+  it('does not call interceptor on 401 from a /v1/ endpoint (separate API-key auth domain)', async () => {
+    // /v1/* is the REST API — it authenticates with an x-api-key header, not
+    // the agent JWT. A 401 there means "no/invalid API key", NOT "agent
+    // session expired", so it must not trigger clearAuth + the "Session
+    // expired" re-auth flow. Treating it as expiry creates an infinite
+    // sign-in loop: a valid session gets wiped the moment the dashboard's
+    // privacy-score widget fetches /v1/privacy/score.
+    const onUnauth = vi.fn()
+    registerAuthInterceptor(onUnauth)
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { code: 'INVALID_API_KEY', message: 'Invalid API key' } }),
+    })
+
+    await expect(apiFetch('/v1/privacy/score', { method: 'POST' })).rejects.toThrow(
+      /Invalid API key/,
+    )
+    expect(onUnauth).not.toHaveBeenCalled()
+  })
+
   it('still throws on 401 even if interceptor throws', async () => {
     registerAuthInterceptor(() => {
       throw new Error('handler crashed')
