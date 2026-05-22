@@ -98,7 +98,11 @@ export async function apiFetch<T>(
   emitNetworkRecovered()
 
   if (res.status === 401) {
-    triggerAuthInterceptor()
+    // A 401 from the /v1/* REST API uses a separate x-api-key auth domain —
+    // it is NOT an agent-JWT session-expiry signal. Firing the interceptor
+    // for it would clearAuth() a still-valid session, producing an infinite
+    // re-auth loop (the dashboard refetches /v1/privacy/score on every mount).
+    if (!path.startsWith('/v1/')) triggerAuthInterceptor()
     const body = await res.json().catch(() => ({}))
     const err = (body as { error?: { message?: string } | string }).error
     if (typeof err === 'string') throw new Error(err)
