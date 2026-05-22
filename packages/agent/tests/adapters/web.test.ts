@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import type { Response } from 'express'
 import type { AgentResponse, ResponseChunk } from '../../src/core/types.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,7 +45,7 @@ function mockRes() {
     _writes: writes,
     _headers: headers,
   }
-  return res as typeof res & { _writes: string[]; _headers: Record<string, string> }
+  return res as unknown as Response & { _writes: string[]; _headers: Record<string, string> }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

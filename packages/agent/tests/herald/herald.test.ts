@@ -5,7 +5,7 @@ const {
   HERALD_TOOLS,
   HERALD_TOOL_EXECUTORS,
   HERALD_IDENTITY,
-} = await import('../../packages/agent/src/herald/herald.js')
+} = await import('../../src/herald/herald.js')
 
 describe('HERALD agent factory', () => {
   it('exports HERALD_SYSTEM_PROMPT with HERALD and cypherpunk keywords', () => {

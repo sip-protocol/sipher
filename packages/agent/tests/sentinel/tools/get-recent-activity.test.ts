@@ -43,7 +43,7 @@ describe('getRecentActivityTool definition', () => {
   })
 
   it('has a non-empty description', () => {
-    expect(getRecentActivityTool.description.length).toBeGreaterThan(0)
+    expect(getRecentActivityTool.description).toBeTruthy()
   })
 })
 

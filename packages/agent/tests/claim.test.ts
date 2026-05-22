@@ -198,6 +198,13 @@ describe('executeClaim — input validation (regression)', () => {
 })
 
 describe('executeClaim — error paths', () => {
+  // resetAllMocks (not clearAllMocks) between tests: each test re-stubs only
+  // the mocks on its own code path, so stale implementations from an earlier
+  // test must be cleared, not just call history.
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
   it('wraps StealthContextError in actionable error', async () => {
     vi.mocked(resolveStealthContext).mockRejectedValue(
       new StealthContextError('Deposit transaction 5aaaaaa... not found on chain', 'deposit_not_found'),

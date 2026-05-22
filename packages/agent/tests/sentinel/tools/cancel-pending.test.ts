@@ -29,7 +29,7 @@ describe('cancelPendingTool definition', () => {
   })
 
   it('has a non-empty description', () => {
-    expect(cancelPendingTool.description.length).toBeGreaterThan(0)
+    expect(cancelPendingTool.description).toBeTruthy()
   })
 })
 

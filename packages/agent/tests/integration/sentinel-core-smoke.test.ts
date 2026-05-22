@@ -15,7 +15,7 @@ vi.mock('../../src/pi/sipher-agent.js', async (orig) => {
       const subs: Array<(e: AgentEvent, s: AbortSignal) => unknown> = []
       const messages: AgentMessage[] = []
       const fake: Agent = {
-        subscribe: (cb) => { subs.push(cb); return () => subs.splice(subs.indexOf(cb), 1) },
+        subscribe: (cb: (e: AgentEvent, s: AbortSignal) => unknown) => { subs.push(cb); return () => subs.splice(subs.indexOf(cb), 1) },
         prompt: async () => {
           const signal = new AbortController().signal
           for (const cb of [...subs]) await cb({ type: 'tool_execution_start', toolCallId: 't1', toolName: stub.toolName, args: stub.toolArgs }, signal)

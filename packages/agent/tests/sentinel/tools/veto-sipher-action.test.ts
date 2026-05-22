@@ -33,7 +33,7 @@ describe('vetoSipherTool definition', () => {
   })
 
   it('has a non-empty description', () => {
-    expect(vetoSipherTool.description.length).toBeGreaterThan(0)
+    expect(vetoSipherTool.description).toBeTruthy()
   })
 })
 

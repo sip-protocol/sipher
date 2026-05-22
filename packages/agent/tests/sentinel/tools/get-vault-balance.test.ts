@@ -52,7 +52,7 @@ describe('getVaultBalanceTool definition', () => {
   })
 
   it('has a non-empty description', () => {
-    expect(getVaultBalanceTool.description.length).toBeGreaterThan(0)
+    expect(getVaultBalanceTool.description).toBeTruthy()
   })
 })
 

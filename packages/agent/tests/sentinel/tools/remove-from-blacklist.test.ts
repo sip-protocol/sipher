@@ -37,7 +37,7 @@ describe('removeFromBlacklistTool definition', () => {
   })
 
   it('has a non-empty description', () => {
-    expect(removeFromBlacklistTool.description.length).toBeGreaterThan(0)
+    expect(removeFromBlacklistTool.description).toBeTruthy()
   })
 })
 
