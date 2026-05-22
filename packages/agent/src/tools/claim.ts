@@ -8,6 +8,7 @@ import {
   deriveDestinationFromSpending,
   formatClaimAmount,
 } from './claim-helpers.js'
+import { normalizeKey } from '../utils/key-normalize.js'
 import type { AnthropicTool } from '../pi/tool-adapter.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -148,13 +149,4 @@ export async function executeClaim(params: ClaimParams): Promise<ClaimToolResult
       `Claimed payment ${params.txSignature.slice(0, 12)}... → claim tx ${sdkResult.txSignature.slice(0, 12)}... ` +
       `(${formatClaimAmount(sdkResult.amount, mintBase58)} to ${sdkResult.destinationAddress.slice(0, 8)}...)`,
   }
-}
-
-/** Strip 0x prefix and validate hex shape for SDK consumption. */
-function normalizeKey(key: string): `0x${string}` {
-  const stripped = key.startsWith('0x') ? key.slice(2) : key
-  if (!/^[0-9a-fA-F]+$/.test(stripped)) {
-    throw new Error('Key must be hex (with or without 0x prefix)')
-  }
-  return `0x${stripped.toLowerCase()}` as `0x${string}`
 }
