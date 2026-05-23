@@ -12,7 +12,7 @@ export type VerifyResult =
   | { ok: true; slot: number }
   | {
       ok: false
-      reason: 'not_confirmed' | 'wallet_mismatch' | 'rpc_error' | 'timeout'
+      reason: 'not_confirmed' | 'confirmed_with_err' | 'wallet_mismatch' | 'rpc_error' | 'timeout'
       detail?: string
     }
 
@@ -73,9 +73,13 @@ async function runVerification(
   }
 
   if (status.err) {
+    // Tx landed on-chain AND consumed a signature/fee, but the program returned
+    // an error. Distinguish from `not_confirmed` so the caller can tell the user
+    // their tx was confirmed but rejected by the program, not that it was
+    // silently cancelled. See issue #300.
     return {
       ok: false,
-      reason: 'not_confirmed',
+      reason: 'confirmed_with_err',
       detail: typeof status.err === 'object' ? JSON.stringify(status.err) : String(status.err),
     }
   }

@@ -82,7 +82,7 @@ describe('verifySignature', () => {
     if (!result.ok) expect(result.reason).toBe('not_confirmed')
   })
 
-  it('returns not_confirmed when err is set on the status', async () => {
+  it('returns confirmed_with_err when err is set on the status (tx landed on-chain but program rejected)', async () => {
     const connection = makeConnection({
       getSignatureStatuses: vi.fn().mockResolvedValue({
         value: [{ slot: 1, confirmationStatus: 'confirmed', err: { InstructionError: [0, 'Custom'] } }],
@@ -91,7 +91,7 @@ describe('verifySignature', () => {
     const result = await verifySignature(SIGNATURE, ENTRY, { connection })
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.reason).toBe('not_confirmed')
+      expect(result.reason).toBe('confirmed_with_err')
       expect(result.detail).toMatch(/InstructionError|Custom/)
     }
   })
