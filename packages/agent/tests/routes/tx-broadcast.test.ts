@@ -30,12 +30,19 @@ vi.mock('@sipher/sdk', async () => {
   }
 })
 
-vi.mock('../../src/lib/sendWithRetry.js', () => ({
-  sendAndConfirmWithRetry: vi.fn(),
-}))
+vi.mock('../../src/lib/sendWithRetry.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/lib/sendWithRetry.js')>()
+  return {
+    ...actual,
+    sendAndConfirmWithRetry: vi.fn(),
+  }
+})
 
 import { createConnection } from '@sipher/sdk'
-import { sendAndConfirmWithRetry } from '../../src/lib/sendWithRetry.js'
+import {
+  sendAndConfirmWithRetry,
+  TransactionFailedOnChainError,
+} from '../../src/lib/sendWithRetry.js'
 import { txBroadcastRouter } from '../../src/routes/tx-broadcast.js'
 
 function mockAuth(wallet: string | null) {
@@ -181,6 +188,26 @@ describe('POST /api/tx/broadcast', () => {
     expect(res.body.error.code).toBe('INTERNAL')
     // body must not contain key fragments
     expect(JSON.stringify(res.body)).not.toContain('api-key=')
+  })
+
+  it('returns 502 TX_FAILED_ON_CHAIN when sendAndConfirmWithRetry detects program error', async () => {
+    // sipher#299: when a tx confirms on-chain with meta.err (e.g.
+    // AccountNotInitialized, slippage exceeded), the broadcast route must
+    // surface that as a structured 502 — not a 200 with the failed signature,
+    // and not a generic CF 504 from the request hanging until edge timeout.
+    const programErr = { InstructionError: [0, { Custom: 3012 }] }
+    const failure = new TransactionFailedOnChainError(FAKE_SIGNATURE, programErr)
+    vi.mocked(sendAndConfirmWithRetry).mockRejectedValueOnce(failure)
+    const app = createApp()
+    const res = await supertest(app).post('/api/tx/broadcast').send(validBody())
+    expect(res.status).toBe(502)
+    expect(res.body.error.code).toBe('TX_FAILED_ON_CHAIN')
+    expect(res.body.error.signature).toBe(FAKE_SIGNATURE)
+    expect(res.body.error.err).toEqual(programErr)
+    // Message should be human-readable and reference the program error so the
+    // FE can render it without parsing the err object itself.
+    expect(typeof res.body.error.message).toBe('string')
+    expect(res.body.error.message.length).toBeGreaterThan(0)
   })
 
   it('redacts Helius API key fragments from error messages', async () => {
