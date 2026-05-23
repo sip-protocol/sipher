@@ -1,5 +1,10 @@
 import { Router, type Request, type Response } from 'express'
-import { Transaction, VersionedTransaction } from '@solana/web3.js'
+import {
+  Transaction,
+  VersionedTransaction,
+  SendTransactionError,
+  TransactionExpiredBlockheightExceededError,
+} from '@solana/web3.js'
 import { createConnection } from '@sipher/sdk'
 import { loadNetworkConfig } from '../config/network.js'
 import { sendAndConfirmWithRetry } from '../lib/sendWithRetry.js'
@@ -50,7 +55,7 @@ txBroadcastRouter.post('/broadcast', async (req: Request, res: Response) => {
     return
   }
 
-  const { serializedTx, blockhash, lastValidBlockHeight } = req.body as {
+  const { serializedTx, blockhash, lastValidBlockHeight } = (req.body ?? {}) as {
     serializedTx?: unknown
     blockhash?: unknown
     lastValidBlockHeight?: unknown
@@ -104,8 +109,12 @@ txBroadcastRouter.post('/broadcast', async (req: Request, res: Response) => {
       })
       return
     }
-  } catch {
-    // getBlockHeight blip — let the actual broadcast surface the real error
+  } catch (e) {
+    // Pre-flight is best-effort; if Helius getBlockHeight fails, fall through
+    // and let the actual broadcast surface the real error. Log so prod issues
+    // are diagnosable.
+    const detail = e instanceof Error ? e.message : String(e)
+    console.warn(`[tx/broadcast] pre-flight getBlockHeight failed: ${redact(detail)}`)
   }
 
   try {
@@ -118,11 +127,10 @@ txBroadcastRouter.post('/broadcast', async (req: Request, res: Response) => {
     res.status(200).json({ signature })
     return
   } catch (err) {
-    const name = err instanceof Error ? err.name : ''
     const rawMessage = err instanceof Error ? err.message : 'unknown error'
     const message = redact(rawMessage)
 
-    if (name === 'TransactionExpiredBlockheightExceededError') {
+    if (err instanceof TransactionExpiredBlockheightExceededError) {
       res.status(504).json({
         error: {
           code: 'CONFIRMATION_TIMEOUT',
@@ -131,7 +139,7 @@ txBroadcastRouter.post('/broadcast', async (req: Request, res: Response) => {
       })
       return
     }
-    if (name === 'SendTransactionError') {
+    if (err instanceof SendTransactionError) {
       res.status(502).json({
         error: { code: 'BROADCAST_FAILED', message: `RPC rejected transaction: ${message}` },
       })

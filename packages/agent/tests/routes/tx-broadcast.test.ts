@@ -1,7 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import express, { type Request, type Response, type NextFunction } from 'express'
 import supertest from 'supertest'
-import { Transaction, PublicKey, SystemProgram } from '@solana/web3.js'
+import {
+  Transaction,
+  PublicKey,
+  SystemProgram,
+  SendTransactionError,
+  TransactionExpiredBlockheightExceededError,
+} from '@solana/web3.js'
 
 const TEST_WALLET = 'C1phrE76Wrkmt1GP6Aa9RjCeLDKHZ7p4MPVRuPa8x85N'
 const FAKE_SIGNATURE = '5J7XHm...fake'
@@ -132,14 +138,20 @@ describe('POST /api/tx/broadcast', () => {
   it('returns 200 { signature } on happy-path broadcast + confirm', async () => {
     vi.mocked(sendAndConfirmWithRetry).mockResolvedValueOnce(FAKE_SIGNATURE)
     const app = createApp()
-    const res = await supertest(app).post('/api/tx/broadcast').send(validBody())
+    const body = validBody()
+    const res = await supertest(app).post('/api/tx/broadcast').send(body)
     expect(res.status).toBe(200)
     expect(res.body).toEqual({ signature: FAKE_SIGNATURE })
+    expect(vi.mocked(sendAndConfirmWithRetry)).toHaveBeenCalledWith(
+      expect.anything(),       // connection (mocked, exact shape unimportant here)
+      expect.any(Uint8Array),  // signedBytes — decoded from base64
+      body.blockhash,
+      body.lastValidBlockHeight,
+    )
   })
 
   it('returns 504 CONFIRMATION_TIMEOUT when blockheight expires during confirm', async () => {
-    const expired = new Error('Transaction expired')
-    expired.name = 'TransactionExpiredBlockheightExceededError'
+    const expired = new TransactionExpiredBlockheightExceededError('fake-sig')
     vi.mocked(sendAndConfirmWithRetry).mockRejectedValueOnce(expired)
     const app = createApp()
     const res = await supertest(app).post('/api/tx/broadcast').send(validBody())
@@ -148,8 +160,12 @@ describe('POST /api/tx/broadcast', () => {
   })
 
   it('returns 502 BROADCAST_FAILED when sendRawTransaction throws non-recoverable', async () => {
-    const sendErr = new Error('Invalid signature')
-    sendErr.name = 'SendTransactionError'
+    const sendErr = new SendTransactionError({
+      action: 'send',
+      signature: 'fake-sig',
+      transactionMessage: 'Invalid signature',
+      logs: [],
+    })
     vi.mocked(sendAndConfirmWithRetry).mockRejectedValueOnce(sendErr)
     const app = createApp()
     const res = await supertest(app).post('/api/tx/broadcast').send(validBody())
@@ -168,8 +184,12 @@ describe('POST /api/tx/broadcast', () => {
   })
 
   it('redacts Helius API key fragments from error messages', async () => {
-    const leaky = new Error('failed at https://devnet.helius-rpc.com/?api-key=12345-secret-uuid-67890')
-    leaky.name = 'SendTransactionError'
+    const leaky = new SendTransactionError({
+      action: 'send',
+      signature: 'fake-sig',
+      transactionMessage: 'failed at https://devnet.helius-rpc.com/?api-key=12345-secret-uuid-67890',
+      logs: [],
+    })
     vi.mocked(sendAndConfirmWithRetry).mockRejectedValueOnce(leaky)
     const app = createApp()
     const res = await supertest(app).post('/api/tx/broadcast').send(validBody())
