@@ -46,7 +46,15 @@ describe('sendAndConfirmWithRetry (backend)', () => {
 
     expect(sig).toBe(FAKE_SIGNATURE)
     expect(conn.sendRawTransaction).toHaveBeenCalledTimes(1)
+    expect(conn.sendRawTransaction).toHaveBeenCalledWith(FAKE_BYTES, {
+      skipPreflight: true,
+      maxRetries: 0,
+    })
     expect(conn.confirmTransaction).toHaveBeenCalledOnce()
+    expect(conn.confirmTransaction).toHaveBeenCalledWith(
+      { signature: FAKE_SIGNATURE, blockhash: FAKE_BLOCKHASH, lastValidBlockHeight: LAST_VALID_HEIGHT },
+      'confirmed',
+    )
   })
 
   it('resubmits while confirmation is pending', async () => {

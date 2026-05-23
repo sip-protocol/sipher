@@ -16,6 +16,8 @@ const RESUBMIT_INTERVAL_MS = 2000
  *
  * Ported from app/src/lib/sendWithRetry.ts — see sipher#297 for why the
  * broadcast moved server-side.
+ *
+ * Exported for testing; injected interval/sleep keeps tests deterministic.
  */
 export interface SendAndConfirmDeps {
   /** Delay between background resubmits. Override in tests for speed. */
