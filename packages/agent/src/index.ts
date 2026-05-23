@@ -15,6 +15,7 @@ import { vaultRouter } from './routes/vault-api.js'
 import { vaultDepositTxRouter } from './routes/vault-deposit-tx.js'
 import { vaultPositionsRouter } from './routes/vault-positions.js'
 import { vaultRefundTxRouter } from './routes/vault-refund-tx.js'
+import { txBroadcastRouter } from './routes/tx-broadcast.js'
 import { squadRouter, isKillSwitchActive } from './routes/squad-api.js'
 import { heraldRouter } from './routes/herald-api.js'
 import { guardianBus } from './coordination/event-bus.js'
@@ -208,6 +209,9 @@ app.use('/api/vault', verifyJwt, vaultPositionsRouter)
 
 // Vault refund-tx builder (refund-to-self after 24h cooldown) — JWT required (PR 6b)
 app.use('/api/vault', verifyJwt, vaultRefundTxRouter)
+
+// Transaction broadcaster — JWT required (proxies signed txs to RPC, avoids public devnet drops)
+app.use('/api/tx', verifyJwt, txBroadcastRouter)
 
 // Squad dashboard + kill switch — JWT + owner required
 app.use('/api/squad', verifyJwt, requireOwner, squadRouter)
