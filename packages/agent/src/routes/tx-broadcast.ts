@@ -127,6 +127,20 @@ txBroadcastRouter.post('/broadcast', async (req: Request, res: Response) => {
     res.status(200).json({ signature })
     return
   } catch (err) {
+    // sipher#299 follow-up: prod returns 500 INTERNAL "unknown error" instead
+    // of 502 TX_FAILED_ON_CHAIN for confirmed-with-err txs. Local repro
+    // confirms sendAndConfirmWithRetry throws TransactionFailedOnChainError
+    // correctly; the instanceof check should match. Log shape for diagnosis.
+    console.error('[tx/broadcast] caught error:', {
+      isError: err instanceof Error,
+      isTFOCE: err instanceof TransactionFailedOnChainError,
+      isSendErr: err instanceof SendTransactionError,
+      isExpired: err instanceof TransactionExpiredBlockheightExceededError,
+      constructorName: (err as { constructor?: { name?: string } })?.constructor?.name,
+      name: (err as { name?: string })?.name,
+      message: (err as { message?: string })?.message?.slice?.(0, 300),
+      stringified: String(err).slice(0, 300),
+    })
     const rawMessage = err instanceof Error ? err.message : 'unknown error'
     const message = redact(rawMessage)
 
