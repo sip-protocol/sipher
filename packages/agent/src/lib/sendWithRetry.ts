@@ -5,9 +5,8 @@ const RESUBMIT_INTERVAL_MS = 2000
 /**
  * Send a signed transaction and aggressively resubmit until confirmed or expired.
  *
- * Public Solana RPCs (api.devnet.solana.com, api.mainnet-beta.solana.com) are
- * rate-limited and drop transactions silently under load. The default
- * sendRawTransaction + confirmTransaction flow waits up to ~60-90s for
+ * Public Solana RPCs are rate-limited and drop transactions silently under load.
+ * The default sendRawTransaction + confirmTransaction flow waits ~60-90s for
  * confirmation but does NOT resubmit if the first send was dropped — leading
  * to spurious "block height exceeded" errors when the tx never actually landed.
  *
@@ -15,7 +14,8 @@ const RESUBMIT_INTERVAL_MS = 2000
  * (idempotent: Solana RPCs return the same signature for duplicate sends)
  * while polling for confirmation. First confirmation wins; the loop stops.
  *
- * See sip-protocol/sipher#291 for the failure mode this addresses.
+ * Ported from app/src/lib/sendWithRetry.ts — see sipher#297 for why the
+ * broadcast moved server-side.
  *
  * Exported for testing; injected interval/sleep keeps tests deterministic.
  */
