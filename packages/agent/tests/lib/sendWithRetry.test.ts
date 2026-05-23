@@ -173,6 +173,47 @@ describe('sendAndConfirmWithRetry (backend)', () => {
     }
   })
 
+  it('normalizes polling-fallback rejection (bare TransactionError) into TransactionFailedOnChainError', async () => {
+    // web3.js confirmTransaction's getSignatureStatus polling fallback calls
+    // `reject(value.err)` — rejecting with a bare TransactionError object
+    // instead of resolving with { value: { err } }. confirmInspected must
+    // catch that, recognize the non-Error rejection, and wrap it consistently
+    // so the route handler can do `instanceof TransactionFailedOnChainError`.
+    const programErr = { InstructionError: [0, { Custom: 3012 }] }
+    const conn = makeConnection({
+      // Reject with the bare TransactionError object — what the polling
+      // fallback in @solana/web3.js v1.98 does.
+      confirmTransaction: vi.fn(() => Promise.reject(programErr)) as unknown as Connection['confirmTransaction'],
+    })
+
+    await expect(
+      sendAndConfirmWithRetry(conn, FAKE_BYTES, FAKE_BLOCKHASH, LAST_VALID_HEIGHT, {
+        resubmitIntervalMs: 1,
+      }),
+    ).rejects.toMatchObject({
+      name: 'TransactionFailedOnChainError',
+      signature: FAKE_SIGNATURE,
+      err: programErr,
+    })
+  })
+
+  it('preserves non-object rejection types (e.g. TransactionExpiredBlockheightExceededError) unchanged', async () => {
+    // The polling-fallback normalization must only catch plain-object
+    // rejections. Real Error instances (the WS-path's blockheight-expired
+    // throw) must propagate unchanged so the route returns 504, not 502.
+    const expired = new Error('TransactionExpiredBlockheightExceededError')
+    expired.name = 'TransactionExpiredBlockheightExceededError'
+    const conn = makeConnection({
+      confirmTransaction: vi.fn(() => Promise.reject(expired)) as unknown as Connection['confirmTransaction'],
+    })
+
+    await expect(
+      sendAndConfirmWithRetry(conn, FAKE_BYTES, FAKE_BLOCKHASH, LAST_VALID_HEIGHT, {
+        resubmitIntervalMs: 1,
+      }),
+    ).rejects.toMatchObject({ name: 'TransactionExpiredBlockheightExceededError' })
+  })
+
   it('throws TransactionFailedOnChainError when getSignatureStatuses detects err before confirmation', async () => {
     // Defense-in-depth path (sipher#299 Option 3): if confirmTransaction's
     // WebSocket subscription is slow to fire, the parallel getSignatureStatuses

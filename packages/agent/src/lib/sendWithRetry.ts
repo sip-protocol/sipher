@@ -99,10 +99,25 @@ export async function sendAndConfirmWithRetry(
   }
 
   const confirmInspected = async (): Promise<string> => {
-    const result = await connection.confirmTransaction(
-      { signature, blockhash, lastValidBlockHeight },
-      'confirmed',
-    )
+    let result
+    try {
+      result = await connection.confirmTransaction(
+        { signature, blockhash, lastValidBlockHeight },
+        'confirmed',
+      )
+    } catch (err) {
+      // web3.js's WS-subscription path resolves with { value: { err } }, but the
+      // getSignatureStatus polling fallback (Connection#getTransactionConfirmation
+      // Promise in node_modules/@solana/web3.js) calls `reject(value.err)` — i.e.
+      // it rejects with the bare TransactionError object (e.g.
+      // { InstructionError: [0, { Custom: 3012 }] }), not a thrown Error.
+      // Normalize so callers see a TransactionFailedOnChainError consistently
+      // regardless of which path fired. See sipher#299 follow-up.
+      if (err !== null && typeof err === 'object' && !(err instanceof Error)) {
+        throw new TransactionFailedOnChainError(signature, err)
+      }
+      throw err
+    }
     if (result?.value?.err) {
       throw new TransactionFailedOnChainError(signature, result.value.err)
     }
