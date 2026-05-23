@@ -1,7 +1,8 @@
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { Transaction, VersionedTransaction } from '@solana/web3.js'
 import { useCallback, useState } from 'react'
-import { sendAndConfirmWithRetry } from '../lib/sendWithRetry'
+import { broadcastViaBackend } from '../lib/broadcast'
+import { useAuthState } from './useAuthState'
 
 export type SignStatus = 'idle' | 'signing' | 'broadcasting' | 'confirmed' | 'error'
 
@@ -27,9 +28,18 @@ function base64ToBytes(base64: string): Uint8Array {
   return bytes
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
 export function useTransactionSigner() {
   const { connection } = useConnection()
   const { signTransaction, publicKey } = useWallet()
+  const { token } = useAuthState()
   const [status, setStatus] = useState<SignStatus>('idle')
 
   const signAndBroadcast = useCallback(async (serializedTx: string): Promise<SignResult> => {
@@ -50,7 +60,6 @@ export function useTransactionSigner() {
         tx.recentBlockhash = blockhash
         tx.feePayer = publicKey
       } else {
-        // VersionedTransaction: update blockhash in the message
         tx.message.recentBlockhash = blockhash
       }
 
@@ -58,14 +67,16 @@ export function useTransactionSigner() {
 
       setStatus('broadcasting')
 
-      // sendAndConfirmWithRetry resubmits the signed bytes every 2s while
-      // confirmation polls — defends against public RPC drops/rate-limits
-      // that surface as spurious "block height exceeded" (sipher#291).
-      const signature = await sendAndConfirmWithRetry(
-        connection,
-        signed.serialize(),
-        blockhash,
-        lastValidBlockHeight,
+      // Broadcast via backend (Helius). Public devnet RPC drops broadcasts
+      // silently; the backend proxy + server-side resubmit loop defends
+      // against that. See sipher#297.
+      const { signature } = await broadcastViaBackend(
+        {
+          serializedTx: bytesToBase64(signed.serialize()),
+          blockhash,
+          lastValidBlockHeight,
+        },
+        token ?? undefined,
       )
 
       setStatus('confirmed')
@@ -75,7 +86,7 @@ export function useTransactionSigner() {
       const message = err instanceof Error ? err.message : String(err)
       return { error: message }
     }
-  }, [connection, signTransaction, publicKey])
+  }, [connection, signTransaction, publicKey, token])
 
   const reset = useCallback(() => setStatus('idle'), [])
 
