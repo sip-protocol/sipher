@@ -7,7 +7,7 @@ import {
 } from '@solana/web3.js'
 import { createConnection } from '@sipher/sdk'
 import { loadNetworkConfig } from '../config/network.js'
-import { sendAndConfirmWithRetry } from '../lib/sendWithRetry.js'
+import { sendAndConfirmWithRetry, TransactionFailedOnChainError } from '../lib/sendWithRetry.js'
 
 export const txBroadcastRouter = Router()
 
@@ -135,6 +135,20 @@ txBroadcastRouter.post('/broadcast', async (req: Request, res: Response) => {
         error: {
           code: 'CONFIRMATION_TIMEOUT',
           message: 'Transaction expired before confirmation. Retry with a fresh blockhash.',
+        },
+      })
+      return
+    }
+    if (err instanceof TransactionFailedOnChainError) {
+      // Tx landed on-chain but the program returned an error. Surface a
+      // structured 502 with the err payload so the FE can render an
+      // actionable message instead of "tx cancelled". See sipher#299.
+      res.status(502).json({
+        error: {
+          code: 'TX_FAILED_ON_CHAIN',
+          message: redact(err.message),
+          signature: err.signature,
+          err: err.err,
         },
       })
       return
