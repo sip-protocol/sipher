@@ -43,10 +43,6 @@ export async function sendAndConfirmWithRetry(
   const resubmit = async () => {
     while (!stopped) {
       await sleep(interval)
-      // Extra microtask yield: gives the confirmTransaction resolution a chance
-      // to set stopped=true before we fire a resubmit. This prevents spurious
-      // extra sends when the sleep is an immediate Promise (e.g. in tests).
-      await Promise.resolve()
       if (stopped) return
       submitOnce().catch(() => {})
     }

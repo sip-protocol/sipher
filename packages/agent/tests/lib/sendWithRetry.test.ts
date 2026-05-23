@@ -29,15 +29,19 @@ function makeFakeSleep() {
 
 describe('sendAndConfirmWithRetry (backend)', () => {
   it('returns signature on happy-path confirmation', async () => {
+    // Uses real setTimeout (no injected sleep) so the resubmit loop's
+    // first tick is a macrotask, not a microtask. confirmTransaction mock
+    // resolves via microtask first, setting stopped=true before the timer
+    // fires. Mirrors the FE original's approach. The resubmit loop exits
+    // on the first tick (if (stopped) return).
     const conn = makeConnection()
-    const { sleep } = makeFakeSleep()
 
     const sig = await sendAndConfirmWithRetry(
       conn,
       FAKE_BYTES,
       FAKE_BLOCKHASH,
       LAST_VALID_HEIGHT,
-      { sleep, resubmitIntervalMs: 1 },
+      { resubmitIntervalMs: 1 },
     )
 
     expect(sig).toBe(FAKE_SIGNATURE)
