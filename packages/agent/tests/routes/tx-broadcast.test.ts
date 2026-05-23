@@ -190,17 +190,18 @@ describe('POST /api/tx/broadcast', () => {
     expect(JSON.stringify(res.body)).not.toContain('api-key=')
   })
 
-  it('returns 502 TX_FAILED_ON_CHAIN when sendAndConfirmWithRetry detects program error', async () => {
+  it('returns 422 TX_FAILED_ON_CHAIN when sendAndConfirmWithRetry detects program error', async () => {
     // sipher#299: when a tx confirms on-chain with meta.err (e.g.
     // AccountNotInitialized, slippage exceeded), the broadcast route must
-    // surface that as a structured 502 — not a 200 with the failed signature,
-    // and not a generic CF 504 from the request hanging until edge timeout.
+    // surface that as a structured 422 envelope — not a 200 with the failed
+    // signature, and not a CF-mangled 5xx page. 422 (vs 502) chosen so
+    // Cloudflare passes the JSON body through unchanged.
     const programErr = { InstructionError: [0, { Custom: 3012 }] }
     const failure = new TransactionFailedOnChainError(FAKE_SIGNATURE, programErr)
     vi.mocked(sendAndConfirmWithRetry).mockRejectedValueOnce(failure)
     const app = createApp()
     const res = await supertest(app).post('/api/tx/broadcast').send(validBody())
-    expect(res.status).toBe(502)
+    expect(res.status).toBe(422)
     expect(res.body.error.code).toBe('TX_FAILED_ON_CHAIN')
     expect(res.body.error.signature).toBe(FAKE_SIGNATURE)
     expect(res.body.error.err).toEqual(programErr)
