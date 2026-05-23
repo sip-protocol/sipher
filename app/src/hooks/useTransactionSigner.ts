@@ -1,6 +1,7 @@
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { Transaction, VersionedTransaction } from '@solana/web3.js'
 import { useCallback, useState } from 'react'
+import { sendAndConfirmWithRetry } from '../lib/sendWithRetry'
 
 export type SignStatus = 'idle' | 'signing' | 'broadcasting' | 'confirmed' | 'error'
 
@@ -57,14 +58,14 @@ export function useTransactionSigner() {
 
       setStatus('broadcasting')
 
-      const signature = await connection.sendRawTransaction(signed.serialize(), {
-        skipPreflight: true,
-        maxRetries: 3,
-      })
-
-      await connection.confirmTransaction(
-        { signature, blockhash, lastValidBlockHeight },
-        'confirmed',
+      // sendAndConfirmWithRetry resubmits the signed bytes every 2s while
+      // confirmation polls — defends against public RPC drops/rate-limits
+      // that surface as spurious "block height exceeded" (sipher#291).
+      const signature = await sendAndConfirmWithRetry(
+        connection,
+        signed.serialize(),
+        blockhash,
+        lastValidBlockHeight,
       )
 
       setStatus('confirmed')
