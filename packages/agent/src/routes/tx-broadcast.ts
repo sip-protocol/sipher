@@ -141,9 +141,18 @@ txBroadcastRouter.post('/broadcast', async (req: Request, res: Response) => {
     }
     if (err instanceof TransactionFailedOnChainError) {
       // Tx landed on-chain but the program returned an error. Surface a
-      // structured 502 with the err payload so the FE can render an
+      // structured 422 with the err payload so the FE can render an
       // actionable message instead of "tx cancelled". See sipher#299.
-      res.status(502).json({
+      //
+      // 422 (Unprocessable Entity) chosen over 502 (Bad Gateway) because
+      // Cloudflare's default behavior for 5xx status codes is to replace
+      // the origin's JSON body with a CF-branded HTML error page —
+      // confirmed empirically: an in-VPS curl sees the JSON envelope,
+      // but the same request via sipher-api.sip-protocol.org gets the
+      // CF 502 page. 422 passes through unchanged. The semantics also
+      // fit better here: the request itself was syntactically valid;
+      // the on-chain program could not process it.
+      res.status(422).json({
         error: {
           code: 'TX_FAILED_ON_CHAIN',
           message: redact(err.message),
