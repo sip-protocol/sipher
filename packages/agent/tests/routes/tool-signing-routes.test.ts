@@ -248,6 +248,30 @@ describe('POST /api/tool-signing/:flagId/confirm — SIPHER_SIG_VERIFY=strict', 
     expect(res.body.error.message).toMatch(/not_confirmed/)
   })
 
+  it('rejects with program_error and returns 400 with descriptive message on confirmed_with_err', async () => {
+    verifySignatureMock.mockResolvedValue({
+      ok: false,
+      reason: 'confirmed_with_err',
+      detail: '{"InstructionError":[0,{"Custom":3012}]}',
+    })
+    const { flagId, promise } = makePending()
+    promise.catch(() => {})
+
+    const res = await supertest(createApp())
+      .post(`/api/tool-signing/${flagId}/confirm`)
+      .set('Authorization', `Bearer ${signJwt(WALLET)}`)
+      .send({ signature: 'SIG' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error.code).toBe('VALIDATION_FAILED')
+    expect(res.body.error.message).toMatch(/confirmed on-chain/)
+    expect(res.body.error.message).toMatch(/program returned an error/)
+    expect(res.body.error.message).toMatch(/InstructionError/)
+    expect(res.body.error.message).not.toMatch(/not_confirmed/)
+    await expect(promise).rejects.toThrow(/program_error/)
+    expect(getPendingSigning(flagId)).toBeUndefined()
+  })
+
   it('returns 503 UNAVAILABLE + Retry-After on rpc_error and keeps pending alive', async () => {
     verifySignatureMock.mockResolvedValue({ ok: false, reason: 'rpc_error', detail: 'ETIMEDOUT' })
     const { flagId, promise } = makePending()

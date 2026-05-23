@@ -81,6 +81,19 @@ toolSigningRouter.post('/:flagId/confirm', async (req: Request, res: Response) =
           )
           return
         }
+        if (verifyResult.reason === 'confirmed_with_err') {
+          // Tx landed on-chain but the program rejected it. Surface that
+          // explicitly so the LLM tells the user the program rejected the
+          // transaction, not that it was cancelled. See issue #300.
+          const detail = verifyResult.detail ?? 'unknown program error'
+          rejectPendingSigning(flagId, `program_error: ${detail}`)
+          sendSentinelError(
+            res,
+            'VALIDATION_FAILED',
+            `transaction was confirmed on-chain but the program returned an error: ${detail}`,
+          )
+          return
+        }
         rejectPendingSigning(flagId, `verification_failed: ${verifyResult.reason}`)
         sendSentinelError(
           res,
