@@ -38,4 +38,19 @@ describe('fetchGitHubDigest', () => {
     expect(d.errors).toContain('stars')
     expect(formatDigest(d)).toContain('no recent activity')
   })
+
+  it('reports partial failure in errors and formatDigest', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.endsWith('/repos/sip-protocol/sip-protocol')) return jsonResponse({ stargazers_count: 7 })
+      if (url.includes('/commits')) return jsonResponse([{ commit: { message: 'fix: a thing' } }])
+      if (url.includes('/pulls')) return jsonResponse(null, false)
+      if (url.includes('/releases')) return jsonResponse([])
+      return jsonResponse(null, false)
+    }))
+    const d = await fetchGitHubDigest()
+    expect(d.commits).toEqual(['fix: a thing'])
+    expect(d.mergedPRs).toEqual([])
+    expect(d.errors).toContain('pulls')
+    expect(formatDigest(d)).toContain('data unavailable')
+  })
 })

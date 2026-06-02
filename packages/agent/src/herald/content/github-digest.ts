@@ -33,6 +33,7 @@ export async function fetchGitHubDigest(owner = DEFAULT_OWNER, repo = DEFAULT_RE
   const [repoData, commitsData, prsData, releasesData] = await Promise.all([
     ghFetch(`/repos/${owner}/${repo}`),
     ghFetch(`/repos/${owner}/${repo}/commits?per_page=5`),
+    // over-fetch closed PRs (per_page=10): not all closed PRs are merged; the merged_at filter trims to merged-only
     ghFetch(`/repos/${owner}/${repo}/pulls?state=closed&per_page=10`),
     ghFetch(`/repos/${owner}/${repo}/releases?per_page=3`),
   ])
@@ -48,7 +49,7 @@ export async function fetchGitHubDigest(owner = DEFAULT_OWNER, repo = DEFAULT_RE
   if (Array.isArray(commitsData)) {
     commits = (commitsData as Array<{ commit?: { message?: string } }>)
       .map((c) => (c.commit?.message ?? '').split('\n')[0])
-      .filter((s) => s.length > 0)
+      .filter((s) => s.trim().length > 0)
   } else {
     errors.push('commits')
   }
@@ -80,6 +81,9 @@ export function formatDigest(d: GitHubDigest): string {
   if (d.releases.length) lines.push(`Recent releases: ${d.releases.join(', ')}`)
   if (d.mergedPRs.length) lines.push(`Recently merged: ${d.mergedPRs.slice(0, 5).join('; ')}`)
   if (d.commits.length) lines.push(`Recent commits: ${d.commits.slice(0, 5).join('; ')}`)
-  if (lines.length === 1) lines.push('(no recent activity fetched)')
+  if (d.releases.length === 0 && d.mergedPRs.length === 0 && d.commits.length === 0) {
+    lines.push('(no recent activity fetched)')
+  }
+  if (d.errors.length) lines.push(`(data unavailable: ${d.errors.join(', ')})`)
   return lines.join('\n')
 }
