@@ -15,5 +15,9 @@ const CALENDAR: Record<number, ContentTheme> = {
 }
 
 export function themeForDate(date: Date): ContentTheme {
-  return CALENDAR[date.getUTCDay()]
+  const theme = CALENDAR[date.getUTCDay()]
+  if (!theme) {
+    throw new Error(`themeForDate: invalid date (getUTCDay=${date.getUTCDay()})`)
+  }
+  return theme
 }

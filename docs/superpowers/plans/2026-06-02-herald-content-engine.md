@@ -25,7 +25,7 @@
 - **ULID** — `import { ulid } from 'ulid'`.
 - **Lifecycle hook** — `packages/agent/src/index.ts:371-388`: HERALD poller starts inside the `server.listen` callback, gated on `process.env.X_BEARER_TOKEN && process.env.X_CONSUMER_KEY` via a dynamic `import('./herald/poller.js')`. We add the content cron in this same block.
 - **Config idiom** — inline `Number(process.env.X ?? 'default')` and `process.env.X === 'true'`. No central config module for HERALD. There is no `dotenv`; env is injected by Docker (`docker-compose.yml` `environment:` block) — so new vars must be added to the root `.env.example` AND `docker-compose.yml`.
-- **Test idiom** — Vitest 3 (`pnpm --filter @sip-protocol/agent test` runs `vitest run`). Mock `twitter-api-v2` (not needed here — we never call X). DB setup in `beforeEach`: `closeDb(); process.env.NODE_ENV='test'; delete process.env.DB_PATH; getDb()`. Teardown `afterEach`: `closeDb()`. `closeDb`/`getDb` from `'../../../src/db.js'`. Mock global `fetch` with `vi.stubGlobal('fetch', vi.fn(...))` + `vi.unstubAllGlobals()` in `afterEach`.
+- **Test idiom** — Vitest 3 (`pnpm --filter @sipher/agent test` runs `vitest run`). Mock `twitter-api-v2` (not needed here — we never call X). DB setup in `beforeEach`: `closeDb(); process.env.NODE_ENV='test'; delete process.env.DB_PATH; getDb()`. Teardown `afterEach`: `closeDb()`. `closeDb`/`getDb` from `'../../../src/db.js'`. Mock global `fetch` with `vi.stubGlobal('fetch', vi.fn(...))` + `vi.unstubAllGlobals()` in `afterEach`.
 
 **Files created by this plan:**
 
@@ -41,8 +41,8 @@
 
 **File modified:** `packages/agent/src/index.ts` (wire the cron), root `.env.example`, `docker-compose.yml`, `docs/deployment.md`.
 
-**Run all tests for this package:** `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test`
-**Typecheck:** `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent typecheck` (after, run repo-root `pnpm typecheck`).
+**Run all tests for this package:** `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test`
+**Typecheck:** `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent typecheck` (after, run repo-root `pnpm typecheck`).
 
 ---
 
@@ -81,7 +81,7 @@ describe('themeForDate', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- calendar`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- calendar`
 Expected: FAIL — cannot find module `calendar.js`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -111,7 +111,7 @@ export function themeForDate(date: Date): ContentTheme {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- calendar`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- calendar`
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Commit**
@@ -179,7 +179,7 @@ describe('fetchGitHubDigest', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- github-digest`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- github-digest`
 Expected: FAIL — cannot find module `github-digest.js`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -275,7 +275,7 @@ export function formatDigest(d: GitHubDigest): string {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- github-digest`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- github-digest`
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Commit**
@@ -321,7 +321,7 @@ describe('content prompt', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- content/prompt`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- content/prompt`
 Expected: FAIL — cannot find module `prompt.js`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -346,7 +346,7 @@ Write the single tweet now, under 280 characters. Output only the tweet text.`
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- content/prompt`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- content/prompt`
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Commit**
@@ -399,7 +399,7 @@ describe('generateDraft', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- generator`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- generator`
 Expected: FAIL — cannot find module `generator.js`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -428,6 +428,7 @@ export async function generateDraft(
   const { text } = await deps.chat(prompt, {
     systemPrompt: HERALD_CONTENT_SYSTEM_PROMPT,
     model: MODEL,
+    tools: [],
   })
   const draft = text.trim()
   return draft.length > MAX_TWEET ? draft.slice(0, MAX_TWEET) : draft
@@ -436,7 +437,7 @@ export async function generateDraft(
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- generator`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- generator`
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Commit**
@@ -512,7 +513,7 @@ describe('hasGeneratedToday', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- content/enqueue`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- content/enqueue`
 Expected: FAIL — cannot find module `enqueue.js`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -564,7 +565,7 @@ export function hasGeneratedToday(): boolean {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- content/enqueue`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- content/enqueue`
 Expected: PASS (4 tests).
 
 - [ ] **Step 5: Commit**
@@ -648,7 +649,7 @@ describe('startContentCron', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- content/cron`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- content/cron`
 Expected: FAIL — cannot find module `cron.js`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -749,7 +750,7 @@ export function stopContentCron(timer: ReturnType<typeof setInterval> | null): v
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test -- content/cron`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test -- content/cron`
 Expected: PASS (5 tests).
 
 - [ ] **Step 5: Commit**
@@ -824,12 +825,12 @@ with (adds the content-cron import + start):
 
 - [ ] **Step 3: Typecheck**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent typecheck`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent typecheck`
 Expected: no errors.
 
 - [ ] **Step 4: Run the full agent test suite**
 
-Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sip-protocol/agent test`
+Run: `cd /Users/rector/local-dev/sipher && pnpm --filter @sipher/agent test`
 Expected: all pass, including the new `content/*` tests.
 
 - [ ] **Step 5: Commit**

@@ -16,6 +16,10 @@ describe('themeForDate', () => {
   it('returns a focus string and day label', () => {
     const t = themeForDate(new Date('2023-01-02T12:00:00Z'))
     expect(t.day).toBe('Mon')
-    expect(t.focus.length).toBeGreaterThan(0)
+    expect(t.focus).toBe('a concrete @sip-protocol/sdk code tip or snippet developers can use')
+  })
+
+  it('throws on an invalid date', () => {
+    expect(() => themeForDate(new Date('not-a-date'))).toThrow('invalid date')
   })
 })
