@@ -37,6 +37,7 @@ import { keysRouter } from './routes/keys.js'
 import { publicRouter } from './routes/public/index.js'
 import { buildCorsMiddleware } from './cors-config.js'
 import { loadNetworkConfig } from './config/network.js'
+import { selfTestOpenRouter } from './boot/self-test.js'
 import {
   getAllPendingActionsWithStatus,
   cancelPendingAction as dbCancelPendingAction,
@@ -53,6 +54,18 @@ const networkConfig = loadNetworkConfig()
 console.log(
   `  Network: ${networkConfig.network} (cluster=${networkConfig.clusterName}, publicRpc=${networkConfig.publicRpcUrl}, beta=${networkConfig.beta})`,
 )
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OpenRouter self-test — fail fast on bad SIPHER_MODEL / OPENROUTER_API_KEY
+// ─────────────────────────────────────────────────────────────────────────────
+// Ping OpenRouter with a 2-token sample before accepting traffic. Catches the
+// two silent-outage modes from frontier_sip_17: hyphen-form SIPHER_MODEL (the
+// pi-ai registry lookup throws) and a stale/invalid OPENROUTER_API_KEY (returns
+// 401 here instead of empty content on every chat turn). Skip via
+// SIPHER_SKIP_BOOT_SELF_TEST=true for test runs or offline dev.
+const selfTestStart = Date.now()
+await selfTestOpenRouter()
+console.log(`  OpenRouter: self-test pass (${Date.now() - selfTestStart}ms)`)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Database & session initialization
