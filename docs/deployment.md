@@ -28,8 +28,7 @@ SSH access: `ssh sip` (the `sipher` container runs under the `sip` user, there i
 | `ADMIN_API_KEY` | Admin API key for `/api/admin/*` endpoints. Empty = endpoints return 503. | `openssl rand -hex 32` |
 | `API_KEYS` | Comma-separated public API keys | Generate per client |
 | `SOLANA_RPC_URL` | Primary Solana RPC endpoint | Provider dashboard |
-| `SIPHER_OPENROUTER_API_KEY` | LLM provider key (OpenRouter) | openrouter.ai dashboard |
-| `OPENROUTER_API_KEY` | Fallback for non-Sipher agents | openrouter.ai dashboard |
+| `OPENROUTER_API_KEY` | LLM provider key — read by pi-ai. Authoritative for sipher agent chat. | openrouter.ai dashboard |
 
 ### Optional
 
