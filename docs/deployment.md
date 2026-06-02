@@ -78,6 +78,15 @@ SENTINEL is an LLM-backed security analyst that performs preflight risk assessme
 
 Deploy new SENTINEL features in `advisory` for at least one week before promoting to `yolo`.
 
+### HERALD content engine
+
+When `HERALD_CONTENT_CRON_ENABLED=true` (and X credentials are present), HERALD drafts
+one original tweet per day from a weekly theme calendar + a live GitHub activity digest,
+and enqueues it to the approval queue. Nothing publishes until approved in the Command
+Center HeraldView — keep `HERALD_AUTO_APPROVE_POSTS` unset/false to preserve that manual
+gate. Tunables: `HERALD_CONTENT_CRON_INTERVAL` (ms, default 3600000), `GITHUB_TOKEN`
+(optional, raises the GitHub rate limit).
+
 ## Secrets Management
 
 **Local storage:** `~/Documents/secret/sipher-vps-secrets.env` (iCloud encrypted, per CLAUDE.md convention). Mode `600`.
