@@ -373,7 +373,8 @@ const server = app.listen(PORT, () => {
     Promise.all([
       import('./herald/poller.js'),
       import('./adapters/x.js'),
-    ]).then(([{ createPollerState, startPoller }, { createXAdapter }]) => {
+      import('./herald/content/cron.js'),
+    ]).then(([{ createPollerState, startPoller }, { createXAdapter }, { startContentCron }]) => {
       // Start X adapter first (subscribes to events before poller emits them)
       createXAdapter()
       console.log('  HERALD:  X adapter started (LLM brain for mentions + DMs)')
@@ -381,7 +382,12 @@ const server = app.listen(PORT, () => {
       // Then start poller (emits events the adapter handles)
       const heraldState = createPollerState()
       startPoller(heraldState)
-      console.log('  HERALD:  poller started (mentions + DMs + scheduled posts)')
+      const contentTimer = startContentCron()
+      console.log(
+        contentTimer
+          ? '  HERALD:  poller started (mentions + DMs + scheduled posts) + content cron'
+          : '  HERALD:  poller started (mentions + DMs + scheduled posts); content cron disabled'
+      )
     }).catch(err => {
       console.warn('  HERALD:  not started:', (err as Error).message)
     })
