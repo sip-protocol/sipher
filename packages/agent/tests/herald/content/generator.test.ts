@@ -15,6 +15,7 @@ describe('generateDraft', () => {
     expect(message).toContain('a concrete SDK snippet')
     expect(opts.systemPrompt).toMatch(/HERALD/)
     expect(opts.model).toMatch(/^openrouter:/)
+    expect(opts.tools).toEqual([])
   })
 
   it('truncates drafts longer than 280 characters', async () => {

@@ -20,6 +20,7 @@ export async function generateDraft(
   const { text } = await deps.chat(prompt, {
     systemPrompt: HERALD_CONTENT_SYSTEM_PROMPT,
     model: MODEL,
+    tools: [],
   })
   const draft = text.trim()
   return draft.length > MAX_TWEET ? draft.slice(0, MAX_TWEET) : draft
