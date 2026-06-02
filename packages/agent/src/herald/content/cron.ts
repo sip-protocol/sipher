@@ -3,8 +3,12 @@ import { themeForDate } from './calendar.js'
 import { generateDraft } from './generator.js'
 import { enqueueContentPost, hasGeneratedToday } from './enqueue.js'
 import { guardianBus } from '../../coordination/event-bus.js'
+import { isKillSwitchActive } from '../../routes/squad-api.js'
+import { getBudgetStatus } from '../budget.js'
 
 export interface DailyContentDeps {
+  isKillSwitchActive: () => boolean
+  isPaused: () => boolean
   hasGeneratedToday: typeof hasGeneratedToday
   fetchGitHubDigest: typeof fetchGitHubDigest
   formatDigest: typeof formatDigest
@@ -15,6 +19,8 @@ export interface DailyContentDeps {
 }
 
 const defaultDeps: DailyContentDeps = {
+  isKillSwitchActive,
+  isPaused: () => getBudgetStatus().gate === 'paused',
   hasGeneratedToday,
   fetchGitHubDigest,
   formatDigest,
@@ -31,6 +37,12 @@ export interface DailyContentResult {
 }
 
 export async function generateDailyContent(deps: DailyContentDeps = defaultDeps): Promise<DailyContentResult> {
+  if (deps.isKillSwitchActive()) {
+    return { generated: false, reason: 'kill-switch-active' }
+  }
+  if (deps.isPaused()) {
+    return { generated: false, reason: 'budget-paused' }
+  }
   if (deps.hasGeneratedToday()) {
     return { generated: false, reason: 'already-generated-today' }
   }
