@@ -38,6 +38,15 @@ services:
       - SENTINEL_MODE=${SENTINEL_MODE:-advisory}
       - SENTINEL_AUTHORITY_KEYPAIR=${SENTINEL_AUTHORITY_KEYPAIR:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      # Sipher chat model — MUST use dot-form (e.g. claude-sonnet-4.6, NOT
+      # claude-sonnet-4-6). Hyphen-form silently fails the getSipherModel
+      # lookup and emits empty content with no error (issue #294/#293).
+      - SIPHER_MODEL=${SIPHER_MODEL:-anthropic/claude-sonnet-4.6}
+      # Torque growth integration — fail-closed by default; opt in with
+      # TORQUE_GROWTH_ENABLED=true + TORQUE_API_TOKEN set.
+      - TORQUE_GROWTH_ENABLED=${TORQUE_GROWTH_ENABLED:-false}
+      - TORQUE_API_TOKEN=${TORQUE_API_TOKEN:-}
+      - TORQUE_INGESTER_URL=${TORQUE_INGESTER_URL:-https://ingest.torque.so}
       - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
       - X_CONSUMER_KEY=${X_CONSUMER_KEY:-}
       - X_CONSUMER_SECRET=${X_CONSUMER_SECRET:-}
