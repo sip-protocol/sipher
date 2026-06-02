@@ -1,0 +1,26 @@
+import { chat } from '../../agent.js'
+import { HERALD_CONTENT_SYSTEM_PROMPT, buildDraftPrompt } from './prompt.js'
+import type { ContentTheme } from './calendar.js'
+
+const MODEL = process.env.HERALD_MODEL ?? 'openrouter:anthropic/claude-sonnet-4.6'
+const MAX_TWEET = 280
+
+export interface GenerateDeps {
+  chat: typeof chat
+}
+
+const defaultDeps: GenerateDeps = { chat }
+
+export async function generateDraft(
+  theme: ContentTheme,
+  digestText: string,
+  deps: GenerateDeps = defaultDeps,
+): Promise<string> {
+  const prompt = buildDraftPrompt(theme, digestText)
+  const { text } = await deps.chat(prompt, {
+    systemPrompt: HERALD_CONTENT_SYSTEM_PROMPT,
+    model: MODEL,
+  })
+  const draft = text.trim()
+  return draft.length > MAX_TWEET ? draft.slice(0, MAX_TWEET) : draft
+}
