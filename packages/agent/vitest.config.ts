@@ -19,6 +19,10 @@ export default defineConfig({
     env: {
       SIPHER_NETWORK: 'devnet',
       SIPHER_HELIUS_API_KEY: 'test-key',
+      // Skip OpenRouter ping at boot. Tests don't load index.ts directly, but
+      // future integration tests might — and tests don't have a real OpenRouter
+      // key to ping with. The self-test itself is covered in tests/boot/.
+      SIPHER_SKIP_BOOT_SELF_TEST: 'true',
     },
   },
 })

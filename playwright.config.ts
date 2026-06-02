@@ -51,6 +51,9 @@ export default defineConfig({
         // Real Helius calls are not made in e2e tests (no deposit/withdraw flows).
         SIPHER_NETWORK: process.env.SIPHER_NETWORK ?? 'devnet',
         SIPHER_HELIUS_API_KEY: process.env.SIPHER_HELIUS_API_KEY ?? 'e2e-placeholder-key',
+        // Skip the OpenRouter boot ping (issue #293). e2e has no real
+        // OPENROUTER_API_KEY and chat is mocked at the network layer.
+        SIPHER_SKIP_BOOT_SELF_TEST: 'true',
       },
     },
     {
