@@ -24,4 +24,12 @@ describe('generateDraft', () => {
     const draft = await generateDraft(theme, 'digest', { chat: fakeChat })
     expect(draft.length).toBe(280)
   })
+
+  it('truncates on code-point boundaries (no split surrogate pairs)', async () => {
+    const input = 'a' + '😀'.repeat(300)
+    const fakeChat = vi.fn().mockResolvedValue({ text: input, toolsUsed: [] })
+    const draft = await generateDraft(theme, 'digest', { chat: fakeChat })
+    expect([...draft].length).toBe(280)
+    expect(/[\uD800-\uDBFF]$/.test(draft)).toBe(false)
+  })
 })

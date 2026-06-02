@@ -23,5 +23,7 @@ export async function generateDraft(
     tools: [],
   })
   const draft = text.trim()
-  return draft.length > MAX_TWEET ? draft.slice(0, MAX_TWEET) : draft
+  // Truncate on code-point boundaries so a multi-byte emoji is never split into a lone surrogate.
+  const chars = [...draft]
+  return chars.length > MAX_TWEET ? chars.slice(0, MAX_TWEET).join('') : draft
 }
