@@ -46,6 +46,7 @@ SSH access: `ssh sip` (the `sipher` container runs under the `sip` user, there i
 | `JITO_BLOCK_ENGINE_URL` | (empty) | Jito bundle relay (empty = mock mode) |
 | `AUTHORIZED_WALLETS` | (empty) | Comma-separated admin wallet pubkeys |
 | `HERALD_MONTHLY_BUDGET` | `150` | HERALD X agent USD budget cap |
+| `HERALD_REACTIVE_ENABLED` | `false` | Reactive loop: poll @sipprotocol mentions/DMs + LLM auto-reply (no approval gate). X credentials alone do **not** enable it. |
 
 ### SENTINEL Security Agent
 
@@ -78,14 +79,28 @@ SENTINEL is an LLM-backed security analyst that performs preflight risk assessme
 
 Deploy new SENTINEL features in `advisory` for at least one week before promoting to `yolo`.
 
-### HERALD content engine
+### HERALD operation modes
 
-When `HERALD_CONTENT_CRON_ENABLED=true` (and X credentials are present), HERALD drafts
-one original tweet per day from a weekly theme calendar + a live GitHub activity digest,
-and enqueues it to the approval queue. Nothing publishes until approved in the Command
-Center HeraldView — keep `HERALD_AUTO_APPROVE_POSTS` unset/false to preserve that manual
-gate. Tunables: `HERALD_CONTENT_CRON_INTERVAL` (ms, default 3600000), `GITHUB_TOKEN`
-(optional, raises the GitHub rate limit).
+HERALD starts only when X credentials (`X_BEARER_TOKEN` + `X_CONSUMER_KEY`) are present.
+It then has **two independent outward-facing paths** with different safety models:
+
+**1. Proactive content (approval-gated, recommended first).** When
+`HERALD_CONTENT_CRON_ENABLED=true`, HERALD drafts one original tweet per day from a weekly
+theme calendar + a live GitHub activity digest and enqueues it to the approval queue.
+Nothing publishes until approved in the Command Center HeraldView — keep
+`HERALD_AUTO_APPROVE_POSTS` unset/false to preserve that manual gate. Tunables:
+`HERALD_CONTENT_CRON_INTERVAL` (ms, default 3600000), `GITHUB_TOKEN` (optional, raises the
+GitHub rate limit).
+
+**2. Reactive replies (auto-post, opt-in).** When `HERALD_REACTIVE_ENABLED=true`, HERALD
+polls @sipprotocol mentions + DMs and **auto-replies via the LLM with no approval gate**
+(guarded only by the monthly budget cap, the kill switch, and the spam-intent filter).
+This is **off by default** — setting X credentials alone does *not* enable it, so you can
+run proactive content first and enable reactive replies deliberately once confident.
+
+**Recommended rollout:** launch with content only (`HERALD_CONTENT_CRON_ENABLED=true`,
+`HERALD_REACTIVE_ENABLED=false`), observe approved posts for a period, then flip
+`HERALD_REACTIVE_ENABLED=true` when ready for unattended public replies.
 
 ## Secrets Management
 

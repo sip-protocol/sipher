@@ -374,19 +374,27 @@ const server = app.listen(PORT, () => {
       import('./herald/poller.js'),
       import('./adapters/x.js'),
       import('./herald/content/cron.js'),
-    ]).then(([{ createPollerState, startPoller }, { createXAdapter }, { startContentCron }]) => {
-      // Start X adapter first (subscribes to events before poller emits them)
-      createXAdapter()
-      console.log('  HERALD:  X adapter started (LLM brain for mentions + DMs)')
+    ]).then(([{ createPollerState, startPoller, reactiveEnabled }, { createXAdapter }, { startContentCron }]) => {
+      const reactive = reactiveEnabled()
 
-      // Then start poller (emits events the adapter handles)
+      // The LLM reply-brain (auto-replies to mentions/DMs) is wired ONLY when the
+      // reactive loop is enabled (HERALD_REACTIVE_ENABLED=true). Off by default →
+      // HERALD runs proactive content (approval-gated) without auto-replying to
+      // public mentions/DMs.
+      if (reactive) {
+        // Start X adapter first (subscribes to events before poller emits them)
+        createXAdapter()
+        console.log('  HERALD:  X adapter started (LLM brain for mentions + DMs)')
+      }
+
+      // Then start poller — emits mention/DM events only when reactive is enabled;
+      // the scheduled-publish loop (approved posts only) runs regardless.
       const heraldState = createPollerState()
       startPoller(heraldState)
       const contentTimer = startContentCron()
       console.log(
-        contentTimer
-          ? '  HERALD:  poller started (mentions + DMs + scheduled posts) + content cron'
-          : '  HERALD:  poller started (mentions + DMs + scheduled posts); content cron disabled'
+        `  HERALD:  poller started — reactive ${reactive ? 'ON (mentions + DMs auto-reply)' : 'OFF'}, ` +
+          `content cron ${contentTimer ? 'ON' : 'OFF'}, publishing approved posts`
       )
     }).catch(err => {
       console.warn('  HERALD:  not started:', (err as Error).message)

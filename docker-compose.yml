@@ -59,6 +59,9 @@ services:
       - HERALD_CONTENT_CRON_INTERVAL=${HERALD_CONTENT_CRON_INTERVAL:-3600000}
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
       - HERALD_AUTO_APPROVE_POSTS=${HERALD_AUTO_APPROVE_POSTS:-false}
+      # Reactive loop (mention/DM polling + LLM auto-reply) — fail-closed by default.
+      # X credentials alone do NOT enable auto-replies; opt in here when ready.
+      - HERALD_REACTIVE_ENABLED=${HERALD_REACTIVE_ENABLED:-false}
       - HERALD_MONTHLY_BUDGET=${HERALD_MONTHLY_BUDGET:-150}
       - JUPITER_API_URL=${JUPITER_API_URL:-https://lite-api.jup.ag}
       - JITO_BLOCK_ENGINE_URL=${JITO_BLOCK_ENGINE_URL:-}
