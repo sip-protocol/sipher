@@ -6,6 +6,7 @@ import {
   WSOL_MINT,
 } from '@sipher/sdk'
 import type { ScanParams } from '@sipher/sdk'
+import { ed25519 } from '@noble/curves/ed25519'
 import { type Detection, detectUnclaimedPayment, detectBalanceChange } from './detector.js'
 import { getSentinelConfig } from './config.js'
 import { loadNetworkConfig } from '../config/network.js'
@@ -121,10 +122,11 @@ export async function scanWallet(
 
   if (rpcCalls < maxRpc && hasKeys) {
     try {
+      // Canonical EIP-5564 scanning is view-only — derive the spending PUBLIC key.
       const scanParams: ScanParams = {
         connection,
         viewingPrivateKey: options.viewingPrivateKey as Uint8Array,
-        spendingPrivateKey: options.spendingPrivateKey as Uint8Array,
+        spendingPublicKey: ed25519.getPublicKey(options.spendingPrivateKey as Uint8Array),
         limit: 50,
       }
       const scanResult = await scanForPayments(scanParams)

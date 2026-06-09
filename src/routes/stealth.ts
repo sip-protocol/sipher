@@ -62,8 +62,8 @@ const checkSchema = z.object({
     ephemeralPublicKey: hexStringAny,
     viewTag: z.number().int().min(0).max(255),
   }),
-  spendingPrivateKey: hexString32,  // Private keys are always 32 bytes
-  viewingPrivateKey: hexString32,
+  viewingPrivateKey: hexString32,   // Viewing private key — always 32 bytes
+  spendingPublicKey: hexStringAny,  // Spending PUBLIC key — 32B (ed25519) or 33B (secp256k1)
   chain: chainEnum.default('solana'),
 })
 
@@ -150,17 +150,19 @@ router.post(
   validateRequest({ body: checkSchema }),
   (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { stealthAddress, spendingPrivateKey, viewingPrivateKey, chain } = req.body
+      const { stealthAddress, viewingPrivateKey, spendingPublicKey, chain } = req.body
 
-      // Auto-detects curve from address length (64 hex = ed25519, 66 hex = secp256k1)
+      // Canonical EIP-5564 view-only check — needs the viewing private key + the
+      // spending PUBLIC key (no spend authority). Curve auto-detected from address
+      // length (64 hex = ed25519, 66 hex = secp256k1).
       const isOwner = checkStealthAddress(
         {
           address: stealthAddress.address as HexString,
           ephemeralPublicKey: stealthAddress.ephemeralPublicKey as HexString,
           viewTag: stealthAddress.viewTag,
         },
-        spendingPrivateKey as HexString,
-        viewingPrivateKey as HexString
+        viewingPrivateKey as HexString,
+        spendingPublicKey as HexString
       )
 
       // Detect curve from address length
@@ -174,7 +176,7 @@ router.post(
           chain,
           curve: detectedCurve,
           trustLevel: 'high',
-          trustWarning: 'This endpoint receives private keys. For zero-trust, use @sip-protocol/sdk client-side.',
+          trustWarning: 'This endpoint receives your viewing private key. For zero-trust, scan client-side with @sip-protocol/sdk.',
         },
       })
     } catch (err) {

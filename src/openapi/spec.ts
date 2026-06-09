@@ -353,10 +353,10 @@ export const openApiSpec = {
                 type: 'object',
                 properties: {
                   stealthAddress: { $ref: '#/components/schemas/StealthAddress' },
-                  spendingPrivateKey: hexString32,
                   viewingPrivateKey: hexString32,
+                  spendingPublicKey: hexString32,
                 },
-                required: ['stealthAddress', 'spendingPrivateKey', 'viewingPrivateKey'],
+                required: ['stealthAddress', 'viewingPrivateKey', 'spendingPublicKey'],
               },
             },
           },

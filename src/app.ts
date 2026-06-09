@@ -87,7 +87,7 @@ app.get('/', (_req, res) => {
       'BIP32 hierarchical key derivation',
       'Noir/Groth16 ZK verification (SunspotVerifier)',
     ],
-    sdk: '@sip-protocol/sdk v0.7.4',
+    sdk: '@sip-protocol/sdk v0.11.0',
     demo: '/v1/demo',
     documentation: '/skill.md',
     docs: '/docs',
@@ -251,7 +251,7 @@ app.get('/demo', async (_req, res) => {
     }
     lines.push('---')
     lines.push('')
-    lines.push(`*Powered by [@sip-protocol/sdk](https://www.npmjs.com/package/@sip-protocol/sdk) v0.7.4*`)
+    lines.push(`*Powered by [@sip-protocol/sdk](https://www.npmjs.com/package/@sip-protocol/sdk) v0.11.0*`)
     res.type('text/markdown').send(lines.join('\n'))
   } catch {
     res.status(500).type('text/markdown').send('# Demo Error\n\nFailed to run demo. Try `/v1/demo` for JSON format.')

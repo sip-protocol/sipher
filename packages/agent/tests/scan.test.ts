@@ -200,7 +200,7 @@ describe('executeScan — service interaction', () => {
     expect(call.viewingPrivateKey).toHaveLength(32)
   })
 
-  it('passes spending key as 32-byte Uint8Array', async () => {
+  it('derives and passes the spending PUBLIC key as a 32-byte Uint8Array', async () => {
     mockScanForPayments.mockResolvedValueOnce(makeScanResult())
 
     await executeScan({
@@ -209,8 +209,11 @@ describe('executeScan — service interaction', () => {
     })
 
     const call = mockScanForPayments.mock.calls[0][0]
-    expect(call.spendingPrivateKey).toBeInstanceOf(Uint8Array)
-    expect(call.spendingPrivateKey).toHaveLength(32)
+    // Canonical EIP-5564 scan is view-only — the tool sends the spending PUBLIC key,
+    // never the spending private key.
+    expect(call.spendingPrivateKey).toBeUndefined()
+    expect(call.spendingPublicKey).toBeInstanceOf(Uint8Array)
+    expect(call.spendingPublicKey).toHaveLength(32)
   })
 
   it('strips 0x prefix from keys', async () => {
@@ -223,7 +226,7 @@ describe('executeScan — service interaction', () => {
 
     const call = mockScanForPayments.mock.calls[0][0]
     expect(call.viewingPrivateKey).toHaveLength(32)
-    expect(call.spendingPrivateKey).toHaveLength(32)
+    expect(call.spendingPublicKey).toHaveLength(32)
   })
 
   it('propagates scanForPayments errors', async () => {

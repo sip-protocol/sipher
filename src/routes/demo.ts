@@ -161,8 +161,8 @@ async function runDemo(): Promise<unknown> {
   const s4 = timed(() =>
     checkStealthAddress(
       s3.result.stealthAddress,
-      solMeta.spendingPrivateKey as HexString,
       solMeta.viewingPrivateKey as HexString,
+      solMeta.metaAddress.spendingKey as HexString,
     )
   )
   steps.push({
@@ -684,7 +684,7 @@ async function runDemo(): Promise<unknown> {
           'BIP32 hierarchical key derivation',
           'Keccak256 nullifier derivation (governance)',
         ],
-        sdkVersion: '@sip-protocol/sdk v0.7.4',
+        sdkVersion: '@sip-protocol/sdk v0.11.0',
       },
       steps,
     },

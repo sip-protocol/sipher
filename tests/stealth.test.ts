@@ -106,7 +106,7 @@ describe('POST /v1/stealth/check', () => {
   it('returns true for matching stealth address', async () => {
     // Generate meta-address
     const genRes = await request(app).post('/v1/stealth/generate').send({})
-    const { metaAddress, spendingPrivateKey, viewingPrivateKey } = genRes.body.data
+    const { metaAddress, viewingPrivateKey } = genRes.body.data
 
     // Derive stealth address
     const deriveRes = await request(app)
@@ -119,8 +119,8 @@ describe('POST /v1/stealth/check', () => {
       .post('/v1/stealth/check')
       .send({
         stealthAddress,
-        spendingPrivateKey,
         viewingPrivateKey,
+        spendingPublicKey: metaAddress.spendingKey,
       })
     expect(checkRes.status).toBe(200)
     expect(checkRes.body.data.isOwner).toBe(true)
@@ -141,8 +141,8 @@ describe('POST /v1/stealth/check', () => {
       .post('/v1/stealth/check')
       .send({
         stealthAddress: deriveRes.body.data.stealthAddress,
-        spendingPrivateKey: gen2.body.data.spendingPrivateKey,
         viewingPrivateKey: gen2.body.data.viewingPrivateKey,
+        spendingPublicKey: gen2.body.data.metaAddress.spendingKey,
       })
     expect(checkRes.status).toBe(200)
     expect(checkRes.body.data.isOwner).toBe(false)
