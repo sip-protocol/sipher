@@ -9,6 +9,8 @@ import {
 import { sha256 } from '@noble/hashes/sha256'
 import { sha512 } from '@noble/hashes/sha512'
 import { ed25519 } from '@noble/curves/ed25519'
+import type { Connection } from '@solana/web3.js'
+import { scanForPayments } from '../src/privacy.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -119,8 +121,8 @@ describe('Stealth address matching', () => {
 
     const isOurs = checkEd25519StealthAddress(
       stealth.stealthAddress,
-      meta.spendingPrivateKey,
-      meta.viewingPrivateKey
+      meta.viewingPrivateKey,
+      meta.metaAddress.spendingKey
     )
     expect(isOurs).toBe(true)
   })
@@ -132,8 +134,8 @@ describe('Stealth address matching', () => {
 
     const isMatch = checkEd25519StealthAddress(
       stealth.stealthAddress,
-      bob.spendingPrivateKey,
-      alice.viewingPrivateKey
+      alice.viewingPrivateKey,
+      bob.metaAddress.spendingKey
     )
     expect(isMatch).toBe(false)
   })
@@ -145,8 +147,8 @@ describe('Stealth address matching', () => {
 
     const isMatch = checkEd25519StealthAddress(
       stealth.stealthAddress,
-      alice.spendingPrivateKey,
-      bob.viewingPrivateKey
+      bob.viewingPrivateKey,
+      alice.metaAddress.spendingKey
     )
     expect(isMatch).toBe(false)
   })
@@ -158,8 +160,8 @@ describe('Stealth address matching', () => {
 
     const isMatch = checkEd25519StealthAddress(
       stealth.stealthAddress,
-      bob.spendingPrivateKey,
-      bob.viewingPrivateKey
+      bob.viewingPrivateKey,
+      bob.metaAddress.spendingKey
     )
     expect(isMatch).toBe(false)
   })
@@ -177,8 +179,8 @@ describe('Stealth address matching', () => {
       expect(
         checkEd25519StealthAddress(
           s.stealthAddress,
-          meta.spendingPrivateKey,
-          meta.viewingPrivateKey
+          meta.viewingPrivateKey,
+          meta.metaAddress.spendingKey
         )
       ).toBe(true)
     }
@@ -347,8 +349,8 @@ describe('Send crypto params construction', () => {
     const stealth = generateEd25519StealthAddress(reconstructed as any)
     const isOurs = checkEd25519StealthAddress(
       stealth.stealthAddress,
-      meta.spendingPrivateKey,
-      meta.viewingPrivateKey
+      meta.viewingPrivateKey,
+      meta.metaAddress.spendingKey
     )
     expect(isOurs).toBe(true)
   })
@@ -374,8 +376,8 @@ describe('Scan matching simulation', () => {
     const aliceMatches = events.filter((e) =>
       checkEd25519StealthAddress(
         e.stealthAddress,
-        alice.spendingPrivateKey,
-        alice.viewingPrivateKey
+        alice.viewingPrivateKey,
+        alice.metaAddress.spendingKey
       )
     )
     expect(aliceMatches).toHaveLength(2)
@@ -384,8 +386,8 @@ describe('Scan matching simulation', () => {
     const bobMatches = events.filter((e) =>
       checkEd25519StealthAddress(
         e.stealthAddress,
-        bob.spendingPrivateKey,
-        bob.viewingPrivateKey
+        bob.viewingPrivateKey,
+        bob.metaAddress.spendingKey
       )
     )
     expect(bobMatches).toHaveLength(1)
@@ -404,11 +406,12 @@ describe('Scan matching simulation', () => {
     // Scanner strips the prefix and reconstructs StealthAddress
     const stripped = onChainEph[0] === 0x00 ? onChainEph.slice(1) : onChainEph
 
-    // Compute viewTag: sha256(spendingScalar * ephemeralPub)[0]
-    // On-chain events don't store the viewTag, so the scanner derives it.
-    const spendingScalar = deriveEd25519Scalar(hexToBytes(meta.spendingPrivateKey))
+    // Compute viewTag: sha256(viewingScalar * ephemeralPub)[0]
+    // On-chain events don't store the viewTag, so the scanner derives it
+    // (canonical EIP-5564: the ECDH shared secret is computed on the viewing key).
+    const viewingScalar = deriveEd25519Scalar(hexToBytes(meta.viewingPrivateKey))
     const ephPoint = ed25519.ExtendedPoint.fromHex(stripped)
-    const sharedPoint = ephPoint.multiply(spendingScalar)
+    const sharedPoint = ephPoint.multiply(viewingScalar)
     const sharedHash = sha256(sharedPoint.toRawBytes())
     const viewTag = sharedHash[0]
 
@@ -420,9 +423,120 @@ describe('Scan matching simulation', () => {
 
     const isOurs = checkEd25519StealthAddress(
       reconstructed,
-      meta.spendingPrivateKey,
-      meta.viewingPrivateKey
+      meta.viewingPrivateKey,
+      meta.metaAddress.spendingKey
     )
     expect(isOurs).toBe(true)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// scanForPayments — canonical view-only round-trip (vault event scan)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Build a 194-byte VaultWithdrawEvent buffer addressed to a stealth recipient.
+ * Mirrors the layout parsed by parseWithdrawEvent in src/privacy.ts:
+ *   disc(8) + depositor(32) + stealth(32) + commitment(33) + ephemeral(33)
+ *   + vk_hash(32) + amount(8) + fee(8) + timestamp(8)
+ */
+function buildWithdrawEvent(
+  stealthAddressHex: string,
+  ephemeralHex: string,
+  amount = 1_000_000_000n,
+  fee = 5_000_000n,
+): Buffer {
+  const buf = Buffer.alloc(194)
+  let off = 8 // discriminator (unused by the parser)
+  off += 32 // depositor (unused by matching)
+  Buffer.from(hexToBytes(stealthAddressHex)).copy(buf, off); off += 32
+  off += 33 // amount_commitment (unused by matching)
+  // ephemeral pubkey: on-chain 33-byte format = 0x00 prefix + 32-byte ed25519
+  buf[off] = 0x00
+  Buffer.from(hexToBytes(ephemeralHex)).copy(buf, off + 1); off += 33
+  off += 32 // viewing_key_hash (unused by matching)
+  buf.writeBigUInt64LE(amount, off); off += 8
+  buf.writeBigUInt64LE(fee, off); off += 8
+  buf.writeBigInt64LE(1_700_000_000n, off)
+  return buf
+}
+
+/** Minimal Connection stub returning a single transaction carrying one event. */
+function mockConnectionWithEvent(eventBuf: Buffer): Connection {
+  const logMessages = ['Program data: ' + eventBuf.toString('base64')]
+  return {
+    getSignaturesForAddress: async () => [{ signature: 'sig-1' }],
+    getParsedTransactions: async () => [{ meta: { logMessages } }],
+  } as unknown as Connection
+}
+
+describe('scanForPayments — canonical view-only round-trip', () => {
+  it('finds a payment using the viewing private key + spending PUBLIC key', async () => {
+    const meta = generateEd25519StealthMetaAddress('solana')
+    const stealth = generateEd25519StealthAddress(meta.metaAddress)
+
+    const connection = mockConnectionWithEvent(
+      buildWithdrawEvent(
+        stealth.stealthAddress.address,
+        stealth.stealthAddress.ephemeralPublicKey,
+      ),
+    )
+
+    const result = await scanForPayments({
+      connection,
+      viewingPrivateKey: hexToBytes(meta.viewingPrivateKey),
+      spendingPublicKey: hexToBytes(meta.metaAddress.spendingKey),
+    })
+
+    expect(result.payments).toHaveLength(1)
+    expect(result.payments[0].transferAmount).toBe(1_000_000_000n)
+    expect(result.payments[0].stealthAddress.toBase58()).toBe(
+      ed25519PublicKeyToSolanaAddress(stealth.stealthAddress.address),
+    )
+  })
+
+  it('does NOT match a stranger scanning with the wrong viewing key', async () => {
+    const recipient = generateEd25519StealthMetaAddress('solana')
+    const stranger = generateEd25519StealthMetaAddress('solana')
+    const stealth = generateEd25519StealthAddress(recipient.metaAddress)
+
+    const connection = mockConnectionWithEvent(
+      buildWithdrawEvent(
+        stealth.stealthAddress.address,
+        stealth.stealthAddress.ephemeralPublicKey,
+      ),
+    )
+
+    const result = await scanForPayments({
+      connection,
+      viewingPrivateKey: hexToBytes(stranger.viewingPrivateKey),
+      spendingPublicKey: hexToBytes(stranger.metaAddress.spendingKey),
+    })
+
+    expect(result.payments).toHaveLength(0)
+  })
+
+  it('rejects a correct viewing key paired with the wrong spending public key', async () => {
+    // The viewTag is recomputed from the (correct) viewing key, so it
+    // self-consistently passes the fast-reject filter — this isolates the
+    // address-comparison (P_spend + H(S)*G) as the load-bearing check.
+    const recipient = generateEd25519StealthMetaAddress('solana')
+    const wrongSpender = generateEd25519StealthMetaAddress('solana')
+    const stealth = generateEd25519StealthAddress(recipient.metaAddress)
+
+    const connection = mockConnectionWithEvent(
+      buildWithdrawEvent(
+        stealth.stealthAddress.address,
+        stealth.stealthAddress.ephemeralPublicKey,
+      ),
+    )
+
+    const result = await scanForPayments({
+      connection,
+      viewingPrivateKey: hexToBytes(recipient.viewingPrivateKey),
+      spendingPublicKey: hexToBytes(wrongSpender.metaAddress.spendingKey),
+    })
+
+    expect(result.payments).toHaveLength(0)
   })
 })

@@ -250,10 +250,10 @@ export async function buildPrivateSendTx(
 
 export interface ScanParams {
   connection: Connection
-  /** The viewing private key used to derive shared secrets for stealth matching */
+  /** The viewing private key — derives the ECDH shared secret + viewTag (canonical EIP-5564) */
   viewingPrivateKey: Uint8Array
-  /** The spending private key used to verify stealth address ownership */
-  spendingPrivateKey: Uint8Array
+  /** The spending PUBLIC key — reconstructs the expected stealth address (view-only, no spend authority) */
+  spendingPublicKey: Uint8Array
   /** Maximum number of signatures to scan (default: 100) */
   limit?: number
   /** Signature to start scanning before (for pagination) */
@@ -263,8 +263,10 @@ export interface ScanParams {
 }
 
 /**
- * Scan for payments addressed to the given viewing/spending keypair.
+ * Scan for payments addressed to the given viewing key + spending public key.
  *
+ * Canonical EIP-5564 view-only scan: requires only the recipient's viewing
+ * PRIVATE key plus their spending PUBLIC key — never the spending private key.
  * This scans VaultWithdrawEvent logs emitted by the sipher_vault program.
  * For each event, it reconstructs a StealthAddress from the on-chain data
  * and calls checkEd25519StealthAddress to verify the payment is addressed
@@ -276,7 +278,7 @@ export async function scanForPayments(
   const {
     connection,
     viewingPrivateKey,
-    spendingPrivateKey,
+    spendingPublicKey,
     limit = 100,
     before,
     programId = SIPHER_VAULT_PROGRAM_ID,
@@ -293,15 +295,16 @@ export async function scanForPayments(
     return { payments: [], eventsScanned: 0, hasMore: false }
   }
 
-  // Convert keypair bytes to 0x-prefixed hex for @sip-protocol/sdk
-  const spendingKeyHex = bytesToHex(spendingPrivateKey) as `0x${string}`
+  // Convert keys to 0x-prefixed hex for @sip-protocol/sdk
   const viewingKeyHex = bytesToHex(viewingPrivateKey) as `0x${string}`
+  const spendingPubHex = bytesToHex(spendingPublicKey) as `0x${string}`
 
-  // Pre-compute the spending scalar for viewTag derivation.
-  // checkEd25519StealthAddress uses viewTag as an early-exit filter,
-  // but on-chain events don't store the viewTag. We compute it here
-  // so the check function doesn't reject valid payments.
-  const spendingScalar = deriveEd25519Scalar(spendingPrivateKey)
+  // Pre-compute the VIEWING scalar for viewTag derivation. Canonical EIP-5564
+  // computes the ECDH shared secret on the viewing key, and
+  // checkEd25519StealthAddress uses viewTag as an early-exit filter — but
+  // on-chain events don't store the viewTag, so we recompute it identically
+  // here so the check function doesn't reject valid payments.
+  const viewingScalar = deriveEd25519Scalar(viewingPrivateKey)
 
   const payments: StealthPayment[] = []
 
@@ -343,10 +346,10 @@ export async function scanForPayments(
         // Skip events with zero-filled ephemeral keys (pre-integration placeholder sends)
         if (ephRaw.every((b) => b === 0)) continue
 
-        // Compute viewTag: sha256(spendingScalar * ephemeralPub)[0]
+        // Compute viewTag: sha256(viewingScalar * ephemeralPub)[0]
         // This matches what checkEd25519StealthAddress does internally.
         const ephPoint = ed25519.ExtendedPoint.fromHex(ephRaw)
-        const sharedSecretPoint = ephPoint.multiply(spendingScalar)
+        const sharedSecretPoint = ephPoint.multiply(viewingScalar)
         const sharedSecretHash = sha256Hash(sharedSecretPoint.toRawBytes())
         const viewTag = sharedSecretHash[0]
 
@@ -356,7 +359,7 @@ export async function scanForPayments(
           viewTag,
         }
 
-        if (checkEd25519StealthAddress(stealthAddr, spendingKeyHex, viewingKeyHex)) {
+        if (checkEd25519StealthAddress(stealthAddr, viewingKeyHex, spendingPubHex)) {
           payments.push(payment)
         }
       } catch {

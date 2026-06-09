@@ -4,6 +4,7 @@ import {
   scanForPayments,
   fromBaseUnits,
 } from '@sipher/sdk'
+import { ed25519 } from '@noble/curves/ed25519'
 import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -100,13 +101,18 @@ export async function executeScan(params: ScanParams): Promise<ScanToolResult> {
     throw new Error(`Spending key must be 32 bytes (64 hex chars), got ${spendingPrivateKey.length} bytes`)
   }
 
+  // Canonical EIP-5564 scanning is view-only — it needs the spending PUBLIC key,
+  // not spend authority. Derive it from the user's spending private key (which is
+  // still required so a matched payment can be claimed afterwards).
+  const spendingPublicKey = ed25519.getPublicKey(spendingPrivateKey)
+
   const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
 
   const result = await scanForPayments({
     connection,
     viewingPrivateKey,
-    spendingPrivateKey,
+    spendingPublicKey,
     limit,
   })
 

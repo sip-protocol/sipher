@@ -47,7 +47,7 @@ router.get('/health', async (_req: Request, res: Response) => {
         network: 'mainnet-beta',
         configPDA: 'BVawZkppFewygA5nxdrLma4ThKx8Th7bW4KTCkcWTZwZ',
       },
-      sdk: '@sip-protocol/sdk v0.7.4',
+      sdk: '@sip-protocol/sdk v0.11.0',
       chains: 17,
       sdks: 4,
     },

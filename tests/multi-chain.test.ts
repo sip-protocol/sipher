@@ -87,7 +87,7 @@ describe('Multi-Chain Stealth Addresses', () => {
         .post('/v1/stealth/generate')
         .send({ chain: 'near' })
 
-      const { metaAddress, spendingPrivateKey, viewingPrivateKey } = genRes.body.data
+      const { metaAddress, viewingPrivateKey } = genRes.body.data
 
       // Derive stealth address
       const deriveRes = await request(app)
@@ -96,13 +96,13 @@ describe('Multi-Chain Stealth Addresses', () => {
 
       const stealthAddress = deriveRes.body.data.stealthAddress
 
-      // Check ownership
+      // Check ownership (canonical view-only: viewing private + spending PUBLIC key)
       const checkRes = await request(app)
         .post('/v1/stealth/check')
         .send({
           stealthAddress,
-          spendingPrivateKey,
           viewingPrivateKey,
+          spendingPublicKey: metaAddress.spendingKey,
           chain: 'near',
         })
 
@@ -154,7 +154,7 @@ describe('Multi-Chain Stealth Addresses', () => {
         .post('/v1/stealth/generate')
         .send({ chain: 'ethereum' })
 
-      const { metaAddress, spendingPrivateKey, viewingPrivateKey } = genRes.body.data
+      const { metaAddress, viewingPrivateKey } = genRes.body.data
 
       const deriveRes = await request(app)
         .post('/v1/stealth/derive')
@@ -166,8 +166,8 @@ describe('Multi-Chain Stealth Addresses', () => {
         .post('/v1/stealth/check')
         .send({
           stealthAddress,
-          spendingPrivateKey,
           viewingPrivateKey,
+          spendingPublicKey: metaAddress.spendingKey,
           chain: 'ethereum',
         })
 

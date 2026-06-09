@@ -55,7 +55,7 @@ describe('Health endpoint', () => {
     expect(res.body.data.program).toBeDefined()
     expect(res.body.data.program.id).toBe('S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at')
     expect(res.body.data.program.network).toBe('mainnet-beta')
-    expect(res.body.data.sdk).toBe('@sip-protocol/sdk v0.7.4')
+    expect(res.body.data.sdk).toBe('@sip-protocol/sdk v0.11.0')
     expect(res.body.data.chains).toBe(17)
   })
 })

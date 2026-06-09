@@ -1,6 +1,7 @@
 import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { createScheduledOp, getOrCreateSession } from '../db.js'
 import { createConnection, scanForPayments } from '@sipher/sdk'
+import { ed25519 } from '@noble/curves/ed25519'
 import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,9 +74,16 @@ export async function executeConsolidate(
   const spendingPrivateKey = new Uint8Array(
     skHex.match(/.{1,2}/g)?.map(b => parseInt(b, 16)) ?? [],
   )
+  if (spendingPrivateKey.length !== 32) {
+    throw new Error(`Spending key must be 32 bytes (64 hex chars), got ${spendingPrivateKey.length} bytes`)
+  }
+
+  // Canonical EIP-5564 scanning is view-only — derive the spending PUBLIC key.
+  // The spending private key stays in params and is persisted on each claim op below.
+  const spendingPublicKey = ed25519.getPublicKey(spendingPrivateKey)
 
   const scanResult = await scanForPayments({
-    connection, viewingPrivateKey, spendingPrivateKey, limit: 200,
+    connection, viewingPrivateKey, spendingPublicKey, limit: 200,
   })
 
   if (scanResult.payments.length === 0) {
