@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
-import { checkEd25519StealthAddress } from '@sip-protocol/sdk'
+import { checkEd25519StealthAddress, parseAnnouncement } from '@sip-protocol/sdk'
 import type { StealthAddress, HexString } from '@sip-protocol/types'
 import { validateRequest } from '../middleware/validation.js'
 import { getConnection } from '../services/solana.js'
@@ -12,8 +12,14 @@ import { ErrorCode } from '../errors/codes.js'
 
 const router = Router()
 
-const SIP_MEMO_PREFIX = 'SIP:'
 const BATCH_MAX = 100
+
+// Cheap pre-filter for SIP memo logs. Mirrors the SDK's SIP_MEMO_PREFIX_ANY
+// ('SIP:'); inlined because that constant currently exists only in the SDK's CJS
+// runtime bundle — it's absent from the ESM build and from both type-declaration
+// files, so an ESM/TS consumer can't import it. The authoritative, version-aware
+// parse (SIP:1 legacy + SIP:2 canonical) is done by the SDK's parseAnnouncement.
+const SIP_MEMO_PREFIX_ANY = 'SIP:'
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -66,16 +72,19 @@ router.post(
           if (!tx?.meta?.logMessages) continue
 
           for (const log of tx.meta.logMessages) {
-            if (!log.includes(SIP_MEMO_PREFIX)) continue
+            if (!log.includes(SIP_MEMO_PREFIX_ANY)) continue
 
             const memoMatch = log.match(/Program log: (.+)/)
             if (!memoMatch) continue
 
-            // Parse announcement: SIP:<ephemeralPubKey>:<viewTag>:<stealthAddress>
-            const parts = memoMatch[1].replace(SIP_MEMO_PREFIX, '').split(':')
-            if (parts.length < 3) continue
+            // Version-aware parse of SIP:1 (legacy) + SIP:2 (canonical) announcements
+            // via the SDK. Format: SIP:<version>:<ephemeral>:<viewTag>[:<stealth>].
+            const announcement = parseAnnouncement(memoMatch[1].trim())
+            if (!announcement || !announcement.stealthAddress) continue
 
-            const [ephemeralB58, viewTagHex, stealthB58] = parts
+            const ephemeralB58 = announcement.ephemeralPublicKey
+            const viewTagHex = announcement.viewTag
+            const stealthB58 = announcement.stealthAddress
 
             let ephemeralHex: HexString
             let stealthHex: HexString
@@ -198,15 +207,19 @@ router.post(
               if (!tx?.meta?.logMessages) continue
 
               for (const log of tx.meta.logMessages) {
-                if (!log.includes(SIP_MEMO_PREFIX)) continue
+                if (!log.includes(SIP_MEMO_PREFIX_ANY)) continue
 
                 const memoMatch = log.match(/Program log: (.+)/)
                 if (!memoMatch) continue
 
-                const parts = memoMatch[1].replace(SIP_MEMO_PREFIX, '').split(':')
-                if (parts.length < 3) continue
+                // Version-aware parse of SIP:1 (legacy) + SIP:2 (canonical) announcements
+                // via the SDK. Format: SIP:<version>:<ephemeral>:<viewTag>[:<stealth>].
+                const announcement = parseAnnouncement(memoMatch[1].trim())
+                if (!announcement || !announcement.stealthAddress) continue
 
-                const [ephemeralB58, viewTagHex, stealthB58] = parts
+                const ephemeralB58 = announcement.ephemeralPublicKey
+                const viewTagHex = announcement.viewTag
+                const stealthB58 = announcement.stealthAddress
 
                 let ephemeralHex: HexString
                 let stealthHex: HexString
