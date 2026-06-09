@@ -1,6 +1,6 @@
 import type { Tool } from '@mariozechner/pi-ai'
 import { getWriteClient } from '../x-client.js'
-import { trackXApiCost, canMakeCall } from '../budget.js'
+import { trackXApiCost, canMakeCall, postCostOperation } from '../budget.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // replyTweet — AUTO. Posts a reply to an existing tweet directly via X API.
@@ -51,7 +51,8 @@ export async function executeReplyTweet(params: ReplyTweetParams): Promise<Reply
   const response = await client.v2.reply(params.text, params.tweet_id)
   const tweetId = response.data.id
 
-  trackXApiCost('content_create', 1)
+  // Replies containing a link bill at the higher content_create_url rate.
+  trackXApiCost(postCostOperation(params.text), 1)
 
   return { tweet_id: tweetId }
 }

@@ -140,14 +140,14 @@ describe('executeSendDM — service interaction', () => {
     expect(mockTrackXApiCost).toHaveBeenCalledWith('dm_create', 1)
   })
 
-  it('emits herald:dm event with user_id and dm_id in data, level routine, no wallet field', async () => {
+  it('emits herald:dm-sent (NOT herald:dm — an outgoing DM must not be re-processed as an incoming one by the X adapter)', async () => {
     await executeSendDM({ user_id: VALID_USER_ID, text: SAMPLE_DM_TEXT })
 
     expect(mockGuardianEmit).toHaveBeenCalledTimes(1)
     const [event] = mockGuardianEmit.mock.calls[0]
     expect(event).toStrictEqual({
       source: 'herald',
-      type: 'herald:dm',
+      type: 'herald:dm-sent',
       level: 'routine',
       data: { user_id: VALID_USER_ID, dm_id: VALID_DM_EVENT_ID },
       timestamp: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/),

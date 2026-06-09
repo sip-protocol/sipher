@@ -23,10 +23,16 @@ vi.mock('../../../src/herald/x-client.js', () => ({
   getWriteClient: mockGetWriteClient,
 }))
 
-vi.mock('../../../src/herald/budget.js', () => ({
-  canMakeCall: mockCanMakeCall,
-  trackXApiCost: mockTrackXApiCost,
-}))
+// Keep the real (pure) postCostOperation so the URL-aware cost path is exercised
+// end-to-end through the call site; only the gate + cost-recording are mocked.
+vi.mock('../../../src/herald/budget.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/herald/budget.js')>()
+  return {
+    ...actual,
+    canMakeCall: mockCanMakeCall,
+    trackXApiCost: mockTrackXApiCost,
+  }
+})
 
 import {
   replyTweetTool,
@@ -123,6 +129,11 @@ describe('executeReplyTweet — service interaction', () => {
   it('tracks content_create cost with resource count 1', async () => {
     await executeReplyTweet({ tweet_id: VALID_TWEET_ID, text: 'reply' })
     expect(mockTrackXApiCost).toHaveBeenCalledWith('content_create', 1)
+  })
+
+  it('tracks content_create_url when the reply contains a link', async () => {
+    await executeReplyTweet({ tweet_id: VALID_TWEET_ID, text: 'docs: https://sip-protocol.org' })
+    expect(mockTrackXApiCost).toHaveBeenCalledWith('content_create_url', 1)
   })
 
   it('propagates v2.reply throw (rate limit / network / auth)', async () => {

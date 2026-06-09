@@ -15,11 +15,27 @@ const COST_TABLE: Record<string, number> = {
   posts_read: 0.005,
   user_read: 0.010,
   dm_read: 0.010,
-  content_create: 0.005,
+  content_create: 0.015, // X 2026 pay-per-use: post creation is $0.015/request
+  content_create_url: 0.200, // X 2026 pay-per-use: a post containing a link is $0.200/request
   dm_create: 0.015,
   user_interaction: 0.015,
   mentions_read: 0.005,
   search_read: 0.005,
+}
+
+// A post that contains a link is billed at the higher content_create_url rate.
+// Detect only unambiguous link signals (http(s):// or a www. host) — bare-domain
+// matching (e.g. `foo.io`) would false-positive on HERALD's technical content
+// such as `stealth.ts`, `v0.9.0`, or `claude-sonnet-4.6`.
+const POST_URL_PATTERN = /https?:\/\/|(?:^|\s)www\./i
+
+/**
+ * Pick the X content-creation cost key for a post body: the URL rate when the
+ * text contains a link, otherwise the base post rate. Callers track cost with
+ * this while still gating on the plain `content_create` op.
+ */
+export function postCostOperation(text: string): 'content_create' | 'content_create_url' {
+  return POST_URL_PATTERN.test(text) ? 'content_create_url' : 'content_create'
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,6 +52,7 @@ const BLOCKED_OPS: Record<BudgetGate, Set<string>> = {
     'search_read',
     'posts_read',
     'content_create',
+    'content_create_url',
     'user_interaction',
   ]),
   paused: new Set(Object.keys(COST_TABLE)),
