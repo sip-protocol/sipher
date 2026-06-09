@@ -30,19 +30,19 @@ class StealthCheckRequest(BaseModel):
     StealthCheckRequest
     """ # noqa: E501
     stealth_address: StealthAddress = Field(alias="stealthAddress")
-    spending_private_key: Annotated[str, Field(strict=True)] = Field(description="0x-prefixed 32-byte hex string", alias="spendingPrivateKey")
     viewing_private_key: Annotated[str, Field(strict=True)] = Field(description="0x-prefixed 32-byte hex string", alias="viewingPrivateKey")
-    __properties: ClassVar[List[str]] = ["stealthAddress", "spendingPrivateKey", "viewingPrivateKey"]
+    spending_public_key: Annotated[str, Field(strict=True)] = Field(description="0x-prefixed 32-byte hex string", alias="spendingPublicKey")
+    __properties: ClassVar[List[str]] = ["stealthAddress", "viewingPrivateKey", "spendingPublicKey"]
 
-    @field_validator('spending_private_key')
-    def spending_private_key_validate_regular_expression(cls, value):
+    @field_validator('viewing_private_key')
+    def viewing_private_key_validate_regular_expression(cls, value):
         """Validates the regular expression"""
         if not re.match(r"^0x[0-9a-fA-F]{64}$", value):
             raise ValueError(r"must validate the regular expression /^0x[0-9a-fA-F]{64}$/")
         return value
 
-    @field_validator('viewing_private_key')
-    def viewing_private_key_validate_regular_expression(cls, value):
+    @field_validator('spending_public_key')
+    def spending_public_key_validate_regular_expression(cls, value):
         """Validates the regular expression"""
         if not re.match(r"^0x[0-9a-fA-F]{64}$", value):
             raise ValueError(r"must validate the regular expression /^0x[0-9a-fA-F]{64}$/")
@@ -103,8 +103,8 @@ class StealthCheckRequest(BaseModel):
 
         _obj = cls.model_validate({
             "stealthAddress": StealthAddress.from_dict(obj["stealthAddress"]) if obj.get("stealthAddress") is not None else None,
-            "spendingPrivateKey": obj.get("spendingPrivateKey"),
-            "viewingPrivateKey": obj.get("viewingPrivateKey")
+            "viewingPrivateKey": obj.get("viewingPrivateKey"),
+            "spendingPublicKey": obj.get("spendingPublicKey")
         })
         return _obj
 

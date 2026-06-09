@@ -119,10 +119,6 @@ impl Default for RpcProvider {
 pub enum Backend {
     #[serde(rename = "sip-native")]
     SipNative,
-    #[serde(rename = "arcium")]
-    Arcium,
-    #[serde(rename = "inco")]
-    Inco,
 }
 
 impl Default for Backend {

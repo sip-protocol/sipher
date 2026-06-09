@@ -71,8 +71,8 @@ class CreateSessionRequestDefaults(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['sip-native', 'arcium', 'inco']):
-            raise ValueError("must be one of enum values ('sip-native', 'arcium', 'inco')")
+        if value not in set(['sip-native']):
+            raise ValueError("must be one of enum values ('sip-native')")
         return value
 
     @field_validator('default_viewing_key')

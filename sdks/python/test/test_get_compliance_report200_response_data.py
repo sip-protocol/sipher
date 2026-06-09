@@ -40,7 +40,7 @@ class TestGetComplianceReport200ResponseData(unittest.TestCase):
                 status = '',
                 generated_at = 56,
                 expires_at = 56,
-                summary = sipher_client.models.capabilities.capabilities(),
+                summary = sipher_client.models.token_info.token_info(),
                 encrypted_report = '',
                 report_hash = ''
             )

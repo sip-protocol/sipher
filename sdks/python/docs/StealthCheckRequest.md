@@ -6,8 +6,8 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **stealth_address** | [**StealthAddress**](StealthAddress.md) |  | 
-**spending_private_key** | **str** | 0x-prefixed 32-byte hex string | 
 **viewing_private_key** | **str** | 0x-prefixed 32-byte hex string | 
+**spending_public_key** | **str** | 0x-prefixed 32-byte hex string | 
 
 ## Example
 

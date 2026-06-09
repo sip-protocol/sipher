@@ -37,7 +37,7 @@ class TestUpdateSession200ResponseData(unittest.TestCase):
         if include_optional:
             return UpdateSession200ResponseData(
                 session_id = '',
-                defaults = sipher_client.models.capabilities.capabilities(),
+                defaults = sipher_client.models.token_info.token_info(),
                 expires_at = 56,
                 last_accessed_at = 56
             )

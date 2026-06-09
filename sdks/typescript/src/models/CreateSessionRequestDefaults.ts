@@ -101,9 +101,7 @@ export type CreateSessionRequestDefaultsRpcProviderEnum = typeof CreateSessionRe
  * @export
  */
 export const CreateSessionRequestDefaultsBackendEnum = {
-    SIP_NATIVE: 'sip-native',
-    ARCIUM: 'arcium',
-    INCO: 'inco'
+    SIP_NATIVE: 'sip-native'
 } as const;
 export type CreateSessionRequestDefaultsBackendEnum = typeof CreateSessionRequestDefaultsBackendEnum[keyof typeof CreateSessionRequestDefaultsBackendEnum];
 

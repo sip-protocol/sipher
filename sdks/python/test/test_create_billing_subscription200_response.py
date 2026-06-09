@@ -37,7 +37,7 @@ class TestCreateBillingSubscription200Response(unittest.TestCase):
         if include_optional:
             return CreateBillingSubscription200Response(
                 success = True,
-                data = sipher_client.models.capabilities.capabilities()
+                data = sipher_client.models.token_info.token_info()
             )
         else:
             return CreateBillingSubscription200Response(

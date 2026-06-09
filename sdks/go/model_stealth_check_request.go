@@ -24,9 +24,9 @@ var _ MappedNullable = &StealthCheckRequest{}
 type StealthCheckRequest struct {
 	StealthAddress StealthAddress `json:"stealthAddress"`
 	// 0x-prefixed 32-byte hex string
-	SpendingPrivateKey string `json:"spendingPrivateKey" validate:"regexp=^0x[0-9a-fA-F]{64}$"`
-	// 0x-prefixed 32-byte hex string
 	ViewingPrivateKey string `json:"viewingPrivateKey" validate:"regexp=^0x[0-9a-fA-F]{64}$"`
+	// 0x-prefixed 32-byte hex string
+	SpendingPublicKey string `json:"spendingPublicKey" validate:"regexp=^0x[0-9a-fA-F]{64}$"`
 }
 
 type _StealthCheckRequest StealthCheckRequest
@@ -35,11 +35,11 @@ type _StealthCheckRequest StealthCheckRequest
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewStealthCheckRequest(stealthAddress StealthAddress, spendingPrivateKey string, viewingPrivateKey string) *StealthCheckRequest {
+func NewStealthCheckRequest(stealthAddress StealthAddress, viewingPrivateKey string, spendingPublicKey string) *StealthCheckRequest {
 	this := StealthCheckRequest{}
 	this.StealthAddress = stealthAddress
-	this.SpendingPrivateKey = spendingPrivateKey
 	this.ViewingPrivateKey = viewingPrivateKey
+	this.SpendingPublicKey = spendingPublicKey
 	return &this
 }
 
@@ -75,30 +75,6 @@ func (o *StealthCheckRequest) SetStealthAddress(v StealthAddress) {
 	o.StealthAddress = v
 }
 
-// GetSpendingPrivateKey returns the SpendingPrivateKey field value
-func (o *StealthCheckRequest) GetSpendingPrivateKey() string {
-	if o == nil {
-		var ret string
-		return ret
-	}
-
-	return o.SpendingPrivateKey
-}
-
-// GetSpendingPrivateKeyOk returns a tuple with the SpendingPrivateKey field value
-// and a boolean to check if the value has been set.
-func (o *StealthCheckRequest) GetSpendingPrivateKeyOk() (*string, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return &o.SpendingPrivateKey, true
-}
-
-// SetSpendingPrivateKey sets field value
-func (o *StealthCheckRequest) SetSpendingPrivateKey(v string) {
-	o.SpendingPrivateKey = v
-}
-
 // GetViewingPrivateKey returns the ViewingPrivateKey field value
 func (o *StealthCheckRequest) GetViewingPrivateKey() string {
 	if o == nil {
@@ -123,6 +99,30 @@ func (o *StealthCheckRequest) SetViewingPrivateKey(v string) {
 	o.ViewingPrivateKey = v
 }
 
+// GetSpendingPublicKey returns the SpendingPublicKey field value
+func (o *StealthCheckRequest) GetSpendingPublicKey() string {
+	if o == nil {
+		var ret string
+		return ret
+	}
+
+	return o.SpendingPublicKey
+}
+
+// GetSpendingPublicKeyOk returns a tuple with the SpendingPublicKey field value
+// and a boolean to check if the value has been set.
+func (o *StealthCheckRequest) GetSpendingPublicKeyOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.SpendingPublicKey, true
+}
+
+// SetSpendingPublicKey sets field value
+func (o *StealthCheckRequest) SetSpendingPublicKey(v string) {
+	o.SpendingPublicKey = v
+}
+
 func (o StealthCheckRequest) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -134,8 +134,8 @@ func (o StealthCheckRequest) MarshalJSON() ([]byte, error) {
 func (o StealthCheckRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["stealthAddress"] = o.StealthAddress
-	toSerialize["spendingPrivateKey"] = o.SpendingPrivateKey
 	toSerialize["viewingPrivateKey"] = o.ViewingPrivateKey
+	toSerialize["spendingPublicKey"] = o.SpendingPublicKey
 	return toSerialize, nil
 }
 
@@ -145,8 +145,8 @@ func (o *StealthCheckRequest) UnmarshalJSON(data []byte) (err error) {
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
 		"stealthAddress",
-		"spendingPrivateKey",
 		"viewingPrivateKey",
+		"spendingPublicKey",
 	}
 
 	allProperties := make(map[string]interface{})

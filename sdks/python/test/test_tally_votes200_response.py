@@ -38,6 +38,7 @@ class TestTallyVotes200Response(unittest.TestCase):
             return TallyVotes200Response(
                 success = True,
                 beta = True,
+                warning = '',
                 data = sipher_client.models.tally_votes_200_response_data.tallyVotes_200_response_data(
                     tally_id = 'tly_bf325375e030fccba00917317c574773100bf03b5fc61486286e564b23e9566b', 
                     proposal_id = '', 

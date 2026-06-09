@@ -112,7 +112,6 @@ impl From<&str> for ContentType {
 }
 
 pub mod admin_api;
-pub mod arcium_api;
 pub mod backends_api;
 pub mod billing_usage_api;
 pub mod cspl_api;
@@ -121,9 +120,7 @@ pub mod compliance_api;
 pub mod gas_abstraction_api;
 pub mod governance_api;
 pub mod health_api;
-pub mod inco_api;
 pub mod privacy_api;
-pub mod proofs_api;
 pub mod rpc_api;
 pub mod scan_api;
 pub mod sessions_api;

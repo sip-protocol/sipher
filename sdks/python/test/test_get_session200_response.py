@@ -39,7 +39,7 @@ class TestGetSession200Response(unittest.TestCase):
                 success = True,
                 data = sipher_client.models.get_session_200_response_data.getSession_200_response_data(
                     session_id = '', 
-                    defaults = sipher_client.models.capabilities.capabilities(), 
+                    defaults = sipher_client.models.token_info.token_info(), 
                     created_at = 56, 
                     expires_at = 56, 
                     last_accessed_at = 56, )

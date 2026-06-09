@@ -37,6 +37,8 @@ class TestCsplUnwrap200Response(unittest.TestCase):
         if include_optional:
             return CsplUnwrap200Response(
                 success = True,
+                beta = True,
+                warning = '',
                 data = sipher_client.models.cspl_unwrap_200_response_data.csplUnwrap_200_response_data(
                     signature = '', 
                     amount = '', )

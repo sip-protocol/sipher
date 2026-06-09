@@ -52,8 +52,6 @@ type APIClient struct {
 
 	AdminAPI *AdminAPIService
 
-	ArciumAPI *ArciumAPIService
-
 	BackendsAPI *BackendsAPIService
 
 	BillingUsageAPI *BillingUsageAPIService
@@ -70,11 +68,7 @@ type APIClient struct {
 
 	HealthAPI *HealthAPIService
 
-	IncoAPI *IncoAPIService
-
 	PrivacyAPI *PrivacyAPIService
-
-	ProofsAPI *ProofsAPIService
 
 	RPCAPI *RPCAPIService
 
@@ -108,7 +102,6 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 
 	// API Services
 	c.AdminAPI = (*AdminAPIService)(&c.common)
-	c.ArciumAPI = (*ArciumAPIService)(&c.common)
 	c.BackendsAPI = (*BackendsAPIService)(&c.common)
 	c.BillingUsageAPI = (*BillingUsageAPIService)(&c.common)
 	c.CSPLAPI = (*CSPLAPIService)(&c.common)
@@ -117,9 +110,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.GasAbstractionAPI = (*GasAbstractionAPIService)(&c.common)
 	c.GovernanceAPI = (*GovernanceAPIService)(&c.common)
 	c.HealthAPI = (*HealthAPIService)(&c.common)
-	c.IncoAPI = (*IncoAPIService)(&c.common)
 	c.PrivacyAPI = (*PrivacyAPIService)(&c.common)
-	c.ProofsAPI = (*ProofsAPIService)(&c.common)
 	c.RPCAPI = (*RPCAPIService)(&c.common)
 	c.ScanAPI = (*ScanAPIService)(&c.common)
 	c.SessionsAPI = (*SessionsAPIService)(&c.common)
