@@ -56,9 +56,13 @@ export async function executeSendDM(params: SendDMParams): Promise<SendDMResult>
   trackXApiCost('dm_create', 1)
 
   const now = new Date().toISOString()
+  // Emit `herald:dm-sent` (outgoing), NOT `herald:dm` (incoming). The X adapter
+  // subscribes to `herald:dm` to auto-reply to received DMs — emitting that type
+  // here would make HERALD treat its own sent DM as an inbound one. The dashboard
+  // still surfaces this via the guardianBus onAny stream.
   guardianBus.emit({
     source: 'herald',
-    type: 'herald:dm',
+    type: 'herald:dm-sent',
     level: 'routine',
     data: { user_id: params.user_id, dm_id: dmId },
     timestamp: now,

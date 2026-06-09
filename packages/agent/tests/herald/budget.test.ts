@@ -96,3 +96,46 @@ describe('HERALD budget tracker', () => {
     expect(canMakeCall('user_read')).toBe(true)
   })
 })
+
+describe('content-create costs (2026 X pay-per-use rates)', () => {
+  it('content_create is $0.015 per post', async () => {
+    const { trackXApiCost, getBudgetStatus } = await getBudget()
+    trackXApiCost('content_create', 1)
+    expect(getBudgetStatus().spent).toBeCloseTo(0.015, 5)
+  })
+
+  it('content_create_url is $0.200 per post (X charges more for posts with links)', async () => {
+    const { trackXApiCost, getBudgetStatus } = await getBudget()
+    trackXApiCost('content_create_url', 1)
+    expect(getBudgetStatus().spent).toBeCloseTo(0.2, 5)
+  })
+
+  it('content_create_url is blocked when the budget gate is paused', async () => {
+    const { trackXApiCost, canMakeCall } = await getBudget()
+    trackXApiCost('user_read', 15000) // 100% → paused
+    expect(canMakeCall('content_create_url')).toBe(false)
+  })
+})
+
+describe('postCostOperation (URL-aware post cost)', () => {
+  it('returns content_create for plain text', async () => {
+    const { postCostOperation } = await getBudget()
+    expect(postCostOperation('Privacy is normal.')).toBe('content_create')
+  })
+
+  it('returns content_create_url for http(s) links', async () => {
+    const { postCostOperation } = await getBudget()
+    expect(postCostOperation('Read more: https://sip-protocol.org')).toBe('content_create_url')
+    expect(postCostOperation('http://example.com')).toBe('content_create_url')
+  })
+
+  it('returns content_create_url for www. links', async () => {
+    const { postCostOperation } = await getBudget()
+    expect(postCostOperation('visit www.sip-protocol.org today')).toBe('content_create_url')
+  })
+
+  it('does NOT false-positive on technical content (filenames, versions)', async () => {
+    const { postCostOperation } = await getBudget()
+    expect(postCostOperation('New in stealth.ts — SDK v0.9.0 with claude-sonnet-4.6')).toBe('content_create')
+  })
+})

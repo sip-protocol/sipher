@@ -177,6 +177,14 @@ describe('publishTweet', () => {
     expect(row?.operation).toBe('content_create')
   })
 
+  it('tracks the higher content_create_url cost when the post contains a link', async () => {
+    await publishTweet('Read the docs: https://sip-protocol.org')
+    const conn = getDb()
+    const row = conn.prepare("SELECT * FROM cost_log WHERE operation = 'content_create_url' LIMIT 1").get() as { operation: string } | undefined
+    expect(row).toBeDefined()
+    expect(row?.operation).toBe('content_create_url')
+  })
+
   it('re-throws X API errors', async () => {
     mockTweet.mockRejectedValue(new Error('403 Forbidden'))
     await expect(publishTweet('Will fail')).rejects.toThrow('403 Forbidden')
@@ -376,19 +384,23 @@ describe('executeSendDM', () => {
     expect(rows.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('emits herald:dm event on the guardianBus', async () => {
+  it('emits herald:dm-sent (not herald:dm) so the X adapter does not treat an outgoing DM as incoming', async () => {
     const { guardianBus } = await import('../../../src/coordination/event-bus.js')
-    const handler = vi.fn()
-    guardianBus.on('herald:dm', handler)
+    const sentHandler = vi.fn()
+    const incomingHandler = vi.fn()
+    guardianBus.on('herald:dm-sent', sentHandler)
+    guardianBus.on('herald:dm', incomingHandler)
     await executeSendDM({ user_id: 'user_event', text: 'Event test' })
-    expect(handler).toHaveBeenCalledWith(
+    expect(sentHandler).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'herald:dm',
+        type: 'herald:dm-sent',
         source: 'herald',
         data: expect.objectContaining({ user_id: 'user_event' }),
       }),
     )
-    guardianBus.off('herald:dm', handler)
+    expect(incomingHandler).not.toHaveBeenCalled()
+    guardianBus.off('herald:dm-sent', sentHandler)
+    guardianBus.off('herald:dm', incomingHandler)
   })
 
   it('throws when user_id is empty', async () => {

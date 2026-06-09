@@ -1,6 +1,6 @@
 import type { Tool } from '@mariozechner/pi-ai'
 import { getWriteClient } from '../x-client.js'
-import { trackXApiCost, canMakeCall } from '../budget.js'
+import { trackXApiCost, canMakeCall, postCostOperation } from '../budget.js'
 import { getDb } from '../../db.js'
 import { ulid } from 'ulid'
 import { guardianBus } from '../../coordination/event-bus.js'
@@ -84,7 +84,8 @@ export async function publishTweet(text: string): Promise<PublishTweetResult> {
   const response = await client.v2.tweet(text)
   const tweetId = response.data.id
 
-  trackXApiCost('content_create', 1)
+  // Posts containing a link bill at the higher content_create_url rate.
+  trackXApiCost(postCostOperation(text), 1)
 
   return { tweet_id: tweetId }
 }
