@@ -4,6 +4,7 @@ import {
   generateEd25519StealthMetaAddress,
   generateEd25519StealthAddress,
   ed25519PublicKeyToSolanaAddress,
+  createAnnouncementMemo,
 } from '@sip-protocol/sdk'
 
 const { mockGetSignaturesForAddress, mockGetTransaction } = vi.hoisted(() => ({
@@ -180,19 +181,21 @@ describe('POST /v1/scan/payments', () => {
     expect(res.status).toBe(400)
   })
 
-  it('finds a matching announcement (canonical view-only round-trip)', async () => {
+  it('finds a SIP:2 versioned announcement (canonical view-only round-trip)', async () => {
     // A sender derived this stealth address + announcement for our meta-address.
     const meta = generateEd25519StealthMetaAddress('solana')
     const stealth = generateEd25519StealthAddress(meta.metaAddress)
     const ephB58 = ed25519PublicKeyToSolanaAddress(stealth.stealthAddress.ephemeralPublicKey)
     const stealthB58 = ed25519PublicKeyToSolanaAddress(stealth.stealthAddress.address)
     const viewTagHex = stealth.stealthAddress.viewTag.toString(16)
+    // Canonical on-chain format emitted by the SDK: `SIP:2:<eph>:<viewTag>:<stealth>`.
+    const memo = createAnnouncementMemo(ephB58, viewTagHex, stealthB58)
 
     mockGetSignaturesForAddress.mockResolvedValueOnce([
       { signature: 'pos-sig', slot: 300000001, blockTime: 1_700_000_000 },
     ])
     mockGetTransaction.mockResolvedValueOnce({
-      meta: { logMessages: [`Program log: SIP:${ephB58}:${viewTagHex}:${stealthB58}`] },
+      meta: { logMessages: [`Program log: ${memo}`] },
     })
 
     // Scan with ONLY the viewing private key + spending PUBLIC key (view-only).
@@ -209,5 +212,75 @@ describe('POST /v1/scan/payments', () => {
     expect(res.body.data.payments[0].stealthAddress).toBe(stealthB58)
     expect(res.body.data.payments[0].ephemeralPublicKey).toBe(ephB58)
     expect(res.body.data.payments[0].txSignature).toBe('pos-sig')
+  })
+
+  it('ignores legacy unversioned SIP: memos (never a real on-chain format)', async () => {
+    // The SDK has always versioned announcements (`SIP:1:` / `SIP:2:`); an
+    // unversioned `SIP:<eph>:<viewTag>:<stealth>` memo is not a canonical format
+    // and must not be matched.
+    const meta = generateEd25519StealthMetaAddress('solana')
+    const stealth = generateEd25519StealthAddress(meta.metaAddress)
+    const ephB58 = ed25519PublicKeyToSolanaAddress(stealth.stealthAddress.ephemeralPublicKey)
+    const stealthB58 = ed25519PublicKeyToSolanaAddress(stealth.stealthAddress.address)
+    const viewTagHex = stealth.stealthAddress.viewTag.toString(16)
+
+    mockGetSignaturesForAddress.mockResolvedValueOnce([
+      { signature: 'unversioned-sig', slot: 300000003, blockTime: 1_700_000_002 },
+    ])
+    mockGetTransaction.mockResolvedValueOnce({
+      meta: { logMessages: [`Program log: SIP:${ephB58}:${viewTagHex}:${stealthB58}`] },
+    })
+
+    const res = await request(app)
+      .post('/v1/scan/payments')
+      .send({
+        viewingPrivateKey: meta.viewingPrivateKey,
+        spendingPublicKey: meta.metaAddress.spendingKey,
+      })
+
+    expect(res.status).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.data.payments).toEqual([])
+  })
+})
+
+describe('POST /v1/scan/payments/batch', () => {
+  it('finds a SIP:2 versioned announcement for a keypair (view-only round-trip)', async () => {
+    const meta = generateEd25519StealthMetaAddress('solana')
+    const stealth = generateEd25519StealthAddress(meta.metaAddress)
+    const ephB58 = ed25519PublicKeyToSolanaAddress(stealth.stealthAddress.ephemeralPublicKey)
+    const stealthB58 = ed25519PublicKeyToSolanaAddress(stealth.stealthAddress.address)
+    const viewTagHex = stealth.stealthAddress.viewTag.toString(16)
+    const memo = createAnnouncementMemo(ephB58, viewTagHex, stealthB58)
+
+    mockGetSignaturesForAddress.mockResolvedValueOnce([
+      { signature: 'batch-sig', slot: 300000002, blockTime: 1_700_000_001 },
+    ])
+    mockGetTransaction.mockResolvedValueOnce({
+      meta: { logMessages: [`Program log: ${memo}`] },
+    })
+
+    const res = await request(app)
+      .post('/v1/scan/payments/batch')
+      .send({
+        keyPairs: [
+          {
+            viewingPrivateKey: meta.viewingPrivateKey,
+            spendingPublicKey: meta.metaAddress.spendingKey,
+            label: 'alice',
+          },
+        ],
+      })
+
+    expect(res.status).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.data.summary.totalPaymentsFound).toBe(1)
+    const found = res.body.data.results[0]
+    expect(found.success).toBe(true)
+    expect(found.label).toBe('alice')
+    expect(found.data.payments).toHaveLength(1)
+    expect(found.data.payments[0].stealthAddress).toBe(stealthB58)
+    expect(found.data.payments[0].ephemeralPublicKey).toBe(ephB58)
+    expect(found.data.payments[0].txSignature).toBe('batch-sig')
   })
 })
