@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest'
-import { createPollerState, getNextInterval } from '../../src/herald/poller.js'
+import { describe, it, expect, afterEach } from 'vitest'
+import {
+  createPollerState,
+  getNextInterval,
+  reactiveEnabled,
+  startPoller,
+  stopPoller,
+} from '../../src/herald/poller.js'
 
 describe('HERALD adaptive poller', () => {
   it('createPollerState() returns correct defaults', () => {
@@ -37,5 +43,62 @@ describe('HERALD adaptive poller', () => {
     const interval = getNextInterval(state)
 
     expect(interval).toBe(base)
+  })
+})
+
+describe('reactiveEnabled (HERALD_REACTIVE_ENABLED gate)', () => {
+  afterEach(() => {
+    delete process.env.HERALD_REACTIVE_ENABLED
+  })
+
+  it('defaults to false when the var is unset', () => {
+    delete process.env.HERALD_REACTIVE_ENABLED
+    expect(reactiveEnabled()).toBe(false)
+  })
+
+  it('is true only when set to exactly "true"', () => {
+    process.env.HERALD_REACTIVE_ENABLED = 'true'
+    expect(reactiveEnabled()).toBe(true)
+  })
+
+  it('treats any other value as disabled (fail-safe)', () => {
+    for (const v of ['', 'false', 'TRUE', '1', 'yes']) {
+      process.env.HERALD_REACTIVE_ENABLED = v
+      expect(reactiveEnabled()).toBe(false)
+    }
+  })
+})
+
+describe('startPoller reactive gate', () => {
+  afterEach(() => {
+    delete process.env.HERALD_REACTIVE_ENABLED
+  })
+
+  it('does NOT start mention/DM timers when reactive is disabled, but still publishes scheduled posts', () => {
+    delete process.env.HERALD_REACTIVE_ENABLED
+    const state = createPollerState()
+
+    const timers = startPoller(state)
+
+    expect(timers.mentionsTimer).toBeNull()
+    expect(timers.dmsTimer).toBeNull()
+    expect(timers.scheduledTimer).not.toBeNull()
+    expect(state.running).toBe(true)
+
+    stopPoller(state, timers)
+    expect(state.running).toBe(false)
+  })
+
+  it('starts all three timers when reactive is enabled', () => {
+    process.env.HERALD_REACTIVE_ENABLED = 'true'
+    const state = createPollerState()
+
+    const timers = startPoller(state)
+
+    expect(timers.mentionsTimer).not.toBeNull()
+    expect(timers.dmsTimer).not.toBeNull()
+    expect(timers.scheduledTimer).not.toBeNull()
+
+    stopPoller(state, timers)
   })
 })

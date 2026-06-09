@@ -191,9 +191,18 @@ export async function checkScheduledPosts(): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type PollerTimers = {
-  mentionsTimer: ReturnType<typeof setTimeout>
-  dmsTimer: ReturnType<typeof setInterval>
+  mentionsTimer: ReturnType<typeof setTimeout> | null
+  dmsTimer: ReturnType<typeof setInterval> | null
   scheduledTimer: ReturnType<typeof setInterval>
+}
+
+/**
+ * Whether the reactive loop (mention/DM polling + LLM auto-reply) is enabled.
+ * Opt-in via HERALD_REACTIVE_ENABLED=true. Defaults to OFF so HERALD can run
+ * proactive content (approval-gated) without auto-replying to public mentions/DMs.
+ */
+export function reactiveEnabled(): boolean {
+  return process.env.HERALD_REACTIVE_ENABLED === 'true'
 }
 
 /**
@@ -229,28 +238,35 @@ export function startPoller(state: PollerState): PollerTimers {
   state.running = true
 
   const timers: PollerTimers = {
-    mentionsTimer: null as unknown as ReturnType<typeof setTimeout>,
-    dmsTimer: null as unknown as ReturnType<typeof setInterval>,
+    mentionsTimer: null,
+    dmsTimer: null,
     scheduledTimer: null as unknown as ReturnType<typeof setInterval>,
   }
 
-  // Mentions: recursive setTimeout for adaptive backoff
-  scheduleMentionPoll(state, timers)
+  // Reactive loop (mention + DM polling → LLM auto-reply) is opt-in via
+  // HERALD_REACTIVE_ENABLED. When disabled, HERALD never polls mentions/DMs and
+  // never auto-replies — it still publishes approved/scheduled posts below.
+  if (reactiveEnabled()) {
+    // Mentions: recursive setTimeout for adaptive backoff
+    scheduleMentionPoll(state, timers)
 
-  // DMs: fixed interval (no backoff needed)
-  timers.dmsTimer = setInterval(() => {
-    pollDMs(state).catch((err) => {
-      guardianBus.emit({
-        source: 'herald',
-        type: 'herald:poller-error',
-        level: 'important',
-        data: { poller: 'dms', error: err instanceof Error ? err.message : String(err) },
-        timestamp: new Date().toISOString(),
+    // DMs: fixed interval (no backoff needed)
+    timers.dmsTimer = setInterval(() => {
+      pollDMs(state).catch((err) => {
+        guardianBus.emit({
+          source: 'herald',
+          type: 'herald:poller-error',
+          level: 'important',
+          data: { poller: 'dms', error: err instanceof Error ? err.message : String(err) },
+          timestamp: new Date().toISOString(),
+        })
       })
-    })
-  }, state.dmInterval)
+    }, state.dmInterval)
+    timers.dmsTimer.unref()
+  }
 
-  // Scheduled posts checked every minute regardless of mention backoff
+  // Scheduled posts checked every minute — ALWAYS runs (publishes only approved
+  // posts, so it is safe regardless of the reactive gate).
   timers.scheduledTimer = setInterval(() => {
     checkScheduledPosts().catch((err) => {
       guardianBus.emit({
@@ -263,7 +279,6 @@ export function startPoller(state: PollerState): PollerTimers {
     })
   }, 60_000)
 
-  timers.dmsTimer.unref()
   timers.scheduledTimer.unref()
 
   return timers
@@ -273,8 +288,8 @@ export function startPoller(state: PollerState): PollerTimers {
  * Stop all poller timers and mark state as not running.
  */
 export function stopPoller(state: PollerState, timers: PollerTimers): void {
-  clearTimeout(timers.mentionsTimer)
-  clearInterval(timers.dmsTimer)
+  if (timers.mentionsTimer) clearTimeout(timers.mentionsTimer)
+  if (timers.dmsTimer) clearInterval(timers.dmsTimer)
   clearInterval(timers.scheduledTimer)
   state.running = false
 }
