@@ -54,7 +54,7 @@ class TestBackendsHealth200Response(unittest.TestCase):
                         successful_requests = 56, 
                         failed_requests = 56, 
                         average_latency_ms = 1.337, ), 
-                    capabilities = sipher_client.models.capabilities.capabilities(), )
+                    capabilities = sipher_client.models.token_info.token_info(), )
             )
         else:
             return BackendsHealth200Response(

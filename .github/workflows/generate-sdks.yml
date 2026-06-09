@@ -35,6 +35,14 @@ jobs:
       - name: Export OpenAPI spec
         run: pnpm openapi:export
 
+      # Clean each output dir before regenerating. openapi-generator overwrites the
+      # files it emits but does NOT delete files it no longer emits, so endpoints
+      # removed from the spec (e.g. Arcium/Inco/Proofs) leave orphaned api/model
+      # files that reference deleted models and break the TypeScript smoke test.
+      # Mirrors sdks/generator/generate.sh, which already rm -rf's per language.
+      - name: Clean previous SDK output
+        run: rm -rf sdks/typescript sdks/python sdks/rust sdks/go
+
       - name: Generate TypeScript SDK
         uses: docker://openapitools/openapi-generator-cli:v7.19.0
         with:
@@ -54,6 +62,12 @@ jobs:
         uses: docker://openapitools/openapi-generator-cli:v7.19.0
         with:
           args: generate -i /github/workspace/dist/openapi.json -g go -c /github/workspace/sdks/generator/configs/go.json -o /github/workspace/sdks/go --skip-validate-spec
+
+      # The generate steps run in Docker as root, so regenerated files are
+      # root-owned. Restore runner ownership so the README copy, smoke tests,
+      # and auto-commit can read/write them.
+      - name: Restore ownership of generated files
+        run: sudo chown -R "$(id -u):$(id -g)" sdks/
 
       - name: Copy custom READMEs
         run: |

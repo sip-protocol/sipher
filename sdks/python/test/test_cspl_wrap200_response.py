@@ -37,6 +37,8 @@ class TestCsplWrap200Response(unittest.TestCase):
         if include_optional:
             return CsplWrap200Response(
                 success = True,
+                beta = True,
+                warning = '',
                 data = sipher_client.models.cspl_wrap_200_response_data.csplWrap_200_response_data(
                     signature = '', 
                     cspl_mint = '', 

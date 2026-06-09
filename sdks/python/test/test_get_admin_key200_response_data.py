@@ -43,7 +43,7 @@ class TestGetAdminKey200ResponseData(unittest.TestCase):
                 created_at = datetime.datetime.strptime('2013-10-20 19:20:30.00', '%Y-%m-%d %H:%M:%S.%f'),
                 expires_at = datetime.datetime.strptime('2013-10-20 19:20:30.00', '%Y-%m-%d %H:%M:%S.%f'),
                 revoked_at = datetime.datetime.strptime('2013-10-20 19:20:30.00', '%Y-%m-%d %H:%M:%S.%f'),
-                limits = sipher_client.models.capabilities.capabilities(),
+                limits = sipher_client.models.token_info.token_info(),
                 usage = None
             )
         else:

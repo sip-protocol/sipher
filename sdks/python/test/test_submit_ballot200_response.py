@@ -38,6 +38,7 @@ class TestSubmitBallot200Response(unittest.TestCase):
             return SubmitBallot200Response(
                 success = True,
                 beta = True,
+                warning = '',
                 data = sipher_client.models.submit_ballot_200_response_data.submitBallot_200_response_data(
                     proposal_id = '', 
                     nullifier = '', 

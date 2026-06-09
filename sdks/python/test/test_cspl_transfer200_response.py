@@ -37,6 +37,8 @@ class TestCsplTransfer200Response(unittest.TestCase):
         if include_optional:
             return CsplTransfer200Response(
                 success = True,
+                beta = True,
+                warning = '',
                 data = sipher_client.models.cspl_transfer_200_response_data.csplTransfer_200_response_data(
                     signature = '', 
                     new_sender_balance = '0x2', 

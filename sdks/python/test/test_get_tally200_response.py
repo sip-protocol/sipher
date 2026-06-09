@@ -38,6 +38,7 @@ class TestGetTally200Response(unittest.TestCase):
             return GetTally200Response(
                 success = True,
                 beta = True,
+                warning = '',
                 data = sipher_client.models.get_tally_200_response_data.getTally_200_response_data(
                     tally_id = '', 
                     proposal_id = '', 

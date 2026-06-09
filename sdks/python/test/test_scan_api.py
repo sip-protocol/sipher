@@ -27,6 +27,13 @@ class TestScanApi(unittest.TestCase):
     def tearDown(self) -> None:
         pass
 
+    def test_scan_assets(self) -> None:
+        """Test case for scan_assets
+
+        Scan stealth address assets via Helius DAS
+        """
+        pass
+
     def test_scan_payments(self) -> None:
         """Test case for scan_payments
 

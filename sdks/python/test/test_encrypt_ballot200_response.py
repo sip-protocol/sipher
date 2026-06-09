@@ -38,6 +38,7 @@ class TestEncryptBallot200Response(unittest.TestCase):
             return EncryptBallot200Response(
                 success = True,
                 beta = True,
+                warning = '',
                 data = sipher_client.models.encrypt_ballot_200_response_data.encryptBallot_200_response_data(
                     commitment = '', 
                     blinding_factor = '', 

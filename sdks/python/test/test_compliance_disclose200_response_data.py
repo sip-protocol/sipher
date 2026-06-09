@@ -40,7 +40,7 @@ class TestComplianceDisclose200ResponseData(unittest.TestCase):
                 scoped_viewing_key_hash = '',
                 ciphertext = '',
                 nonce = '',
-                scope = sipher_client.models.capabilities.capabilities(),
+                scope = sipher_client.models.token_info.token_info(),
                 auditor_verified = True,
                 disclosed_at = 56
             )

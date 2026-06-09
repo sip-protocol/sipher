@@ -43,7 +43,11 @@ class TestTransferShield200ResponseData(unittest.TestCase):
                 commitment = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
                 blinding_factor = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
                 viewing_key_hash = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-                shared_secret = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+                shared_secret = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+                program_id = '',
+                note_id = '',
+                instruction_type = 'anchor',
+                encrypted_amount = ''
             )
         else:
             return TransferShield200ResponseData(

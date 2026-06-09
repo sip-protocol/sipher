@@ -37,12 +37,12 @@ class TestHandleBillingWebhookRequest(unittest.TestCase):
         if include_optional:
             return HandleBillingWebhookRequest(
                 type = 'invoice.paid',
-                data = sipher_client.models.capabilities.capabilities()
+                data = sipher_client.models.token_info.token_info()
             )
         else:
             return HandleBillingWebhookRequest(
                 type = 'invoice.paid',
-                data = sipher_client.models.capabilities.capabilities(),
+                data = sipher_client.models.token_info.token_info(),
         )
         """
 

@@ -37,7 +37,7 @@ class TestListAdminTiers200ResponseDataTiersInner(unittest.TestCase):
         if include_optional:
             return ListAdminTiers200ResponseDataTiersInner(
                 tier = '',
-                limits = sipher_client.models.capabilities.capabilities()
+                limits = sipher_client.models.token_info.token_info()
             )
         else:
             return ListAdminTiers200ResponseDataTiersInner(

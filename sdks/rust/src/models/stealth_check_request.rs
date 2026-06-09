@@ -16,19 +16,19 @@ pub struct StealthCheckRequest {
     #[serde(rename = "stealthAddress")]
     pub stealth_address: Box<models::StealthAddress>,
     /// 0x-prefixed 32-byte hex string
-    #[serde(rename = "spendingPrivateKey")]
-    pub spending_private_key: String,
-    /// 0x-prefixed 32-byte hex string
     #[serde(rename = "viewingPrivateKey")]
     pub viewing_private_key: String,
+    /// 0x-prefixed 32-byte hex string
+    #[serde(rename = "spendingPublicKey")]
+    pub spending_public_key: String,
 }
 
 impl StealthCheckRequest {
-    pub fn new(stealth_address: models::StealthAddress, spending_private_key: String, viewing_private_key: String) -> StealthCheckRequest {
+    pub fn new(stealth_address: models::StealthAddress, viewing_private_key: String, spending_public_key: String) -> StealthCheckRequest {
         StealthCheckRequest {
             stealth_address: Box::new(stealth_address),
-            spending_private_key,
             viewing_private_key,
+            spending_public_key,
         }
     }
 }

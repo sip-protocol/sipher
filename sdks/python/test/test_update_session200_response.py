@@ -39,7 +39,7 @@ class TestUpdateSession200Response(unittest.TestCase):
                 success = True,
                 data = sipher_client.models.update_session_200_response_data.updateSession_200_response_data(
                     session_id = '', 
-                    defaults = sipher_client.models.capabilities.capabilities(), 
+                    defaults = sipher_client.models.token_info.token_info(), 
                     expires_at = 56, 
                     last_accessed_at = 56, )
             )

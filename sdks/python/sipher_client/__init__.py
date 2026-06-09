@@ -20,7 +20,6 @@ __version__ = "0.1.0"
 # Define package exports
 __all__ = [
     "AdminApi",
-    "ArciumApi",
     "BackendsApi",
     "BillingUsageApi",
     "CSPLApi",
@@ -29,9 +28,7 @@ __all__ = [
     "GasAbstractionApi",
     "GovernanceApi",
     "HealthApi",
-    "IncoApi",
     "PrivacyApi",
-    "ProofsApi",
     "RPCApi",
     "ScanApi",
     "SessionsApi",
@@ -89,9 +86,6 @@ __all__ = [
     "ComplianceReport200ResponseData",
     "ComplianceReport200ResponseDataSummary",
     "ComplianceReportRequest",
-    "ComputeIncoCiphertexts200Response",
-    "ComputeIncoCiphertexts200ResponseData",
-    "ComputeIncoCiphertextsRequest",
     "CreateAdminKey201Response",
     "CreateAdminKey201ResponseData",
     "CreateAdminKeyRequest",
@@ -112,28 +106,15 @@ __all__ = [
     "CsplWrap200Response",
     "CsplWrap200ResponseData",
     "CsplWrapRequest",
-    "DecryptArciumResult200Response",
-    "DecryptArciumResult200ResponseData",
-    "DecryptArciumResultRequest",
-    "DecryptArciumResultRequestViewingKey",
-    "DecryptIncoResult200Response",
-    "DecryptIncoResult200ResponseData",
-    "DecryptIncoResultRequest",
     "DeleteSession200Response",
     "DeleteSession200ResponseData",
     "EncryptBallot200Response",
     "EncryptBallot200ResponseData",
     "EncryptBallotRequest",
-    "EncryptIncoValue200Response",
-    "EncryptIncoValue200ResponseData",
-    "EncryptIncoValueRequest",
-    "EncryptIncoValueRequestPlaintext",
     "ErrorResponse",
     "EvmTransferData",
     "GetAdminKey200Response",
     "GetAdminKey200ResponseData",
-    "GetArciumComputationStatus200Response",
-    "GetArciumComputationStatus200ResponseData",
     "GetBillingSubscription200Response",
     "GetBillingSubscription200ResponseData",
     "GetBillingUsage200Response",
@@ -185,28 +166,6 @@ __all__ = [
     "PrivateSwap200ResponseDataTransactionsInner",
     "PrivateSwapRequest",
     "PrivateSwapRequestRecipientMetaAddress",
-    "ProofsFulfillmentGenerate200Response",
-    "ProofsFulfillmentGenerate200ResponseData",
-    "ProofsFulfillmentGenerate200ResponseDataProof",
-    "ProofsFulfillmentGenerateRequest",
-    "ProofsFulfillmentGenerateRequestOracleAttestation",
-    "ProofsFulfillmentVerifyRequest",
-    "ProofsFundingGenerate200Response",
-    "ProofsFundingGenerate200ResponseData",
-    "ProofsFundingGenerate200ResponseDataProof",
-    "ProofsFundingGenerateRequest",
-    "ProofsFundingVerifyRequest",
-    "ProofsRangeGenerate200Response",
-    "ProofsRangeGenerate200ResponseData",
-    "ProofsRangeGenerate200ResponseDataMetadata",
-    "ProofsRangeGenerate200ResponseDataProof",
-    "ProofsRangeGenerateRequest",
-    "ProofsRangeVerifyRequest",
-    "ProofsValidityGenerate200Response",
-    "ProofsValidityGenerate200ResponseData",
-    "ProofsValidityGenerate200ResponseDataProof",
-    "ProofsValidityGenerateRequest",
-    "ProofsValidityVerifyRequest",
     "RevokeAdminKey200Response",
     "RevokeAdminKey200ResponseData",
     "ScanAssets200Response",
@@ -242,10 +201,6 @@ __all__ = [
     "StealthGenerateBatchRequest",
     "StealthGenerateRequest",
     "StealthMetaAddress",
-    "SubmitArciumComputation200Response",
-    "SubmitArciumComputation200ResponseData",
-    "SubmitArciumComputationRequest",
-    "SubmitArciumComputationRequestViewingKey",
     "SubmitBallot200Response",
     "SubmitBallot200ResponseData",
     "SubmitBallotRequest",
@@ -293,7 +248,6 @@ __all__ = [
 
 # import apis into sdk package
 from sipher_client.api.admin_api import AdminApi as AdminApi
-from sipher_client.api.arcium_api import ArciumApi as ArciumApi
 from sipher_client.api.backends_api import BackendsApi as BackendsApi
 from sipher_client.api.billing_usage_api import BillingUsageApi as BillingUsageApi
 from sipher_client.api.cspl_api import CSPLApi as CSPLApi
@@ -302,9 +256,7 @@ from sipher_client.api.compliance_api import ComplianceApi as ComplianceApi
 from sipher_client.api.gas_abstraction_api import GasAbstractionApi as GasAbstractionApi
 from sipher_client.api.governance_api import GovernanceApi as GovernanceApi
 from sipher_client.api.health_api import HealthApi as HealthApi
-from sipher_client.api.inco_api import IncoApi as IncoApi
 from sipher_client.api.privacy_api import PrivacyApi as PrivacyApi
-from sipher_client.api.proofs_api import ProofsApi as ProofsApi
 from sipher_client.api.rpc_api import RPCApi as RPCApi
 from sipher_client.api.scan_api import ScanApi as ScanApi
 from sipher_client.api.sessions_api import SessionsApi as SessionsApi
@@ -366,9 +318,6 @@ from sipher_client.models.compliance_report200_response import ComplianceReport2
 from sipher_client.models.compliance_report200_response_data import ComplianceReport200ResponseData as ComplianceReport200ResponseData
 from sipher_client.models.compliance_report200_response_data_summary import ComplianceReport200ResponseDataSummary as ComplianceReport200ResponseDataSummary
 from sipher_client.models.compliance_report_request import ComplianceReportRequest as ComplianceReportRequest
-from sipher_client.models.compute_inco_ciphertexts200_response import ComputeIncoCiphertexts200Response as ComputeIncoCiphertexts200Response
-from sipher_client.models.compute_inco_ciphertexts200_response_data import ComputeIncoCiphertexts200ResponseData as ComputeIncoCiphertexts200ResponseData
-from sipher_client.models.compute_inco_ciphertexts_request import ComputeIncoCiphertextsRequest as ComputeIncoCiphertextsRequest
 from sipher_client.models.create_admin_key201_response import CreateAdminKey201Response as CreateAdminKey201Response
 from sipher_client.models.create_admin_key201_response_data import CreateAdminKey201ResponseData as CreateAdminKey201ResponseData
 from sipher_client.models.create_admin_key_request import CreateAdminKeyRequest as CreateAdminKeyRequest
@@ -389,28 +338,15 @@ from sipher_client.models.cspl_unwrap_request import CsplUnwrapRequest as CsplUn
 from sipher_client.models.cspl_wrap200_response import CsplWrap200Response as CsplWrap200Response
 from sipher_client.models.cspl_wrap200_response_data import CsplWrap200ResponseData as CsplWrap200ResponseData
 from sipher_client.models.cspl_wrap_request import CsplWrapRequest as CsplWrapRequest
-from sipher_client.models.decrypt_arcium_result200_response import DecryptArciumResult200Response as DecryptArciumResult200Response
-from sipher_client.models.decrypt_arcium_result200_response_data import DecryptArciumResult200ResponseData as DecryptArciumResult200ResponseData
-from sipher_client.models.decrypt_arcium_result_request import DecryptArciumResultRequest as DecryptArciumResultRequest
-from sipher_client.models.decrypt_arcium_result_request_viewing_key import DecryptArciumResultRequestViewingKey as DecryptArciumResultRequestViewingKey
-from sipher_client.models.decrypt_inco_result200_response import DecryptIncoResult200Response as DecryptIncoResult200Response
-from sipher_client.models.decrypt_inco_result200_response_data import DecryptIncoResult200ResponseData as DecryptIncoResult200ResponseData
-from sipher_client.models.decrypt_inco_result_request import DecryptIncoResultRequest as DecryptIncoResultRequest
 from sipher_client.models.delete_session200_response import DeleteSession200Response as DeleteSession200Response
 from sipher_client.models.delete_session200_response_data import DeleteSession200ResponseData as DeleteSession200ResponseData
 from sipher_client.models.encrypt_ballot200_response import EncryptBallot200Response as EncryptBallot200Response
 from sipher_client.models.encrypt_ballot200_response_data import EncryptBallot200ResponseData as EncryptBallot200ResponseData
 from sipher_client.models.encrypt_ballot_request import EncryptBallotRequest as EncryptBallotRequest
-from sipher_client.models.encrypt_inco_value200_response import EncryptIncoValue200Response as EncryptIncoValue200Response
-from sipher_client.models.encrypt_inco_value200_response_data import EncryptIncoValue200ResponseData as EncryptIncoValue200ResponseData
-from sipher_client.models.encrypt_inco_value_request import EncryptIncoValueRequest as EncryptIncoValueRequest
-from sipher_client.models.encrypt_inco_value_request_plaintext import EncryptIncoValueRequestPlaintext as EncryptIncoValueRequestPlaintext
 from sipher_client.models.error_response import ErrorResponse as ErrorResponse
 from sipher_client.models.evm_transfer_data import EvmTransferData as EvmTransferData
 from sipher_client.models.get_admin_key200_response import GetAdminKey200Response as GetAdminKey200Response
 from sipher_client.models.get_admin_key200_response_data import GetAdminKey200ResponseData as GetAdminKey200ResponseData
-from sipher_client.models.get_arcium_computation_status200_response import GetArciumComputationStatus200Response as GetArciumComputationStatus200Response
-from sipher_client.models.get_arcium_computation_status200_response_data import GetArciumComputationStatus200ResponseData as GetArciumComputationStatus200ResponseData
 from sipher_client.models.get_billing_subscription200_response import GetBillingSubscription200Response as GetBillingSubscription200Response
 from sipher_client.models.get_billing_subscription200_response_data import GetBillingSubscription200ResponseData as GetBillingSubscription200ResponseData
 from sipher_client.models.get_billing_usage200_response import GetBillingUsage200Response as GetBillingUsage200Response
@@ -462,28 +398,6 @@ from sipher_client.models.private_swap200_response_data import PrivateSwap200Res
 from sipher_client.models.private_swap200_response_data_transactions_inner import PrivateSwap200ResponseDataTransactionsInner as PrivateSwap200ResponseDataTransactionsInner
 from sipher_client.models.private_swap_request import PrivateSwapRequest as PrivateSwapRequest
 from sipher_client.models.private_swap_request_recipient_meta_address import PrivateSwapRequestRecipientMetaAddress as PrivateSwapRequestRecipientMetaAddress
-from sipher_client.models.proofs_fulfillment_generate200_response import ProofsFulfillmentGenerate200Response as ProofsFulfillmentGenerate200Response
-from sipher_client.models.proofs_fulfillment_generate200_response_data import ProofsFulfillmentGenerate200ResponseData as ProofsFulfillmentGenerate200ResponseData
-from sipher_client.models.proofs_fulfillment_generate200_response_data_proof import ProofsFulfillmentGenerate200ResponseDataProof as ProofsFulfillmentGenerate200ResponseDataProof
-from sipher_client.models.proofs_fulfillment_generate_request import ProofsFulfillmentGenerateRequest as ProofsFulfillmentGenerateRequest
-from sipher_client.models.proofs_fulfillment_generate_request_oracle_attestation import ProofsFulfillmentGenerateRequestOracleAttestation as ProofsFulfillmentGenerateRequestOracleAttestation
-from sipher_client.models.proofs_fulfillment_verify_request import ProofsFulfillmentVerifyRequest as ProofsFulfillmentVerifyRequest
-from sipher_client.models.proofs_funding_generate200_response import ProofsFundingGenerate200Response as ProofsFundingGenerate200Response
-from sipher_client.models.proofs_funding_generate200_response_data import ProofsFundingGenerate200ResponseData as ProofsFundingGenerate200ResponseData
-from sipher_client.models.proofs_funding_generate200_response_data_proof import ProofsFundingGenerate200ResponseDataProof as ProofsFundingGenerate200ResponseDataProof
-from sipher_client.models.proofs_funding_generate_request import ProofsFundingGenerateRequest as ProofsFundingGenerateRequest
-from sipher_client.models.proofs_funding_verify_request import ProofsFundingVerifyRequest as ProofsFundingVerifyRequest
-from sipher_client.models.proofs_range_generate200_response import ProofsRangeGenerate200Response as ProofsRangeGenerate200Response
-from sipher_client.models.proofs_range_generate200_response_data import ProofsRangeGenerate200ResponseData as ProofsRangeGenerate200ResponseData
-from sipher_client.models.proofs_range_generate200_response_data_metadata import ProofsRangeGenerate200ResponseDataMetadata as ProofsRangeGenerate200ResponseDataMetadata
-from sipher_client.models.proofs_range_generate200_response_data_proof import ProofsRangeGenerate200ResponseDataProof as ProofsRangeGenerate200ResponseDataProof
-from sipher_client.models.proofs_range_generate_request import ProofsRangeGenerateRequest as ProofsRangeGenerateRequest
-from sipher_client.models.proofs_range_verify_request import ProofsRangeVerifyRequest as ProofsRangeVerifyRequest
-from sipher_client.models.proofs_validity_generate200_response import ProofsValidityGenerate200Response as ProofsValidityGenerate200Response
-from sipher_client.models.proofs_validity_generate200_response_data import ProofsValidityGenerate200ResponseData as ProofsValidityGenerate200ResponseData
-from sipher_client.models.proofs_validity_generate200_response_data_proof import ProofsValidityGenerate200ResponseDataProof as ProofsValidityGenerate200ResponseDataProof
-from sipher_client.models.proofs_validity_generate_request import ProofsValidityGenerateRequest as ProofsValidityGenerateRequest
-from sipher_client.models.proofs_validity_verify_request import ProofsValidityVerifyRequest as ProofsValidityVerifyRequest
 from sipher_client.models.revoke_admin_key200_response import RevokeAdminKey200Response as RevokeAdminKey200Response
 from sipher_client.models.revoke_admin_key200_response_data import RevokeAdminKey200ResponseData as RevokeAdminKey200ResponseData
 from sipher_client.models.scan_assets200_response import ScanAssets200Response as ScanAssets200Response
@@ -519,10 +433,6 @@ from sipher_client.models.stealth_generate_batch200_response_data_summary import
 from sipher_client.models.stealth_generate_batch_request import StealthGenerateBatchRequest as StealthGenerateBatchRequest
 from sipher_client.models.stealth_generate_request import StealthGenerateRequest as StealthGenerateRequest
 from sipher_client.models.stealth_meta_address import StealthMetaAddress as StealthMetaAddress
-from sipher_client.models.submit_arcium_computation200_response import SubmitArciumComputation200Response as SubmitArciumComputation200Response
-from sipher_client.models.submit_arcium_computation200_response_data import SubmitArciumComputation200ResponseData as SubmitArciumComputation200ResponseData
-from sipher_client.models.submit_arcium_computation_request import SubmitArciumComputationRequest as SubmitArciumComputationRequest
-from sipher_client.models.submit_arcium_computation_request_viewing_key import SubmitArciumComputationRequestViewingKey as SubmitArciumComputationRequestViewingKey
 from sipher_client.models.submit_ballot200_response import SubmitBallot200Response as SubmitBallot200Response
 from sipher_client.models.submit_ballot200_response_data import SubmitBallot200ResponseData as SubmitBallot200ResponseData
 from sipher_client.models.submit_ballot_request import SubmitBallotRequest as SubmitBallotRequest

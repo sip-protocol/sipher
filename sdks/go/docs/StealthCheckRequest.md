@@ -5,14 +5,14 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **StealthAddress** | [**StealthAddress**](StealthAddress.md) |  | 
-**SpendingPrivateKey** | **string** | 0x-prefixed 32-byte hex string | 
 **ViewingPrivateKey** | **string** | 0x-prefixed 32-byte hex string | 
+**SpendingPublicKey** | **string** | 0x-prefixed 32-byte hex string | 
 
 ## Methods
 
 ### NewStealthCheckRequest
 
-`func NewStealthCheckRequest(stealthAddress StealthAddress, spendingPrivateKey string, viewingPrivateKey string, ) *StealthCheckRequest`
+`func NewStealthCheckRequest(stealthAddress StealthAddress, viewingPrivateKey string, spendingPublicKey string, ) *StealthCheckRequest`
 
 NewStealthCheckRequest instantiates a new StealthCheckRequest object
 This constructor will assign default values to properties that have it defined,
@@ -47,26 +47,6 @@ and a boolean to check if the value has been set.
 SetStealthAddress sets StealthAddress field to given value.
 
 
-### GetSpendingPrivateKey
-
-`func (o *StealthCheckRequest) GetSpendingPrivateKey() string`
-
-GetSpendingPrivateKey returns the SpendingPrivateKey field if non-nil, zero value otherwise.
-
-### GetSpendingPrivateKeyOk
-
-`func (o *StealthCheckRequest) GetSpendingPrivateKeyOk() (*string, bool)`
-
-GetSpendingPrivateKeyOk returns a tuple with the SpendingPrivateKey field if it's non-nil, zero value otherwise
-and a boolean to check if the value has been set.
-
-### SetSpendingPrivateKey
-
-`func (o *StealthCheckRequest) SetSpendingPrivateKey(v string)`
-
-SetSpendingPrivateKey sets SpendingPrivateKey field to given value.
-
-
 ### GetViewingPrivateKey
 
 `func (o *StealthCheckRequest) GetViewingPrivateKey() string`
@@ -85,6 +65,26 @@ and a boolean to check if the value has been set.
 `func (o *StealthCheckRequest) SetViewingPrivateKey(v string)`
 
 SetViewingPrivateKey sets ViewingPrivateKey field to given value.
+
+
+### GetSpendingPublicKey
+
+`func (o *StealthCheckRequest) GetSpendingPublicKey() string`
+
+GetSpendingPublicKey returns the SpendingPublicKey field if non-nil, zero value otherwise.
+
+### GetSpendingPublicKeyOk
+
+`func (o *StealthCheckRequest) GetSpendingPublicKeyOk() (*string, bool)`
+
+GetSpendingPublicKeyOk returns a tuple with the SpendingPublicKey field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetSpendingPublicKey
+
+`func (o *StealthCheckRequest) SetSpendingPublicKey(v string)`
+
+SetSpendingPublicKey sets SpendingPublicKey field to given value.
 
 
 

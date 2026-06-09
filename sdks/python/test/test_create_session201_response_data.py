@@ -37,7 +37,7 @@ class TestCreateSession201ResponseData(unittest.TestCase):
         if include_optional:
             return CreateSession201ResponseData(
                 session_id = 'sess_bf325375e030fccba00917317c574773100bf03b5fc61486286e564b23e9566b',
-                defaults = sipher_client.models.capabilities.capabilities(),
+                defaults = sipher_client.models.token_info.token_info(),
                 created_at = 56,
                 expires_at = 56
             )

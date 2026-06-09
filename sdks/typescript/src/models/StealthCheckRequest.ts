@@ -38,13 +38,13 @@ export interface StealthCheckRequest {
      * @type {string}
      * @memberof StealthCheckRequest
      */
-    spendingPrivateKey: string;
+    viewingPrivateKey: string;
     /**
      * 0x-prefixed 32-byte hex string
      * @type {string}
      * @memberof StealthCheckRequest
      */
-    viewingPrivateKey: string;
+    spendingPublicKey: string;
 }
 
 /**
@@ -52,8 +52,8 @@ export interface StealthCheckRequest {
  */
 export function instanceOfStealthCheckRequest(value: object): value is StealthCheckRequest {
     if (!('stealthAddress' in value) || value['stealthAddress'] === undefined) return false;
-    if (!('spendingPrivateKey' in value) || value['spendingPrivateKey'] === undefined) return false;
     if (!('viewingPrivateKey' in value) || value['viewingPrivateKey'] === undefined) return false;
+    if (!('spendingPublicKey' in value) || value['spendingPublicKey'] === undefined) return false;
     return true;
 }
 
@@ -68,8 +68,8 @@ export function StealthCheckRequestFromJSONTyped(json: any, ignoreDiscriminator:
     return {
         
         'stealthAddress': StealthAddressFromJSON(json['stealthAddress']),
-        'spendingPrivateKey': json['spendingPrivateKey'],
         'viewingPrivateKey': json['viewingPrivateKey'],
+        'spendingPublicKey': json['spendingPublicKey'],
     };
 }
 
@@ -85,8 +85,8 @@ export function StealthCheckRequestToJSONTyped(value?: StealthCheckRequest | nul
     return {
         
         'stealthAddress': StealthAddressToJSON(value['stealthAddress']),
-        'spendingPrivateKey': value['spendingPrivateKey'],
         'viewingPrivateKey': value['viewingPrivateKey'],
+        'spendingPublicKey': value['spendingPublicKey'],
     };
 }
 

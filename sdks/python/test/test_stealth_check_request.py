@@ -40,8 +40,8 @@ class TestStealthCheckRequest(unittest.TestCase):
                     address = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', 
                     ephemeral_public_key = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', 
                     view_tag = 0, ),
-                spending_private_key = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-                viewing_private_key = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+                viewing_private_key = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+                spending_public_key = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
             )
         else:
             return StealthCheckRequest(
@@ -49,8 +49,8 @@ class TestStealthCheckRequest(unittest.TestCase):
                     address = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', 
                     ephemeral_public_key = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', 
                     view_tag = 0, ),
-                spending_private_key = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
                 viewing_private_key = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+                spending_public_key = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
         )
         """
 

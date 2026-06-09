@@ -41,7 +41,7 @@ class TestListAdminTiers200Response(unittest.TestCase):
                     tiers = [
                         sipher_client.models.list_admin_tiers_200_response_data_tiers_inner.listAdminTiers_200_response_data_tiers_inner(
                             tier = '', 
-                            limits = sipher_client.models.capabilities.capabilities(), )
+                            limits = sipher_client.models.token_info.token_info(), )
                         ], )
             )
         else:

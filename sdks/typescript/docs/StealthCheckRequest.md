@@ -7,8 +7,8 @@
 Name | Type
 ------------ | -------------
 `stealthAddress` | [StealthAddress](StealthAddress.md)
-`spendingPrivateKey` | string
 `viewingPrivateKey` | string
+`spendingPublicKey` | string
 
 ## Example
 
@@ -18,8 +18,8 @@ import type { StealthCheckRequest } from '@sip-protocol/sipher-client'
 // TODO: Update the object below with actual values
 const example = {
   "stealthAddress": null,
-  "spendingPrivateKey": 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
   "viewingPrivateKey": 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
+  "spendingPublicKey": 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
 } satisfies StealthCheckRequest
 
 console.log(example)
