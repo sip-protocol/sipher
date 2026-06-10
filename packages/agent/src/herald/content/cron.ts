@@ -1,4 +1,4 @@
-import { fetchGitHubDigest, formatDigest } from './github-digest.js'
+import { fetchGitHubDigests, formatDigests } from './github-digest.js'
 import { themeForDate } from './calendar.js'
 import { generateDraft } from './generator.js'
 import { enqueueContentPost, hasGeneratedToday } from './enqueue.js'
@@ -10,8 +10,8 @@ export interface DailyContentDeps {
   isKillSwitchActive: () => boolean
   isPaused: () => boolean
   hasGeneratedToday: typeof hasGeneratedToday
-  fetchGitHubDigest: typeof fetchGitHubDigest
-  formatDigest: typeof formatDigest
+  fetchGitHubDigests: typeof fetchGitHubDigests
+  formatDigests: typeof formatDigests
   themeForDate: typeof themeForDate
   generateDraft: typeof generateDraft
   enqueueContentPost: typeof enqueueContentPost
@@ -22,8 +22,8 @@ const defaultDeps: DailyContentDeps = {
   isKillSwitchActive,
   isPaused: () => getBudgetStatus().gate === 'paused',
   hasGeneratedToday,
-  fetchGitHubDigest,
-  formatDigest,
+  fetchGitHubDigests,
+  formatDigests,
   themeForDate,
   generateDraft,
   enqueueContentPost,
@@ -47,8 +47,8 @@ export async function generateDailyContent(deps: DailyContentDeps = defaultDeps)
     return { generated: false, reason: 'already-generated-today' }
   }
 
-  const digest = await deps.fetchGitHubDigest()
-  const digestText = deps.formatDigest(digest)
+  const digests = await deps.fetchGitHubDigests()
+  const digestText = deps.formatDigests(digests)
   const theme = deps.themeForDate(deps.now())
   const draft = await deps.generateDraft(theme, digestText)
 
