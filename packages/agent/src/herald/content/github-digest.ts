@@ -88,6 +88,8 @@ export function formatDigest(d: GitHubDigest): string {
   return lines.join('\n')
 }
 
+// Public repos with regular commit activity, in rough audience priority.
+// Excludes sip-arcium-program (low-frequency Rust) and .github (org config, nothing to digest).
 export const DEFAULT_REPOS = ['sip-protocol', 'sip-app', 'sip-mobile', 'sipher', 'docs-sip', 'blog-sip', 'circuits']
 
 export async function fetchGitHubDigests(
@@ -98,6 +100,9 @@ export async function fetchGitHubDigests(
 }
 
 export function formatDigests(digests: GitHubDigest[]): string {
+  // Only surface repos with real activity. Repos that returned nothing — whether genuinely quiet
+  // or unreachable (errors-only) — are dropped, so fetch failures never leak into the LLM's draft
+  // context as noise.
   const active = digests.filter((d) => d.releases.length || d.mergedPRs.length || d.commits.length)
   if (active.length === 0) return '(no recent ecosystem activity fetched)'
   return active.map(formatDigest).join('\n\n')
