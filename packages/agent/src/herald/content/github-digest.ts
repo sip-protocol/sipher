@@ -87,3 +87,18 @@ export function formatDigest(d: GitHubDigest): string {
   if (d.errors.length) lines.push(`(data unavailable: ${d.errors.join(', ')})`)
   return lines.join('\n')
 }
+
+export const DEFAULT_REPOS = ['sip-protocol', 'sip-app', 'sip-mobile', 'sipher', 'docs-sip', 'blog-sip', 'circuits']
+
+export async function fetchGitHubDigests(
+  repos: string[] = DEFAULT_REPOS,
+  owner = DEFAULT_OWNER,
+): Promise<GitHubDigest[]> {
+  return Promise.all(repos.map((r) => fetchGitHubDigest(owner, r)))
+}
+
+export function formatDigests(digests: GitHubDigest[]): string {
+  const active = digests.filter((d) => d.releases.length || d.mergedPRs.length || d.commits.length)
+  if (active.length === 0) return '(no recent ecosystem activity fetched)'
+  return active.map(formatDigest).join('\n\n')
+}
