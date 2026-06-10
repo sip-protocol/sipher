@@ -16,4 +16,9 @@ describe('content prompt', () => {
     expect(p).toContain('42 stars')
     expect(p).toContain('280')
   })
+
+  it('addresses the account by its canonical lowercase handle', () => {
+    expect(HERALD_CONTENT_SYSTEM_PROMPT).toContain('@sipprotocol')
+    expect(HERALD_CONTENT_SYSTEM_PROMPT).not.toContain('@SipProtocol')
+  })
 })
