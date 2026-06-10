@@ -73,7 +73,11 @@ describe('fetchGitHubDigests (multi-repo)', () => {
   it('DEFAULT_REPOS covers the active public-facing repos', () => {
     expect(DEFAULT_REPOS).toContain('sip-protocol')
     expect(DEFAULT_REPOS).toContain('sip-app')
+    expect(DEFAULT_REPOS).toContain('sip-mobile')
     expect(DEFAULT_REPOS).toContain('sipher')
+    expect(DEFAULT_REPOS).toContain('docs-sip')
+    expect(DEFAULT_REPOS).toContain('blog-sip')
+    expect(DEFAULT_REPOS).toContain('circuits')
   })
 })
 
