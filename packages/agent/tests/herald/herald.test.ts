@@ -52,4 +52,9 @@ describe('HERALD agent factory', () => {
     expect(HERALD_IDENTITY.llm).toBe(true)
     expect(HERALD_IDENTITY.model).toContain('claude')
   })
+
+  it('uses the canonical @sipprotocol handle', () => {
+    expect(HERALD_SYSTEM_PROMPT).toContain('@sipprotocol')
+    expect(HERALD_SYSTEM_PROMPT).not.toContain('@SipProtocol')
+  })
 })
