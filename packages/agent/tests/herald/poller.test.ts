@@ -1,11 +1,31 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   createPollerState,
   getNextInterval,
   reactiveEnabled,
   startPoller,
   stopPoller,
+  checkScheduledPosts,
 } from '../../src/herald/poller.js'
+
+// ─── Module mocks (hoisted by vitest) ────────────────────────────────────────
+
+vi.mock('../../src/herald/approval.js', () => ({
+  getReadyToPublish: vi.fn(),
+  markPublished: vi.fn(),
+}))
+
+vi.mock('../../src/herald/tools/post-tweet.js', () => ({
+  publishTweet: vi.fn(),
+}))
+
+vi.mock('../../src/herald/discord.js', () => ({
+  crosspostDigest: vi.fn().mockResolvedValue(undefined),
+}))
+
+import { getReadyToPublish, markPublished } from '../../src/herald/approval.js'
+import { publishTweet } from '../../src/herald/tools/post-tweet.js'
+import { crosspostDigest } from '../../src/herald/discord.js'
 
 describe('HERALD adaptive poller', () => {
   it('createPollerState() returns correct defaults', () => {
@@ -100,5 +120,32 @@ describe('startPoller reactive gate', () => {
     expect(timers.scheduledTimer).not.toBeNull()
 
     stopPoller(state, timers)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// checkScheduledPosts — Discord cross-post regression
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('checkScheduledPosts', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('calls crosspostDigest with the post row and tweet_id after a successful publish', async () => {
+    const post = { id: 'row-1', type: 'content', content: 'recap', created_at: '2026-06-12T08:00:00.000Z' }
+    const mockedGetReady = vi.mocked(getReadyToPublish)
+    const mockedPublish = vi.mocked(publishTweet)
+    const mockedCrosspost = vi.mocked(crosspostDigest)
+
+    mockedGetReady.mockReturnValue([post])
+    mockedPublish.mockResolvedValue({ tweet_id: 'tw_99' })
+
+    await checkScheduledPosts()
+
+    expect(mockedPublish).toHaveBeenCalledOnce()
+    expect(vi.mocked(markPublished)).toHaveBeenCalledWith('row-1', 'tw_99')
+    expect(mockedCrosspost).toHaveBeenCalledOnce()
+    expect(mockedCrosspost).toHaveBeenCalledWith(post, 'tw_99')
   })
 })
