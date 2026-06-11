@@ -56,6 +56,8 @@ services:
       # HERALD content engine — fail-closed by default; opt in with
       # HERALD_CONTENT_CRON_ENABLED=true + X credentials set above.
       - HERALD_CONTENT_CRON_ENABLED=${HERALD_CONTENT_CRON_ENABLED:-false}
+      # Discord cross-post for the Friday digest (sip-protocol Discord standard 2026-06-11)
+      - DISCORD_ANNOUNCE_WEBHOOK_URL=${DISCORD_ANNOUNCE_WEBHOOK_URL:-}
       - HERALD_CONTENT_CRON_INTERVAL=${HERALD_CONTENT_CRON_INTERVAL:-3600000}
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
       - HERALD_AUTO_APPROVE_POSTS=${HERALD_AUTO_APPROVE_POSTS:-false}
