@@ -3,6 +3,7 @@ import { executeReadDMs } from './tools/read-dms.js'
 import { classifyIntent } from './intent.js'
 import { getReadyToPublish, markPublished } from './approval.js'
 import { publishTweet } from './tools/post-tweet.js'
+import { crosspostDigest } from './discord.js'
 import { getBudgetStatus } from './budget.js'
 import { guardianBus } from '../coordination/event-bus.js'
 import { isKillSwitchActive } from '../routes/squad-api.js'
@@ -161,6 +162,7 @@ export async function checkScheduledPosts(): Promise<void> {
     try {
       const result = await publishTweet(post.content as string)
       markPublished(post.id as string, result.tweet_id)
+      await crosspostDigest(post, result.tweet_id)
 
       guardianBus.emit({
         source: 'herald',
