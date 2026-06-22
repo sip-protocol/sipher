@@ -50,9 +50,7 @@ function emptyBalance(mint: PublicKey) {
   return {
     depositor: new PublicKey(TEST_WALLET),
     tokenMint: mint,
-    balance: 0n,
-    lockedAmount: 0n,
-    available: 0n,
+    balance: 0n,    available: 0n,
     cumulativeVolume: 0n,
     lastDepositAt: 0,
     exists: false,
@@ -64,9 +62,7 @@ function cooledBalance(mint: PublicKey, balance: bigint = 1_500_000_000n) {
   return {
     depositor: new PublicKey(TEST_WALLET),
     tokenMint: mint,
-    balance,
-    lockedAmount: 0n,
-    available: balance,
+    balance,    available: balance,
     cumulativeVolume: balance,
     lastDepositAt: NOW_SECONDS - DEFAULT_REFUND_TIMEOUT - 10, // 10s past cooldown
     exists: true,
@@ -139,9 +135,7 @@ describe('POST /api/vault/refund-tx', () => {
     vi.mocked(getVaultBalance).mockImplementation(async (_conn, depositor, mint) => ({
       depositor,
       tokenMint: mint,
-      balance: 0n,
-      lockedAmount: 0n,
-      available: 0n,
+      balance: 0n,      available: 0n,
       cumulativeVolume: 0n,
       lastDepositAt: NOW_SECONDS - DEFAULT_REFUND_TIMEOUT - 10,
       exists: true,
@@ -161,9 +155,7 @@ describe('POST /api/vault/refund-tx', () => {
     vi.mocked(getVaultBalance).mockImplementation(async (_conn, depositor, mint) => ({
       depositor,
       tokenMint: mint,
-      balance: 1_000_000_000n,
-      lockedAmount: 0n,
-      available: 1_000_000_000n,
+      balance: 1_000_000_000n,      available: 1_000_000_000n,
       cumulativeVolume: 1_000_000_000n,
       lastDepositAt,
       exists: true,
