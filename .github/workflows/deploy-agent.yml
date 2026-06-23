@@ -50,7 +50,7 @@ jobs:
             fi
 
       - name: Upload bundle to VPS
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: sip
