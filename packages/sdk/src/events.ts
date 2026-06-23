@@ -55,14 +55,17 @@ function mintToSymbol(mint: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // Event layout sizes
 //
-// VaultWithdrawEvent (194+ bytes):
-//   disc(8) + depositor(32) + stealth(32) + commitment(33) + ephemeral(33)
-//   + vk_hash(32) + amount(8) + fee(8) + timestamp(8) = 194
+// VaultWithdrawEvent (194 legacy / 226 post-#1162 universal-asset):
+//   disc(8) + depositor(32) [+ mint(32) since #1162] + stealth(32)
+//   + commitment(33) + ephemeral(33) + vk_hash(32) + amount(8) + fee(8)
+//   + timestamp(8) = 194 (legacy) or 226 (with mint)
 //
 // VaultDepositEvent / VaultRefundEvent (88+ bytes):
 //   disc(8) + depositor(32) + token_mint(32) + amount(8) + timestamp(8) = 88
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Legacy minimum; both the 194-byte and the 226-byte (with-mint) layouts route
+// to parseWithdrawEvent, which detects the mint by total length.
 const WITHDRAW_EVENT_MIN_SIZE = 194
 const DEPOSIT_EVENT_MIN_SIZE = 88
 
@@ -117,9 +120,11 @@ export function parseVaultEvents(
 /**
  * Parse a VaultWithdrawEvent → VaultEvent with type 'send'.
  *
- * Layout (after 8-byte discriminator):
- *   depositor(32) + stealth(32) + commitment(33) + ephemeral(33)
- *   + vk_hash(32) + transfer_amount(8) + fee_amount(8) + timestamp(8)
+ * Layout (after 8-byte discriminator). Since #1162 the event carries a `mint`
+ * field after `depositor` (226-byte layout); the legacy layout omits it (194):
+ *   depositor(32) [+ mint(32) since #1162] + stealth(32) + commitment(33)
+ *   + ephemeral(33) + vk_hash(32) + transfer_amount(8) + fee_amount(8)
+ *   + timestamp(8)
  */
 function parseWithdrawEvent(
   data: Buffer,
@@ -131,6 +136,9 @@ function parseWithdrawEvent(
 
     const wallet = new PublicKey(data.subarray(offset, offset + 32)).toBase58()
     offset += 32
+
+    // mint — present only in the post-#1162 226-byte layout; skip it
+    if (data.length >= 226) offset += 32
 
     // Skip stealth(32) + commitment(33) + ephemeral(33) + vk_hash(32)
     offset += 32 + 33 + 33 + 32
@@ -144,8 +152,9 @@ function parseWithdrawEvent(
     const eventTimestamp = Number(data.readBigInt64LE(offset))
     const timestamp = eventTimestamp > 0 ? eventTimestamp : fallbackTimestamp
 
-    // Withdraw events don't include the token_mint in the event data.
-    // Default to SOL since that's the primary vault token.
+    // The post-#1162 event now carries the real mint, but this history parser
+    // keeps the legacy SOL default for the token label. Reading the real mint to
+    // label non-SOL withdrawals correctly is a follow-up (issue #337).
     const mintKey = WSOL_MINT
     const decimals = getTokenDecimals(mintKey)
     const amount = fromBaseUnits(amountRaw, decimals)
