@@ -2,7 +2,7 @@ import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { generateViewingKey, deriveViewingKey } from '@sip-protocol/sdk'
 import { sha256 } from '@noble/hashes/sha256'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
-import { createConnection } from '@sipher/sdk'
+import { createConnection, WITHDRAW_EVENT_WITH_MINT_SIZE } from '@sipher/sdk'
 import { loadNetworkConfig } from '../config/network.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,12 +87,15 @@ function packKeyForDownload(
 /**
  * Parse the VaultWithdrawEvent from transaction log data.
  *
- * Event layout (after 8-byte Anchor discriminator):
+ * Event layout (after 8-byte Anchor discriminator); since #1162 a 32-byte
+ * `mint` is inserted after `depositor` (the 226-byte layout), shifting every
+ * later field +32. Legacy offsets shown:
  *   depositor:        32 bytes  (offset  8)
- *   stealth:          32 bytes  (offset 40)
- *   commitment:       33 bytes  (offset 72)
- *   ephemeral:        33 bytes  (offset 105)
- *   viewing_key_hash: 32 bytes  (offset 138)
+ *   mint:             32 bytes  (offset 40, post-#1162 only)
+ *   stealth:          32 bytes  (offset 40 / 72)
+ *   commitment:       33 bytes  (offset 72 / 104)
+ *   ephemeral:        33 bytes  (offset 105 / 137)
+ *   viewing_key_hash: 32 bytes  (offset 138 / 170)
  *
  * Returns the 32-byte viewingKeyHash or null if not found.
  */
@@ -109,10 +112,13 @@ function parseViewingKeyHashFromLogs(logMessages: string[]): Uint8Array | null {
       continue
     }
 
-    // VaultWithdrawEvent: 8 (disc) + 32 + 32 + 33 + 33 + 32 = 170 bytes minimum
-    if (data.length < 170) continue
+    // The post-#1162 226-byte layout inserts a 32-byte mint after depositor,
+    // shifting viewing_key_hash forward by 32; detect it by total length.
+    const mintSkip = data.length >= WITHDRAW_EVENT_WITH_MINT_SIZE ? 32 : 0
+    const vkStart = 138 + mintSkip
+    if (data.length < vkStart + 32) continue
 
-    return new Uint8Array(data.slice(138, 170))
+    return new Uint8Array(data.slice(vkStart, vkStart + 32))
   }
 
   return null
