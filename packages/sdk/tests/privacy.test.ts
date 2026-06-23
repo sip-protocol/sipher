@@ -435,20 +435,26 @@ describe('Scan matching simulation', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Build a 194-byte VaultWithdrawEvent buffer addressed to a stealth recipient.
- * Mirrors the layout parsed by parseWithdrawEvent in src/privacy.ts:
- *   disc(8) + depositor(32) + stealth(32) + commitment(33) + ephemeral(33)
- *   + vk_hash(32) + amount(8) + fee(8) + timestamp(8)
+ * Build a VaultWithdrawEvent buffer addressed to a stealth recipient.
+ * Mirrors the layout parsed by parseWithdrawEvent in src/privacy.ts. When a
+ * `mintBytes` is supplied, the post-#1162 (universal-asset) 226-byte layout is
+ * produced with the `mint` field inserted right after `depositor`; otherwise the
+ * legacy 194-byte layout (no mint) is produced:
+ *   disc(8) + depositor(32) [+ mint(32)] + stealth(32) + commitment(33)
+ *   + ephemeral(33) + vk_hash(32) + amount(8) + fee(8) + timestamp(8)
  */
 function buildWithdrawEvent(
   stealthAddressHex: string,
   ephemeralHex: string,
   amount = 1_000_000_000n,
   fee = 5_000_000n,
+  mintBytes?: Uint8Array,
 ): Buffer {
-  const buf = Buffer.alloc(194)
+  const hasMint = mintBytes != null
+  const buf = Buffer.alloc(hasMint ? 226 : 194)
   let off = 8 // discriminator (unused by the parser)
   off += 32 // depositor (unused by matching)
+  if (hasMint) { Buffer.from(mintBytes).copy(buf, off); off += 32 } // mint
   Buffer.from(hexToBytes(stealthAddressHex)).copy(buf, off); off += 32
   off += 33 // amount_commitment (unused by matching)
   // ephemeral pubkey: on-chain 33-byte format = 0x00 prefix + 32-byte ed25519
@@ -490,6 +496,34 @@ describe('scanForPayments — canonical view-only round-trip', () => {
 
     expect(result.payments).toHaveLength(1)
     expect(result.payments[0].transferAmount).toBe(1_000_000_000n)
+    expect(result.payments[0].stealthAddress.toBase58()).toBe(
+      ed25519PublicKeyToSolanaAddress(stealth.stealthAddress.address),
+    )
+  })
+
+  it('finds a payment in the post-#1162 226-byte event layout (carries a mint field)', async () => {
+    const meta = generateEd25519StealthMetaAddress('solana')
+    const stealth = generateEd25519StealthAddress(meta.metaAddress)
+    const mint = new Uint8Array(32).fill(7) // any mint — parser must skip it, not misalign
+
+    const connection = mockConnectionWithEvent(
+      buildWithdrawEvent(
+        stealth.stealthAddress.address,
+        stealth.stealthAddress.ephemeralPublicKey,
+        2_000_000_000n,
+        5_000_000n,
+        mint,
+      ),
+    )
+
+    const result = await scanForPayments({
+      connection,
+      viewingPrivateKey: hexToBytes(meta.viewingPrivateKey),
+      spendingPublicKey: hexToBytes(meta.metaAddress.spendingKey),
+    })
+
+    expect(result.payments).toHaveLength(1)
+    expect(result.payments[0].transferAmount).toBe(2_000_000_000n)
     expect(result.payments[0].stealthAddress.toBase58()).toBe(
       ed25519PublicKeyToSolanaAddress(stealth.stealthAddress.address),
     )

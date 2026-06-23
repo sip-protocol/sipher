@@ -41,7 +41,6 @@ export const VAULT_PROGRAM_ID_BASE58 = 'S1Phr5rmDfkZTyLXzH5qUHeiqZS3Uf517SQzRbU4
 export interface VaultBalanceShape {
   balance: bigint
   available: bigint
-  lockedAmount: bigint
   cumulativeVolume: bigint
   lastDepositAt: number
   exists: boolean
@@ -53,7 +52,6 @@ export function makeVaultBalance(
   return {
     balance: 1_000_000_000n,
     available: 800_000_000n,
-    lockedAmount: 200_000_000n,
     cumulativeVolume: 5_000_000_000n,
     lastDepositAt: 1_700_000_000,
     exists: true,
