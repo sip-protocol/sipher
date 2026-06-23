@@ -43,15 +43,16 @@ export const MAX_FEE_BPS = 100
 // Account data offsets (after 8-byte Anchor discriminator)
 //
 // VaultConfig:  authority(32) + fee_bps(2) + refund_timeout(8) + paused(1)
-//             + total_deposits(8) + total_depositors(8) + bump(1) = 60
+//             + total_deposits(8) + total_depositors(8) + bump(1)
+//             + pending_authority(1+32) = 93
 //
-// DepositRecord: depositor(32) + token_mint(32) + balance(8) + locked_amount(8)
-//              + cumulative_volume(8) + last_deposit_at(8) + bump(1) = 97
+// DepositRecord: depositor(32) + token_mint(32) + balance(8)
+//              + cumulative_volume(8) + last_deposit_at(8) + bump(1) = 89
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ANCHOR_DISCRIMINATOR_SIZE = 8
-export const VAULT_CONFIG_SIZE = ANCHOR_DISCRIMINATOR_SIZE + 60
-export const DEPOSIT_RECORD_SIZE = ANCHOR_DISCRIMINATOR_SIZE + 97
+export const VAULT_CONFIG_SIZE = ANCHOR_DISCRIMINATOR_SIZE + 93
+export const DEPOSIT_RECORD_SIZE = ANCHOR_DISCRIMINATOR_SIZE + 89
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cluster configs

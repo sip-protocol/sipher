@@ -459,7 +459,6 @@ describe('executeBalance', () => {
     expect(result.status).toBe('success')
     expect(result.balance.total).toBe('0')
     expect(result.balance.available).toBe('0')
-    expect(result.balance.locked).toBe('0')
     expect(result.balance.exists).toBe(false)
   })
 
