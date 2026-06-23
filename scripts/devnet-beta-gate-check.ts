@@ -59,8 +59,10 @@ type GateResult = {
   reverts: Revert[]
 }
 
-// Custom error codes from the sipher_vault IDL.
+// Custom error codes from the sipher_vault IDL (aligned to the B6 enum).
 // User errors are clearly caller-side mistakes; anything else is unexplained and fails C5.
+// NOTE: 6010 is now AnnouncementCpiFailed (a CPI/system failure, not a user error) —
+// the removed BalanceLocked variant no longer exists, so it is intentionally absent here.
 const USER_ERROR_CODES = new Set([
   6000, // ProgramPaused
   6001, // Unauthorized
@@ -68,7 +70,6 @@ const USER_ERROR_CODES = new Set([
   6004, // ZeroDeposit
   6005, // RefundNotExpired
   6006, // NothingToRefund
-  6010, // BalanceLocked
 ])
 
 function classifyError(err: unknown): { error: string; classification: 'user_error' | 'unexplained' } {

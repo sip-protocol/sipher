@@ -97,7 +97,6 @@ describe('executeBalance — happy path', () => {
     expect(result.balance.exists).toBe(true)
     expect(result.balance.total).toBe('1') // 1_000_000_000 base / 1e9
     expect(result.balance.available).toBe('0.8')
-    expect(result.balance.locked).toBe('0.2')
     expect(result.balance.cumulativeVolume).toBe('5')
     expect(result.balance.lastDepositAt).toBe(
       new Date(1_700_000_000 * 1000).toISOString()
@@ -130,7 +129,6 @@ describe('executeBalance — branches', () => {
         exists: false,
         balance: 0n,
         available: 0n,
-        lockedAmount: 0n,
         cumulativeVolume: 0n,
         lastDepositAt: 0,
       })
