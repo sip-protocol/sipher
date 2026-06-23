@@ -26,7 +26,6 @@ export interface BalanceToolResult {
   balance: {
     total: string
     available: string
-    locked: string
     cumulativeVolume: string
     lastDepositAt: string | null
     exists: boolean
@@ -38,7 +37,7 @@ export const balanceTool: AnthropicTool = {
   name: 'balance',
   description:
     'Check the vault balance for a wallet address and token. ' +
-    'Returns total balance, available (unlocked) balance, and locked amount. ' +
+    'Returns total balance and available (withdrawable) balance. ' +
     'No wallet signature required — this is a read-only operation.',
   input_schema: {
     type: 'object' as const,
@@ -82,7 +81,6 @@ export async function executeBalance(params: BalanceParams): Promise<BalanceTool
 
   const total = fromBaseUnits(vaultBalance.balance, decimals)
   const available = fromBaseUnits(vaultBalance.available, decimals)
-  const locked = fromBaseUnits(vaultBalance.lockedAmount, decimals)
   const volume = fromBaseUnits(vaultBalance.cumulativeVolume, decimals)
 
   const lastDeposit = vaultBalance.lastDepositAt > 0
@@ -90,7 +88,7 @@ export async function executeBalance(params: BalanceParams): Promise<BalanceTool
     : null
 
   const message = vaultBalance.exists
-    ? `Vault balance for ${params.wallet}: ${total} ${token} (${available} available, ${locked} locked).`
+    ? `Vault balance for ${params.wallet}: ${total} ${token} (${available} available).`
     : `Vault balance for ${params.wallet}: 0 ${token} (no deposit record found). ` +
       `Deposit first to start using privacy features.`
 
@@ -102,7 +100,6 @@ export async function executeBalance(params: BalanceParams): Promise<BalanceTool
     balance: {
       total,
       available,
-      locked,
       cumulativeVolume: volume,
       lastDepositAt: lastDeposit,
       exists: vaultBalance.exists,
