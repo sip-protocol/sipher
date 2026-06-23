@@ -55,7 +55,8 @@ function emptyBalance(mint: PublicKey) {
   return {
     depositor: new PublicKey(TEST_WALLET),
     tokenMint: mint,
-    balance: 0n,    available: 0n,
+    balance: 0n,
+    available: 0n,
     cumulativeVolume: 0n,
     lastDepositAt: 0,
     exists: false,
@@ -94,7 +95,8 @@ describe('GET /api/vault/positions', () => {
         return {
           depositor,
           tokenMint: mint,
-          balance: 2_500_000_000n,          available: 2_500_000_000n,
+          balance: 2_500_000_000n,
+          available: 2_500_000_000n,
           cumulativeVolume: 2_500_000_000n,
           lastDepositAt: 1715000000,
           exists: true,
@@ -127,7 +129,8 @@ describe('GET /api/vault/positions', () => {
     vi.mocked(getVaultBalance).mockImplementation(async (_conn, depositor, mint) => ({
       depositor,
       tokenMint: mint,
-      balance: 0n,      available: 0n,
+      balance: 0n,
+      available: 0n,
       cumulativeVolume: 0n,
       lastDepositAt: 0,
       exists: true,
@@ -204,7 +207,8 @@ describe('GET /api/vault/positions', () => {
         return {
           depositor,
           tokenMint: mint,
-          balance: 1_000_000_000n,          available: 1_000_000_000n,
+          balance: 1_000_000_000n,
+          available: 1_000_000_000n,
           cumulativeVolume: 1_000_000_000n,
           lastDepositAt: fixedNowSeconds - 100, // 100s ago — well inside cooldown
           exists: true,
@@ -231,7 +235,8 @@ describe('GET /api/vault/positions', () => {
         return {
           depositor,
           tokenMint: mint,
-          balance: 1_000_000_000n,          available: 1_000_000_000n,
+          balance: 1_000_000_000n,
+          available: 1_000_000_000n,
           cumulativeVolume: 1_000_000_000n,
           lastDepositAt: fixedNowSeconds - DEFAULT_REFUND_TIMEOUT - 1, // just past cooldown
           exists: true,
