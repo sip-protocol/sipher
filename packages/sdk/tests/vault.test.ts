@@ -70,10 +70,10 @@ describe('Config', () => {
   })
 
   it('has correct account sizes', () => {
-    // VaultConfig: 8 (disc) + 32 + 2 + 8 + 1 + 8 + 8 + 1 = 68
-    expect(VAULT_CONFIG_SIZE).toBe(68)
-    // DepositRecord: 8 (disc) + 32 + 32 + 8 + 8 + 8 + 8 + 1 = 105
-    expect(DEPOSIT_RECORD_SIZE).toBe(105)
+    // VaultConfig: 8 (disc) + 32 + 2 + 8 + 1 + 8 + 8 + 1 + pending_authority(1+32) = 101
+    expect(VAULT_CONFIG_SIZE).toBe(101)
+    // DepositRecord: 8 (disc) + 32 + 32 + 8 + 8 + 8 + 1 = 97
+    expect(DEPOSIT_RECORD_SIZE).toBe(97)
     expect(ANCHOR_DISCRIMINATOR_SIZE).toBe(8)
   })
 
@@ -359,7 +359,6 @@ describe('deserializeDepositRecord', () => {
     depositor?: PublicKey
     tokenMint?: PublicKey
     balance?: bigint
-    lockedAmount?: bigint
     cumulativeVolume?: bigint
     lastDepositAt?: number
     bump?: number
@@ -368,14 +367,13 @@ describe('deserializeDepositRecord', () => {
       depositor = DEPOSITOR_A,
       tokenMint = MINT_USDC,
       balance = 1_000_000n,
-      lockedAmount = 100_000n,
       cumulativeVolume = 5_000_000n,
       lastDepositAt = 1711900800,
       bump = 253,
     } = overrides
 
-    // 8 (discriminator) + 32 + 32 + 8 + 8 + 8 + 8 + 1 = 105
-    const buf = Buffer.alloc(105)
+    // 8 (discriminator) + 32 + 32 + 8 + 8 + 8 + 1 = 97
+    const buf = Buffer.alloc(97)
     let offset = 0
 
     // Discriminator
@@ -392,10 +390,6 @@ describe('deserializeDepositRecord', () => {
 
     // balance: u64 LE
     buf.writeBigUInt64LE(balance, offset)
-    offset += 8
-
-    // locked_amount: u64 LE
-    buf.writeBigUInt64LE(lockedAmount, offset)
     offset += 8
 
     // cumulative_volume: u64 LE
@@ -419,17 +413,15 @@ describe('deserializeDepositRecord', () => {
     expect(record.depositor.equals(DEPOSITOR_A)).toBe(true)
     expect(record.tokenMint.equals(MINT_USDC)).toBe(true)
     expect(record.balance).toBe(1_000_000n)
-    expect(record.lockedAmount).toBe(100_000n)
     expect(record.cumulativeVolume).toBe(5_000_000n)
     expect(record.lastDepositAt).toBe(1711900800)
     expect(record.bump).toBe(253)
   })
 
   it('handles zero balance', () => {
-    const buf = buildDepositRecordBuffer({ balance: 0n, lockedAmount: 0n, cumulativeVolume: 0n })
+    const buf = buildDepositRecordBuffer({ balance: 0n, cumulativeVolume: 0n })
     const record = deserializeDepositRecord(buf)
     expect(record.balance).toBe(0n)
-    expect(record.lockedAmount).toBe(0n)
     expect(record.cumulativeVolume).toBe(0n)
   })
 
@@ -457,13 +449,6 @@ describe('deserializeDepositRecord', () => {
     buildDepositRecordBuffer().copy(buf)
     const record = deserializeDepositRecord(buf)
     expect(record.balance).toBe(1_000_000n)
-  })
-
-  it('roundtrips available balance calculation', () => {
-    const buf = buildDepositRecordBuffer({ balance: 500_000n, lockedAmount: 200_000n })
-    const record = deserializeDepositRecord(buf)
-    const available = record.balance - record.lockedAmount
-    expect(available).toBe(300_000n)
   })
 })
 
