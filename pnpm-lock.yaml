@@ -20,8 +20,8 @@ importers:
         specifier: ^1.8.2
         version: 1.9.7
       '@noble/hashes':
-        specifier: ^1.7.2
-        version: 1.8.0
+        specifier: ^2.2.0
+        version: 2.2.0
       '@sip-protocol/sdk':
         specifier: ^0.11.0
         version: 0.11.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(openai@6.26.0(ws@7.5.10(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod@3.25.76))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(utf-8-validate@5.0.10)(ws@7.5.10(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod-to-json-schema@3.25.2(zod@3.25.76))
@@ -9013,13 +9013,13 @@ snapshots:
       '@ethereumjs/rlp': 10.1.1
       '@ethereumjs/util': 10.1.1
       '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
+      '@noble/hashes': 2.2.0
 
   '@ethereumjs/util@10.1.1':
     dependencies:
       '@ethereumjs/rlp': 10.1.1
       '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
+      '@noble/hashes': 2.2.0
 
   '@ethereumjs/util@9.1.0':
     dependencies:

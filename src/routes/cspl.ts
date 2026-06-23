@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils'
+import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js'
 import { validateRequest } from '../middleware/validation.js'
 import { idempotency } from '../middleware/idempotency.js'
 import { betaEndpoint, getBetaWarning } from '../middleware/beta.js'

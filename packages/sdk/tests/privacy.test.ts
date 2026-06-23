@@ -6,8 +6,8 @@ import {
   ed25519PublicKeyToSolanaAddress,
   commit,
 } from '@sip-protocol/sdk'
-import { sha256 } from '@noble/hashes/sha256'
-import { sha512 } from '@noble/hashes/sha512'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { sha512 } from '@noble/hashes/sha2.js'
 import { ed25519 } from '@noble/curves/ed25519'
 import type { Connection } from '@solana/web3.js'
 import { scanForPayments } from '../src/privacy.js'

@@ -4,7 +4,7 @@ import { commit, verifyOpening, addCommitments, subtractCommitments, addBlinding
 import type { HexString } from '@sip-protocol/types'
 import { validateRequest } from '../middleware/validation.js'
 import { idempotency } from '../middleware/idempotency.js'
-import { hexToBytes } from '@noble/hashes/utils'
+import { hexToBytes } from '@noble/hashes/utils.js'
 
 const router = Router()
 

@@ -1,7 +1,7 @@
 import type { AnthropicTool } from '../pi/tool-adapter.js'
 import { generateViewingKey, deriveViewingKey } from '@sip-protocol/sdk'
-import { sha256 } from '@noble/hashes/sha256'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { createConnection, WITHDRAW_EVENT_WITH_MINT_SIZE } from '@sipher/sdk'
 import { loadNetworkConfig } from '../config/network.js'
 

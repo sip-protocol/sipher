@@ -210,8 +210,8 @@ describe('buildPrivateSwap — viewing key hash', () => {
   })
 
   it('with provided meta-address → vkHash = 0x + sha256(viewingKey bytes)', async () => {
-    const { sha256 } = await import('@noble/hashes/sha256')
-    const { hexToBytes, bytesToHex } = await import('@noble/hashes/utils')
+    const { sha256 } = await import('@noble/hashes/sha2.js')
+    const { hexToBytes, bytesToHex } = await import('@noble/hashes/utils.js')
 
     const result = await buildPrivateSwap({
       sender,
@@ -232,8 +232,8 @@ describe('buildPrivateSwap — viewing key hash', () => {
   })
 
   it('without meta-address → vkHash = 0x + sha256("ephemeral-" + outputStealthAddress)', async () => {
-    const { sha256 } = await import('@noble/hashes/sha256')
-    const { bytesToHex } = await import('@noble/hashes/utils')
+    const { sha256 } = await import('@noble/hashes/sha2.js')
+    const { bytesToHex } = await import('@noble/hashes/utils.js')
 
     const result = await buildPrivateSwap({
       sender,
