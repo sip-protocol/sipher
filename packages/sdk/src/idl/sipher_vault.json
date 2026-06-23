@@ -8,6 +8,357 @@
   },
   "instructions": [
     {
+      "name": "accept_authority",
+      "docs": [
+        "Accept a pending authority transfer (step 2). The proposed authority must",
+        "sign \u2014 proving control of the key \u2014 before `config.authority` changes, so",
+        "the authority can never be handed to a key nobody controls. Clears the",
+        "pending slot on success."
+      ],
+      "discriminator": [
+        107,
+        86,
+        198,
+        91,
+        33,
+        12,
+        107,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "authority_refund",
+      "docs": [
+        "Authority-signed refund: return available balance to depositor.",
+        "Mirrors `refund` exactly except the authority signs instead of the depositor.",
+        "Used by SENTINEL for autonomous refunds of expired deposits.",
+        "Timeout is still enforced on-chain \u2014 authority does NOT bypass the cooldown."
+      ],
+      "discriminator": [
+        90,
+        239,
+        78,
+        209,
+        125,
+        15,
+        125,
+        28
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  99,
+                  111,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "depositor"
+              },
+              {
+                "kind": "account",
+                "path": "deposit_record.token_mint",
+                "account": "DepositRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_token",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "deposit_record.token_mint",
+                "account": "DepositRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "depositor_token",
+          "writable": true
+        },
+        {
+          "name": "token_mint",
+          "docs": [
+            "Mint account required by transfer_checked (must match deposit_record.token_mint)"
+          ]
+        },
+        {
+          "name": "depositor",
+          "docs": [
+            "derivation and token account ownership check. The authority (not depositor)",
+            "is the signer for this instruction."
+          ],
+          "relations": [
+            "deposit_record"
+          ]
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "authority_refund_sol",
+      "docs": [
+        "Authority-signed refund of available native SOL to the original depositor.",
+        "Mirrors `refund_sol` exactly except:",
+        "- the authority signs instead of the depositor,",
+        "- `config` carries `has_one = authority` (so wrong authority \u2192 Unauthorized),",
+        "- the vault MUST NOT be paused (authority cannot bypass the emergency gate),",
+        "- `depositor` is a non-signer SystemAccount (lamport destination + seed source).",
+        "Timeout is still enforced on-chain \u2014 authority does NOT bypass the cooldown."
+      ],
+      "discriminator": [
+        47,
+        152,
+        199,
+        158,
+        147,
+        185,
+        21,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  99,
+                  111,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "depositor"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "depositor",
+          "docs": [
+            "Non-signer lamport destination + seed source for the deposit_record PDA.",
+            "Validated by the deposit_record.has_one constraint above."
+          ],
+          "writable": true,
+          "relations": [
+            "deposit_record"
+          ]
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "collect_fee",
       "docs": [
         "Authority-only: collect accumulated fees from the fee token account.",
@@ -90,8 +441,90 @@
           ]
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "collect_fee_sol",
+      "docs": [
+        "Authority-only: drain lamports above the rent-exempt minimum from the native",
+        "SOL fee PDA (`sol_fee`). Fees accrue during `withdraw_private_sol` (fee_bps",
+        "per withdrawal). Pass `amount = 0` to collect ALL collectable lamports.",
+        "",
+        "Safety: Uses the Task-7 checked lamport mutation pattern \u2014 every new balance",
+        "is computed with `checked_sub`/`checked_add` before any assignment. The rent",
+        "floor of `sol_fee` is preserved; the instruction reverts with `NoFeesToCollect`",
+        "if there is nothing above the floor."
+      ],
+      "discriminator": [
+        124,
+        173,
+        32,
+        197,
+        117,
+        102,
+        189,
+        253
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_fee",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
         }
       ],
       "args": [
@@ -177,8 +610,103 @@
           "signer": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_sol_vault",
+      "docs": [
+        "Create the singleton native-SOL vault + fee PDAs.",
+        "Called once per deployment before any native-SOL deposits.",
+        "Payer funds the rent-exempt reserve for both PDAs."
+      ],
+      "discriminator": [
+        199,
+        85,
+        223,
+        31,
+        210,
+        142,
+        93,
+        76
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_fee",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
         },
         {
           "name": "system_program",
@@ -191,7 +719,13 @@
       "name": "create_vault_token",
       "docs": [
         "Create the vault token PDA for a given mint.",
-        "Anyone can call this (first depositor pays rent). Must be called before deposit."
+        "Anyone can call this (first depositor pays rent). Must be called before deposit.",
+        "",
+        "For Token-2022 mints, a fail-closed extension allowlist is enforced.",
+        "Only MetadataPointer, TokenMetadata, and InterestBearingConfig are allowed.",
+        "Any other extension (TransferFeeConfig, PermanentDelegate, TransferHook,",
+        "NonTransferable, DefaultAccountState, MintCloseAuthority, etc.) is rejected",
+        "with UnsupportedMintExtension to protect the vault's transfer invariants."
       ],
       "discriminator": [
         49,
@@ -265,8 +799,7 @@
           "signer": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "token_program"
         },
         {
           "name": "system_program",
@@ -392,8 +925,156 @@
           "signer": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "deposit_sol",
+      "docs": [
+        "Deposit native SOL into the vault. Creates DepositRecord keyed by",
+        "(depositor, NATIVE_SOL_MINT) on first deposit; accumulates on repeat calls."
+      ],
+      "discriminator": [
+        108,
+        81,
+        78,
+        117,
+        125,
+        155,
+        56,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  99,
+                  111,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "depositor"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "depositor",
+          "writable": true,
+          "signer": true
         },
         {
           "name": "system_program",
@@ -470,9 +1151,78 @@
       ]
     },
     {
+      "name": "migrate_config",
+      "docs": [
+        "Grow a legacy (pre-M1, 68-byte) VaultConfig to the current 101-byte layout",
+        "by appending `pending_authority = None`. Authority-gated on every path,",
+        "idempotent. Scoped to this one-time 68\u2192101 migration: the accepted legacy",
+        "size is pinned to `LEGACY_VAULT_CONFIG_LEN`. The mechanism (raw realloc +",
+        "zero-fill of the appended region) would generalize to a future",
+        "trailing-field migration, but that would require bumping that constant to",
+        "the then-current size.",
+        "",
+        "The legacy account cannot be deserialized into `VaultConfig` (the trailing",
+        "Option is absent \u2192 AccountDidNotDeserialize) and a renamed struct would fail",
+        "the discriminator check, so `config` is a raw UncheckedAccount: the PDA is",
+        "verified by seeds+bump and the authority is read manually from bytes [8..40]",
+        "(the authority sits at the same offset in the legacy and current layout)."
+      ],
+      "discriminator": [
+        92,
+        131,
+        58,
+        105,
+        210,
+        154,
+        224,
+        193
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "docs": [
+            "is verified by seeds+bump and the authority is verified manually in the",
+            "handler (bytes [8..40]). Owned by this program, so realloc is permitted."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "refund",
       "docs": [
-        "Refund available (unlocked) balance back to depositor."
+        "Refund available balance back to depositor."
       ],
       "discriminator": [
         2,
@@ -579,6 +1329,12 @@
           "writable": true
         },
         {
+          "name": "token_mint",
+          "docs": [
+            "Mint account required by transfer_checked (must match deposit_record.token_mint)"
+          ]
+        },
+        {
           "name": "depositor",
           "writable": true,
           "signer": true,
@@ -587,11 +1343,341 @@
           ]
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "token_program"
         }
       ],
       "args": []
+    },
+    {
+      "name": "refund_sol",
+      "docs": [
+        "Refund available native SOL balance back to the depositor.",
+        "Depositor is the signer and the lamport destination.",
+        "Timeout is enforced on-chain \u2014 the depositor must wait `refund_timeout` seconds",
+        "since their last deposit before reclaiming funds."
+      ],
+      "discriminator": [
+        158,
+        68,
+        131,
+        114,
+        106,
+        77,
+        56,
+        13
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  99,
+                  111,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "depositor"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "depositor",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "deposit_record"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_paused",
+      "docs": [
+        "Pause or unpause the vault. Authority-only.",
+        "",
+        "While paused (`config.paused == true`), `deposit`, `withdraw_private`,",
+        "`authority_refund`, `deposit_sol`, `withdraw_private_sol`, and",
+        "`authority_refund_sol` revert with `VaultError::ProgramPaused`. The",
+        "`refund`, `collect_fee`, `refund_sol`, and `collect_fee_sol` paths",
+        "intentionally remain available so depositors can always self-recover funds",
+        "and the authority can still drain accumulated fees during an emergency.",
+        "",
+        "Idempotent \u2014 calling with the current state is a no-op success.",
+        "",
+        "Emits `VaultPausedEvent` so off-chain monitoring (SENTINEL, audit",
+        "log indexers, dashboards) can subscribe to state changes without",
+        "log-parsing."
+      ],
+      "discriminator": [
+        91,
+        60,
+        125,
+        192,
+        176,
+        225,
+        166,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "update_authority",
+      "docs": [
+        "Propose a new authority (step 1 of a two-step transfer). The current",
+        "authority signs; the proposed key is recorded in `pending_authority` but",
+        "does not take effect until it calls `accept_authority`. This lets the",
+        "program hand control to e.g. a multisig without a redeploy, and lets a",
+        "fat-fingered or compromised proposal be overwritten by another",
+        "`update_authority` before it is ever accepted."
+      ],
+      "discriminator": [
+        32,
+        46,
+        64,
+        28,
+        149,
+        75,
+        243,
+        88
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_fee",
+      "docs": [
+        "Update the protocol fee (basis points). Authority-only, capped at",
+        "MAX_FEE_BPS. Lets the authority adjust the fee without a redeploy."
+      ],
+      "discriminator": [
+        232,
+        253,
+        195,
+        247,
+        148,
+        212,
+        73,
+        222
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_fee_bps",
+          "type": "u16"
+        }
+      ]
     },
     {
       "name": "withdraw_private",
@@ -747,8 +1833,394 @@
           ]
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "token_program"
+        },
+        {
+          "name": "sip_config",
+          "docs": [
+            "SIP Privacy program config PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                6,
+                103,
+                244,
+                183,
+                95,
+                66,
+                85,
+                178,
+                94,
+                77,
+                35,
+                31,
+                200,
+                4,
+                171,
+                142,
+                239,
+                75,
+                239,
+                31,
+                200,
+                233,
+                194,
+                236,
+                6,
+                172,
+                102,
+                172,
+                187,
+                213,
+                122,
+                133
+              ]
+            }
+          }
+        },
+        {
+          "name": "sip_transfer_record",
+          "docs": [
+            "Transfer record PDA \u2014 will be initialized by CPI to sip_privacy"
+          ],
+          "writable": true
+        },
+        {
+          "name": "sip_privacy_program",
+          "docs": [
+            "SIP Privacy program for CPI"
+          ],
+          "address": "S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at"
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "System program (needed by sip_privacy to init the transfer record)"
+          ],
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "amount_commitment",
+          "type": {
+            "array": [
+              "u8",
+              33
+            ]
+          }
+        },
+        {
+          "name": "stealth_pubkey",
+          "type": "pubkey"
+        },
+        {
+          "name": "ephemeral_pubkey",
+          "type": {
+            "array": [
+              "u8",
+              33
+            ]
+          }
+        },
+        {
+          "name": "viewing_key_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_encrypted_amount",
+          "type": "bytes"
+        },
+        {
+          "name": "_proof",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_private_sol",
+      "docs": [
+        "Withdraw native SOL privately to a stealth address. The native-track analog",
+        "of `withdraw_private`. Debit-first pattern, then a **checked lamport mutation**",
+        "of the program-owned `SolVault` PDA (no system CPI \u2014 the source is PDA-owned):",
+        "1. Guards: not paused, amount > 0.",
+        "2. Debit-first: reduce `DepositRecord.balance` before moving any lamports.",
+        "3. Fee split: `fee = amount \u00b7 fee_bps / 10_000`, `net = amount \u2212 fee`.",
+        "4. Checked lamport mutation: compute every new balance with checked ops",
+        "(BPF release WRAPS on `+=`/`-=`, which would be a vault drain), enforce",
+        "the rent-reserve guard on the vault debit, THEN assign.",
+        "5. CPI `create_transfer_announcement` (shared helper, mint = NATIVE_SOL_MINT).",
+        "6. Emit `VaultWithdrawEvent` (mint = NATIVE_SOL_MINT).",
+        "",
+        "`encrypted_amount` / `proof` mirror the token signature \u2014 carried for",
+        "announcement parity + off-chain verification; format-checked, unused on-chain."
+      ],
+      "discriminator": [
+        231,
+        25,
+        127,
+        244,
+        146,
+        146,
+        119,
+        213
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  99,
+                  111,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "depositor"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_fee",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "stealth",
+          "docs": [
+            "The stealth recipient \u2014 a plain writable system account that receives the",
+            "net lamports. No mint check (native SOL); may be below the rent-exempt",
+            "minimum after a small payout (documented in the design \u2014 no fund loss)."
+          ],
+          "writable": true
+        },
+        {
+          "name": "depositor",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "deposit_record"
+          ]
+        },
+        {
+          "name": "sip_config",
+          "docs": [
+            "SIP Privacy program config PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                6,
+                103,
+                244,
+                183,
+                95,
+                66,
+                85,
+                178,
+                94,
+                77,
+                35,
+                31,
+                200,
+                4,
+                171,
+                142,
+                239,
+                75,
+                239,
+                31,
+                200,
+                233,
+                194,
+                236,
+                6,
+                172,
+                102,
+                172,
+                187,
+                213,
+                122,
+                133
+              ]
+            }
+          }
+        },
+        {
+          "name": "sip_transfer_record",
+          "docs": [
+            "Transfer record PDA \u2014 will be initialized by CPI to sip_privacy"
+          ],
+          "writable": true
+        },
+        {
+          "name": "sip_privacy_program",
+          "docs": [
+            "SIP Privacy program for CPI"
+          ],
+          "address": "S1PMFspo4W6BYKHWkHNF7kZ3fnqibEXg3LQjxepS9at"
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "System program (needed by sip_privacy to init the transfer record)"
+          ],
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -813,6 +2285,32 @@
       ]
     },
     {
+      "name": "SolFee",
+      "discriminator": [
+        39,
+        220,
+        57,
+        50,
+        228,
+        181,
+        159,
+        180
+      ]
+    },
+    {
+      "name": "SolVault",
+      "discriminator": [
+        21,
+        132,
+        230,
+        103,
+        19,
+        209,
+        129,
+        248
+      ]
+    },
+    {
       "name": "VaultConfig",
       "discriminator": [
         99,
@@ -827,6 +2325,71 @@
     }
   ],
   "events": [
+    {
+      "name": "AuthorityTransferProposedEvent",
+      "discriminator": [
+        219,
+        219,
+        120,
+        196,
+        117,
+        157,
+        182,
+        254
+      ]
+    },
+    {
+      "name": "AuthorityUpdatedEvent",
+      "discriminator": [
+        44,
+        40,
+        20,
+        115,
+        145,
+        198,
+        95,
+        200
+      ]
+    },
+    {
+      "name": "FeeUpdatedEvent",
+      "discriminator": [
+        124,
+        0,
+        33,
+        112,
+        38,
+        152,
+        178,
+        195
+      ]
+    },
+    {
+      "name": "VaultConfigMigratedEvent",
+      "discriminator": [
+        30,
+        126,
+        44,
+        151,
+        86,
+        252,
+        101,
+        239
+      ]
+    },
+    {
+      "name": "VaultPausedEvent",
+      "discriminator": [
+        75,
+        189,
+        120,
+        167,
+        117,
+        229,
+        155,
+        60
+      ]
+    },
     {
       "name": "VaultWithdrawEvent",
       "discriminator": [
@@ -894,11 +2457,81 @@
     },
     {
       "code": 6010,
-      "name": "BalanceLocked",
-      "msg": "Balance locked by scheduled operations"
+      "name": "AnnouncementCpiFailed",
+      "msg": "CPI to SIP Privacy program failed"
+    },
+    {
+      "code": 6011,
+      "name": "UnsupportedMintExtension",
+      "msg": "Mint carries an unsupported Token-2022 extension"
+    },
+    {
+      "code": 6012,
+      "name": "RentReserveViolation",
+      "msg": "Operation would drain a SOL PDA below its rent-exempt minimum"
+    },
+    {
+      "code": 6013,
+      "name": "EncryptedAmountTooLong",
+      "msg": "Encrypted amount exceeds the 64-byte maximum"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidConfigAccount",
+      "msg": "Config account is not a migratable legacy layout"
     }
   ],
   "types": [
+    {
+      "name": "AuthorityTransferProposedEvent",
+      "docs": [
+        "Emitted when the current authority proposes a transfer (step 1). Lets",
+        "off-chain monitoring (SENTINEL, indexers) react to a pending authority",
+        "change without log-parsing \u2014 the same rationale as `VaultPausedEvent`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "current_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "pending_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuthorityUpdatedEvent",
+      "docs": [
+        "Emitted when a pending authority transfer is accepted (step 2) and",
+        "`config.authority` actually changes \u2014 the single most alarm-worthy custody",
+        "event, especially once the authority is a mainnet multisig."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
     {
       "name": "DepositRecord",
       "type": {
@@ -917,10 +2550,6 @@
             "type": "u64"
           },
           {
-            "name": "locked_amount",
-            "type": "u64"
-          },
-          {
             "name": "cumulative_volume",
             "type": "u64"
           },
@@ -928,6 +2557,57 @@
             "name": "last_deposit_at",
             "type": "i64"
           },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeUpdatedEvent",
+      "docs": [
+        "Emitted when the authority updates the protocol fee."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "new_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SolFee",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SolVault",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
             "name": "bump",
             "type": "u8"
@@ -967,6 +2647,61 @@
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "pending_authority",
+            "docs": [
+              "Pending authority for the two-step authority transfer (None = no transfer",
+              "in flight). Set by `update_authority`, promoted/cleared by `accept_authority`.",
+              "Trailing field so the fixed-offset fields above keep their byte positions."
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultConfigMigratedEvent",
+      "docs": [
+        "Emitted when `migrate_config` grows a legacy VaultConfig to the current",
+        "layout. Lets off-chain tooling confirm the one-time migration on-chain."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_len",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultPausedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -978,6 +2713,10 @@
         "fields": [
           {
             "name": "depositor",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
             "type": "pubkey"
           },
           {

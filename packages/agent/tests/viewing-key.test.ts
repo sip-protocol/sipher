@@ -53,6 +53,7 @@ vi.mock('@sipher/sdk', () => ({
   createConnection: vi.fn().mockReturnValue({
     getParsedTransaction: mockGetParsedTransaction,
   }),
+  WITHDRAW_EVENT_WITH_MINT_SIZE: 226,
 }))
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,22 +72,24 @@ const MOCK_CHILD_HASH = `0x${bytesToHex(sha256(hexToBytes('bb'.repeat(32))))}`
 // Helper: build a fake VaultWithdrawEvent log line
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildVaultWithdrawEventLog(viewingKeyHash: Uint8Array): string {
-  // 8 (discriminator) + 32 (depositor) + 32 (stealth) + 33 (commitment) + 33 (ephemeral) + 32 (viewingKeyHash) = 170
-  const buf = Buffer.alloc(170)
+function buildVaultWithdrawEventLog(viewingKeyHash: Uint8Array, withMint = false): string {
+  // legacy: 8 (disc) + 32 (depositor) + 32 (stealth) + 33 (commitment)
+  //   + 33 (ephemeral) + 32 (viewingKeyHash) = 170. The post-#1162 layout inserts
+  //   a 32-byte mint after depositor; length-based detection needs the FULL
+  //   226-byte event, so build that (trailing amount/fee/ts stay zero).
+  const buf = Buffer.alloc(withMint ? 226 : 170)
   // discriminator — arbitrary 8 bytes
   buf.writeUInt32LE(0x12345678, 0)
   buf.writeUInt32LE(0x9abcdef0, 4)
   // depositor — 32 bytes of 0x01
   buf.fill(0x01, 8, 40)
-  // stealth — 32 bytes of 0x02
-  buf.fill(0x02, 40, 72)
-  // commitment — 33 bytes of 0x03
-  buf.fill(0x03, 72, 105)
-  // ephemeral — 33 bytes of 0x04
-  buf.fill(0x04, 105, 138)
-  // viewingKeyHash at offset 138
-  viewingKeyHash.forEach((b, i) => buf[138 + i] = b)
+  let off = 40
+  // mint — 32 bytes of 0x09 (only in the post-#1162 layout)
+  if (withMint) { buf.fill(0x09, off, off + 32); off += 32 }
+  buf.fill(0x02, off, off + 32); off += 32 // stealth
+  buf.fill(0x03, off, off + 33); off += 33 // commitment
+  buf.fill(0x04, off, off + 33); off += 33 // ephemeral
+  viewingKeyHash.forEach((b, i) => buf[off + i] = b) // viewingKeyHash
 
   return `Program data: ${buf.toString('base64')}`
 }
@@ -269,6 +272,29 @@ describe('executeViewingKey — verify', () => {
     expect(result.details.verified).toBe(true)
     expect(result.details.txSignature).toBe('sig_match_123')
     expect(result.details.viewingKeyHash).toBeTruthy()
+    expect(result.details.note).toContain('matches')
+  })
+
+  it('verifies against the post-#1162 226-byte event layout (with mint)', async () => {
+    const keyBytes = hexToBytes(VALID_VIEWING_KEY)
+    const expectedHash = sha256(keyBytes)
+
+    mockGetParsedTransaction.mockResolvedValue({
+      meta: {
+        logMessages: [
+          'Program log: Instruction: WithdrawPrivate',
+          buildVaultWithdrawEventLog(expectedHash, true),
+        ],
+      },
+    })
+
+    const result = await executeViewingKey({
+      action: 'verify',
+      txSignature: 'sig_match_226',
+      viewingKeyHex: VALID_VIEWING_KEY,
+    })
+
+    expect(result.details.verified).toBe(true)
     expect(result.details.note).toContain('matches')
   })
 

@@ -41,7 +41,6 @@ interface PositionsResponse {
     symbol: string
     balance: string
     balanceUiAmount: number
-    lockedAmount: string
     decimals: number
     lastDepositAt: number
     refundableAt: number
@@ -73,7 +72,6 @@ const populatedPositions: PositionsResponse = {
       symbol: 'SOL',
       balance: '1000000000',
       balanceUiAmount: 1,
-      lockedAmount: '0',
       decimals: 9,
       lastDepositAt: 0,
       refundableAt: 0,

@@ -1,6 +1,14 @@
 import { Buffer } from 'node:buffer'
 import { ed25519 } from '@noble/curves/ed25519'
-import { WSOL_MINT, USDC_MINT, USDT_MINT, getTokenDecimals, fromBaseUnits } from '@sipher/sdk'
+import {
+  WSOL_MINT,
+  USDC_MINT,
+  USDT_MINT,
+  getTokenDecimals,
+  fromBaseUnits,
+  WITHDRAW_EVENT_MIN_SIZE,
+  WITHDRAW_EVENT_WITH_MINT_SIZE,
+} from '@sipher/sdk'
 import {
   PublicKey,
   type Connection,
@@ -32,12 +40,6 @@ export interface StealthContext {
 }
 
 const PROGRAM_DATA_PREFIX = 'Program data: '
-/**
- * Minimum VaultWithdrawEvent bytes:
- * 8 (disc) + 32 (depositor) + 32 (stealth) + 33 (commitment) + 33 (ephemeral)
- *  + 32 (vk_hash) + 8 (amount) + 8 (fee) + 8 (ts) = 194
- */
-const WITHDRAW_EVENT_MIN_BYTES = 194
 const SPL_TOKEN_PROGRAMS = new Set(['spl-token', 'spl-token-2022'])
 
 function isParsedInstruction(
@@ -141,10 +143,11 @@ interface WithdrawEvent {
 
 /**
  * Parses the first decode-able VaultWithdrawEvent out of `Program data: <b64>`
- * log lines. Mirrors `parseWithdrawEvent` in packages/sdk/src/privacy.ts:413-454
+ * log lines. Mirrors `parseWithdrawEvent` in packages/sdk/src/privacy.ts
  * (no discriminator check — matches sipher's scan behavior; relies on the
  * 194-byte length floor and the downstream ATA-owner equality check to
- * filter spurious decodes).
+ * filter spurious decodes). Handles both the legacy 194-byte layout and the
+ * post-#1162 226-byte layout, which inserts a 32-byte `mint` after `depositor`.
  */
 function parseWithdrawEventFromLogs(logs: string[]): WithdrawEvent | null {
   for (const log of logs) {
@@ -157,14 +160,21 @@ function parseWithdrawEventFromLogs(logs: string[]): WithdrawEvent | null {
     } catch {
       continue
     }
-    if (data.length < WITHDRAW_EVENT_MIN_BYTES) continue
+    if (data.length < WITHDRAW_EVENT_MIN_SIZE) continue
     try {
-      // Layout (after 8-byte discriminator): depositor[32] | stealth[32]
-      //   | commitment[33] | ephemeral[33] | vk_hash[32] | amount[8] | fee[8] | ts[8]
-      const stealthBytes = data.subarray(40, 72)
+      // Layout (after 8-byte discriminator): depositor[32] [+ mint[32] since
+      //   #1162] | stealth[32] | commitment[33] | ephemeral[33] | vk_hash[32]
+      //   | amount[8] | fee[8] | ts[8]. Detect the mint by total length.
+      const mintSkip = data.length >= WITHDRAW_EVENT_WITH_MINT_SIZE ? 32 : 0
+      const stealthStart = 40 + mintSkip
+      const stealthBytes = data.subarray(stealthStart, stealthStart + 32)
       const stealthAddress = new PublicKey(stealthBytes).toBase58()
-      // Ephemeral is 33 bytes (0x00 prefix + 32-byte ed25519); strip prefix.
-      const ephRaw = data[105] === 0x00 ? data.subarray(106, 138) : data.subarray(105, 137)
+      // Ephemeral is 33 bytes (0x00 prefix + 32-byte ed25519), after stealth(32)
+      // + commitment(33); strip the prefix when present.
+      const ephStart = stealthStart + 65
+      const ephRaw = data[ephStart] === 0x00
+        ? data.subarray(ephStart + 1, ephStart + 33)
+        : data.subarray(ephStart, ephStart + 32)
       if (ephRaw.length !== 32) continue
       // Skip pre-integration placeholder events with zero-filled ephemeral.
       if (ephRaw.every((b) => b === 0)) continue
