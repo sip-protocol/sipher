@@ -48,14 +48,20 @@ function buildDepositEventBase64(
   return buf.toString('base64')
 }
 
-/** Build a base64-encoded withdraw event (194 bytes) */
+/**
+ * Build a base64-encoded withdraw event. Legacy layout = 194 bytes; when a
+ * `mint` is supplied the post-#1162 (universal-asset) 226-byte layout is built
+ * with `mint` inserted right after `depositor`.
+ */
 function buildWithdrawEventBase64(
   depositor: string,
   amountLamports: bigint,
   feeLamports: bigint,
-  timestamp: number
+  timestamp: number,
+  mint?: string
 ): string {
-  const buf = Buffer.alloc(194)
+  const hasMint = mint != null
+  const buf = Buffer.alloc(hasMint ? 226 : 194)
   let offset = 0
 
   // Discriminator (8 bytes)
@@ -65,6 +71,12 @@ function buildWithdrawEventBase64(
   // Depositor (32 bytes)
   new PublicKey(depositor).toBuffer().copy(buf, offset)
   offset += 32
+
+  // Mint (32 bytes) — present only in the post-#1162 226-byte layout
+  if (hasMint) {
+    new PublicKey(mint).toBuffer().copy(buf, offset)
+    offset += 32
+  }
 
   // Stealth recipient (32 bytes) — dummy
   buf.fill(0x01, offset, offset + 32)
@@ -374,6 +386,24 @@ describe('parseVaultEvents (real SDK parser)', () => {
       2_000_000_000n, // 2 SOL
       2_000_000n,     // 0.002 SOL fee
       1712001000
+    )
+    const logs = [`Program data: ${withdrawB64}`]
+
+    const events = realParseVaultEvents(logs, FAKE_SIG, 1712001000)
+    expect(events).toHaveLength(1)
+    expect(events[0].type).toBe('send')
+    expect(events[0].wallet).toBe(VALID_WALLET)
+    expect(events[0].amount).toBe('2')
+    expect(events[0].timestamp).toBe(1712001000)
+  })
+
+  it('parses post-#1162 226-byte withdraw event (with mint) as type "send"', () => {
+    const withdrawB64 = buildWithdrawEventBase64(
+      VALID_WALLET,
+      2_000_000_000n, // 2 SOL
+      2_000_000n,
+      1712001000,
+      WSOL_MINT_STR, // → 226-byte layout with a mint field after depositor
     )
     const logs = [`Program data: ${withdrawB64}`]
 

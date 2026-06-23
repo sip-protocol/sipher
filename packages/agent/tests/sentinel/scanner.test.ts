@@ -46,7 +46,6 @@ function makeVaultBalance(lamports = 5_000_000_000n) {
     depositor: DEPOSITOR,
     tokenMint: WSOL,
     balance: lamports,
-    lockedAmount: 0n,
     available: lamports,
     cumulativeVolume: 10_000_000_000n,
     lastDepositAt: 1712600000,
