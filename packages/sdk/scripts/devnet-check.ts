@@ -57,7 +57,6 @@ async function main() {
   if (balance.exists) {
     console.log(`  Balance: ${balance.balance} lamports`)
     console.log(`  Available: ${balance.available} lamports`)
-    console.log(`  Locked: ${balance.lockedAmount} lamports`)
     console.log(`  Cumulative volume: ${balance.cumulativeVolume} lamports`)
     console.log(`  Last deposit: ${new Date(balance.lastDepositAt * 1000).toISOString()}`)
   } else {
