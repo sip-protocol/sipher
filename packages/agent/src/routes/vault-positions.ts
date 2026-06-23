@@ -23,7 +23,6 @@ interface Position {
   symbol: string
   balance: string
   balanceUiAmount: number
-  lockedAmount: string
   decimals: number
   lastDepositAt: number
   refundableAt: number
@@ -81,7 +80,6 @@ vaultPositionsRouter.get('/positions', async (req: Request, res: Response) => {
         symbol,
         balance: balance.balance.toString(),
         balanceUiAmount: Number(balance.balance) / 10 ** decimals,
-        lockedAmount: balance.lockedAmount.toString(),
         decimals,
         lastDepositAt: balance.lastDepositAt,
         refundableAt,

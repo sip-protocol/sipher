@@ -18,7 +18,6 @@ export interface DepositRecord {
   depositor: PublicKey
   tokenMint: PublicKey
   balance: bigint
-  lockedAmount: bigint
   cumulativeVolume: bigint
   lastDepositAt: number
   bump: number
@@ -33,9 +32,7 @@ export interface VaultBalance {
   tokenMint: PublicKey
   /** Total balance in the vault (lamports / token base units) */
   balance: bigint
-  /** Amount locked by pending private sends */
-  lockedAmount: bigint
-  /** balance - lockedAmount */
+  /** Withdrawable balance — equals `balance` (the on-chain vault has no lock field) */
   available: bigint
   /** Lifetime deposit volume */
   cumulativeVolume: bigint

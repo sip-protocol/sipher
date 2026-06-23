@@ -75,6 +75,8 @@ export type { PrivateSendParams, ScanParams } from './privacy.js'
 export {
   parseVaultEvents,
   getVaultHistory,
+  WITHDRAW_EVENT_MIN_SIZE,
+  WITHDRAW_EVENT_WITH_MINT_SIZE,
 } from './events.js'
 export type {
   VaultEventType,

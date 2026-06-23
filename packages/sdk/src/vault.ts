@@ -112,6 +112,8 @@ export function anchorDiscriminator(instructionName: string): Buffer {
  *   total_deposits:    u64    (8 bytes, LE)
  *   total_depositors:  u64    (8 bytes, LE)
  *   bump:              u8     (1 byte)
+ *   pending_authority: Option<Pubkey>  (trailing, present on-chain since B6;
+ *                      not decoded here — we read only the 60-byte fixed prefix)
  */
 export function deserializeVaultConfig(data: Buffer): VaultConfig {
   if (data.length < ANCHOR_DISCRIMINATOR_SIZE + 60) {
@@ -159,15 +161,14 @@ export function deserializeVaultConfig(data: Buffer): VaultConfig {
  *   depositor:          Pubkey  (32 bytes)
  *   token_mint:         Pubkey  (32 bytes)
  *   balance:            u64    (8 bytes, LE)
- *   locked_amount:      u64    (8 bytes, LE)
  *   cumulative_volume:  u64    (8 bytes, LE)
  *   last_deposit_at:    i64    (8 bytes, LE)
  *   bump:               u8     (1 byte)
  */
 export function deserializeDepositRecord(data: Buffer): DepositRecord {
-  if (data.length < ANCHOR_DISCRIMINATOR_SIZE + 97) {
+  if (data.length < ANCHOR_DISCRIMINATOR_SIZE + 89) {
     throw new Error(
-      `DepositRecord data too short: expected ${ANCHOR_DISCRIMINATOR_SIZE + 97} bytes, got ${data.length}`
+      `DepositRecord data too short: expected ${ANCHOR_DISCRIMINATOR_SIZE + 89} bytes, got ${data.length}`
     )
   }
 
@@ -182,9 +183,6 @@ export function deserializeDepositRecord(data: Buffer): DepositRecord {
   const balance = data.readBigUInt64LE(offset)
   offset += 8
 
-  const lockedAmount = data.readBigUInt64LE(offset)
-  offset += 8
-
   const cumulativeVolume = data.readBigUInt64LE(offset)
   offset += 8
 
@@ -197,7 +195,6 @@ export function deserializeDepositRecord(data: Buffer): DepositRecord {
     depositor,
     tokenMint,
     balance,
-    lockedAmount,
     cumulativeVolume,
     lastDepositAt,
     bump,
@@ -240,7 +237,6 @@ export async function getVaultBalance(
       depositor,
       tokenMint,
       balance: 0n,
-      lockedAmount: 0n,
       available: 0n,
       cumulativeVolume: 0n,
       lastDepositAt: 0,
@@ -253,8 +249,7 @@ export async function getVaultBalance(
     depositor: record.depositor,
     tokenMint: record.tokenMint,
     balance: record.balance,
-    lockedAmount: record.lockedAmount,
-    available: record.balance - record.lockedAmount,
+    available: record.balance,
     cumulativeVolume: record.cumulativeVolume,
     lastDepositAt: record.lastDepositAt,
     exists: true,
@@ -358,9 +353,9 @@ export async function buildRefundTx(
     throw new Error('No deposit record found — nothing to refund')
   }
   const record = deserializeDepositRecord(Buffer.from(recordInfo.data))
-  const refundAmount = record.balance - record.lockedAmount
+  const refundAmount = record.balance
   if (refundAmount <= 0n) {
-    throw new Error('No available balance to refund (all funds locked or zero)')
+    throw new Error('No balance to refund')
   }
 
   // Encode: discriminator(8) only — refund has no params
@@ -442,9 +437,9 @@ export async function buildAuthorityRefundTx(
     throw new Error('No deposit record found — nothing to refund')
   }
   const record = deserializeDepositRecord(Buffer.from(recordInfo.data))
-  const refundAmount = record.balance - record.lockedAmount
+  const refundAmount = record.balance
   if (refundAmount <= 0n) {
-    throw new Error('No available balance to refund (all funds locked or zero)')
+    throw new Error('No balance to refund')
   }
 
   // Encode: discriminator(8) only — authority_refund has no params
