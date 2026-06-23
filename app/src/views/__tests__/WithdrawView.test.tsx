@@ -60,7 +60,6 @@ const fakePosition = {
   symbol: 'SOL',
   balance: '2500000000',
   balanceUiAmount: 2.5,
-  lockedAmount: '0',
   decimals: 9,
   lastDepositAt: 1715000000,
   refundableAt: 1715086400,

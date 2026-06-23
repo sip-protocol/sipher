@@ -7,7 +7,6 @@ export interface Position {
   symbol: string
   balance: string
   balanceUiAmount: number
-  lockedAmount: string
   decimals: number
   lastDepositAt: number
   refundableAt: number
