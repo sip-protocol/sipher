@@ -6,7 +6,7 @@ import {
   ed25519PublicKeyToSolanaAddress,
   commit,
 } from '@sip-protocol/sdk'
-import { sha256 } from '@noble/hashes/sha256'
+import { sha256 } from '@noble/hashes/sha2.js'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { randomBytes as cryptoRandomBytes } from 'node:crypto'
 import {

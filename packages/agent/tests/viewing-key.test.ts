@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { sha256 } from '@noble/hashes/sha256'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test fixtures
@@ -23,8 +23,8 @@ const { mockGetParsedTransaction } = vi.hoisted(() => ({
 // ─────────────────────────────────────────────────────────────────────────────
 
 vi.mock('@sip-protocol/sdk', async () => {
-  const { sha256: sha } = await import('@noble/hashes/sha256')
-  const { bytesToHex: toHex, hexToBytes: fromHex } = await import('@noble/hashes/utils')
+  const { sha256: sha } = await import('@noble/hashes/sha2.js')
+  const { bytesToHex: toHex, hexToBytes: fromHex } = await import('@noble/hashes/utils.js')
 
   const masterKey = `0x${'aa'.repeat(32)}`
   const masterHash = `0x${toHex(sha(fromHex('aa'.repeat(32))))}`

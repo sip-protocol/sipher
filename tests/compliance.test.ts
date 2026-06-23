@@ -3,8 +3,8 @@ import request from 'supertest'
 import express, { Router, Request, Response, NextFunction } from 'express'
 import { resetComplianceProvider, verifyAuditor } from '../src/services/compliance-provider.js'
 import type { AuditorVerification } from '../src/services/compliance-provider.js'
-import { keccak_256 } from '@noble/hashes/sha3'
-import { bytesToHex } from '@noble/hashes/utils'
+import { keccak_256 } from '@noble/hashes/sha3.js'
+import { bytesToHex } from '@noble/hashes/utils.js'
 
 vi.mock('@solana/web3.js', async () => {
   const actual = await vi.importActual('@solana/web3.js')

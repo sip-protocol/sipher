@@ -5,8 +5,8 @@ import {
   commit,
 } from '@sip-protocol/sdk'
 import type { StealthMetaAddress, HexString, ChainId } from '@sip-protocol/types'
-import { sha256 } from '@noble/hashes/sha256'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { getQuote, buildSwapTransaction } from './jupiter-provider.js'
 import { getCSPLService } from './cspl.js'
 

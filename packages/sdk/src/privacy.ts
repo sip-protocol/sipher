@@ -9,8 +9,7 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { checkEd25519StealthAddress } from '@sip-protocol/sdk'
 import type { StealthAddress } from '@sip-protocol/sdk'
 import { ed25519 } from '@noble/curves/ed25519'
-import { sha256 as sha256Hash } from '@noble/hashes/sha256'
-import { sha512 } from '@noble/hashes/sha512'
+import { sha256 as sha256Hash, sha512 } from '@noble/hashes/sha2.js'
 import {
   SIPHER_VAULT_PROGRAM_ID,
   SIP_PRIVACY_PROGRAM_ID,

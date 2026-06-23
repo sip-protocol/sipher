@@ -1,5 +1,5 @@
 import type { Connection } from '@solana/web3.js'
-import { bytesToHex } from '@noble/hashes/utils'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import { resolveSIPStealth, MetaAddress } from '@sip-protocol/sns-stealth'
 import { generateEd25519StealthAddress, ed25519PublicKeyToSolanaAddress } from '@sip-protocol/sdk'
 
