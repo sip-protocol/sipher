@@ -23,6 +23,7 @@ import {
   ANCHOR_DISCRIMINATOR_SIZE,
 } from './config.js'
 import { anchorDiscriminator, deriveVaultConfigPDA } from './vault.js'
+import { WITHDRAW_EVENT_MIN_SIZE, WITHDRAW_EVENT_WITH_MINT_SIZE } from './events.js'
 import type { WithdrawResult, ScanResult, StealthPayment } from './types.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -330,7 +331,7 @@ export async function scanForPayments(
       // Skip events that are too small to be a VaultWithdrawEvent
       // Min size: 8 (disc) + 32 (depositor) + 32 (stealth) + 33 (commitment)
       //         + 33 (ephemeral) + 32 (vk_hash) + 8 (amount) + 8 (fee) + 8 (ts) = 194
-      if (eventData.length < 194) continue
+      if (eventData.length < WITHDRAW_EVENT_MIN_SIZE) continue
 
       try {
         const payment = parseWithdrawEvent(eventData, txSignatures[i])
@@ -422,7 +423,7 @@ function parseWithdrawEvent(
   data: Buffer,
   txSignature: string
 ): StealthPayment | null {
-  if (data.length < 194) return null
+  if (data.length < WITHDRAW_EVENT_MIN_SIZE) return null
 
   let offset = 8 // skip discriminator
 
@@ -430,7 +431,7 @@ function parseWithdrawEvent(
   offset += 32
 
   // mint — present only in the post-#1162 226-byte layout; skip it
-  if (data.length >= 226) offset += 32
+  if (data.length >= WITHDRAW_EVENT_WITH_MINT_SIZE) offset += 32
 
   const stealthAddress = new PublicKey(data.subarray(offset, offset + 32))
   offset += 32

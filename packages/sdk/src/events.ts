@@ -65,8 +65,12 @@ function mintToSymbol(mint: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Legacy minimum; both the 194-byte and the 226-byte (with-mint) layouts route
-// to parseWithdrawEvent, which detects the mint by total length.
-const WITHDRAW_EVENT_MIN_SIZE = 194
+// to parseWithdrawEvent, which detects the mint by total length. Exported so the
+// SDK's other withdraw-event decoders (privacy.ts) and the agent claim path
+// share one source of truth for these sizes.
+export const WITHDRAW_EVENT_MIN_SIZE = 194
+// Post-#1162 layout: the legacy size plus the inserted 32-byte `mint` field.
+export const WITHDRAW_EVENT_WITH_MINT_SIZE = WITHDRAW_EVENT_MIN_SIZE + 32
 const DEPOSIT_EVENT_MIN_SIZE = 88
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -138,7 +142,7 @@ function parseWithdrawEvent(
     offset += 32
 
     // mint — present only in the post-#1162 226-byte layout; skip it
-    if (data.length >= 226) offset += 32
+    if (data.length >= WITHDRAW_EVENT_WITH_MINT_SIZE) offset += 32
 
     // Skip stealth(32) + commitment(33) + ephemeral(33) + vk_hash(32)
     offset += 32 + 33 + 33 + 32
