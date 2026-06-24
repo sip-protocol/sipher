@@ -57,6 +57,17 @@ export interface DepositResult {
   amount: bigint
 }
 
+export interface SolDepositResult {
+  /** Unsigned transaction — caller signs with their wallet */
+  transaction: Transaction
+  /** The deposit record PDA (seeded by NATIVE_SOL_MINT) */
+  depositRecordAddress: PublicKey
+  /** The SolVault PDA that receives the lamports */
+  solVaultAddress: PublicKey
+  /** Amount in lamports */
+  amount: bigint
+}
+
 export interface WithdrawResult {
   transaction: Transaction
   /** Net amount after fees */

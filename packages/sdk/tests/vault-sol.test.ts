@@ -1,11 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { PublicKey } from '@solana/web3.js'
+import { PublicKey, Connection, SystemProgram } from '@solana/web3.js'
 import {
   NATIVE_SOL_MINT,
   VAULT_SOL_SEED,
   FEE_SOL_SEED,
   deriveSolVaultPDA,
   deriveSolFeePDA,
+  buildDepositSolTx,
+  deriveVaultConfigPDA,
+  deriveDepositRecordPDA,
+  anchorDiscriminator,
+  SIPHER_VAULT_PROGRAM_ID,
 } from '../src/index.js'
 
 describe('native-SOL constants', () => {
@@ -36,5 +41,55 @@ describe('native-SOL PDA derivation', () => {
     const [vault] = deriveSolVaultPDA(custom)
     const [expected] = PublicKey.findProgramAddressSync([VAULT_SOL_SEED], custom)
     expect(vault.equals(expected)).toBe(true)
+  })
+})
+
+const BLOCKHASH = 'GfVcyD4kkTrj4bKc7WA9sZCin9JDbdT458zqL4zjxx2v'
+const DEPOSITOR = new PublicKey('FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr')
+
+// Minimal Connection stub: only getLatestBlockhash is exercised by the deposit builder.
+function mockConnDeposit(): Connection {
+  return {
+    getLatestBlockhash: async () => ({ blockhash: BLOCKHASH, lastValidBlockHeight: 1 }),
+  } as unknown as Connection
+}
+
+describe('buildDepositSolTx', () => {
+  it('builds deposit_sol with the exact DepositSol account order + flags', async () => {
+    const res = await buildDepositSolTx(mockConnDeposit(), DEPOSITOR, 5_000_000n)
+    const ix = res.transaction.instructions[0]
+
+    const [config] = deriveVaultConfigPDA()
+    const [record] = deriveDepositRecordPDA(DEPOSITOR, NATIVE_SOL_MINT)
+    const [solVault] = deriveSolVaultPDA()
+
+    expect(ix.programId.equals(SIPHER_VAULT_PROGRAM_ID)).toBe(true)
+    expect(ix.keys.map((k) => k.pubkey.toBase58())).toEqual([
+      config.toBase58(),
+      record.toBase58(),
+      solVault.toBase58(),
+      DEPOSITOR.toBase58(),
+      SystemProgram.programId.toBase58(),
+    ])
+    expect(ix.keys.map((k) => k.isSigner)).toEqual([false, false, false, true, false])
+    expect(ix.keys.map((k) => k.isWritable)).toEqual([true, true, true, true, false])
+  })
+
+  it('encodes discriminator + amount and sets feePayer/blockhash', async () => {
+    const res = await buildDepositSolTx(mockConnDeposit(), DEPOSITOR, 5_000_000n)
+    const data = res.transaction.instructions[0].data
+    expect(data.length).toBe(16)
+    expect(data.subarray(0, 8).equals(anchorDiscriminator('deposit_sol'))).toBe(true)
+    expect(data.readBigUInt64LE(8)).toBe(5_000_000n)
+    expect(res.transaction.feePayer?.toBase58()).toBe(DEPOSITOR.toBase58())
+    expect(res.transaction.recentBlockhash).toBe(BLOCKHASH)
+    expect(res.amount).toBe(5_000_000n)
+    expect(res.solVaultAddress.equals(deriveSolVaultPDA()[0])).toBe(true)
+  })
+
+  it('rejects a non-positive amount', async () => {
+    await expect(buildDepositSolTx(mockConnDeposit(), DEPOSITOR, 0n)).rejects.toThrow(
+      'Deposit amount must be greater than zero',
+    )
   })
 })
