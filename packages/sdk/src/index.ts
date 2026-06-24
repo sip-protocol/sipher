@@ -22,6 +22,9 @@ export {
   DEPOSIT_RECORD_SEED,
   VAULT_TOKEN_SEED,
   FEE_TOKEN_SEED,
+  NATIVE_SOL_MINT,
+  VAULT_SOL_SEED,
+  FEE_SOL_SEED,
   DEFAULT_REFUND_TIMEOUT,
   DEFAULT_FEE_BPS,
   MAX_FEE_BPS,
@@ -63,6 +66,12 @@ export {
   fetchDepositRecord,
   buildAuthorityRefundTx,
 } from './vault.js'
+
+// Native-SOL vault operations
+export {
+  deriveSolVaultPDA,
+  deriveSolFeePDA,
+} from './vault-sol.js'
 
 // Privacy operations
 export {
