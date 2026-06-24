@@ -22,7 +22,7 @@ const createKeySchema = {
     tier: z.enum(['free', 'pro', 'enterprise']),
     name: z.string().min(1).max(100),
     expiresAt: z.string().datetime().optional(),
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   }),
 }
 
