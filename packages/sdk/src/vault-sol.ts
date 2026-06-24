@@ -209,3 +209,47 @@ export async function buildAuthorityRefundSolTx(
 
   return { transaction: tx, refundAmount, depositorAddress: depositor }
 }
+
+/**
+ * Build an unsigned create_sol_vault transaction — one-time init of the singleton
+ * SolVault + SolFee PDAs. Payer funds the rent-exempt reserve for both. No args.
+ *
+ * Accounts (order matches the CreateSolVault context in lib.rs):
+ *   0. config         (ro)          — VaultConfig PDA
+ *   1. sol_vault      (init, mut)   — SolVault PDA
+ *   2. sol_fee        (init, mut)   — SolFee PDA
+ *   3. payer          (mut, signer)
+ *   4. system_program (ro)
+ */
+export async function buildCreateSolVaultTx(
+  connection: Connection,
+  payer: PublicKey,
+  programId: PublicKey = SIPHER_VAULT_PROGRAM_ID
+): Promise<Transaction> {
+  const [configPDA] = deriveVaultConfigPDA(programId)
+  const [solVaultPDA] = deriveSolVaultPDA(programId)
+  const [solFeePDA] = deriveSolFeePDA(programId)
+
+  const data = anchorDiscriminator('create_sol_vault')
+
+  const ix = new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: configPDA, isSigner: false, isWritable: false },
+      { pubkey: solVaultPDA, isSigner: false, isWritable: true },
+      { pubkey: solFeePDA, isSigner: false, isWritable: true },
+      { pubkey: payer, isSigner: true, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data,
+  })
+
+  const tx = new Transaction()
+  tx.add(ix)
+  tx.feePayer = payer
+
+  const { blockhash } = await connection.getLatestBlockhash()
+  tx.recentBlockhash = blockhash
+
+  return tx
+}

@@ -76,6 +76,7 @@ export {
   buildDepositSolTx,
   buildRefundSolTx,
   buildAuthorityRefundSolTx,
+  buildCreateSolVaultTx,
 } from './vault-sol.js'
 
 // Privacy operations

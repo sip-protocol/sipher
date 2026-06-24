@@ -9,11 +9,13 @@ import {
   buildDepositSolTx,
   buildRefundSolTx,
   buildAuthorityRefundSolTx,
+  buildCreateSolVaultTx,
   deriveVaultConfigPDA,
   deriveDepositRecordPDA,
   anchorDiscriminator,
   SIPHER_VAULT_PROGRAM_ID,
 } from '../src/index.js'
+import * as sdk from '../src/index.js'
 
 describe('native-SOL constants', () => {
   it('NATIVE_SOL_MINT is the all-zeros sentinel (not wSOL)', () => {
@@ -171,5 +173,47 @@ describe('buildAuthorityRefundSolTx', () => {
     expect(ix.data.equals(anchorDiscriminator('authority_refund_sol'))).toBe(true)
     expect(res.transaction.feePayer?.toBase58()).toBe(AUTHORITY.toBase58())
     expect(res.refundAmount).toBe(4_000_000n)
+  })
+})
+
+describe('buildCreateSolVaultTx', () => {
+  it('builds create_sol_vault with the exact CreateSolVault account order + flags', async () => {
+    const payer = DEPOSITOR
+    const tx = await buildCreateSolVaultTx(mockConnDeposit(), payer)
+    const ix = tx.instructions[0]
+    const [config] = deriveVaultConfigPDA()
+    const [solVault] = deriveSolVaultPDA()
+    const [solFee] = deriveSolFeePDA()
+
+    expect(ix.keys.map((k) => k.pubkey.toBase58())).toEqual([
+      config.toBase58(),
+      solVault.toBase58(),
+      solFee.toBase58(),
+      payer.toBase58(),
+      SystemProgram.programId.toBase58(),
+    ])
+    expect(ix.keys.map((k) => k.isSigner)).toEqual([false, false, false, true, false])
+    expect(ix.keys.map((k) => k.isWritable)).toEqual([false, true, true, true, false])
+    expect(ix.data.equals(anchorDiscriminator('create_sol_vault'))).toBe(true)
+    expect(tx.feePayer?.toBase58()).toBe(payer.toBase58())
+  })
+})
+
+describe('barrel exports (native-SOL surface)', () => {
+  it('re-exports every native-SOL symbol', () => {
+    for (const name of [
+      'NATIVE_SOL_MINT',
+      'VAULT_SOL_SEED',
+      'FEE_SOL_SEED',
+      'deriveSolVaultPDA',
+      'deriveSolFeePDA',
+      'buildDepositSolTx',
+      'buildRefundSolTx',
+      'buildAuthorityRefundSolTx',
+      'buildCreateSolVaultTx',
+      'buildPrivateSendSolTx',
+    ]) {
+      expect(sdk).toHaveProperty(name)
+    }
   })
 })
