@@ -15,8 +15,9 @@ import {
   anchorDiscriminator,
   deriveVaultConfigPDA,
   deriveDepositRecordPDA,
+  deserializeDepositRecord,
 } from './vault.js'
-import type { SolDepositResult } from './types.js'
+import type { SolDepositResult, SolRefundResult } from './types.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Native-SOL PDA derivation
@@ -99,4 +100,112 @@ export async function buildDepositSolTx(
     solVaultAddress: solVaultPDA,
     amount,
   }
+}
+
+/**
+ * Build an unsigned native-SOL refund transaction (refund_sol). Depositor signs.
+ *
+ * Accounts (order matches the RefundSol context in lib.rs):
+ *   0. config         (ro)          — VaultConfig PDA
+ *   1. deposit_record (mut)         — DepositRecord PDA [.., depositor, NATIVE_SOL_MINT]
+ *   2. sol_vault      (mut)         — SolVault PDA
+ *   3. depositor      (mut, signer)
+ */
+export async function buildRefundSolTx(
+  connection: Connection,
+  depositor: PublicKey,
+  programId: PublicKey = SIPHER_VAULT_PROGRAM_ID
+): Promise<SolRefundResult> {
+  const [configPDA] = deriveVaultConfigPDA(programId)
+  const [depositRecordPDA] = deriveDepositRecordPDA(depositor, NATIVE_SOL_MINT, programId)
+  const [solVaultPDA] = deriveSolVaultPDA(programId)
+
+  const recordInfo = await connection.getAccountInfo(depositRecordPDA)
+  if (!recordInfo) {
+    throw new Error('No deposit record found — nothing to refund')
+  }
+  const record = deserializeDepositRecord(Buffer.from(recordInfo.data))
+  const refundAmount = record.balance
+  if (refundAmount <= 0n) {
+    throw new Error('No balance to refund')
+  }
+
+  const data = anchorDiscriminator('refund_sol')
+
+  const ix = new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: configPDA, isSigner: false, isWritable: false },
+      { pubkey: depositRecordPDA, isSigner: false, isWritable: true },
+      { pubkey: solVaultPDA, isSigner: false, isWritable: true },
+      { pubkey: depositor, isSigner: true, isWritable: true },
+    ],
+    data,
+  })
+
+  const tx = new Transaction()
+  tx.add(ix)
+  tx.feePayer = depositor
+
+  const { blockhash } = await connection.getLatestBlockhash()
+  tx.recentBlockhash = blockhash
+
+  return { transaction: tx, refundAmount, depositorAddress: depositor }
+}
+
+/**
+ * Build an unsigned authority-signed native-SOL refund (authority_refund_sol).
+ * The authority signs on the depositor's behalf; the depositor is a non-signer
+ * lamport destination. The on-chain `has_one = depositor` guarantees principal
+ * returns to the original depositor, and the timeout is still enforced on-chain.
+ *
+ * Accounts (order matches the AuthorityRefundSol context in lib.rs):
+ *   0. config         (ro)          — VaultConfig PDA (has_one = authority)
+ *   1. deposit_record (mut)         — DepositRecord PDA [.., depositor, NATIVE_SOL_MINT]
+ *   2. sol_vault      (mut)         — SolVault PDA
+ *   3. depositor      (mut)         — NOT signer; validated by has_one
+ *   4. authority      (mut, signer)
+ */
+export async function buildAuthorityRefundSolTx(
+  connection: Connection,
+  authority: PublicKey,
+  depositor: PublicKey,
+  programId: PublicKey = SIPHER_VAULT_PROGRAM_ID
+): Promise<SolRefundResult> {
+  const [configPDA] = deriveVaultConfigPDA(programId)
+  const [depositRecordPDA] = deriveDepositRecordPDA(depositor, NATIVE_SOL_MINT, programId)
+  const [solVaultPDA] = deriveSolVaultPDA(programId)
+
+  const recordInfo = await connection.getAccountInfo(depositRecordPDA)
+  if (!recordInfo) {
+    throw new Error('No deposit record found — nothing to refund')
+  }
+  const record = deserializeDepositRecord(Buffer.from(recordInfo.data))
+  const refundAmount = record.balance
+  if (refundAmount <= 0n) {
+    throw new Error('No balance to refund')
+  }
+
+  const data = anchorDiscriminator('authority_refund_sol')
+
+  const ix = new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: configPDA, isSigner: false, isWritable: false },
+      { pubkey: depositRecordPDA, isSigner: false, isWritable: true },
+      { pubkey: solVaultPDA, isSigner: false, isWritable: true },
+      { pubkey: depositor, isSigner: false, isWritable: true },
+      { pubkey: authority, isSigner: true, isWritable: true },
+    ],
+    data,
+  })
+
+  const tx = new Transaction()
+  tx.add(ix)
+  tx.feePayer = authority
+
+  const { blockhash } = await connection.getLatestBlockhash()
+  tx.recentBlockhash = blockhash
+
+  return { transaction: tx, refundAmount, depositorAddress: depositor }
 }

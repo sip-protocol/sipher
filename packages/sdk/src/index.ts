@@ -7,6 +7,7 @@ export type {
   VaultBalance,
   DepositResult,
   SolDepositResult,
+  SolRefundResult,
   WithdrawResult,
   RefundResult,
   StealthPayment,
@@ -73,6 +74,8 @@ export {
   deriveSolVaultPDA,
   deriveSolFeePDA,
   buildDepositSolTx,
+  buildRefundSolTx,
+  buildAuthorityRefundSolTx,
 } from './vault-sol.js'
 
 // Privacy operations

@@ -68,6 +68,14 @@ export interface SolDepositResult {
   amount: bigint
 }
 
+export interface SolRefundResult {
+  transaction: Transaction
+  /** Amount being refunded (the depositor's available balance, in lamports) */
+  refundAmount: bigint
+  /** The depositor's main (system) account receiving the lamports */
+  depositorAddress: PublicKey
+}
+
 export interface WithdrawResult {
   transaction: Transaction
   /** Net amount after fees */
