@@ -85,6 +85,10 @@ export {
 } from './privacy.js'
 export type { PrivateSendParams, ScanParams } from './privacy.js'
 
+// Native-SOL privacy operations
+export { buildPrivateSendSolTx } from './privacy-sol.js'
+export type { PrivateSendSolParams } from './privacy-sol.js'
+
 // Event parsing
 export {
   parseVaultEvents,
