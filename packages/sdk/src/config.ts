@@ -24,6 +24,16 @@ export const DEPOSIT_RECORD_SEED = Buffer.from('deposit_record')
 export const VAULT_TOKEN_SEED = Buffer.from('vault_token')
 export const FEE_TOKEN_SEED = Buffer.from('fee_token')
 
+// Native-SOL sentinel mint. The vault seeds the native-SOL DepositRecord with the
+// all-zeros pubkey (on-chain: Pubkey::new_from_array([0u8; 32])). This is NOT wrapped
+// SOL — WSOL_MINT (So111…112) is a real SPL mint used by the token path; the native
+// path never wraps. Keep the two distinct.
+export const NATIVE_SOL_MINT = new PublicKey(new Uint8Array(32))
+
+// Native-SOL vault PDA seeds (must match on-chain constants.rs exactly)
+export const VAULT_SOL_SEED = Buffer.from('vault_sol')
+export const FEE_SOL_SEED = Buffer.from('fee_sol')
+
 // SIP Privacy program PDA seeds (must match sip_privacy constants)
 export const SIP_CONFIG_SEED = Buffer.from('config')
 export const SIP_TRANSFER_RECORD_SEED = Buffer.from('transfer_record')

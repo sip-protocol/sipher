@@ -6,6 +6,8 @@ export type {
   DepositRecord,
   VaultBalance,
   DepositResult,
+  SolDepositResult,
+  SolRefundResult,
   WithdrawResult,
   RefundResult,
   StealthPayment,
@@ -22,6 +24,9 @@ export {
   DEPOSIT_RECORD_SEED,
   VAULT_TOKEN_SEED,
   FEE_TOKEN_SEED,
+  NATIVE_SOL_MINT,
+  VAULT_SOL_SEED,
+  FEE_SOL_SEED,
   DEFAULT_REFUND_TIMEOUT,
   DEFAULT_FEE_BPS,
   MAX_FEE_BPS,
@@ -64,12 +69,26 @@ export {
   buildAuthorityRefundTx,
 } from './vault.js'
 
+// Native-SOL vault operations
+export {
+  deriveSolVaultPDA,
+  deriveSolFeePDA,
+  buildDepositSolTx,
+  buildRefundSolTx,
+  buildAuthorityRefundSolTx,
+  buildCreateSolVaultTx,
+} from './vault-sol.js'
+
 // Privacy operations
 export {
   buildPrivateSendTx,
   scanForPayments,
 } from './privacy.js'
 export type { PrivateSendParams, ScanParams } from './privacy.js'
+
+// Native-SOL privacy operations
+export { buildPrivateSendSolTx } from './privacy-sol.js'
+export type { PrivateSendSolParams } from './privacy-sol.js'
 
 // Event parsing
 export {
