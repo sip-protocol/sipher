@@ -115,7 +115,7 @@ export async function buildPrivateSendSolTx(
   }
 
   let sipTotalTransfers = 0n
-  if (sipConfigInfo) {
+  if (sipConfigInfo && sipConfigInfo.data.length >= ANCHOR_DISCRIMINATOR_SIZE + 32 + 2 + 1 + 8) {
     // after 8-byte disc: authority(32) + fee_bps(2) + paused(1) + total_transfers(u64)
     sipTotalTransfers = sipConfigInfo.data.readBigUInt64LE(
       ANCHOR_DISCRIMINATOR_SIZE + 32 + 2 + 1

@@ -173,6 +173,7 @@ describe('buildAuthorityRefundSolTx', () => {
     expect(ix.data.equals(anchorDiscriminator('authority_refund_sol'))).toBe(true)
     expect(res.transaction.feePayer?.toBase58()).toBe(AUTHORITY.toBase58())
     expect(res.refundAmount).toBe(4_000_000n)
+    expect(res.depositorAddress.toBase58()).toBe(DEPOSITOR.toBase58())
   })
 })
 
