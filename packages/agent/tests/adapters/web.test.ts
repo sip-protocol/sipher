@@ -10,10 +10,10 @@ const mockProcessMessage = vi.fn<(ctx: unknown) => Promise<AgentResponse>>()
 const mockStreamMessage = vi.fn()
 
 vi.mock('../../src/core/agent-core.js', () => ({
-  AgentCore: vi.fn().mockImplementation(() => ({
+  AgentCore: vi.fn().mockImplementation(function () { return ({
     processMessage: mockProcessMessage,
     streamMessage: mockStreamMessage,
-  })),
+  }) }),
 }))
 
 // ─────────────────────────────────────────────────────────────────────────────

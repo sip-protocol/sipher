@@ -3,13 +3,13 @@ import { getDb, closeDb } from '../../src/db.js'
 
 // Mock twitter-api-v2 to avoid real API calls
 vi.mock('twitter-api-v2', () => ({
-  TwitterApi: vi.fn().mockImplementation(() => ({
+  TwitterApi: vi.fn().mockImplementation(function () { return ({
     v2: {
       userMentionTimeline: vi.fn().mockResolvedValue({ data: { data: [] } }),
       listDmEvents: vi.fn().mockResolvedValue({ data: { data: [] } }),
       tweet: vi.fn().mockResolvedValue({ data: { id: 'tw-1', text: 'test' } }),
     },
-  })),
+  }) }),
 }))
 
 beforeEach(() => {

@@ -8,9 +8,9 @@ let mockPingReturn: { ok: true } | { ok: false; reason: 'auth' | 'network' | 'un
 }
 
 vi.mock('../../src/integrations/torque/mcp-client.js', () => ({
-  TorqueMCPClient: vi.fn().mockImplementation(() => ({
+  TorqueMCPClient: vi.fn().mockImplementation(function () { return ({
     pingIngester: vi.fn().mockImplementation(() => Promise.resolve(mockPingReturn)),
-  })),
+  }) }),
 }))
 
 vi.mock('../../src/config/network.js', async (importOriginal) => {

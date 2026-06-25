@@ -5,10 +5,10 @@ vi.mock('@solana/web3.js', async () => {
   const actual = await vi.importActual('@solana/web3.js')
   return {
     ...actual as object,
-    Connection: vi.fn().mockImplementation((url: string) => ({
+    Connection: vi.fn().mockImplementation(function (url: string) { return ({
       getSlot: vi.fn().mockResolvedValue(300000000),
       rpcEndpoint: url,
-    })),
+    }) }),
   }
 })
 

@@ -15,9 +15,9 @@ vi.mock('@solana/web3.js', async (importOriginal) => {
   const mod = await importOriginal<typeof import('@solana/web3.js')>()
   return {
     ...mod,
-    Connection: vi.fn().mockImplementation(() => ({
+    Connection: vi.fn().mockImplementation(function () { return ({
       getTransaction: mockGetTransaction,
-    })),
+    }) }),
   }
 })
 

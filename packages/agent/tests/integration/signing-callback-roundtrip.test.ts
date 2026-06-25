@@ -24,7 +24,7 @@ vi.mock('../../src/pi/stream-bridge.js', () => ({
 
 const emitEventMock = vi.fn().mockResolvedValue({ ok: true })
 vi.mock('../../src/integrations/torque/mcp-client.js', () => ({
-  TorqueMCPClient: vi.fn().mockImplementation(() => ({ emitEvent: emitEventMock })),
+  TorqueMCPClient: vi.fn().mockImplementation(function () { return ({ emitEvent: emitEventMock }) }),
 }))
 
 beforeEach(() => {

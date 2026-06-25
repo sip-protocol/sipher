@@ -9,14 +9,14 @@ const mockUserByUsername = vi.fn()
 const mockListDmEvents = vi.fn()
 
 vi.mock('twitter-api-v2', () => ({
-  TwitterApi: vi.fn().mockImplementation(() => ({
+  TwitterApi: vi.fn().mockImplementation(function () { return ({
     v2: {
       userMentionTimeline: mockUserMentionTimeline,
       search: mockSearch,
       userByUsername: mockUserByUsername,
       listDmEvents: mockListDmEvents,
     },
-  })),
+  }) }),
 }))
 
 // ─── Imports after mock registration ─────────────────────────────────────────
