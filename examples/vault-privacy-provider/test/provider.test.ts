@@ -6,6 +6,7 @@ import {
   deriveVaultConfigPDA, deriveDepositRecordPDA, NATIVE_SOL_MINT,
 } from '@sipher/sdk'
 import { SipherVaultPrivacyProvider } from '../src/provider.js'
+import { parseStealthMetaAddress } from '../src/stealth.js'
 
 const BLOCKHASH = 'GfVcyD4kkTrj4bKc7WA9sZCin9JDbdT458zqL4zjxx2v'
 const DEPOSITOR_KP = Keypair.generate()
@@ -76,5 +77,67 @@ describe('SipherVaultPrivacyProvider — funding/verify/deposit/refund/preview',
     const res = await p.refund({ depositorKp: DEPOSITOR_KP })
     expect(res.refundedLamports).toBe(4_242n)
     expect(res.txSignature).toMatch(/^SIG_/)
+  })
+})
+
+const VALID_SPENDING = 'bed3f000fd20cb20a8186ae9a9da609c8f01198e1c6e8c18f0bfff9c94f7d17e'
+const VALID_VIEWING  = '33e39eaad6d8924030fa1540ee80de1c212d68d12d53570eb3d6bb39aa4b15e4'
+const RECIPIENT = parseStealthMetaAddress(`sip:solana:0x${VALID_SPENDING}:0x${VALID_VIEWING}`)
+
+describe('SipherVaultPrivacyProvider — privateWithdraw', () => {
+  it('builds withdraw_private_sol to a derived stealth recipient and returns fee/net', async () => {
+    const p = new SipherVaultPrivacyProvider(mockConn({ feeBps: 10 }))
+    const res = await p.privateWithdraw({ depositorKp: DEPOSITOR_KP, recipient: RECIPIENT, lamports: 2_000_000n })
+    expect(res.feeLamports).toBe(2_000n)
+    expect(res.withdrawnLamports).toBe(1_998_000n)
+    expect(res.txSignature).toMatch(/^SIG_/)
+    // stealthAddress is a derived one-time address (not the depositor)
+    expect(res.stealthAddress).not.toBe(DEPOSITOR_KP.publicKey.toBase58())
+    expect(() => new PublicKey(res.stealthAddress)).not.toThrow()
+  })
+
+  it('signs every flow with the SAME shared depositor (depositor-as-vault)', async () => {
+    const seen: string[] = []
+    const conn = mockConn()
+    ;(conn as unknown as { sendRawTransaction: (raw: Uint8Array) => Promise<string> })
+      .sendRawTransaction = async (raw) => {
+        const tx = Transaction.from(raw)
+        expect(tx.signatures).toHaveLength(1)              // depositor is the SOLE signer
+        seen.push(tx.feePayer!.toBase58())
+        return 'SIG_x'
+      }
+    const p = new SipherVaultPrivacyProvider(conn)
+    await p.privateWithdraw({ depositorKp: DEPOSITOR_KP, recipient: RECIPIENT, lamports: 2_000_000n })
+    await p.privateWithdraw({ depositorKp: DEPOSITOR_KP, recipient: RECIPIENT, lamports: 1_500_000n })
+    expect(seen).toEqual([DEPOSITOR_KP.publicKey.toBase58(), DEPOSITOR_KP.publicKey.toBase58()])
+  })
+
+  it('derives a unique one-time stealth address per flow', async () => {
+    const p = new SipherVaultPrivacyProvider(mockConn())
+    const a = await p.privateWithdraw({ depositorKp: DEPOSITOR_KP, recipient: RECIPIENT, lamports: 2_000_000n })
+    const b = await p.privateWithdraw({ depositorKp: DEPOSITOR_KP, recipient: RECIPIENT, lamports: 1_500_000n })
+    expect(a.stealthAddress).not.toBe(b.stealthAddress)
+    expect(() => new PublicKey(a.stealthAddress)).not.toThrow()
+    expect(() => new PublicKey(b.stealthAddress)).not.toThrow()
+    expect(a.stealthAddress).not.toBe(DEPOSITOR_KP.publicKey.toBase58())
+  })
+
+  it('propagates the rent-exempt guard for a tiny payout to a fresh stealth', async () => {
+    // stealth account does not exist (0 lamports); a 1000-lamport net is below the floor
+    const conn = mockConn()
+    ;(conn as unknown as { getAccountInfo: (pk: PublicKey) => Promise<unknown> }).getAccountInfo =
+      (() => {
+        const base = mockConn()
+        const orig = base.getAccountInfo.bind(base)
+        return async (pk: PublicKey) => {
+          const [cfg] = deriveVaultConfigPDA()
+          const [rec] = deriveDepositRecordPDA(DEPOSITOR_KP.publicKey, NATIVE_SOL_MINT)
+          if (pk.equals(cfg) || pk.equals(rec)) return orig(pk)
+          return null // stealth + everything else: not found
+        }
+      })()
+    const p = new SipherVaultPrivacyProvider(conn)
+    await expect(p.privateWithdraw({ depositorKp: DEPOSITOR_KP, recipient: RECIPIENT, lamports: 1_000n }))
+      .rejects.toThrow('rent-exempt minimum')
   })
 })

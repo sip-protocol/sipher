@@ -2,8 +2,9 @@ import {
   Connection, Keypair, PublicKey, SystemProgram, Transaction,
 } from '@solana/web3.js'
 import {
-  buildDepositSolTx, buildRefundSolTx, DEFAULT_FEE_BPS,
+  buildDepositSolTx, buildRefundSolTx, buildPrivateSendSolTx, DEFAULT_FEE_BPS,
 } from '@sipher/sdk'
+import { assembleWithdrawArtifacts } from './stealth.js'
 import type {
   VaultPrivacyProvider, DepositResult, PrivateWithdrawResult, RefundResult, StealthMetaAddress,
 } from './types.js'
@@ -82,10 +83,27 @@ export class SipherVaultPrivacyProvider implements VaultPrivacyProvider {
     return { feeLamports, netLamports: grossLamports - feeLamports }
   }
 
-  // privateWithdraw is implemented in Task 4.
-  async privateWithdraw(_args: {
+  async privateWithdraw(args: {
     depositorKp: Keypair; recipient: StealthMetaAddress; lamports: bigint
   }): Promise<PrivateWithdrawResult> {
-    throw new Error('not implemented')
+    const a = assembleWithdrawArtifacts(args.recipient, args.lamports)
+    const { transaction, netAmount, feeAmount, stealthAddress } = await buildPrivateSendSolTx({
+      connection: this.connection,
+      depositor: args.depositorKp.publicKey,
+      amount: args.lamports,
+      stealthPubkey: a.stealthPubkey,
+      amountCommitment: a.amountCommitment,
+      ephemeralPubkey: a.ephemeralPubkey,
+      viewingKeyHash: a.viewingKeyHash,
+      encryptedAmount: a.encryptedAmount,
+      proof: a.proof,
+    })
+    const txSignature = await this.signAndSubmit(transaction, args.depositorKp)
+    return {
+      txSignature,
+      withdrawnLamports: netAmount,
+      feeLamports: feeAmount,
+      stealthAddress: stealthAddress.toBase58(),
+    }
   }
 }
