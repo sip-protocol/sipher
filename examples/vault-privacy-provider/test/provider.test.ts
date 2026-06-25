@@ -141,3 +141,12 @@ describe('SipherVaultPrivacyProvider — privateWithdraw', () => {
       .rejects.toThrow('rent-exempt minimum')
   })
 })
+
+describe('barrel', () => {
+  it('re-exports the public surface', async () => {
+    const m = await import('../src/index.js')
+    expect(typeof m.SipherVaultPrivacyProvider).toBe('function')
+    expect(typeof m.assembleWithdrawArtifacts).toBe('function')
+    expect(typeof m.parseStealthMetaAddress).toBe('function')
+  })
+})
