@@ -103,7 +103,7 @@ input to one-time stealth derivation).
 
 | Method | Backed by (`@sipher/sdk`) |
 |---|---|
-| `feeBps` | read from the vault config (`getVaultConfig`), default 10 bps |
+| `feeBps` | advertised/preview rate from the constructor (`opts.feeBps ?? DEFAULT_FEE_BPS`); the actual fee deducted is the on-chain-derived `feeAmount` returned by `buildPrivateSendSolTx` (surfaced as `PrivateWithdrawResult.feeLamports`) |
 | `buildFundingTx` | `SystemProgram.transfer` (no SDK call) |
 | `verifyFunding` | `connection.getTransaction` + lamport-delta check |
 | `deposit` | `buildDepositSolTx(conn, depositorKp.publicKey, lamports)` → sign → send |

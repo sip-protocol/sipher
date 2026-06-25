@@ -40,7 +40,7 @@ export class SipherVaultPrivacyProvider implements VaultPrivacyProvider {
     tx.add(SystemProgram.transfer({
       fromPubkey: new PublicKey(args.fromPk),
       toPubkey: new PublicKey(args.depositorPk),
-      lamports: Number(args.amountLamports),
+      lamports: args.amountLamports,
     }))
     return tx
   }
