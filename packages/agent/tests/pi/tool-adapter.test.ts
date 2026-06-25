@@ -30,6 +30,18 @@ const samplePiTool: Tool = {
   } as never,
 }
 
+// Pi 0.73 made Tool['parameters'] (TypeBox TSchema) opaque — the JSON-schema
+// fields are no longer visible on the type. At runtime the adapter passes the
+// Anthropic input_schema straight through, so `parameters` is still a plain
+// {type, properties, required} object. Read it through a typed view for these
+// shape assertions (the same cast pattern tool-adapter.ts uses internally).
+type SchemaView = {
+  type: string
+  properties: Record<string, { description?: string }>
+  required: string[]
+}
+const schemaOf = (tool: { parameters: unknown }): SchemaView => tool.parameters as SchemaView
+
 describe('adaptTool', () => {
   it('converts Anthropic tool schema to Pi Tool', () => {
     const piTool = adaptTool(depositTool)
@@ -44,10 +56,9 @@ describe('adaptTool', () => {
 
     // Verify the schema structure
     expect(piTool.parameters).toEqual(depositTool.input_schema)
-    expect(piTool.parameters.type).toBe('object')
-    expect(piTool.parameters.properties).toBeDefined()
-    expect(piTool.parameters.required).toContain('amount')
-    expect(piTool.parameters.required).toContain('token')
+    expect(schemaOf(piTool).type).toBe('object')
+    expect(schemaOf(piTool).required).toContain('amount')
+    expect(schemaOf(piTool).required).toContain('token')
   })
 
   it('converts read-only tool', () => {
@@ -55,17 +66,17 @@ describe('adaptTool', () => {
 
     expect(piTool.name).toBe('balance')
     expect(piTool.description).toBe(balanceTool.description)
-    expect(piTool.parameters.required).toContain('token')
-    expect(piTool.parameters.required).toContain('wallet')
+    expect(schemaOf(piTool).required).toContain('token')
+    expect(schemaOf(piTool).required).toContain('wallet')
   })
 
   it('preserves property descriptions', () => {
     const piTool = adaptTool(depositTool)
 
-    expect(piTool.parameters.properties.amount.description).toBe(
+    expect(schemaOf(piTool).properties.amount.description).toBe(
       'Amount to deposit (in human-readable units, e.g. 1.5 SOL)'
     )
-    expect(piTool.parameters.properties.token.description).toBe(
+    expect(schemaOf(piTool).properties.token.description).toBe(
       'Token symbol — SOL, USDC, USDT, or any SPL token mint address'
     )
   })
@@ -87,7 +98,7 @@ describe('adaptTools', () => {
       expect(tool.name).toBeDefined()
       expect(tool.description).toBeDefined()
       expect(tool.parameters).toBeDefined()
-      expect(tool.parameters.type).toBe('object')
+      expect(schemaOf(tool).type).toBe('object')
     })
   })
 
