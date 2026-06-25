@@ -2,6 +2,7 @@ packages:
   - '.'
   - 'packages/*'
   - 'app'
+  - 'examples/*'
   - '!sdks/**'
 patchedDependencies:
   '@triton-one/yellowstone-grpc@4.0.2': patches/@triton-one__yellowstone-grpc@4.0.2.patch
