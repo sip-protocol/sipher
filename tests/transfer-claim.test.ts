@@ -5,7 +5,7 @@ vi.mock('@solana/web3.js', async () => {
   const actual = await vi.importActual('@solana/web3.js')
   return {
     ...actual as object,
-    Connection: vi.fn().mockImplementation(() => ({
+    Connection: vi.fn().mockImplementation(function () { return ({
       getSlot: vi.fn().mockResolvedValue(300000000),
       rpcEndpoint: 'https://api.mainnet-beta.solana.com',
       getLatestBlockhash: vi.fn().mockResolvedValue({
@@ -15,7 +15,7 @@ vi.mock('@solana/web3.js', async () => {
       getAccountInfo: vi.fn().mockResolvedValue(null),
       sendRawTransaction: vi.fn().mockResolvedValue('5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQU'),
       confirmTransaction: vi.fn().mockResolvedValue({ value: { err: null } }),
-    })),
+    }) }),
   }
 })
 

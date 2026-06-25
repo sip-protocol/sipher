@@ -31,11 +31,11 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockConnectionCtor.mockImplementation(() => ({
+  mockConnectionCtor.mockImplementation(function () { return ({
     getBalance: mockGetBalance,
     getParsedTokenAccountsByOwner: mockGetParsedTokenAccountsByOwner,
-  }))
-  mockPublicKeyCtor.mockImplementation((s: string) => ({ toBase58: () => s }))
+  }) })
+  mockPublicKeyCtor.mockImplementation(function (s: string) { return ({ toBase58: () => s }) })
 })
 
 afterEach(() => {

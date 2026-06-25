@@ -5,7 +5,7 @@ import type { Connection } from '@solana/web3.js'
 // declared in the test module body. Use vi.fn() directly inside the factory and
 // access the mocks via vi.mocked() after import.
 vi.mock('../../../src/integrations/torque/mcp-client.js', () => ({
-  TorqueMCPClient: vi.fn().mockImplementation(() => ({ emitEvent: vi.fn() })),
+  TorqueMCPClient: vi.fn().mockImplementation(function () { return ({ emitEvent: vi.fn() }) }),
 }))
 
 vi.mock('../../../src/integrations/torque/rebate-destination.js', () => ({
@@ -39,7 +39,7 @@ describe('wrapExecutorWithGrowthHook', () => {
     vi.clearAllMocks()
     // Re-wire the TorqueMCPClient factory so each test gets a fresh emitEvent mock.
     emitEventMock = vi.fn().mockResolvedValue({ ok: true })
-    vi.mocked(TorqueMCPClient).mockImplementation(() => ({ emitEvent: emitEventMock } as never))
+    vi.mocked(TorqueMCPClient).mockImplementation(function () { return ({ emitEvent: emitEventMock } as never) })
     vi.mocked(deriveRebateDestination).mockResolvedValue({ kind: 'stealth', address: 'RbT6X9' })
   })
 
@@ -272,7 +272,7 @@ describe('wrapExecutorWithGrowthHook', () => {
     baseExecutor.mockResolvedValue({ action: 'send', status: 'confirmed', signature: TX_SIG })
     // Override emitEvent to return an error result — caller result must still be returned.
     emitEventMock.mockResolvedValue({ ok: false, reason: 'network', message: 'boom' })
-    vi.mocked(TorqueMCPClient).mockImplementation(() => ({ emitEvent: emitEventMock } as never))
+    vi.mocked(TorqueMCPClient).mockImplementation(function () { return ({ emitEvent: emitEventMock } as never) })
     const wrapped = wrapExecutorWithGrowthHook(baseExecutor, opts)
 
     const result = await wrapped('send', { wallet: WALLET, amount: 1, token: 'SOL', recipient: 'rector.sol' })

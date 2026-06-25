@@ -27,8 +27,8 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockConnectionCtor.mockImplementation(() => ({ getAccountInfo: mockGetAccountInfo }))
-  mockPublicKeyCtor.mockImplementation((s: string) => ({ toBase58: () => s }))
+  mockConnectionCtor.mockImplementation(function () { return ({ getAccountInfo: mockGetAccountInfo }) })
+  mockPublicKeyCtor.mockImplementation(function (s: string) { return ({ toBase58: () => s }) })
 })
 
 afterEach(() => {

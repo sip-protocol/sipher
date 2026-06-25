@@ -9,14 +9,14 @@ const mockLike = vi.fn()
 const mockNewDmConversation = vi.fn()
 
 vi.mock('twitter-api-v2', () => ({
-  TwitterApi: vi.fn().mockImplementation(() => ({
+  TwitterApi: vi.fn().mockImplementation(function () { return ({
     v2: {
       tweet: mockTweet,
       reply: mockReply,
       like: mockLike,
       sendDmToParticipant: mockNewDmConversation,
     },
-  })),
+  }) }),
 }))
 
 // ─── Imports after mock registration ─────────────────────────────────────────

@@ -36,9 +36,9 @@ const {
 // ─────────────────────────────────────────────────────────────────────────────
 
 vi.mock('../../src/core/agent-core.js', () => ({
-  AgentCore: vi.fn().mockImplementation(() => ({
+  AgentCore: vi.fn().mockImplementation(function () { return ({
     processMessage: mockProcessMessage,
-  })),
+  }) }),
 }))
 
 vi.mock('../../src/herald/herald.js', () => ({

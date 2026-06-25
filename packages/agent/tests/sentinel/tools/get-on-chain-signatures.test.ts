@@ -27,10 +27,10 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockConnectionCtor.mockImplementation(() => ({
+  mockConnectionCtor.mockImplementation(function () { return ({
     getSignaturesForAddress: mockGetSignaturesForAddress,
-  }))
-  mockPublicKeyCtor.mockImplementation((s: string) => ({ toBase58: () => s }))
+  }) })
+  mockPublicKeyCtor.mockImplementation(function (s: string) { return ({ toBase58: () => s }) })
   mockGetSignaturesForAddress.mockResolvedValue([])
 })
 
