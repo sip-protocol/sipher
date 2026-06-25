@@ -31,7 +31,7 @@ const webhookSchema = z.object({
     'customer.subscription.updated',
     'customer.subscription.deleted',
   ]),
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
 })
 
 // ─── GET /billing/usage ─────────────────────────────────────────────────────
