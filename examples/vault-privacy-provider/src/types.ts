@@ -1,4 +1,4 @@
-import type { PublicKey } from '@solana/web3.js'
+import type { PublicKey, Transaction, Keypair } from '@solana/web3.js'
 
 /** A recipient's stealth meta-address: spending + viewing public keys (0x-hex). */
 export interface StealthMetaAddress {
@@ -21,4 +21,33 @@ export interface WithdrawArtifacts {
   encryptedAmount: Uint8Array
   /** ZK proof (empty — verified off-chain). */
   proof: Uint8Array
+}
+
+export interface DepositResult { txSignature: string; depositedLamports: bigint }
+export interface PrivateWithdrawResult {
+  txSignature: string
+  withdrawnLamports: bigint
+  feeLamports: bigint
+  stealthAddress: string
+}
+export interface RefundResult { txSignature: string; refundedLamports: bigint }
+
+/**
+ * A pluggable privacy backend. The same shared depositor keypair MUST be passed to
+ * every fund-moving call — a per-user depositor would link each user's deposit and
+ * withdrawal on-chain and destroy the commingling anonymity property.
+ */
+export interface VaultPrivacyProvider {
+  /** Advertised withdraw fee (bps). The actual deducted fee comes from on-chain config. */
+  readonly feeBps: number
+  buildFundingTx(args: {
+    fromPk: string; depositorPk: string; amountLamports: bigint; recentBlockhash: string
+  }): Promise<Transaction>
+  verifyFunding(args: { depositorPk: string; expectedLamports: bigint; txSignature: string }): Promise<void>
+  deposit(args: { depositorKp: Keypair; lamports: bigint }): Promise<DepositResult>
+  privateWithdraw(args: {
+    depositorKp: Keypair; recipient: StealthMetaAddress; lamports: bigint
+  }): Promise<PrivateWithdrawResult>
+  refund(args: { depositorKp: Keypair }): Promise<RefundResult>
+  previewWithdraw(grossLamports: bigint): { feeLamports: bigint; netLamports: bigint }
 }
