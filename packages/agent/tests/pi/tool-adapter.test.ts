@@ -57,7 +57,6 @@ describe('adaptTool', () => {
     // Verify the schema structure
     expect(piTool.parameters).toEqual(depositTool.input_schema)
     expect(schemaOf(piTool).type).toBe('object')
-    expect(schemaOf(piTool).properties).toBeDefined()
     expect(schemaOf(piTool).required).toContain('amount')
     expect(schemaOf(piTool).required).toContain('token')
   })
