@@ -3,7 +3,7 @@ import {
   createConnection,
   getVaultConfig,
   SIPHER_VAULT_PROGRAM_ID,
-  DEFAULT_FEE_BPS,
+  DEFAULT_FEE_TENTHS_BPS,
   DEFAULT_REFUND_TIMEOUT,
 } from '@sipher/sdk'
 import { loadNetworkConfig } from '../config/network.js'
@@ -19,7 +19,7 @@ export interface StatusToolResult {
   vault: {
     programId: string
     paused: boolean
-    feeBps: number
+    feeTenthsBps: number
     feePercent: string
     refundTimeout: number
     refundTimeoutHuman: string
@@ -58,8 +58,8 @@ export async function executeStatus(): Promise<StatusToolResult> {
       vault: {
         programId: SIPHER_VAULT_PROGRAM_ID.toBase58(),
         paused: false,
-        feeBps: DEFAULT_FEE_BPS,
-        feePercent: `${DEFAULT_FEE_BPS / 100}%`,
+        feeTenthsBps: DEFAULT_FEE_TENTHS_BPS,
+        feePercent: `${DEFAULT_FEE_TENTHS_BPS / 1000}%`,
         refundTimeout: DEFAULT_REFUND_TIMEOUT,
         refundTimeoutHuman: `${DEFAULT_REFUND_TIMEOUT / 3600} hours`,
         totalDeposits: 0,
@@ -70,7 +70,7 @@ export async function executeStatus(): Promise<StatusToolResult> {
     }
   }
 
-  const feePercent = `${config.feeBps / 100}%`
+  const feePercent = `${config.feeTenthsBps / 1000}%`
   const timeoutHours = config.refundTimeout / 3600
   const refundTimeoutHuman = timeoutHours >= 1
     ? `${timeoutHours} hours`
@@ -86,7 +86,7 @@ export async function executeStatus(): Promise<StatusToolResult> {
     vault: {
       programId: SIPHER_VAULT_PROGRAM_ID.toBase58(),
       paused: config.paused,
-      feeBps: config.feeBps,
+      feeTenthsBps: config.feeTenthsBps,
       feePercent,
       refundTimeout: config.refundTimeout,
       refundTimeoutHuman,

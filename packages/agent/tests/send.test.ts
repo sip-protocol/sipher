@@ -51,7 +51,7 @@ vi.mock('@sipher/sdk', () => ({
     return frac === 0n ? whole.toString() : `${whole}.${frac.toString().padStart(decimals, '0').replace(/0+$/, '')}`
   },
   getVaultConfig: mockGetVaultConfig,
-  DEFAULT_FEE_BPS: 10,
+  DEFAULT_FEE_TENTHS_BPS: 100,
 }))
 
 vi.mock('@sip-protocol/sdk', () => ({
@@ -181,8 +181,8 @@ describe('executeSend — stealth meta-address validation', () => {
 })
 
 describe('executeSend — preview path (no wallet)', () => {
-  it('returns prepared shape without building tx, using on-chain feeBps', async () => {
-    mockGetVaultConfig.mockResolvedValueOnce(makeVaultConfig({ feeBps: 25 }))
+  it('returns prepared shape without building tx, using on-chain feeTenthsBps', async () => {
+    mockGetVaultConfig.mockResolvedValueOnce(makeVaultConfig({ feeTenthsBps: 250 }))
 
     const result = await executeSend({
       amount: 1.5,
@@ -196,14 +196,14 @@ describe('executeSend — preview path (no wallet)', () => {
     expect(result.recipient).toBe(VALID_RECIPIENT)
     expect(result.status).toBe('awaiting_signature')
     expect(result.serializedTx).toBeNull()
-    expect(result.privacy.feeBps).toBe(25)
+    expect(result.privacy.feeTenthsBps).toBe(250)
     expect(result.privacy.stealthAddress).toBe('<derived-at-execution>')
     expect(result.privacy.netAmount).toBeNull()
     expect(result.message).toContain('0.25%')
     expect(result.message).toContain('Connect wallet')
   })
 
-  it('falls back to DEFAULT_FEE_BPS when getVaultConfig returns null', async () => {
+  it('falls back to DEFAULT_FEE_TENTHS_BPS when getVaultConfig returns null', async () => {
     mockGetVaultConfig.mockResolvedValueOnce(null)
 
     const result = await executeSend({
@@ -212,7 +212,7 @@ describe('executeSend — preview path (no wallet)', () => {
       recipient: VALID_RECIPIENT,
     })
 
-    expect(result.privacy.feeBps).toBe(10)
+    expect(result.privacy.feeTenthsBps).toBe(100)
   })
 
   it('does not call buildPrivateSendTx in preview', async () => {

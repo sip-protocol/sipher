@@ -22,16 +22,16 @@ const vkHash = new Uint8Array(32).fill(4)
 const encrypted = new Uint8Array([9, 9, 9])
 const proof = new Uint8Array([])
 
-// Dispatching Connection stub. fee_bps lives at config offset 40 (u16 LE);
+// Dispatching Connection stub. fee_tenths_bps lives at config offset 40 (u16 LE);
 // sip total_transfers at offset 8+32+2+1 = 43 (u64 LE).
 function mockConn(opts: {
-  feeBps?: number
+  feeTenthsBps?: number
   stealthLamports?: number | null
   rentExemptMin?: number
 } = {}): Connection {
-  const { feeBps = 10, stealthLamports = null, rentExemptMin = 890_880 } = opts
+  const { feeTenthsBps = 100, stealthLamports = null, rentExemptMin = 890_880 } = opts
   const configBuf = Buffer.alloc(60)
-  configBuf.writeUInt16LE(feeBps, 40)
+  configBuf.writeUInt16LE(feeTenthsBps, 40)
   const sipBuf = Buffer.alloc(8 + 32 + 2 + 1 + 8) // total_transfers = 0
   const [cfg] = deriveVaultConfigPDA()
   const [sip] = PublicKey.findProgramAddressSync([SIP_CONFIG_SEED], SIP_PRIVACY_PROGRAM_ID)
@@ -97,15 +97,25 @@ describe('buildPrivateSendSolTx', () => {
   it('encodes the discriminator + amount and computes fee/net from config', async () => {
     const res = await buildPrivateSendSolTx({
       ...baseParams,
-      connection: mockConn({ feeBps: 10, stealthLamports: 1_000_000_000 }),
+      connection: mockConn({ feeTenthsBps: 10, stealthLamports: 1_000_000_000 }),
     })
     const data = res.transaction.instructions[0].data
     expect(data.subarray(0, 8).equals(anchorDiscriminator('withdraw_private_sol'))).toBe(true)
     expect(data.readBigUInt64LE(8)).toBe(2_000_000n)
-    // 10 bps of 2_000_000 = 2_000
-    expect(res.feeAmount).toBe(2_000n)
-    expect(res.netAmount).toBe(1_998_000n)
+    // 10 tenths-bps (1 bp) of 2_000_000 = 200
+    expect(res.feeAmount).toBe(200n)
+    expect(res.netAmount).toBe(1_999_800n)
     expect(res.stealthAddress.toBase58()).toBe(STEALTH.toBase58())
+  })
+
+  it('computes the fee at tenths-bps precision (÷100_000, not ÷10_000)', async () => {
+    // 7.5 bps = 75 tenths on 2_000_000 → 1_500 (old whole-bps code gives 15_000)
+    const res = await buildPrivateSendSolTx({
+      ...baseParams,
+      connection: mockConn({ feeTenthsBps: 75, stealthLamports: 1_000_000_000 }),
+    })
+    expect(res.feeAmount).toBe(1_500n)
+    expect(res.netAmount).toBe(1_998_500n)
   })
 
   it('throws when a fresh stealth recipient would be left below rent-exempt', async () => {

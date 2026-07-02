@@ -15,8 +15,8 @@ import {
   VAULT_TOKEN_SEED,
   FEE_TOKEN_SEED,
   DEFAULT_REFUND_TIMEOUT,
-  DEFAULT_FEE_BPS,
-  MAX_FEE_BPS,
+  DEFAULT_FEE_TENTHS_BPS,
+  MAX_FEE_TENTHS_BPS,
   ANCHOR_DISCRIMINATOR_SIZE,
   VAULT_CONFIG_SIZE,
   DEPOSIT_RECORD_SIZE,
@@ -65,8 +65,8 @@ describe('Config', () => {
 
   it('has correct default constants', () => {
     expect(DEFAULT_REFUND_TIMEOUT).toBe(86400)
-    expect(DEFAULT_FEE_BPS).toBe(10)
-    expect(MAX_FEE_BPS).toBe(100)
+    expect(DEFAULT_FEE_TENTHS_BPS).toBe(100)
+    expect(MAX_FEE_TENTHS_BPS).toBe(1000)
   })
 
   it('has correct account sizes', () => {
@@ -247,7 +247,7 @@ describe('anchorDiscriminator', () => {
 describe('deserializeVaultConfig', () => {
   function buildVaultConfigBuffer(overrides: {
     authority?: PublicKey
-    feeBps?: number
+    feeTenthsBps?: number
     refundTimeout?: number
     paused?: boolean
     totalDeposits?: number
@@ -256,7 +256,7 @@ describe('deserializeVaultConfig', () => {
   } = {}): Buffer {
     const {
       authority = DEPOSITOR_A,
-      feeBps = 10,
+      feeTenthsBps = 100,
       refundTimeout = 86400,
       paused = false,
       totalDeposits = 5,
@@ -276,8 +276,8 @@ describe('deserializeVaultConfig', () => {
     authority.toBuffer().copy(buf, offset)
     offset += 32
 
-    // fee_bps: u16 LE
-    buf.writeUInt16LE(feeBps, offset)
+    // fee_tenths_bps: u16 LE
+    buf.writeUInt16LE(feeTenthsBps, offset)
     offset += 2
 
     // refund_timeout: i64 LE
@@ -307,7 +307,7 @@ describe('deserializeVaultConfig', () => {
     const config = deserializeVaultConfig(buf)
 
     expect(config.authority.equals(DEPOSITOR_A)).toBe(true)
-    expect(config.feeBps).toBe(10)
+    expect(config.feeTenthsBps).toBe(100)
     expect(config.refundTimeout).toBe(86400)
     expect(config.paused).toBe(false)
     expect(config.totalDeposits).toBe(5)
@@ -321,10 +321,10 @@ describe('deserializeVaultConfig', () => {
     expect(config.paused).toBe(true)
   })
 
-  it('handles max fee BPS', () => {
-    const buf = buildVaultConfigBuffer({ feeBps: 100 })
+  it('handles max fee tenths-bps', () => {
+    const buf = buildVaultConfigBuffer({ feeTenthsBps: 1000 })
     const config = deserializeVaultConfig(buf)
-    expect(config.feeBps).toBe(100)
+    expect(config.feeTenthsBps).toBe(1000)
   })
 
   it('handles zero counters', () => {
@@ -350,7 +350,7 @@ describe('deserializeVaultConfig', () => {
     const buf = Buffer.alloc(100)
     buildVaultConfigBuffer().copy(buf)
     const config = deserializeVaultConfig(buf)
-    expect(config.feeBps).toBe(10)
+    expect(config.feeTenthsBps).toBe(100)
   })
 })
 

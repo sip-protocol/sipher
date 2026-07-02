@@ -65,7 +65,7 @@ export function makeVaultBalance(
 
 export interface VaultConfigShape {
   paused: boolean
-  feeBps: number
+  feeTenthsBps: number
   refundTimeout: number
   totalDeposits: number
   totalDepositors: number
@@ -77,7 +77,7 @@ export function makeVaultConfig(
 ): VaultConfigShape {
   return {
     paused: false,
-    feeBps: 10,
+    feeTenthsBps: 100,
     refundTimeout: 86400,
     totalDeposits: 5,
     totalDepositors: 3,

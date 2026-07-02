@@ -118,7 +118,7 @@ async function assertSolBalance(conn: Connection, pubkey: PublicKey): Promise<vo
 type VaultConfigState = {
   pda: PublicKey
   authority: PublicKey
-  feeBps: number
+  feeTenthsBps: number
   refundTimeout: number
   paused: boolean
   totalDeposits: number
@@ -144,7 +144,7 @@ async function loadAndVerifyVaultConfig(
   }
   console.log(
     `VaultConfig OK: authority=${cfg.authority.toBase58()}, ` +
-    `feeBps=${cfg.feeBps}, refundTimeout=${cfg.refundTimeout}s, paused=${cfg.paused}`,
+    `feeTenthsBps=${cfg.feeTenthsBps}, refundTimeout=${cfg.refundTimeout}s, paused=${cfg.paused}`,
   )
   return { pda: configPDA, ...cfg }
 }
@@ -341,7 +341,7 @@ function writeStateJson(args: {
     network: NETWORK,
     vaultProgramId: SIPHER_VAULT_PROGRAM_ID.toBase58(),
     vaultConfig: cfg.pda.toBase58(),
-    feeBps: cfg.feeBps,
+    feeTenthsBps: cfg.feeTenthsBps,
     refundTimeoutSeconds: Number(cfg.refundTimeout),
     depositor: depositor.toBase58(),
     tokenMint: NATIVE_MINT.toBase58(),

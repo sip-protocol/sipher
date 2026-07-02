@@ -455,7 +455,7 @@
       "name": "collect_fee_sol",
       "docs": [
         "Authority-only: drain lamports above the rent-exempt minimum from the native",
-        "SOL fee PDA (`sol_fee`). Fees accrue during `withdraw_private_sol` (fee_bps",
+        "SOL fee PDA (`sol_fee`). Fees accrue during `withdraw_private_sol` (fee_tenths_bps",
         "per withdrawal). Pass `amount = 0` to collect ALL collectable lamports.",
         "",
         "Safety: Uses the Task-7 checked lamport mutation pattern \u2014 every new balance",
@@ -1141,7 +1141,7 @@
       ],
       "args": [
         {
-          "name": "fee_bps",
+          "name": "fee_tenths_bps",
           "type": "u16"
         },
         {
@@ -1625,8 +1625,8 @@
     {
       "name": "update_fee",
       "docs": [
-        "Update the protocol fee (basis points). Authority-only, capped at",
-        "MAX_FEE_BPS. Lets the authority adjust the fee without a redeploy."
+        "Update the protocol fee (tenths-of-bps). Authority-only, capped at",
+        "MAX_FEE_TENTHS_BPS. Lets the authority adjust the fee without a redeploy."
       ],
       "discriminator": [
         232,
@@ -1674,7 +1674,7 @@
       ],
       "args": [
         {
-          "name": "new_fee_bps",
+          "name": "new_fee_tenths_bps",
           "type": "u16"
         }
       ]
@@ -1970,7 +1970,7 @@
         "of the program-owned `SolVault` PDA (no system CPI \u2014 the source is PDA-owned):",
         "1. Guards: not paused, amount > 0.",
         "2. Debit-first: reduce `DepositRecord.balance` before moving any lamports.",
-        "3. Fee split: `fee = amount \u00b7 fee_bps / 10_000`, `net = amount \u2212 fee`.",
+        "3. Fee split: `fee = amount \u00b7 fee_tenths_bps / 100_000`, `net = amount \u2212 fee`.",
         "4. Checked lamport mutation: compute every new balance with checked ops",
         "(BPF release WRAPS on `+=`/`-=`, which would be a vault drain), enforce",
         "the rent-reserve guard on the vault debit, THEN assign.",
@@ -2577,11 +2577,11 @@
             "type": "pubkey"
           },
           {
-            "name": "old_fee_bps",
+            "name": "old_fee_tenths_bps",
             "type": "u16"
           },
           {
-            "name": "new_fee_bps",
+            "name": "new_fee_tenths_bps",
             "type": "u16"
           },
           {
@@ -2625,7 +2625,7 @@
             "type": "pubkey"
           },
           {
-            "name": "fee_bps",
+            "name": "fee_tenths_bps",
             "type": "u16"
           },
           {

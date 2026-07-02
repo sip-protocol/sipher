@@ -11,13 +11,13 @@ import { parseStealthMetaAddress } from '../src/stealth.js'
 const BLOCKHASH = 'GfVcyD4kkTrj4bKc7WA9sZCin9JDbdT458zqL4zjxx2v'
 const DEPOSITOR_KP = Keypair.generate()
 
-// Mock Connection: dispatches getAccountInfo by pubkey (config carries fee_bps at
+// Mock Connection: dispatches getAccountInfo by pubkey (config carries fee_tenths_bps at
 // offset 40); records the last raw tx submitted; returns a deterministic signature.
-function mockConn(opts: { feeBps?: number; recordBalance?: bigint } = {}): Connection {
-  const { feeBps = 10, recordBalance = 5_000_000n } = opts
+function mockConn(opts: { feeTenthsBps?: number; recordBalance?: bigint } = {}): Connection {
+  const { feeTenthsBps = 100, recordBalance = 5_000_000n } = opts
   // VaultConfig layout (60-byte fixed prefix, but deserializeVaultConfig needs 68 — pad to 68+):
-  // disc(8) + authority(32) + fee_bps(u16 at offset 40) + ...
-  const configBuf = Buffer.alloc(68); configBuf.writeUInt16LE(feeBps, 40)
+  // disc(8) + authority(32) + fee_tenths_bps(u16 at offset 40) + ...
+  const configBuf = Buffer.alloc(68); configBuf.writeUInt16LE(feeTenthsBps, 40)
   // DepositRecord layout: disc(8)+depositor(32)+mint(32)+balance(u64 LE at 72)+
   //   cumulativeVolume(u64)+lastDepositAt(i64)+bump(u8) = 97 bytes total.
   // deserializeDepositRecord requires exactly 97 bytes minimum.
@@ -40,10 +40,15 @@ function mockConn(opts: { feeBps?: number; recordBalance?: bigint } = {}): Conne
 }
 
 describe('SipherVaultPrivacyProvider — funding/verify/deposit/refund/preview', () => {
-  it('feeBps defaults to the vault default and previewWithdraw splits fee/net', () => {
+  it('feeTenthsBps defaults to the vault default and previewWithdraw splits fee/net', () => {
     const p = new SipherVaultPrivacyProvider(mockConn())
-    expect(p.feeBps).toBe(10)
+    expect(p.feeTenthsBps).toBe(100)
     expect(p.previewWithdraw(2_000_000n)).toEqual({ feeLamports: 2_000n, netLamports: 1_998_000n })
+  })
+
+  it('previewWithdraw uses tenths-bps precision (75 → 0.075%)', () => {
+    const p = new SipherVaultPrivacyProvider(mockConn(), { feeTenthsBps: 75 })
+    expect(p.previewWithdraw(2_000_000n)).toEqual({ feeLamports: 1_500n, netLamports: 1_998_500n })
   })
 
   it('buildFundingTx is a plain SystemProgram.transfer to the depositor wallet', async () => {
@@ -86,7 +91,7 @@ const RECIPIENT = parseStealthMetaAddress(`sip:solana:0x${VALID_SPENDING}:0x${VA
 
 describe('SipherVaultPrivacyProvider — privateWithdraw', () => {
   it('builds withdraw_private_sol to a derived stealth recipient and returns fee/net', async () => {
-    const p = new SipherVaultPrivacyProvider(mockConn({ feeBps: 10 }))
+    const p = new SipherVaultPrivacyProvider(mockConn({ feeTenthsBps: 100 }))
     const res = await p.privateWithdraw({ depositorKp: DEPOSITOR_KP, recipient: RECIPIENT, lamports: 2_000_000n })
     expect(res.feeLamports).toBe(2_000n)
     expect(res.withdrawnLamports).toBe(1_998_000n)

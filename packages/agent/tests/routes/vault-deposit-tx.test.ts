@@ -69,7 +69,7 @@ describe('POST /api/vault/deposit-tx', () => {
       amountBaseUnits: '1500000000',
       network: 'devnet',
     })
-    expect(typeof res.body.feeBps).toBe('number')
+    expect(typeof res.body.feeTenthsBps).toBe('number')
     expect(executeDeposit).toHaveBeenCalledWith({ amount: 1.5, token: 'SOL', wallet: TEST_WALLET })
   })
 

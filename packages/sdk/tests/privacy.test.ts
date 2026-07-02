@@ -9,8 +9,9 @@ import {
 import { sha256 } from '@noble/hashes/sha2.js'
 import { sha512 } from '@noble/hashes/sha2.js'
 import { ed25519 } from '@noble/curves/ed25519'
-import type { Connection } from '@solana/web3.js'
-import { scanForPayments } from '../src/privacy.js'
+import { PublicKey, type Connection } from '@solana/web3.js'
+import { scanForPayments, buildPrivateSendTx } from '../src/privacy.js'
+import { deriveVaultConfigPDA } from '../src/vault.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -572,5 +573,58 @@ describe('scanForPayments — canonical view-only round-trip', () => {
     })
 
     expect(result.payments).toHaveLength(0)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// buildPrivateSendTx — fee math (tenths-of-bps regression guard)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SPL_DEPOSITOR = new PublicKey('FGSkt8MwXH83daNNW8ZkoqhL1KLcLoZLcdGJz84BWWr')
+const SPL_TOKEN_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
+const SPL_STEALTH_TOKEN_ACCOUNT = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
+const SPL_STEALTH_PUBKEY = new PublicKey('So11111111111111111111111111111111111111112')
+
+/**
+ * Minimal Connection stub for buildPrivateSendTx: serves a VaultConfig account
+ * with fee_tenths_bps at offset 40 (u16 LE) plus a blockhash. The sip_privacy
+ * Config lookup returns null, which defaults total_transfers to 0.
+ */
+function mockConnectionWithConfig(feeTenthsBps: number): Connection {
+  const configBuf = Buffer.alloc(60)
+  configBuf.writeUInt16LE(feeTenthsBps, 40)
+  const [cfg] = deriveVaultConfigPDA()
+  return {
+    getLatestBlockhash: async () => ({
+      blockhash: 'GfVcyD4kkTrj4bKc7WA9sZCin9JDbdT458zqL4zjxx2v',
+      lastValidBlockHeight: 1,
+    }),
+    getAccountInfo: async (pk: PublicKey) =>
+      pk.equals(cfg) ? ({ data: configBuf } as never) : null,
+  } as unknown as Connection
+}
+
+describe('buildPrivateSendTx — fee math', () => {
+  it('computes the SPL fee at tenths-bps precision (÷100_000, not ÷10_000)', async () => {
+    // 7.5 bps = 75 tenths on 2_000_000 → 1_500 (old whole-bps code gives 15_000)
+    const amount = 2_000_000n
+    const res = await buildPrivateSendTx({
+      connection: mockConnectionWithConfig(75),
+      depositor: SPL_DEPOSITOR,
+      tokenMint: SPL_TOKEN_MINT,
+      amount,
+      stealthTokenAccount: SPL_STEALTH_TOKEN_ACCOUNT,
+      stealthPubkey: SPL_STEALTH_PUBKEY,
+      amountCommitment: new Uint8Array(33).fill(2),
+      ephemeralPubkey: new Uint8Array(33).fill(3),
+      viewingKeyHash: new Uint8Array(32).fill(4),
+      encryptedAmount: new Uint8Array([9, 9, 9]),
+      proof: new Uint8Array([]),
+    })
+
+    expect(res.feeAmount).toBe((amount * 75n) / 100_000n)
+    expect(res.feeAmount).toBe(1_500n)
+    expect(res.netAmount).toBe(amount - res.feeAmount)
+    expect(res.netAmount).toBe(1_998_500n)
   })
 })
