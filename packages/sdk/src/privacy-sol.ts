@@ -12,6 +12,8 @@ import {
   SIP_TRANSFER_RECORD_SEED,
   NATIVE_SOL_MINT,
   ANCHOR_DISCRIMINATOR_SIZE,
+  DEFAULT_FEE_TENTHS_BPS,
+  FEE_TENTHS_BPS_DENOMINATOR,
 } from './config.js'
 import {
   anchorDiscriminator,
@@ -108,10 +110,10 @@ export async function buildPrivateSendSolTx(
     connection.getAccountInfo(stealthPubkey),
   ])
 
-  let feeBps = 10 // fallback to default
+  let feeTenthsBps = DEFAULT_FEE_TENTHS_BPS // fallback to default
   if (configInfo) {
-    // fee_bps at offset 8 (disc) + 32 (authority) = 40, u16 LE
-    feeBps = configInfo.data.readUInt16LE(40)
+    // fee_tenths_bps at offset 8 (disc) + 32 (authority) = 40, u16 LE
+    feeTenthsBps = configInfo.data.readUInt16LE(40)
   }
 
   let sipTotalTransfers = 0n
@@ -129,7 +131,7 @@ export async function buildPrivateSendSolTx(
     SIP_PRIVACY_PROGRAM_ID
   )
 
-  const feeAmount = (amount * BigInt(feeBps)) / 10_000n
+  const feeAmount = (amount * BigInt(feeTenthsBps)) / FEE_TENTHS_BPS_DENOMINATOR
   const netAmount = amount - feeAmount
 
   // Rent-exempt guard: the stealth recipient is a plain system account. The runtime

@@ -16,13 +16,13 @@ if (cfgInfo) {
   const d = cfgInfo.data
   let off = 8
   const authority = new PublicKey(d.slice(off, off + 32)); off += 32
-  const feeBps = d.readUInt16LE(off); off += 2
+  const feeTenthsBps = d.readUInt16LE(off); off += 2
   const refundTimeout = Number(d.readBigInt64LE(off)); off += 8
   const paused = d.readUInt8(off) === 1; off += 1
   const totalDeposits = d.readBigUInt64LE(off); off += 8
   const totalDepositors = d.readBigUInt64LE(off); off += 8
   const bump = d.readUInt8(off)
-  console.log({ authority: authority.toBase58(), feeBps, refundTimeout, paused, totalDeposits, totalDepositors, bump })
+  console.log({ authority: authority.toBase58(), feeTenthsBps, feeBps: feeTenthsBps / 10, refundTimeout, paused, totalDeposits, totalDepositors, bump })
 }
 
 // Derive expected vault_token + fee_token PDAs for wSOL

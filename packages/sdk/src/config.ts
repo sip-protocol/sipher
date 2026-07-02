@@ -44,15 +44,17 @@ export const SIP_TRANSFER_RECORD_SEED = Buffer.from('transfer_record')
 
 /** 24 hours in seconds */
 export const DEFAULT_REFUND_TIMEOUT = 86400
-/** 0.10% fee */
-export const DEFAULT_FEE_BPS = 10
-/** Max 1% fee */
-export const MAX_FEE_BPS = 100
+/** 0.10% fee (100 tenths-of-a-bps) */
+export const DEFAULT_FEE_TENTHS_BPS = 100
+/** Max 1% fee (1000 tenths-of-a-bps) */
+export const MAX_FEE_TENTHS_BPS = 1000
+/** Vault fee divisor: fee = amount * feeTenthsBps / FEE_TENTHS_BPS_DENOMINATOR (mirrors on-chain constants.rs) */
+export const FEE_TENTHS_BPS_DENOMINATOR = 100_000n
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Account data offsets (after 8-byte Anchor discriminator)
 //
-// VaultConfig:  authority(32) + fee_bps(2) + refund_timeout(8) + paused(1)
+// VaultConfig:  authority(32) + fee_tenths_bps(2) + refund_timeout(8) + paused(1)
 //             + total_deposits(8) + total_depositors(8) + bump(1)
 //             + pending_authority(1+32) = 93
 //

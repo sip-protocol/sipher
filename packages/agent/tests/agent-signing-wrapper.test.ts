@@ -70,7 +70,7 @@ describe('chatStream signing-wait wrapper (wrapWithSigning)', () => {
         stealthAddress: 'X',
         commitmentGenerated: true,
         viewingKeyHashIncluded: true,
-        feeBps: 50,
+        feeTenthsBps: 500,
         estimatedFee: '0.005 SOL',
         netAmount: '0.995',
       },
@@ -139,7 +139,7 @@ describe('chatStream signing-wait wrapper (wrapWithSigning)', () => {
       action: 'send',
       status: 'awaiting_signature' as const,
       serializedTx: null,
-      privacy: { stealthAddress: '', commitmentGenerated: false, viewingKeyHashIncluded: false, feeBps: 50, estimatedFee: '0.005 SOL', netAmount: null },
+      privacy: { stealthAddress: '', commitmentGenerated: false, viewingKeyHashIncluded: false, feeTenthsBps: 500, estimatedFee: '0.005 SOL', netAmount: null },
     }))
 
     const queue: SigningQueueEvent[] = []
@@ -169,7 +169,7 @@ describe('chatStream signing-wait wrapper (wrapWithSigning)', () => {
   it('skips signing pause when input.wallet is missing', async () => {
     const baseExecutor = vi.fn(async () => ({
       action: 'send', status: 'awaiting_signature' as const, serializedTx: 'TX',
-      privacy: { stealthAddress: 'X', commitmentGenerated: true, viewingKeyHashIncluded: true, feeBps: 50, estimatedFee: '0', netAmount: '1' },
+      privacy: { stealthAddress: 'X', commitmentGenerated: true, viewingKeyHashIncluded: true, feeTenthsBps: 500, estimatedFee: '0', netAmount: '1' },
     }))
     const queue: SigningQueueEvent[] = []
     const wrapped = wrapWithSigning(baseExecutor, {

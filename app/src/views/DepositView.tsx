@@ -48,7 +48,7 @@ interface DepositTxResponse {
   depositRecordAddress?: string
   vaultTokenAddress?: string
   amountBaseUnits?: string
-  feeBps?: number
+  feeTenthsBps?: number
   network?: string
 }
 

@@ -385,7 +385,7 @@ describe('executeSend', () => {
     expect(result.serializedTx).toBeNull()
     expect(result.privacy.commitmentGenerated).toBe(true)
     expect(result.privacy.viewingKeyHashIncluded).toBe(true)
-    expect(result.privacy.feeBps).toBeGreaterThanOrEqual(0)
+    expect(result.privacy.feeTenthsBps).toBeGreaterThanOrEqual(0)
   })
 
   it('normalizes token to uppercase', async () => {
@@ -758,7 +758,7 @@ describe('executeStatus', () => {
     expect(result.status).toBe('success')
     expect(result.vault.programId).toBe('S1Phr5rmDfkZTyLXzH5qUHeiqZS3Uf517SQzRbU4kHB')
     expect(result.vault.configFound).toBe(false)
-    expect(result.vault.feeBps).toBe(10)
+    expect(result.vault.feeTenthsBps).toBe(100)
     expect(result.vault.refundTimeout).toBe(86400)
     expect(result.vault.paused).toBe(false)
     expect(result.vault.totalDeposits).toBe(0)

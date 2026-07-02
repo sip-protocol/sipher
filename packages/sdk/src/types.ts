@@ -6,7 +6,7 @@ import type { PublicKey, Transaction } from '@solana/web3.js'
 
 export interface VaultConfig {
   authority: PublicKey
-  feeBps: number
+  feeTenthsBps: number
   refundTimeout: number
   paused: boolean
   totalDeposits: number

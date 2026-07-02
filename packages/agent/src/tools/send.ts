@@ -17,7 +17,7 @@ import {
   toBaseUnits,
   fromBaseUnits,
   getVaultConfig,
-  DEFAULT_FEE_BPS,
+  DEFAULT_FEE_TENTHS_BPS,
 } from '@sipher/sdk'
 import { loadNetworkConfig } from '../config/network.js'
 
@@ -46,7 +46,7 @@ export interface SendToolResult {
     stealthAddress: string
     commitmentGenerated: boolean
     viewingKeyHashIncluded: boolean
-    feeBps: number
+    feeTenthsBps: number
     estimatedFee: string
     netAmount: string | null
   }
@@ -104,10 +104,10 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
   const network = loadNetworkConfig().clusterName
   const connection = createConnection(network)
 
-  // Fetch live fee_bps from on-chain config
+  // Fetch live fee_tenths_bps from on-chain config
   const config = await getVaultConfig(connection)
-  const feeBps = config?.feeBps ?? DEFAULT_FEE_BPS
-  const feePercent = feeBps / 100
+  const feeTenthsBps = config?.feeTenthsBps ?? DEFAULT_FEE_TENTHS_BPS
+  const feePercent = feeTenthsBps / 1000
 
   // If no wallet, return the preview without building a tx
   if (!params.wallet) {
@@ -125,7 +125,7 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
         stealthAddress: '<derived-at-execution>',
         commitmentGenerated: true,
         viewingKeyHashIncluded: true,
-        feeBps,
+        feeTenthsBps,
         estimatedFee: `${(params.amount * feePercent) / 100} ${token}`,
         netAmount: null,
       },
@@ -267,7 +267,7 @@ export async function executeSend(params: SendParams): Promise<SendToolResult> {
       stealthAddress: stealthPubkey.toBase58(),
       commitmentGenerated: isStealthMetaAddress,
       viewingKeyHashIncluded: isStealthMetaAddress,
-      feeBps,
+      feeTenthsBps,
       estimatedFee: fromBaseUnits(result.feeAmount, decimals) + ` ${token}`,
       netAmount: fromBaseUnits(result.netAmount, decimals),
     },

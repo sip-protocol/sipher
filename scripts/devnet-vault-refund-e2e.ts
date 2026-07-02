@@ -42,7 +42,7 @@ type BootstrapState = {
   network: string
   vaultProgramId: string
   vaultConfig: string
-  feeBps: number
+  feeTenthsBps: number
   refundTimeoutSeconds: number
   depositor: string
   tokenMint: string
@@ -247,7 +247,7 @@ function writeEvidence(
     tokenSymbol: state.tokenSymbol,
     amount: state.amount,
     amountLamports: state.amountLamports,
-    feeBps: state.feeBps,
+    feeTenthsBps: state.feeTenthsBps,
     depositedNetLamports: state.depositedNetLamports,
     setup: {
       vaultTokenCreatedTxId: state.setupTxIds.vaultToken,

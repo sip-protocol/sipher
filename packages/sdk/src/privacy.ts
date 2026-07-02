@@ -20,6 +20,8 @@ import {
   SIP_CONFIG_SEED,
   SIP_TRANSFER_RECORD_SEED,
   ANCHOR_DISCRIMINATOR_SIZE,
+  DEFAULT_FEE_TENTHS_BPS,
+  FEE_TENTHS_BPS_DENOMINATOR,
 } from './config.js'
 import { anchorDiscriminator, deriveVaultConfigPDA } from './vault.js'
 import { WITHDRAW_EVENT_MIN_SIZE, WITHDRAW_EVENT_WITH_MINT_SIZE } from './events.js'
@@ -139,10 +141,10 @@ export async function buildPrivateSendTx(
     connection.getAccountInfo(sipConfigPDA),
   ])
 
-  let feeBps = 10 // fallback to default
+  let feeTenthsBps = DEFAULT_FEE_TENTHS_BPS // fallback to default
   if (configInfo) {
-    // fee_bps is at offset 8 (discriminator) + 32 (authority) = 40, u16 LE
-    feeBps = configInfo.data.readUInt16LE(40)
+    // fee_tenths_bps is at offset 8 (discriminator) + 32 (authority) = 40, u16 LE
+    feeTenthsBps = configInfo.data.readUInt16LE(40)
   }
 
   // Read total_transfers from sip_privacy Config to derive the TransferRecord PDA.
@@ -162,7 +164,7 @@ export async function buildPrivateSendTx(
     SIP_PRIVACY_PROGRAM_ID
   )
 
-  const feeAmount = (amount * BigInt(feeBps)) / 10_000n
+  const feeAmount = (amount * BigInt(feeTenthsBps)) / FEE_TENTHS_BPS_DENOMINATOR
   const netAmount = amount - feeAmount
 
   // Serialize instruction data
