@@ -102,7 +102,7 @@ describe('buildPrivateSendSolTx', () => {
     const data = res.transaction.instructions[0].data
     expect(data.subarray(0, 8).equals(anchorDiscriminator('withdraw_private_sol'))).toBe(true)
     expect(data.readBigUInt64LE(8)).toBe(2_000_000n)
-    // 10 tenths-bps (0.1 bps) of 2_000_000 = 200
+    // 10 tenths-bps (1 bp) of 2_000_000 = 200
     expect(res.feeAmount).toBe(200n)
     expect(res.netAmount).toBe(1_999_800n)
     expect(res.stealthAddress.toBase58()).toBe(STEALTH.toBase58())
