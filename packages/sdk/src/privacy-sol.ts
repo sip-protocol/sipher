@@ -13,6 +13,7 @@ import {
   NATIVE_SOL_MINT,
   ANCHOR_DISCRIMINATOR_SIZE,
   DEFAULT_FEE_TENTHS_BPS,
+  FEE_TENTHS_BPS_DENOMINATOR,
 } from './config.js'
 import {
   anchorDiscriminator,
@@ -130,7 +131,7 @@ export async function buildPrivateSendSolTx(
     SIP_PRIVACY_PROGRAM_ID
   )
 
-  const feeAmount = (amount * BigInt(feeTenthsBps)) / 100_000n
+  const feeAmount = (amount * BigInt(feeTenthsBps)) / FEE_TENTHS_BPS_DENOMINATOR
   const netAmount = amount - feeAmount
 
   // Rent-exempt guard: the stealth recipient is a plain system account. The runtime

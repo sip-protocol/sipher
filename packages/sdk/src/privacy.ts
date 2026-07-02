@@ -21,6 +21,7 @@ import {
   SIP_TRANSFER_RECORD_SEED,
   ANCHOR_DISCRIMINATOR_SIZE,
   DEFAULT_FEE_TENTHS_BPS,
+  FEE_TENTHS_BPS_DENOMINATOR,
 } from './config.js'
 import { anchorDiscriminator, deriveVaultConfigPDA } from './vault.js'
 import { WITHDRAW_EVENT_MIN_SIZE, WITHDRAW_EVENT_WITH_MINT_SIZE } from './events.js'
@@ -163,7 +164,7 @@ export async function buildPrivateSendTx(
     SIP_PRIVACY_PROGRAM_ID
   )
 
-  const feeAmount = (amount * BigInt(feeTenthsBps)) / 100_000n
+  const feeAmount = (amount * BigInt(feeTenthsBps)) / FEE_TENTHS_BPS_DENOMINATOR
   const netAmount = amount - feeAmount
 
   // Serialize instruction data

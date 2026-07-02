@@ -48,6 +48,8 @@ export const DEFAULT_REFUND_TIMEOUT = 86400
 export const DEFAULT_FEE_TENTHS_BPS = 100
 /** Max 1% fee (1000 tenths-of-a-bps) */
 export const MAX_FEE_TENTHS_BPS = 1000
+/** Vault fee divisor: fee = amount * feeTenthsBps / FEE_TENTHS_BPS_DENOMINATOR (mirrors on-chain constants.rs) */
+export const FEE_TENTHS_BPS_DENOMINATOR = 100_000n
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Account data offsets (after 8-byte Anchor discriminator)

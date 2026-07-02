@@ -3,6 +3,7 @@ import {
 } from '@solana/web3.js'
 import {
   buildDepositSolTx, buildRefundSolTx, buildPrivateSendSolTx, DEFAULT_FEE_TENTHS_BPS,
+  FEE_TENTHS_BPS_DENOMINATOR,
 } from '@sipher/sdk'
 import { assembleWithdrawArtifacts } from './stealth.js'
 import type {
@@ -79,7 +80,7 @@ export class SipherVaultPrivacyProvider implements VaultPrivacyProvider {
   }
 
   previewWithdraw(grossLamports: bigint): { feeLamports: bigint; netLamports: bigint } {
-    const feeLamports = (grossLamports * BigInt(this.feeTenthsBps)) / 100_000n
+    const feeLamports = (grossLamports * BigInt(this.feeTenthsBps)) / FEE_TENTHS_BPS_DENOMINATOR
     return { feeLamports, netLamports: grossLamports - feeLamports }
   }
 
