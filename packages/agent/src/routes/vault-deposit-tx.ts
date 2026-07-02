@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express'
 import { executeDeposit } from '../tools/deposit.js'
 import { loadNetworkConfig } from '../config/network.js'
-import { DEFAULT_FEE_BPS } from '@sipher/sdk'
+import { DEFAULT_FEE_TENTHS_BPS } from '@sipher/sdk'
 
 export const vaultDepositTxRouter = Router()
 
@@ -70,7 +70,7 @@ vaultDepositTxRouter.post('/deposit-tx', async (req: Request, res: Response) => 
       depositRecordAddress: result.details.depositRecordAddress,
       vaultTokenAddress: result.details.vaultTokenAddress,
       amountBaseUnits: result.details.amountBaseUnits,
-      feeBps: DEFAULT_FEE_BPS,
+      feeTenthsBps: DEFAULT_FEE_TENTHS_BPS,
       network,
     })
   } catch (err) {

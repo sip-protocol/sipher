@@ -15,7 +15,7 @@ vi.mock('@sipher/sdk', () => ({
   createConnection: mockCreateConnection,
   getVaultConfig: mockGetVaultConfig,
   SIPHER_VAULT_PROGRAM_ID: { toBase58: () => 'S1Phr5rmDfkZTyLXzH5qUHeiqZS3Uf517SQzRbU4kHB' },
-  DEFAULT_FEE_BPS: 10,
+  DEFAULT_FEE_TENTHS_BPS: 100,
   DEFAULT_REFUND_TIMEOUT: 86400,
 }))
 
@@ -46,7 +46,7 @@ describe('executeStatus — config found', () => {
     expect(result.status).toBe('success')
     expect(result.vault.configFound).toBe(true)
     expect(result.vault.paused).toBe(false)
-    expect(result.vault.feeBps).toBe(10)
+    expect(result.vault.feeTenthsBps).toBe(100)
     expect(result.vault.feePercent).toBe('0.1%')
     expect(result.vault.refundTimeout).toBe(86400)
     expect(result.vault.refundTimeoutHuman).toBe('24 hours')
@@ -104,7 +104,7 @@ describe('executeStatus — config not found', () => {
 
     expect(result.vault.configFound).toBe(false)
     expect(result.vault.paused).toBe(false)
-    expect(result.vault.feeBps).toBe(10) // DEFAULT_FEE_BPS
+    expect(result.vault.feeTenthsBps).toBe(100) // DEFAULT_FEE_TENTHS_BPS
     expect(result.vault.refundTimeout).toBe(86400) // DEFAULT_REFUND_TIMEOUT
     expect(result.vault.totalDeposits).toBe(0)
     expect(result.vault.totalDepositors).toBe(0)

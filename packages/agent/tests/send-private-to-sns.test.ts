@@ -43,7 +43,7 @@ const makeSendOk = () => ({
     stealthAddress: 'Stealth111',
     commitmentGenerated: true,
     viewingKeyHashIncluded: true,
-    feeBps: 50,
+    feeTenthsBps: 500,
     estimatedFee: '0.05 USDC',
     netAmount: '9.95',
   },
