@@ -38,8 +38,8 @@ export interface RefundResult { txSignature: string; refundedLamports: bigint }
  * withdrawal on-chain and destroy the commingling anonymity property.
  */
 export interface VaultPrivacyProvider {
-  /** Advertised withdraw fee (bps). The actual deducted fee comes from on-chain config. */
-  readonly feeBps: number
+  /** Advertised withdraw fee (tenths of a bps). The actual deducted fee comes from on-chain config. */
+  readonly feeTenthsBps: number
   buildFundingTx(args: {
     fromPk: string; depositorPk: string; amountLamports: bigint; recentBlockhash: string
   }): Promise<Transaction>

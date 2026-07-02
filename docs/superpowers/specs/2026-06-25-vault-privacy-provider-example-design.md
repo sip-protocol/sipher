@@ -46,8 +46,8 @@ native-SOL builders shipped in `@sipher/sdk` (`buildDepositSolTx`,
 
 ```ts
 export interface VaultPrivacyProvider {
-  /** Protocol fee charged on a private withdrawal, in basis points. */
-  readonly feeBps: number
+  /** Protocol fee charged on a private withdrawal, in tenths of a basis point. */
+  readonly feeTenthsBps: number
 
   /**
    * Build the unsigned funding transfer: the user's main wallet sends lamports
@@ -103,17 +103,22 @@ input to one-time stealth derivation).
 
 | Method | Backed by (`@sipher/sdk`) |
 |---|---|
-| `feeBps` | advertised/preview rate from the constructor (`opts.feeBps ?? DEFAULT_FEE_BPS`); the actual fee deducted is the on-chain-derived `feeAmount` returned by `buildPrivateSendSolTx` (surfaced as `PrivateWithdrawResult.feeLamports`) |
+| `feeTenthsBps` | advertised/preview rate from the constructor (`opts.feeTenthsBps ?? DEFAULT_FEE_TENTHS_BPS`); the actual fee deducted is the on-chain-derived `feeAmount` returned by `buildPrivateSendSolTx` (surfaced as `PrivateWithdrawResult.feeLamports`) |
 | `buildFundingTx` | `SystemProgram.transfer` (no SDK call) |
 | `verifyFunding` | `connection.getTransaction` + lamport-delta check |
 | `deposit` | `buildDepositSolTx(conn, depositorKp.publicKey, lamports)` → sign → send |
 | `privateWithdraw` | assemble stealth artifacts → `buildPrivateSendSolTx({ … })` → sign → send |
 | `refund` | `buildRefundSolTx(conn, depositorKp.publicKey)` → sign → send |
-| `previewWithdraw` | `fee = gross * feeBps / 10_000`, `net = gross - fee` |
+| `previewWithdraw` | `fee = gross * feeTenthsBps / 100_000`, `net = gross - fee` |
 
 All builders return an unsigned `Transaction` (with blockhash + fee payer set); the
 provider signs with `depositorKp` and submits. The depositor is the fee payer and
 the only required signer on deposit/withdraw/refund.
+
+The vault's native unit is tenths of a basis point (`feeTenthsBps`), one order of
+magnitude finer than the whole-bps unit many integrator-side fee interfaces use. An
+integrator whose interface uses whole-bps `feeBps` receives `feeTenthsBps / 10` at
+the downstream port — the sole conversion, kept out of this repo.
 
 ## 5. Depositor-as-vault model (load-bearing)
 
@@ -175,7 +180,7 @@ relayer/funding leg to do so) and lets the builder's actionable error propagate.
 ## 7. Error / fee handling
 - All builder throws (zero amount, no deposit record, rent-floor violation)
   propagate with their actionable messages — the example does not swallow them.
-- `feeBps` reflects the **withdraw-only** fee semantics: `deposit` and `refund`
+- `feeTenthsBps` reflects the **withdraw-only** fee semantics: `deposit` and `refund`
   move the full amount; only `privateWithdraw` deducts the fee. `previewWithdraw`
   mirrors the on-chain computation.
 

@@ -2,7 +2,7 @@ import {
   Connection, Keypair, PublicKey, SystemProgram, Transaction,
 } from '@solana/web3.js'
 import {
-  buildDepositSolTx, buildRefundSolTx, buildPrivateSendSolTx, DEFAULT_FEE_BPS,
+  buildDepositSolTx, buildRefundSolTx, buildPrivateSendSolTx, DEFAULT_FEE_TENTHS_BPS,
 } from '@sipher/sdk'
 import { assembleWithdrawArtifacts } from './stealth.js'
 import type {
@@ -18,10 +18,10 @@ import type {
  * + batching/jitter — supply ONE shared depositor keypair to every call.
  */
 export class SipherVaultPrivacyProvider implements VaultPrivacyProvider {
-  readonly feeBps: number
+  readonly feeTenthsBps: number
 
-  constructor(private readonly connection: Connection, opts: { feeBps?: number } = {}) {
-    this.feeBps = opts.feeBps ?? DEFAULT_FEE_BPS
+  constructor(private readonly connection: Connection, opts: { feeTenthsBps?: number } = {}) {
+    this.feeTenthsBps = opts.feeTenthsBps ?? DEFAULT_FEE_TENTHS_BPS
   }
 
   private async signAndSubmit(tx: Transaction, signer: Keypair): Promise<string> {
@@ -79,7 +79,7 @@ export class SipherVaultPrivacyProvider implements VaultPrivacyProvider {
   }
 
   previewWithdraw(grossLamports: bigint): { feeLamports: bigint; netLamports: bigint } {
-    const feeLamports = (grossLamports * BigInt(this.feeBps)) / 10_000n
+    const feeLamports = (grossLamports * BigInt(this.feeTenthsBps)) / 100_000n
     return { feeLamports, netLamports: grossLamports - feeLamports }
   }
 
