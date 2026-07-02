@@ -39,7 +39,7 @@ async function main() {
   if (config) {
     console.log('  Status: INITIALIZED')
     console.log(`  Authority: ${config.authority.toBase58()}`)
-    console.log(`  Fee BPS: ${config.feeBps}`)
+    console.log(`  Fee: ${config.feeTenthsBps} tenths-bps (${config.feeTenthsBps / 10} bps)`)
     console.log(`  Refund timeout: ${config.refundTimeout}s`)
     console.log(`  Paused: ${config.paused}`)
     console.log(`  Total deposits: ${config.totalDeposits}`)
