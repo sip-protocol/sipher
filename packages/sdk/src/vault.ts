@@ -106,7 +106,7 @@ export function anchorDiscriminator(instructionName: string): Buffer {
  * Deserialize raw account data into VaultConfig.
  * Layout (after 8-byte discriminator):
  *   authority:         Pubkey  (32 bytes)
- *   fee_bps:           u16    (2 bytes, LE)
+ *   fee_tenths_bps:    u16    (2 bytes, LE)
  *   refund_timeout:    i64    (8 bytes, LE)
  *   paused:            bool   (1 byte)
  *   total_deposits:    u64    (8 bytes, LE)
@@ -127,7 +127,7 @@ export function deserializeVaultConfig(data: Buffer): VaultConfig {
   const authority = new PublicKey(data.subarray(offset, offset + 32))
   offset += 32
 
-  const feeBps = data.readUInt16LE(offset)
+  const feeTenthsBps = data.readUInt16LE(offset)
   offset += 2
 
   const refundTimeout = Number(data.readBigInt64LE(offset))
@@ -146,7 +146,7 @@ export function deserializeVaultConfig(data: Buffer): VaultConfig {
 
   return {
     authority,
-    feeBps,
+    feeTenthsBps,
     refundTimeout,
     paused,
     totalDeposits,
