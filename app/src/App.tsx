@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import '@solana/wallet-adapter-react-ui/styles.css'
+import { Analytics } from '@vercel/analytics/react'
 
 import Header from './components/Header'
 import BottomNav from './components/BottomNav'
@@ -142,6 +143,7 @@ export default function App() {
           </WalletModalProvider>
         </WalletProvider>
       </ConnectionProvider>
+      <Analytics />
     </BrowserRouter>
   )
 }
