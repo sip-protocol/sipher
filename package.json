@@ -90,6 +90,9 @@
       "better-sqlite3",
       "bufferutil",
       "utf-8-validate"
-    ]
+    ],
+    "patchedDependencies": {
+      "@triton-one/yellowstone-grpc@4.0.2": "patches/@triton-one__yellowstone-grpc@4.0.2.patch"
+    }
   }
 }
