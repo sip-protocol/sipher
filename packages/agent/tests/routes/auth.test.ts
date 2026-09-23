@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import express from 'express'
 import supertest from 'supertest'
 import jwt from 'jsonwebtoken'
-import { ed25519 } from '@noble/curves/ed25519'
+import { ed25519 } from '@noble/curves/ed25519.js'
 
 const JWT_SECRET = 'test-jwt-secret-at-least-16-chars'
 
@@ -30,7 +30,7 @@ function encodeBase58(bytes: Uint8Array): string {
  * Returns { privateKey, publicKey, wallet } where wallet is the base58 address.
  */
 function generateTestWallet() {
-  const privateKey = ed25519.utils.randomPrivateKey()
+  const privateKey = ed25519.utils.randomSecretKey()
   const publicKey = ed25519.getPublicKey(privateKey)
   return { privateKey, publicKey, wallet: encodeBase58(publicKey) }
 }
