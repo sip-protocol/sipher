@@ -6,7 +6,7 @@ import {
   WSOL_MINT,
 } from '@sipher/sdk'
 import type { ScanParams } from '@sipher/sdk'
-import { ed25519 } from '@noble/curves/ed25519'
+import { ed25519 } from '@noble/curves/ed25519.js'
 import { type Detection, detectUnclaimedPayment, detectBalanceChange } from './detector.js'
 import { getSentinelConfig } from './config.js'
 import { loadNetworkConfig } from '../config/network.js'

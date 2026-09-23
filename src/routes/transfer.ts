@@ -16,7 +16,7 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { PublicKey, Keypair, Transaction } from '@solana/web3.js'
 import { getAssociatedTokenAddress, createTransferInstruction, getAccount } from '@solana/spl-token'
-import { ed25519 } from '@noble/curves/ed25519'
+import { ed25519 } from '@noble/curves/ed25519.js'
 
 const router = Router()
 
@@ -191,7 +191,7 @@ router.post(
       let validScalar = scalarBigInt % ED25519_ORDER
       if (validScalar === 0n) validScalar = 1n
 
-      const derivedPubKeyBytes = ed25519.ExtendedPoint.BASE.multiply(validScalar).toRawBytes()
+      const derivedPubKeyBytes = ed25519.Point.BASE.multiply(validScalar).toBytes()
       if (!derivedPubKeyBytes.every((b, i) => b === expectedPubKeyBytes[i])) {
         throw new Error('Stealth key derivation failed: derived key does not match expected public key')
       }

@@ -8,7 +8,7 @@ import {
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { checkEd25519StealthAddress } from '@sip-protocol/sdk'
 import type { StealthAddress } from '@sip-protocol/sdk'
-import { ed25519 } from '@noble/curves/ed25519'
+import { ed25519 } from '@noble/curves/ed25519.js'
 import { sha256 as sha256Hash, sha512 } from '@noble/hashes/sha2.js'
 import {
   SIPHER_VAULT_PROGRAM_ID,
@@ -350,9 +350,9 @@ export async function scanForPayments(
 
         // Compute viewTag: sha256(viewingScalar * ephemeralPub)[0]
         // This matches what checkEd25519StealthAddress does internally.
-        const ephPoint = ed25519.ExtendedPoint.fromHex(ephRaw)
+        const ephPoint = ed25519.Point.fromBytes(ephRaw)
         const sharedSecretPoint = ephPoint.multiply(viewingScalar)
-        const sharedSecretHash = sha256Hash(sharedSecretPoint.toRawBytes())
+        const sharedSecretHash = sha256Hash(sharedSecretPoint.toBytes())
         const viewTag = sharedSecretHash[0]
 
         const stealthAddr: StealthAddress = {

@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import crypto from 'node:crypto'
-import { ed25519 } from '@noble/curves/ed25519'
+import { ed25519 } from '@noble/curves/ed25519.js'
 import { createStore } from '../state/ephemeral.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
