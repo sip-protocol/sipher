@@ -16,7 +16,7 @@
     "@sinclair/typebox": "^0.34.52",
     "@sip-protocol/sns-stealth": "^0.1.1",
     "@sipher/sdk": "workspace:*",
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "^13.0.3",
     "express": "^5.0.0",
     "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
